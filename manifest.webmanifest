@@ -1,0 +1,17 @@
+{
+  "name": "Dew Ventilation Checker",
+  "short_name": "Dew",
+  "description": "Compare indoor and outdoor moisture before opening windows.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#edf4f1",
+  "theme_color": "#10231f",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
