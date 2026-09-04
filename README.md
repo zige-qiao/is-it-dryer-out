@@ -1,4 +1,4 @@
-# Dew
+# Is it dryer out
 
 A small personal ventilation checker for deciding whether opening windows should reduce indoor humidity.
 
