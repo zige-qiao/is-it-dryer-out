@@ -8,134 +8,177 @@
       content="A personal ventilation checker for comparing indoor and outdoor moisture."
     />
     <meta name="theme-color" content="#10231f" />
-    <title>Dew | Ventilation Checker</title>
+    <title>Is it dryer out</title>
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app-shell">
-      <section class="recommendation" aria-live="polite">
-        <div class="location-row">
-          <span>Sale, Greater Manchester</span>
-        </div>
-        <p class="eyebrow">Ventilation</p>
-        <h1 id="decisionLabel">Checking weather...</h1>
-        <p id="decisionSummary">Fetching current outdoor conditions.</p>
-      </section>
+      <div class="layout-column left-column">
+        <section class="recommendation" aria-live="polite">
+          <div class="location-row">
+            <span>Sale, Greater Manchester</span>
+          </div>
+          <p class="eyebrow">Ventilation</p>
+          <h1 id="decisionLabel">Checking weather...</h1>
+          <p id="decisionSummary">Fetching current outdoor conditions.</p>
+        </section>
 
-      <section class="panel inputs-panel" aria-labelledby="indoor-heading">
-        <div class="section-heading">
-          <h2 id="indoor-heading">Indoor readings</h2>
-          <span>Manual for now</span>
-        </div>
+        <section class="panel inputs-panel" aria-labelledby="indoor-heading">
+          <div class="section-heading">
+            <h2 id="indoor-heading">Indoor readings</h2>
+            <span>Enter readings manually</span>
+          </div>
 
-        <label class="control">
-          <span>
-            Temperature
-            <strong><output id="indoorTempOutput">24</output>&deg;C</strong>
-          </span>
-          <input
-            id="indoorTemp"
-            type="range"
-            min="10"
-            max="32"
-            step="0.1"
-            value="24"
-          />
-        </label>
-
-        <label class="control">
-          <span>
-            Relative humidity
-            <strong><output id="indoorRhOutput">58</output>%</strong>
-          </span>
-          <input id="indoorRh" type="range" min="20" max="90" step="1" value="58" />
-        </label>
-
-        <button class="secondary-button refresh-button" type="button" id="refreshWeather">
-          Refresh weather
-        </button>
-      </section>
-
-      <section class="panel" aria-labelledby="numbers-heading">
-        <div class="section-heading dashboard-heading">
-          <h2 id="numbers-heading">Moisture dashboard</h2>
-          <span id="weatherStatus">Waiting for weather</span>
-        </div>
-
-        <div class="data-table" role="table" aria-label="Indoor and outdoor readings">
-          <div class="data-row header" role="row">
-            <span role="columnheader"></span>
-            <span class="metric-heading" role="columnheader">Indoor</span>
-            <span class="outdoor-heading" role="columnheader">
-              Outdoor
-              <span class="source-disclosure">
-                <button
-                  class="source-button"
-                  type="button"
-                  id="sourceButton"
-                  aria-label="Show outdoor weather source"
-                  aria-expanded="false"
-                  aria-controls="sourcePopover"
-                >
-                  i
-                </button>
-                <p class="source-popover" id="sourcePopover" role="tooltip" hidden>
-                  Outdoor temperature and humidity come from Open-Meteo for Sale, using
-                  latitude 53.4252 and longitude -2.3244.
-                  <a
-                    href="https://open-meteo.com/en/docs"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    View Open-Meteo docs
-                  </a>
-                  <a
-                    href="https://api.open-meteo.com/v1/forecast?latitude=53.4252&longitude=-2.3244&current=temperature_2m,relative_humidity_2m&timezone=Europe%2FLondon"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Open live request
-                  </a>
-                </p>
-              </span>
+          <label class="control">
+            <span>
+              Temperature
+              <strong><output id="indoorTempOutput">24</output>&deg;C</strong>
             </span>
-          </div>
-          <div class="data-row" role="row">
-            <span role="rowheader">Temperature</span>
-            <strong id="indoorTempValue">24.0C</strong>
-            <strong id="outdoorTempValue">--</strong>
-          </div>
-          <div class="data-row" role="row">
-            <span role="rowheader">Rel. humidity</span>
-            <strong id="indoorRhValue">58%</strong>
-            <strong id="outdoorRhValue">--</strong>
-          </div>
-          <div class="data-row" role="row">
-            <span role="rowheader">Dew point</span>
-            <strong id="indoorDewPoint">--</strong>
-            <strong id="outdoorDewPoint">--</strong>
-          </div>
-          <div class="data-row" role="row">
-            <span role="rowheader">Absolute humidity</span>
-            <strong id="indoorAbsoluteHumidity">--</strong>
-            <strong id="outdoorAbsoluteHumidity" class="comparison-value">--</strong>
-          </div>
-        </div>
+            <input
+              id="indoorTemp"
+              type="range"
+              min="10"
+              max="32"
+              step="0.1"
+              value="24"
+            />
+          </label>
 
-        <div class="warming-card">
-          <span>Outdoor air after warming to <strong id="warmingTemp">24.0C</strong></span>
-          <strong id="warmedOutdoorRh">--</strong>
-        </div>
-      </section>
+          <label class="control">
+            <span>
+              Relative humidity
+              <strong><output id="indoorRhOutput">58</output>%</strong>
+            </span>
+            <input id="indoorRh" type="range" min="20" max="90" step="1" value="58" />
+          </label>
 
-      <section class="panel explainer" aria-labelledby="explainer-heading">
-        <h2 id="explainer-heading">Why this matters</h2>
-        <p id="explanationText">
-          Relative humidity changes when air warms or cools. This app compares actual water
-          content first, then shows what the outdoor air would feel like indoors.
-        </p>
-      </section>
+          <button class="secondary-button refresh-button" type="button" id="refreshWeather">
+            Check outdoor
+          </button>
+          <p class="last-checked" id="lastCheckedStatus">Not checked yet</p>
+        </section>
+      </div>
+
+      <div class="layout-column right-column">
+        <section class="panel" aria-labelledby="numbers-heading">
+          <div class="section-heading dashboard-heading">
+            <h2 id="numbers-heading">Moisture dashboard</h2>
+            <span id="weatherStatus">Waiting for weather</span>
+          </div>
+
+          <div class="data-table" role="table" aria-label="Indoor and outdoor readings">
+            <div class="data-row header" role="row">
+              <span role="columnheader"></span>
+              <span class="metric-heading" role="columnheader">Indoor</span>
+              <span class="outdoor-heading" role="columnheader">
+                Outdoor
+                <span class="source-disclosure">
+                  <button
+                    class="source-button"
+                    type="button"
+                    id="sourceButton"
+                    aria-label="Show outdoor weather source"
+                    aria-expanded="false"
+                    aria-controls="sourcePopover"
+                  >
+                    i
+                  </button>
+                  <p class="source-popover" id="sourcePopover" role="tooltip" hidden>
+                    Outdoor temperature and humidity come from Open-Meteo for Sale, using
+                    latitude 53.4252 and longitude -2.3244.
+                    <a
+                      href="https://open-meteo.com/en/docs"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      View Open-Meteo docs
+                    </a>
+                    <a
+                      href="https://api.open-meteo.com/v1/forecast?latitude=53.4252&longitude=-2.3244&current=temperature_2m,relative_humidity_2m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m&forecast_hours=12&timezone=Europe%2FLondon"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open live request
+                    </a>
+                  </p>
+                </span>
+              </span>
+            </div>
+            <div class="data-row" role="row">
+              <span role="rowheader">Temperature</span>
+              <strong id="indoorTempValue">24.0C</strong>
+              <strong id="outdoorTempValue">--</strong>
+            </div>
+            <div class="data-row" role="row">
+              <span role="rowheader">Rel. humidity</span>
+              <strong id="indoorRhValue">58%</strong>
+              <strong id="outdoorRhValue">--</strong>
+            </div>
+            <div class="data-row" role="row">
+              <span role="rowheader">Dew point</span>
+              <strong id="indoorDewPoint">--</strong>
+              <strong id="outdoorDewPoint">--</strong>
+            </div>
+            <div class="data-row" role="row">
+              <span role="rowheader">Absolute humidity</span>
+              <strong id="indoorAbsoluteHumidity">--</strong>
+              <strong id="outdoorAbsoluteHumidity" class="comparison-value">--</strong>
+            </div>
+          </div>
+
+          <div class="warming-card">
+            <span>Outdoor air after warming indoors to <strong id="warmingTemp">24.0C</strong></span>
+            <strong id="warmedOutdoorRh">--</strong>
+          </div>
+
+          <details class="dashboard-explainer">
+            <summary>Why this matters</summary>
+            <p id="explanationText">
+              Relative humidity changes when air warms or cools. This app compares actual water
+              content first, then shows what the outdoor air would feel like indoors.
+            </p>
+          </details>
+        </section>
+
+        <section class="panel plan-panel" aria-labelledby="plan-heading">
+          <div class="section-heading plan-heading">
+            <h2 id="plan-heading">Opening window plan</h2>
+            <span id="planConfidence">Estimate</span>
+          </div>
+
+          <div class="plan-summary">
+            <span id="planLabel">Waiting for forecast</span>
+            <strong id="planDuration">--</strong>
+            <p id="planDetails">Set your comfort limits, then check outdoor conditions.</p>
+          </div>
+
+          <div class="plan-controls" aria-label="Ventilation targets">
+            <label class="mini-control">
+              <span>Target indoor humidity</span>
+              <strong><output id="targetRhOutput">55</output>%</strong>
+              <input id="targetRh" type="range" min="40" max="65" step="1" value="55" />
+            </label>
+
+            <label class="mini-control">
+              <span>Minimum indoor temp</span>
+              <strong><output id="minTempOutput">21</output>&deg;C</strong>
+              <input id="minTemp" type="range" min="16" max="23" step="0.5" value="21" />
+            </label>
+
+            <label class="speed-control">
+              <span>Ventilation speed</span>
+              <select id="ventilationSpeed" aria-label="Ventilation speed">
+                <option value="slow">Slow</option>
+                <option value="normal" selected>Normal</option>
+                <option value="fast">Fast</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="forecast-strip" id="forecastStrip" aria-label="Hourly opening estimates"></div>
+        </section>
+      </div>
     </main>
 
     <script src="app.js" type="module"></script>

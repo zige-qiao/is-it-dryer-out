@@ -1,6 +1,6 @@
 {
-  "name": "Dew Ventilation Checker",
-  "short_name": "Dew",
+  "name": "Is it dryer out",
+  "short_name": "Dryer out?",
   "description": "Compare indoor and outdoor moisture before opening windows.",
   "start_url": ".",
   "display": "standalone",
