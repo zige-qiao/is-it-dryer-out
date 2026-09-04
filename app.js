@@ -1,15 +1,27 @@
 const SALE_WEATHER_URL =
-  "https://api.open-meteo.com/v1/forecast?latitude=53.4252&longitude=-2.3244&current=temperature_2m,relative_humidity_2m&timezone=Europe%2FLondon";
+  "https://api.open-meteo.com/v1/forecast?latitude=53.4252&longitude=-2.3244&current=temperature_2m,relative_humidity_2m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m&forecast_hours=12&timezone=Europe%2FLondon";
 
 const STORAGE_KEY = "dew-indoor-readings";
+const PLAN_STORAGE_KEY = "is-it-dryer-out-plan";
 const MOISTURE_MARGIN = 0.4;
 const WEATHER_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
+const MAX_OPEN_MINUTES = 180;
+const TARGET_MARGIN_RH = 0.5;
+const VENTILATION_SPEEDS = {
+  slow: { label: "Slow", airRate: 0.8, heatRate: 0.22 },
+  normal: { label: "Normal", airRate: 1.8, heatRate: 0.42 },
+  fast: { label: "Fast", airRate: 3.4, heatRate: 0.75 },
+};
 
 const state = {
   indoorTemp: 24,
   indoorRh: 58,
+  targetRh: 55,
+  minTemp: 21,
+  ventilationSpeed: "normal",
   outdoorTemp: null,
   outdoorRh: null,
+  forecast: [],
   updatedAt: null,
   lastCheckedAt: null,
 };
@@ -35,6 +47,17 @@ const elements = {
   warmedOutdoorRh: document.querySelector("#warmedOutdoorRh"),
   explanationText: document.querySelector("#explanationText"),
   refreshWeather: document.querySelector("#refreshWeather"),
+  lastCheckedStatus: document.querySelector("#lastCheckedStatus"),
+  targetRh: document.querySelector("#targetRh"),
+  minTemp: document.querySelector("#minTemp"),
+  ventilationSpeed: document.querySelector("#ventilationSpeed"),
+  targetRhOutput: document.querySelector("#targetRhOutput"),
+  minTempOutput: document.querySelector("#minTempOutput"),
+  planConfidence: document.querySelector("#planConfidence"),
+  planLabel: document.querySelector("#planLabel"),
+  planDuration: document.querySelector("#planDuration"),
+  planDetails: document.querySelector("#planDetails"),
+  forecastStrip: document.querySelector("#forecastStrip"),
   sourceButton: document.querySelector("#sourceButton"),
   sourcePopover: document.querySelector("#sourcePopover"),
 };
@@ -61,6 +84,10 @@ function relativeHumidityAtTemperature(actualVaporPressure, newTempC) {
   return (actualVaporPressure / saturationVaporPressure(newTempC)) * 100;
 }
 
+function vaporPressureFromAbsoluteHumidity(humidity, tempC) {
+  return (humidity * (tempC + 273.15)) / 216.7;
+}
+
 function formatTemp(value) {
   return `${value.toFixed(1)}\u00b0C`;
 }
@@ -80,6 +107,14 @@ function formatShortTime(date) {
   });
 }
 
+function formatDuration(minutes) {
+  if (!Number.isFinite(minutes)) return "--";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
+}
+
 function minutesSince(date) {
   return Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
 }
@@ -88,6 +123,17 @@ function saveIndoorReadings() {
   localStorage.setItem(
     STORAGE_KEY,
     JSON.stringify({ indoorTemp: state.indoorTemp, indoorRh: state.indoorRh }),
+  );
+}
+
+function savePlanSettings() {
+  localStorage.setItem(
+    PLAN_STORAGE_KEY,
+    JSON.stringify({
+      targetRh: state.targetRh,
+      minTemp: state.minTemp,
+      ventilationSpeed: state.ventilationSpeed,
+    }),
   );
 }
 
@@ -104,9 +150,168 @@ function loadIndoorReadings() {
   }
 }
 
+function loadPlanSettings() {
+  const saved = localStorage.getItem(PLAN_STORAGE_KEY);
+  if (!saved) return;
+
+  try {
+    const parsed = JSON.parse(saved);
+    if (Number.isFinite(parsed.targetRh)) state.targetRh = parsed.targetRh;
+    if (Number.isFinite(parsed.minTemp)) state.minTemp = parsed.minTemp;
+    if (VENTILATION_SPEEDS[parsed.ventilationSpeed]) state.ventilationSpeed = parsed.ventilationSpeed;
+  } catch {
+    localStorage.removeItem(PLAN_STORAGE_KEY);
+  }
+}
+
+function buildForecast(data) {
+  const times = data.hourly?.time ?? [];
+  const temperatures = data.hourly?.temperature_2m ?? [];
+  const humidities = data.hourly?.relative_humidity_2m ?? [];
+  const winds = data.hourly?.wind_speed_10m ?? [];
+
+  return times
+    .map((time, index) => ({
+      time: new Date(time),
+      temp: temperatures[index],
+      rh: humidities[index],
+      wind: winds[index],
+    }))
+    .filter((item) => Number.isFinite(item.temp) && Number.isFinite(item.rh));
+}
+
+function estimateOpeningWindowPlan(weather) {
+  const speed = VENTILATION_SPEEDS[state.ventilationSpeed] ?? VENTILATION_SPEEDS.normal;
+  const indoorAbsolute = absoluteHumidity(state.indoorTemp, state.indoorRh);
+  const outdoorAbsolute = absoluteHumidity(weather.temp, weather.rh);
+  const startsTooWet = outdoorAbsolute >= indoorAbsolute - MOISTURE_MARGIN;
+  let lastComfortableMinute = 0;
+  let finalTemp = state.indoorTemp;
+  let finalRh = state.indoorRh;
+
+  for (let minute = 1; minute <= MAX_OPEN_MINUTES; minute += 1) {
+    const hours = minute / 60;
+    const projectedAbsolute =
+      outdoorAbsolute + (indoorAbsolute - outdoorAbsolute) * Math.exp(-speed.airRate * hours);
+    const projectedTemp =
+      weather.temp + (state.indoorTemp - weather.temp) * Math.exp(-speed.heatRate * hours);
+    const projectedPressure = vaporPressureFromAbsoluteHumidity(projectedAbsolute, projectedTemp);
+    const projectedRh = relativeHumidityAtTemperature(projectedPressure, projectedTemp);
+    finalTemp = projectedTemp;
+    finalRh = projectedRh;
+
+    if (projectedTemp < state.minTemp) {
+      return {
+        status: startsTooWet ? "wetter" : "too-cold",
+        minutes: null,
+        limitMinutes: lastComfortableMinute,
+        projectedTemp,
+        projectedRh,
+      };
+    }
+
+    lastComfortableMinute = minute;
+
+    if (!startsTooWet && projectedRh <= state.targetRh + TARGET_MARGIN_RH) {
+      return {
+        status: "good",
+        minutes: minute,
+        limitMinutes: minute,
+        projectedTemp,
+        projectedRh,
+      };
+    }
+  }
+
+  return {
+    status: startsTooWet ? "wetter" : "slow",
+    minutes: null,
+    limitMinutes: lastComfortableMinute,
+    projectedTemp: finalTemp,
+    projectedRh: finalRh,
+  };
+}
+
+function renderPlan() {
+  elements.targetRh.value = state.targetRh;
+  elements.minTemp.value = state.minTemp;
+  elements.ventilationSpeed.value = state.ventilationSpeed;
+  elements.targetRhOutput.value = Math.round(state.targetRh);
+  elements.minTempOutput.value = state.minTemp.toFixed(1).replace(".0", "");
+  elements.forecastStrip.innerHTML = "";
+
+  if (state.outdoorTemp === null || state.outdoorRh === null) {
+    elements.planConfidence.textContent = "Estimate";
+    elements.planLabel.textContent = "Waiting for forecast";
+    elements.planDuration.textContent = "--";
+    elements.planDetails.textContent = "Set your comfort limits, then check outdoor conditions.";
+    return;
+  }
+
+  const currentPlan = estimateOpeningWindowPlan({ temp: state.outdoorTemp, rh: state.outdoorRh });
+  const speed = VENTILATION_SPEEDS[state.ventilationSpeed] ?? VENTILATION_SPEEDS.normal;
+  elements.planConfidence.textContent = `${speed.label} ventilation`;
+
+  if (currentPlan.status === "good") {
+    elements.planLabel.textContent = "Open now";
+    elements.planDuration.textContent = formatDuration(currentPlan.minutes);
+    elements.planDetails.textContent = `Expected indoor conditions: about ${formatRh(
+      currentPlan.projectedRh,
+    )} RH and ${formatTemp(currentPlan.projectedTemp)} indoors.`;
+  } else if (currentPlan.status === "too-cold") {
+    elements.planLabel.textContent = "Too cold for target";
+    elements.planDuration.textContent = currentPlan.limitMinutes
+      ? formatDuration(currentPlan.limitMinutes)
+      : "Avoid";
+    elements.planDetails.textContent = `Humidity may improve, but the room is estimated to reach ${formatTemp(
+      state.minTemp,
+    )} before ${formatRh(state.targetRh)} RH.`;
+  } else if (currentPlan.status === "slow") {
+    elements.planLabel.textContent = "Humidity improves slowly";
+    elements.planDuration.textContent = currentPlan.limitMinutes
+      ? `${formatDuration(currentPlan.limitMinutes)}+`
+      : "Avoid";
+    elements.planDetails.textContent = `Outdoor air is drier, but it may not reach ${formatRh(
+      state.targetRh,
+    )} RH within three hours.`;
+  } else {
+    elements.planLabel.textContent = "Not useful now";
+    elements.planDuration.textContent = "Avoid";
+    elements.planDetails.textContent = "Outdoor air is not dry enough to move the room toward your target.";
+  }
+
+  state.forecast.slice(0, 8).forEach((item, index) => {
+    const plan = estimateOpeningWindowPlan(item);
+    const pill = document.createElement("button");
+    pill.type = "button";
+    pill.className = `forecast-pill ${plan.status}`;
+    pill.setAttribute(
+      "aria-label",
+      `${index === 0 ? "Now" : formatShortTime(item.time)}: ${
+        plan.minutes ? formatDuration(plan.minutes) : plan.status === "too-cold" ? "too cold for your target" : "avoid opening"
+      }`,
+    );
+
+    const time = document.createElement("span");
+    time.textContent = index === 0 ? "Now" : formatShortTime(item.time);
+    const value = document.createElement("strong");
+    value.textContent = plan.minutes
+      ? formatDuration(plan.minutes)
+      : plan.status === "too-cold"
+        ? "Colder"
+        : "Avoid";
+    const temp = document.createElement("small");
+    temp.textContent = formatTemp(item.temp);
+
+    pill.append(time, value, temp);
+    elements.forecastStrip.append(pill);
+  });
+}
+
 function render() {
   elements.indoorTemp.value = state.indoorTemp;
   elements.indoorRh.value = state.indoorRh;
+  renderPlan();
   elements.indoorTempOutput.value = state.indoorTemp.toFixed(1);
   elements.indoorRhOutput.value = Math.round(state.indoorRh);
   elements.indoorTempValue.textContent = formatTemp(state.indoorTemp);
@@ -187,20 +392,23 @@ async function fetchWeather() {
     const data = await response.json();
     state.outdoorTemp = data.current.temperature_2m;
     state.outdoorRh = data.current.relative_humidity_2m;
+    state.forecast = buildForecast(data);
     state.updatedAt = data.current.time;
     state.lastCheckedAt = new Date();
     const dataTime = new Date(state.updatedAt);
     const dataAge = minutesSince(dataTime);
     const checkedTime = formatShortTime(state.lastCheckedAt);
-    elements.weatherStatus.textContent = `Weather ${formatShortTime(dataTime)} · checked ${checkedTime}`;
+    elements.weatherStatus.textContent = `Live updated ${formatShortTime(dataTime)}`;
+    elements.lastCheckedStatus.textContent = `Last checked ${checkedTime}`;
     if (dataAge >= 60) {
-      elements.weatherStatus.textContent = `Weather ${formatShortTime(dataTime)} · ${dataAge} min old`;
+      elements.weatherStatus.textContent = `Live updated ${formatShortTime(dataTime)}`;
     }
   } catch {
-    elements.weatherStatus.textContent = "Weather unavailable";
+    elements.weatherStatus.textContent = "Outdoor unavailable";
+    elements.lastCheckedStatus.textContent = "Last check failed";
     elements.decisionLabel.textContent = "ENTER READINGS";
     elements.decisionSummary.textContent =
-      "Outdoor weather could not be loaded. Check your connection and try refresh.";
+      "Outdoor conditions could not be loaded. Check your connection and try again.";
   } finally {
     elements.refreshWeather.disabled = false;
     render();
@@ -221,6 +429,24 @@ function bindEvents() {
   });
 
   elements.refreshWeather.addEventListener("click", fetchWeather);
+
+  elements.targetRh.addEventListener("input", (event) => {
+    state.targetRh = Number(event.target.value);
+    savePlanSettings();
+    render();
+  });
+
+  elements.minTemp.addEventListener("input", (event) => {
+    state.minTemp = Number(event.target.value);
+    savePlanSettings();
+    render();
+  });
+
+  elements.ventilationSpeed.addEventListener("change", (event) => {
+    state.ventilationSpeed = event.target.value;
+    savePlanSettings();
+    render();
+  });
 
   elements.sourceButton.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -249,6 +475,7 @@ if ("serviceWorker" in navigator) {
 }
 
 loadIndoorReadings();
+loadPlanSettings();
 bindEvents();
 render();
 fetchWeather();
