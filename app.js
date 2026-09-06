@@ -1,16 +1,26 @@
 const SALE_WEATHER_URL =
-  "https://api.open-meteo.com/v1/forecast?latitude=53.4252&longitude=-2.3244&current=temperature_2m,relative_humidity_2m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m&forecast_hours=12&timezone=Europe%2FLondon";
+  "https://api.open-meteo.com/v1/forecast?latitude=53.4252&longitude=-2.3244&current=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&forecast_hours=12&timeformat=unixtime&timezone=auto";
 
 const STORAGE_KEY = "dew-indoor-readings";
 const PLAN_STORAGE_KEY = "is-it-dryer-out-plan";
-const MOISTURE_MARGIN = 0.4;
+const DEFAULT_TIMEZONE = "Europe/London";
+const DEFAULT_PRESSURE_HPA = 1013.25;
+const MINIMUM_MOISTURE_MARGIN = 0.4;
 const WEATHER_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
 const MAX_OPEN_MINUTES = 180;
 const TARGET_MARGIN_RH = 0.5;
-const VENTILATION_SPEEDS = {
-  slow: { label: "Slow", airRate: 0.8, heatRate: 0.22 },
-  normal: { label: "Normal", airRate: 1.8, heatRate: 0.42 },
-  fast: { label: "Fast", airRate: 3.4, heatRate: 0.75 },
+const THERMAL_RESPONSE_FACTOR = 0.22;
+const ROOM_PRESETS = { small: 30, medium: 50, large: 80 };
+const OPENING_SETUPS = {
+  slightly: { label: "Window slightly open", airflow: 25 },
+  single: { label: "One window fully open", airflow: 80 },
+  cross: { label: "Cross-ventilation", airflow: 180 },
+};
+const INPUT_UNCERTAINTY = {
+  indoorTemp: 0.3,
+  indoorRh: 2,
+  outdoorTemp: 0.5,
+  outdoorRh: 3,
 };
 
 const state = {
@@ -18,23 +28,34 @@ const state = {
   indoorRh: 58,
   targetRh: 55,
   minTemp: 21,
-  ventilationSpeed: "normal",
+  roomPreset: "medium",
+  roomLength: 4,
+  roomWidth: 5,
+  roomHeight: 2.5,
+  openingSetup: "single",
+  customAirflow: 80,
   outdoorTemp: null,
   outdoorRh: null,
+  outdoorDewPoint: null,
+  outdoorPressure: DEFAULT_PRESSURE_HPA,
+  outdoorWind: 0,
   forecast: [],
   updatedAt: null,
   lastCheckedAt: null,
+  weatherLoadFailed: false,
+  timezone: DEFAULT_TIMEZONE,
 };
 
 const elements = {
   recommendation: document.querySelector(".recommendation"),
   decisionLabel: document.querySelector("#decisionLabel"),
-  decisionSummary: document.querySelector("#decisionSummary"),
+  decisionPrimary: document.querySelector("#decisionPrimary"),
+  decisionSecondary: document.querySelector("#decisionSecondary"),
   weatherStatus: document.querySelector("#weatherStatus"),
   indoorTemp: document.querySelector("#indoorTemp"),
   indoorRh: document.querySelector("#indoorRh"),
-  indoorTempOutput: document.querySelector("#indoorTempOutput"),
-  indoorRhOutput: document.querySelector("#indoorRhOutput"),
+  indoorTempInput: document.querySelector("#indoorTempInput"),
+  indoorRhInput: document.querySelector("#indoorRhInput"),
   indoorTempValue: document.querySelector("#indoorTempValue"),
   indoorRhValue: document.querySelector("#indoorRhValue"),
   outdoorTempValue: document.querySelector("#outdoorTempValue"),
@@ -45,14 +66,23 @@ const elements = {
   outdoorAbsoluteHumidity: document.querySelector("#outdoorAbsoluteHumidity"),
   warmingTemp: document.querySelector("#warmingTemp"),
   warmedOutdoorRh: document.querySelector("#warmedOutdoorRh"),
+  adjustedAirNote: document.querySelector("#adjustedAirNote"),
   explanationText: document.querySelector("#explanationText"),
   refreshWeather: document.querySelector("#refreshWeather"),
   lastCheckedStatus: document.querySelector("#lastCheckedStatus"),
   targetRh: document.querySelector("#targetRh"),
   minTemp: document.querySelector("#minTemp"),
-  ventilationSpeed: document.querySelector("#ventilationSpeed"),
-  targetRhOutput: document.querySelector("#targetRhOutput"),
-  minTempOutput: document.querySelector("#minTempOutput"),
+  targetRhInput: document.querySelector("#targetRhInput"),
+  minTempInput: document.querySelector("#minTempInput"),
+  roomPreset: document.querySelector("#roomPreset"),
+  customRoomFields: document.querySelector("#customRoomFields"),
+  roomLength: document.querySelector("#roomLength"),
+  roomWidth: document.querySelector("#roomWidth"),
+  roomHeight: document.querySelector("#roomHeight"),
+  roomVolume: document.querySelector("#roomVolume"),
+  openingSetup: document.querySelector("#openingSetup"),
+  customFlowField: document.querySelector("#customFlowField"),
+  customAirflow: document.querySelector("#customAirflow"),
   planConfidence: document.querySelector("#planConfidence"),
   planLabel: document.querySelector("#planLabel"),
   planDuration: document.querySelector("#planDuration"),
@@ -61,6 +91,14 @@ const elements = {
   sourceButton: document.querySelector("#sourceButton"),
   sourcePopover: document.querySelector("#sourcePopover"),
 };
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function numberInRange(value, min, max, fallback) {
+  return Number.isFinite(value) && value >= min && value <= max ? value : fallback;
+}
 
 function saturationVaporPressure(tempC) {
   return 6.112 * Math.exp((17.67 * tempC) / (tempC + 243.5));
@@ -76,16 +114,23 @@ function dewPoint(tempC, relativeHumidity) {
 }
 
 function absoluteHumidity(tempC, relativeHumidity) {
-  const pressure = vaporPressure(tempC, relativeHumidity);
-  return (216.7 * pressure) / (tempC + 273.15);
+  return (216.7 * vaporPressure(tempC, relativeHumidity)) / (tempC + 273.15);
 }
 
 function relativeHumidityAtTemperature(actualVaporPressure, newTempC) {
   return (actualVaporPressure / saturationVaporPressure(newTempC)) * 100;
 }
 
-function vaporPressureFromAbsoluteHumidity(humidity, tempC) {
-  return (humidity * (tempC + 273.15)) / 216.7;
+function humidityRatioFromVaporPressure(actualVaporPressure, pressureHpa) {
+  return (0.62198 * actualVaporPressure) / (pressureHpa - actualVaporPressure);
+}
+
+function vaporPressureFromHumidityRatio(ratio, pressureHpa) {
+  return (ratio * pressureHpa) / (0.62198 + ratio);
+}
+
+function humidityRatio(tempC, relativeHumidity, pressureHpa = DEFAULT_PRESSURE_HPA) {
+  return humidityRatioFromVaporPressure(vaporPressure(tempC, relativeHumidity), pressureHpa);
 }
 
 function formatTemp(value) {
@@ -101,22 +146,115 @@ function formatMoisture(value) {
 }
 
 function formatShortTime(date) {
-  return date.toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: state.timezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(date);
+  } catch {
+    state.timezone = DEFAULT_TIMEZONE;
+    return formatShortTime(date);
+  }
 }
 
 function formatDuration(minutes) {
   if (!Number.isFinite(minutes)) return "--";
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return remainingMinutes ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
+  const remaining = minutes % 60;
+  return remaining ? `${hours} hr ${remaining} min` : `${hours} hr`;
 }
 
 function minutesSince(date) {
   return Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
+}
+
+function dateFromApiTime(value) {
+  return new Date(typeof value === "number" ? value * 1000 : value);
+}
+
+function roomVolume() {
+  if (state.roomPreset !== "custom") return ROOM_PRESETS[state.roomPreset] ?? ROOM_PRESETS.medium;
+  return state.roomLength * state.roomWidth * state.roomHeight;
+}
+
+function baseAirflow() {
+  if (state.openingSetup === "custom") return state.customAirflow;
+  return OPENING_SETUPS[state.openingSetup]?.airflow ?? OPENING_SETUPS.single.airflow;
+}
+
+function effectiveAirExchange(weather, indoorTemp) {
+  const windKmh = Number.isFinite(weather.wind) ? weather.wind : 0;
+  const temperatureDifference = Math.abs(indoorTemp - weather.temp);
+  const conditionMultiplier = clamp(0.65 + windKmh / 40 + temperatureDifference / 30, 0.65, 2);
+  const airflow = baseAirflow() * conditionMultiplier;
+  return {
+    airflow,
+    airChangesPerHour: clamp(airflow / roomVolume(), 0.1, 12),
+  };
+}
+
+function absoluteHumidityUncertainty(tempC, rh, tempError, rhError) {
+  const temperatureContribution =
+    (absoluteHumidity(tempC + tempError, rh) - absoluteHumidity(tempC - tempError, rh)) / 2;
+  const humidityContribution =
+    (absoluteHumidity(tempC, clamp(rh + rhError, 1, 100)) -
+      absoluteHumidity(tempC, clamp(rh - rhError, 1, 100))) /
+    2;
+  return Math.hypot(temperatureContribution, humidityContribution);
+}
+
+function moistureMargin(indoorTemp, indoorRh, outdoorTemp, outdoorRh) {
+  const indoorError = absoluteHumidityUncertainty(
+    indoorTemp,
+    indoorRh,
+    INPUT_UNCERTAINTY.indoorTemp,
+    INPUT_UNCERTAINTY.indoorRh,
+  );
+  const outdoorError = absoluteHumidityUncertainty(
+    outdoorTemp,
+    outdoorRh,
+    INPUT_UNCERTAINTY.outdoorTemp,
+    INPUT_UNCERTAINTY.outdoorRh,
+  );
+  return Math.max(MINIMUM_MOISTURE_MARGIN, Math.hypot(indoorError, outdoorError));
+}
+
+function compareMoisture(indoorTemp, indoorRh, outdoorTemp, outdoorRh) {
+  const indoor = absoluteHumidity(indoorTemp, indoorRh);
+  const outdoor = absoluteHumidity(outdoorTemp, outdoorRh);
+  const margin = moistureMargin(indoorTemp, indoorRh, outdoorTemp, outdoorRh);
+  const difference = indoor - outdoor;
+  return {
+    indoor,
+    outdoor,
+    difference,
+    margin,
+    status: difference > margin ? "drier" : difference < -margin ? "wetter" : "uncertain",
+  };
+}
+function forecastHasBecomeLessDry(startWeather, weather) {
+  const startAbsolute = absoluteHumidity(startWeather.temp, startWeather.rh);
+  const weatherAbsolute = absoluteHumidity(weather.temp, weather.rh);
+  const startUncertainty = absoluteHumidityUncertainty(
+    startWeather.temp,
+    startWeather.rh,
+    INPUT_UNCERTAINTY.outdoorTemp,
+    INPUT_UNCERTAINTY.outdoorRh,
+  );
+  const weatherUncertainty = absoluteHumidityUncertainty(
+    weather.temp,
+    weather.rh,
+    INPUT_UNCERTAINTY.outdoorTemp,
+    INPUT_UNCERTAINTY.outdoorRh,
+  );
+  const changeMargin = Math.max(
+    MINIMUM_MOISTURE_MARGIN,
+    Math.hypot(startUncertainty, weatherUncertainty),
+  );
+  return weatherAbsolute > startAbsolute + changeMargin;
 }
 
 function saveIndoorReadings() {
@@ -132,7 +270,12 @@ function savePlanSettings() {
     JSON.stringify({
       targetRh: state.targetRh,
       minTemp: state.minTemp,
-      ventilationSpeed: state.ventilationSpeed,
+      roomPreset: state.roomPreset,
+      roomLength: state.roomLength,
+      roomWidth: state.roomWidth,
+      roomHeight: state.roomHeight,
+      openingSetup: state.openingSetup,
+      customAirflow: state.customAirflow,
     }),
   );
 }
@@ -140,11 +283,10 @@ function savePlanSettings() {
 function loadIndoorReadings() {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (!saved) return;
-
   try {
     const parsed = JSON.parse(saved);
-    if (Number.isFinite(parsed.indoorTemp)) state.indoorTemp = parsed.indoorTemp;
-    if (Number.isFinite(parsed.indoorRh)) state.indoorRh = parsed.indoorRh;
+    state.indoorTemp = numberInRange(parsed.indoorTemp, 10, 32, state.indoorTemp);
+    state.indoorRh = numberInRange(parsed.indoorRh, 20, 90, state.indoorRh);
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
@@ -153,171 +295,442 @@ function loadIndoorReadings() {
 function loadPlanSettings() {
   const saved = localStorage.getItem(PLAN_STORAGE_KEY);
   if (!saved) return;
-
   try {
     const parsed = JSON.parse(saved);
-    if (Number.isFinite(parsed.targetRh)) state.targetRh = parsed.targetRh;
-    if (Number.isFinite(parsed.minTemp)) state.minTemp = parsed.minTemp;
-    if (VENTILATION_SPEEDS[parsed.ventilationSpeed]) state.ventilationSpeed = parsed.ventilationSpeed;
+    state.targetRh = numberInRange(parsed.targetRh, 40, 65, state.targetRh);
+    state.minTemp = numberInRange(parsed.minTemp, 16, 26, state.minTemp);
+    if (ROOM_PRESETS[parsed.roomPreset] || parsed.roomPreset === "custom") {
+      state.roomPreset = parsed.roomPreset;
+    }
+    state.roomLength = numberInRange(parsed.roomLength, 1, 20, state.roomLength);
+    state.roomWidth = numberInRange(parsed.roomWidth, 1, 20, state.roomWidth);
+    state.roomHeight = numberInRange(parsed.roomHeight, 1.8, 5, state.roomHeight);
+    const migratedOpening = { slow: "slightly", normal: "single", fast: "cross" }[
+      parsed.ventilationSpeed
+    ];
+    const opening = parsed.openingSetup ?? migratedOpening;
+    if (OPENING_SETUPS[opening] || opening === "custom") state.openingSetup = opening;
+    state.customAirflow = numberInRange(parsed.customAirflow, 10, 500, state.customAirflow);
   } catch {
     localStorage.removeItem(PLAN_STORAGE_KEY);
   }
 }
 
+
 function buildForecast(data) {
   const times = data.hourly?.time ?? [];
   const temperatures = data.hourly?.temperature_2m ?? [];
   const humidities = data.hourly?.relative_humidity_2m ?? [];
+  const dewPoints = data.hourly?.dew_point_2m ?? [];
+  const pressures = data.hourly?.surface_pressure ?? [];
   const winds = data.hourly?.wind_speed_10m ?? [];
 
   return times
     .map((time, index) => ({
-      time: new Date(time),
+      time: dateFromApiTime(time),
       temp: temperatures[index],
       rh: humidities[index],
+      dewPoint: dewPoints[index],
+      pressure: pressures[index],
       wind: winds[index],
     }))
-    .filter((item) => Number.isFinite(item.temp) && Number.isFinite(item.rh));
+    .filter(
+      (item) =>
+        Number.isFinite(item.time.getTime()) &&
+        Number.isFinite(item.temp) &&
+        Number.isFinite(item.rh) &&
+        Number.isFinite(item.dewPoint),
+    )
+    .map((item) => ({
+      ...item,
+      pressure: Number.isFinite(item.pressure) ? item.pressure : DEFAULT_PRESSURE_HPA,
+      wind: Number.isFinite(item.wind) ? item.wind : 0,
+    }));
 }
 
-function estimateOpeningWindowPlan(weather) {
-  const speed = VENTILATION_SPEEDS[state.ventilationSpeed] ?? VENTILATION_SPEEDS.normal;
-  const indoorAbsolute = absoluteHumidity(state.indoorTemp, state.indoorRh);
-  const outdoorAbsolute = absoluteHumidity(weather.temp, weather.rh);
-  const startsTooWet = outdoorAbsolute >= indoorAbsolute - MOISTURE_MARGIN;
+function currentWeather() {
+  return {
+    time: new Date(),
+    observationTime: dateFromApiTime(state.updatedAt),
+    temp: state.outdoorTemp,
+    rh: state.outdoorRh,
+    dewPoint: Number.isFinite(state.outdoorDewPoint)
+      ? state.outdoorDewPoint
+      : dewPoint(state.outdoorTemp, state.outdoorRh),
+    pressure: state.outdoorPressure,
+    wind: state.outdoorWind,
+  };
+}
+
+function buildWeatherTimeline() {
+  if (state.outdoorTemp === null || state.outdoorRh === null) return [];
+  const current = currentWeather();
+  return [current, ...state.forecast.filter((item) => item.time > current.time)];
+}
+
+function weatherAtTime(timeline, targetTime) {
+  if (timeline.length === 1 || targetTime <= timeline[0].time) return timeline[0];
+
+  let previous = timeline[0];
+  for (const next of timeline.slice(1)) {
+    if (targetTime <= next.time) {
+      const interval = next.time.getTime() - previous.time.getTime();
+      const progress = interval > 0 ? (targetTime.getTime() - previous.time.getTime()) / interval : 0;
+      const temp = previous.temp + (next.temp - previous.temp) * progress;
+      const dew = previous.dewPoint + (next.dewPoint - previous.dewPoint) * progress;
+      const pressure = previous.pressure + (next.pressure - previous.pressure) * progress;
+      const wind = previous.wind + (next.wind - previous.wind) * progress;
+      return {
+        time: targetTime,
+        temp,
+        dewPoint: dew,
+        pressure,
+        wind,
+        rh: clamp(relativeHumidityAtTemperature(saturationVaporPressure(dew), temp), 0, 100),
+      };
+    }
+    previous = next;
+  }
+
+  return { ...timeline.at(-1), time: targetTime };
+}
+
+function planResult(status, overrides = {}) {
+  return {
+    status,
+    minutes: null,
+    limitMinutes: 0,
+    projectedTemp: state.indoorTemp,
+    projectedRh: state.indoorRh,
+    ...overrides,
+  };
+}
+
+function estimateOpeningWindowPlan(startWeather, timeline) {
+  if (state.indoorRh <= state.targetRh + TARGET_MARGIN_RH) return planResult("target-met");
+  if (state.indoorTemp < state.minTemp) return planResult("below-minimum");
+
+  const initialComparison = compareMoisture(
+    state.indoorTemp,
+    state.indoorRh,
+    startWeather.temp,
+    startWeather.rh,
+  );
+  if (initialComparison.status === "wetter") return planResult("wetter");
+  if (initialComparison.status === "uncertain") return planResult("uncertain");
+
+  const startTime = startWeather.time instanceof Date ? startWeather.time : new Date();
+  let projectedRatio = humidityRatio(
+    state.indoorTemp,
+    state.indoorRh,
+    startWeather.pressure ?? state.outdoorPressure,
+  );
+  const initialAbsolute = initialComparison.indoor;
+  let projectedTemp = state.indoorTemp;
+  let projectedRh = state.indoorRh;
+  let finalPressureHpa = startWeather.pressure ?? state.outdoorPressure;
   let lastComfortableMinute = 0;
-  let finalTemp = state.indoorTemp;
-  let finalRh = state.indoorRh;
 
   for (let minute = 1; minute <= MAX_OPEN_MINUTES; minute += 1) {
-    const hours = minute / 60;
-    const projectedAbsolute =
-      outdoorAbsolute + (indoorAbsolute - outdoorAbsolute) * Math.exp(-speed.airRate * hours);
-    const projectedTemp =
-      weather.temp + (state.indoorTemp - weather.temp) * Math.exp(-speed.heatRate * hours);
-    const projectedPressure = vaporPressureFromAbsoluteHumidity(projectedAbsolute, projectedTemp);
-    const projectedRh = relativeHumidityAtTemperature(projectedPressure, projectedTemp);
-    finalTemp = projectedTemp;
-    finalRh = projectedRh;
+    const targetTime = new Date(startTime.getTime() + minute * 60 * 1000);
+    const weather = weatherAtTime(timeline, targetTime);
+    const projectedPressureHpa = Number.isFinite(weather.pressure)
+      ? weather.pressure
+      : state.outdoorPressure;
+    finalPressureHpa = projectedPressureHpa;
+    const outdoorRatio = humidityRatio(weather.temp, weather.rh, projectedPressureHpa);
+    const projectedVaporBeforeMixing = vaporPressureFromHumidityRatio(
+      projectedRatio,
+      projectedPressureHpa,
+    );
+    const projectedRhBeforeMixing = clamp(
+      relativeHumidityAtTemperature(projectedVaporBeforeMixing, projectedTemp),
+      0,
+      100,
+    );
+    const usefulness = compareMoisture(
+      projectedTemp,
+      projectedRhBeforeMixing,
+      weather.temp,
+      weather.rh,
+    );
 
+if (usefulness.status !== "drier") {
+      const status = forecastHasBecomeLessDry(startWeather, weather)
+        ? "forecast-limit"
+        : "settling";
+      return planResult(status, {
+        minutes: minute > 1 ? minute - 1 : null,
+        limitMinutes: minute - 1,
+        projectedTemp,
+        projectedRh: projectedRhBeforeMixing,
+      });
+    }
+
+    const exchange = effectiveAirExchange(weather, projectedTemp);
+    const airExchangeFraction = 1 - Math.exp(-exchange.airChangesPerHour / 60);
+    const heatChangesPerHour = exchange.airChangesPerHour * THERMAL_RESPONSE_FACTOR;
+    const heatExchangeFraction = 1 - Math.exp(-heatChangesPerHour / 60);
+    projectedRatio += (outdoorRatio - projectedRatio) * airExchangeFraction;
+    projectedTemp += (weather.temp - projectedTemp) * heatExchangeFraction;
+
+    const projectedVapor = vaporPressureFromHumidityRatio(projectedRatio, projectedPressureHpa);
+    const saturation = saturationVaporPressure(projectedTemp);
+    if (projectedVapor >= saturation) {
+      return planResult("condensation", {
+        limitMinutes: minute - 1,
+        projectedTemp,
+        projectedRh: 100,
+      });
+    }
+
+    projectedRh = relativeHumidityAtTemperature(projectedVapor, projectedTemp);
     if (projectedTemp < state.minTemp) {
-      return {
-        status: startsTooWet ? "wetter" : "too-cold",
-        minutes: null,
+      return planResult("too-cold", {
         limitMinutes: lastComfortableMinute,
         projectedTemp,
         projectedRh,
-      };
+      });
     }
 
     lastComfortableMinute = minute;
-
-    if (!startsTooWet && projectedRh <= state.targetRh + TARGET_MARGIN_RH) {
-      return {
-        status: "good",
+    const projectedAbsolute = (216.7 * projectedVapor) / (projectedTemp + 273.15);
+    const netImprovement = initialAbsolute - projectedAbsolute;
+    if (
+      projectedRh <= state.targetRh + TARGET_MARGIN_RH &&
+      netImprovement > initialComparison.margin
+    ) {
+      return planResult("good", {
         minutes: minute,
         limitMinutes: minute,
         projectedTemp,
         projectedRh,
-      };
+      });
     }
   }
 
-  return {
-    status: startsTooWet ? "wetter" : "slow",
-    minutes: null,
-    limitMinutes: lastComfortableMinute,
-    projectedTemp: finalTemp,
-    projectedRh: finalRh,
-  };
+  const finalVapor = vaporPressureFromHumidityRatio(projectedRatio, finalPressureHpa);
+  const finalAbsolute = (216.7 * finalVapor) / (projectedTemp + 273.15);
+  return planResult(
+    initialAbsolute - finalAbsolute > initialComparison.margin ? "slow" : "uncertain",
+    {
+      limitMinutes: lastComfortableMinute,
+      projectedTemp,
+      projectedRh,
+    },
+  );
+}
+
+function setPlanCopy(plan) {
+  const copy = {
+    "target-met": {
+      label: "Humidity target met",
+      duration: "No need",
+      details: `Indoor humidity is already at or below ${formatRh(state.targetRh)}.`,
+    },
+    "below-minimum": {
+      label: "Below temperature limit",
+      duration: "Avoid",
+      details: `The room is already below your ${formatTemp(state.minTemp)} minimum.`,
+    },
+    wetter: {
+      label: "Outdoor air is wetter",
+      duration: "Avoid",
+      details: "Opening now is expected to add moisture to the room.",
+    },
+    uncertain: {
+      label: "Difference is uncertain",
+      duration: "Wait",
+      details: "The moisture difference is too small compared with normal sensor uncertainty.",
+    },
+    good: {
+      label: "Open now",
+      duration: formatDuration(plan.minutes),
+      details: `Expected indoor conditions: about ${formatRh(plan.projectedRh)} RH and ${formatTemp(
+        plan.projectedTemp,
+      )}.`,
+    },
+    "too-cold": {
+      label: "Temperature limit first",
+      duration: plan.limitMinutes ? formatDuration(plan.limitMinutes) : "Avoid",
+      details: `The room is estimated to reach ${formatTemp(
+        state.minTemp,
+      )} before the humidity target.`,
+    },
+    condensation: {
+      label: "Condensation risk",
+      duration: plan.limitMinutes ? formatDuration(plan.limitMinutes) : "Avoid",
+      details: "The model reaches saturation before the humidity target, so moisture may condense.",
+    },
+"forecast-limit": {
+      label: "Conditions change",
+      duration: plan.limitMinutes ? formatDuration(plan.limitMinutes) : "Wait",
+      details: "Forecast air becomes less drying after this time.",
+    },
+    settling: {
+      label: "Settling",
+      duration: plan.minutes ? formatDuration(plan.minutes) : "No further benefit",
+      details: "Indoor humidity is expected to settle near " + formatRh(plan.projectedRh) + " RH.",
+    },
+    slow: {
+      label: "Humidity improves slowly",
+      duration: plan.limitMinutes ? `${formatDuration(plan.limitMinutes)}+` : "Wait",
+      details: `The room may not reach ${formatRh(state.targetRh)} within three hours.`,
+    },
+  }[plan.status];
+
+  elements.planLabel.textContent = copy.label;
+  elements.planDuration.textContent = copy.duration;
+  elements.planDetails.textContent = copy.details;
+}
+
+
+function renderPlanControls() {
+  elements.targetRh.value = state.targetRh;
+  elements.minTemp.value = state.minTemp;
+  elements.targetRhInput.value = Math.round(state.targetRh);
+  elements.minTempInput.value = state.minTemp.toFixed(1).replace(".0", "");
+  elements.roomPreset.value = state.roomPreset;
+  elements.roomLength.value = state.roomLength;
+  elements.roomWidth.value = state.roomWidth;
+  elements.roomHeight.value = state.roomHeight;
+  elements.roomVolume.textContent = `${roomVolume().toFixed(1).replace(".0", "")} m3`;
+  elements.customRoomFields.hidden = state.roomPreset !== "custom";
+  elements.openingSetup.value = state.openingSetup;
+  elements.customAirflow.value = state.customAirflow;
+  elements.customFlowField.hidden = state.openingSetup !== "custom";
 }
 
 function renderPlan() {
-  elements.targetRh.value = state.targetRh;
-  elements.minTemp.value = state.minTemp;
-  elements.ventilationSpeed.value = state.ventilationSpeed;
-  elements.targetRhOutput.value = Math.round(state.targetRh);
-  elements.minTempOutput.value = state.minTemp.toFixed(1).replace(".0", "");
+  renderPlanControls();
   elements.forecastStrip.innerHTML = "";
 
-  if (state.outdoorTemp === null || state.outdoorRh === null) {
-    elements.planConfidence.textContent = "Estimate";
+  const timeline = buildWeatherTimeline();
+  if (!timeline.length) {
+    elements.planConfidence.textContent = "Rough estimate";
     elements.planLabel.textContent = "Waiting for forecast";
     elements.planDuration.textContent = "--";
-    elements.planDetails.textContent = "Set your comfort limits, then check outdoor conditions.";
-    return;
+    elements.planDetails.textContent = "Set your limits, then check outdoor conditions.";
+    return null;
   }
 
-  const currentPlan = estimateOpeningWindowPlan({ temp: state.outdoorTemp, rh: state.outdoorRh });
-  const speed = VENTILATION_SPEEDS[state.ventilationSpeed] ?? VENTILATION_SPEEDS.normal;
-  elements.planConfidence.textContent = `${speed.label} ventilation`;
+  const current = timeline[0];
+  const currentPlan = estimateOpeningWindowPlan(current, timeline);
+  const exchange = effectiveAirExchange(current, state.indoorTemp);
+  elements.planConfidence.textContent = `About ${exchange.airChangesPerHour.toFixed(1)} air changes/hr`;
+  setPlanCopy(currentPlan);
 
-  if (currentPlan.status === "good") {
-    elements.planLabel.textContent = "Open now";
-    elements.planDuration.textContent = formatDuration(currentPlan.minutes);
-    elements.planDetails.textContent = `Expected indoor conditions: about ${formatRh(
-      currentPlan.projectedRh,
-    )} RH and ${formatTemp(currentPlan.projectedTemp)} indoors.`;
-  } else if (currentPlan.status === "too-cold") {
-    elements.planLabel.textContent = "Too cold for target";
-    elements.planDuration.textContent = currentPlan.limitMinutes
-      ? formatDuration(currentPlan.limitMinutes)
-      : "Avoid";
-    elements.planDetails.textContent = `Humidity may improve, but the room is estimated to reach ${formatTemp(
-      state.minTemp,
-    )} before ${formatRh(state.targetRh)} RH.`;
-  } else if (currentPlan.status === "slow") {
-    elements.planLabel.textContent = "Humidity improves slowly";
-    elements.planDuration.textContent = currentPlan.limitMinutes
-      ? `${formatDuration(currentPlan.limitMinutes)}+`
-      : "Avoid";
-    elements.planDetails.textContent = `Outdoor air is drier, but it may not reach ${formatRh(
-      state.targetRh,
-    )} RH within three hours.`;
-  } else {
-    elements.planLabel.textContent = "Not useful now";
-    elements.planDuration.textContent = "Avoid";
-    elements.planDetails.textContent = "Outdoor air is not dry enough to move the room toward your target.";
-  }
+  const forecastStarts = [
+    current,
+    ...state.forecast.filter((item) => item.time > current.time),
+  ].slice(0, 8);
+  const labels = {
+    "target-met": "No need",
+    "below-minimum": "Below min",
+    wetter: "Avoid",
+    uncertain: "Uncertain",
+    "too-cold": "Temp limit",
+    condensation: "Condense",
+    "forecast-limit": "Until change",
+    settling: "Settling",
+    slow: "Slow",
+  };
 
-  state.forecast.slice(0, 8).forEach((item, index) => {
-    const plan = estimateOpeningWindowPlan(item);
+  forecastStarts.forEach((item, index) => {
+    const plan = estimateOpeningWindowPlan(item, timeline);
     const pill = document.createElement("button");
     pill.type = "button";
     pill.className = `forecast-pill ${plan.status}`;
-    pill.setAttribute(
-      "aria-label",
-      `${index === 0 ? "Now" : formatShortTime(item.time)}: ${
-        plan.minutes ? formatDuration(plan.minutes) : plan.status === "too-cold" ? "too cold for your target" : "avoid opening"
-      }`,
-    );
+    const valueLabel = plan.minutes ? formatDuration(plan.minutes) : labels[plan.status];
+    const timeLabel = index === 0 ? "Now" : formatShortTime(item.time);
+    pill.setAttribute("aria-label", `${timeLabel}: ${valueLabel}`);
 
     const time = document.createElement("span");
-    time.textContent = index === 0 ? "Now" : formatShortTime(item.time);
+    time.textContent = timeLabel;
     const value = document.createElement("strong");
-    value.textContent = plan.minutes
-      ? formatDuration(plan.minutes)
-      : plan.status === "too-cold"
-        ? "Colder"
-        : "Avoid";
+    value.textContent = valueLabel;
     const temp = document.createElement("small");
     temp.textContent = formatTemp(item.temp);
-
     pill.append(time, value, temp);
     elements.forecastStrip.append(pill);
   });
+
+  return currentPlan;
+}
+
+function setDecisionSummary(primary, secondary) {
+  elements.decisionPrimary.textContent = primary;
+  elements.decisionSecondary.textContent = secondary;
+}
+
+function renderRecommendation(plan) {
+  elements.recommendation.classList.remove("open", "closed", "caution");
+  const limited = ["too-cold", "condensation"].includes(plan.status);
+
+  if (plan.status === "target-met") {
+    elements.recommendation.classList.add("open");
+    elements.decisionLabel.textContent = "TARGET MET";
+    setDecisionSummary("Humidity target reached", "No ventilation needed right now.");
+  } else if (plan.status === "below-minimum") {
+    elements.recommendation.classList.add("caution");
+    elements.decisionLabel.textContent = "BELOW MINIMUM";
+    setDecisionSummary("Room is below your limit", "Avoid further cooling through ventilation.");
+  } else if (plan.status === "wetter") {
+    elements.recommendation.classList.add("closed");
+    elements.decisionLabel.textContent = "KEEP CLOSED";
+    setDecisionSummary("Outdoor air is wetter", "Opening would add moisture.");
+  } else if (plan.status === "uncertain") {
+    elements.recommendation.classList.add("caution");
+    elements.decisionLabel.textContent = "UNCERTAIN";
+    setDecisionSummary("Moisture difference unclear", "Readings are within sensor uncertainty.");
+  } else if (plan.status === "good") {
+    elements.recommendation.classList.add("open");
+    elements.decisionLabel.textContent = "OPEN WINDOWS";
+    setDecisionSummary("About " + formatDuration(plan.minutes), "To reach your humidity target.");
+  } else if (plan.status === "forecast-limit") {
+    elements.recommendation.classList.add(plan.limitMinutes ? "caution" : "closed");
+    elements.decisionLabel.textContent = plan.limitMinutes ? "OPEN WHILE USEFUL" : "KEEP CLOSED";
+    setDecisionSummary(
+      plan.limitMinutes ? "Up to " + formatDuration(plan.limitMinutes) : "Do not open now",
+      plan.limitMinutes
+        ? "Conditions become less drying after this."
+        : "Forecast air is no longer reliably drying.",
+    );
+  } else if (plan.status === "settling") {
+    elements.recommendation.classList.add("caution");
+    elements.decisionLabel.textContent = "SETTLING";
+    setDecisionSummary(
+      plan.minutes ? "About " + formatDuration(plan.minutes) : "No further benefit",
+      "Expected to settle near " + formatRh(plan.projectedRh) + " RH.",
+    );
+  } else if (limited) {
+    elements.recommendation.classList.add(plan.limitMinutes ? "caution" : "closed");
+    elements.decisionLabel.textContent = plan.limitMinutes ? "OPEN BRIEFLY" : "KEEP CLOSED";
+    const reason = {
+      "too-cold": "Before reaching your temperature limit.",
+      condensation: "Before condensation risk increases.",
+    }[plan.status];
+    setDecisionSummary(
+      plan.limitMinutes ? "Up to " + formatDuration(plan.limitMinutes) : "Do not open now",
+      reason,
+    );
+  } else {
+    elements.recommendation.classList.add("open");
+    elements.decisionLabel.textContent = "OPEN WINDOWS";
+    setDecisionSummary("More than 3 hr", "Humidity should improve slowly.");
+  }
 }
 
 function render() {
   elements.indoorTemp.value = state.indoorTemp;
   elements.indoorRh.value = state.indoorRh;
-  renderPlan();
-  elements.indoorTempOutput.value = state.indoorTemp.toFixed(1);
-  elements.indoorRhOutput.value = Math.round(state.indoorRh);
+  elements.indoorTempInput.value = state.indoorTemp.toFixed(1);
+  elements.indoorRhInput.value = Math.round(state.indoorRh);
   elements.indoorTempValue.textContent = formatTemp(state.indoorTemp);
   elements.indoorRhValue.textContent = formatRh(state.indoorRh);
   elements.warmingTemp.textContent = formatTemp(state.indoorTemp);
 
+  const plan = renderPlan();
   const indoorDew = dewPoint(state.indoorTemp, state.indoorRh);
   const indoorAbsolute = absoluteHumidity(state.indoorTemp, state.indoorRh);
   elements.indoorDewPoint.textContent = formatTemp(indoorDew);
@@ -325,94 +738,136 @@ function render() {
   elements.outdoorAbsoluteHumidity.classList.remove("lower", "higher", "near");
 
   if (state.outdoorTemp === null || state.outdoorRh === null) {
-    elements.decisionLabel.textContent = "Checking weather";
-    elements.decisionSummary.textContent = "Fetching current outdoor conditions.";
+    elements.recommendation.classList.remove("open", "closed", "caution");
+    elements.recommendation.classList.add("caution");
+    elements.decisionLabel.textContent = state.weatherLoadFailed
+      ? "WEATHER UNAVAILABLE"
+      : "CHECKING WEATHER";
+    setDecisionSummary(
+      state.weatherLoadFailed ? "Outdoor weather unavailable" : "Checking outdoor weather",
+      state.weatherLoadFailed ? "Check your connection and try again." : "This normally takes a moment.",
+    );
     elements.outdoorTempValue.textContent = "--";
     elements.outdoorRhValue.textContent = "--";
     elements.outdoorDewPoint.textContent = "--";
     elements.outdoorAbsoluteHumidity.textContent = "--";
     elements.warmedOutdoorRh.textContent = "--";
+    elements.adjustedAirNote.textContent = "";
     return;
   }
 
-  const outdoorDew = dewPoint(state.outdoorTemp, state.outdoorRh);
-  const outdoorAbsolute = absoluteHumidity(state.outdoorTemp, state.outdoorRh);
-  const outdoorPressure = vaporPressure(state.outdoorTemp, state.outdoorRh);
-  const warmedRh = relativeHumidityAtTemperature(outdoorPressure, state.indoorTemp);
-  const difference = indoorAbsolute - outdoorAbsolute;
-  const percentDifference = (Math.abs(difference) / indoorAbsolute) * 100;
+  const outdoorDew = Number.isFinite(state.outdoorDewPoint)
+    ? state.outdoorDewPoint
+    : dewPoint(state.outdoorTemp, state.outdoorRh);
+  const comparison = compareMoisture(
+    state.indoorTemp,
+    state.indoorRh,
+    state.outdoorTemp,
+    state.outdoorRh,
+  );
+  const outdoorVaporPressure = saturationVaporPressure(outdoorDew);
+  const adjustedRh = relativeHumidityAtTemperature(outdoorVaporPressure, state.indoorTemp);
+  const condensationRisk = adjustedRh >= 100;
+  const displayedAdjustedRh = Math.min(adjustedRh, 100);
+  const percentDifference = (Math.abs(comparison.difference) / comparison.indoor) * 100;
+  const adjustedAirExplanation = condensationRisk
+    ? "At the current indoor temperature, this air would be saturated, so condensation may form."
+    : `At the current indoor temperature, outdoor air would be about ${formatRh(
+        displayedAdjustedRh,
+      )} RH.`;
 
   elements.outdoorTempValue.textContent = formatTemp(state.outdoorTemp);
   elements.outdoorRhValue.textContent = formatRh(state.outdoorRh);
   elements.outdoorDewPoint.textContent = formatTemp(outdoorDew);
-  elements.outdoorAbsoluteHumidity.textContent = formatMoisture(outdoorAbsolute);
-  elements.warmedOutdoorRh.textContent = formatRh(warmedRh);
-  elements.outdoorAbsoluteHumidity.classList.toggle("lower", difference > MOISTURE_MARGIN);
-  elements.outdoorAbsoluteHumidity.classList.toggle("higher", difference < -MOISTURE_MARGIN);
-  elements.outdoorAbsoluteHumidity.classList.toggle("near", Math.abs(difference) <= MOISTURE_MARGIN);
+  elements.outdoorAbsoluteHumidity.textContent = formatMoisture(comparison.outdoor);
+  elements.warmedOutdoorRh.textContent = formatRh(displayedAdjustedRh);
+  elements.adjustedAirNote.textContent = condensationRisk ? "Condensation risk" : "";
+  elements.outdoorAbsoluteHumidity.classList.toggle("lower", comparison.status === "drier");
+  elements.outdoorAbsoluteHumidity.classList.toggle("higher", comparison.status === "wetter");
+  elements.outdoorAbsoluteHumidity.classList.toggle("near", comparison.status === "uncertain");
 
-  elements.recommendation.classList.remove("open", "closed", "caution");
+  renderRecommendation(plan);
 
-  if (difference > MOISTURE_MARGIN) {
-    elements.recommendation.classList.add("open");
-    elements.decisionLabel.textContent = "OPEN WINDOWS";
-    elements.decisionSummary.textContent = "Good time to ventilate.";
-    elements.explanationText.textContent = `Outdoor air currently contains ${percentDifference.toFixed(
+  if (comparison.status === "drier") {
+    elements.explanationText.textContent = `Outdoor air currently contains about ${percentDifference.toFixed(
       0,
-    )}% less moisture than indoor air, so ventilation should reduce indoor humidity. Once warmed indoors it would be about ${formatRh(
-      warmedRh,
-    )} RH.`;
-  } else if (difference < -MOISTURE_MARGIN) {
-    elements.recommendation.classList.add("closed");
-    elements.decisionLabel.textContent = "KEEP CLOSED";
-    elements.decisionSummary.textContent = "Outdoor air is wetter than your indoor air.";
-    elements.explanationText.textContent = `Outdoor air currently contains ${percentDifference.toFixed(
+    )}% less moisture than indoor air, beyond the estimated sensor uncertainty. ${adjustedAirExplanation}`;
+  } else if (comparison.status === "wetter") {
+    elements.explanationText.textContent = `Outdoor air currently contains about ${percentDifference.toFixed(
       0,
-    )}% more moisture than indoor air, so ventilation would probably raise indoor humidity. Once warmed indoors it would be about ${formatRh(
-      warmedRh,
-    )} RH.`;
+    )}% more moisture than indoor air, so ventilation would probably raise indoor humidity. ${adjustedAirExplanation}`;
   } else {
-    elements.recommendation.classList.add("caution");
-    elements.decisionLabel.textContent = "KEEP CLOSED";
-    elements.decisionSummary.textContent = "The moisture difference is small right now.";
-    elements.explanationText.textContent = `Indoor and outdoor air contain almost the same amount of moisture. Ventilating now is unlikely to make much difference; warmed outdoor air would be about ${formatRh(
-      warmedRh,
-    )} RH.`;
+    elements.explanationText.textContent = `The indoor-outdoor moisture difference is smaller than the estimated \u00b1${comparison.margin.toFixed(
+      1,
+    )} g/m3 uncertainty, so the direction is unclear. ${adjustedAirExplanation}`;
   }
 }
 
 async function fetchWeather() {
-  elements.weatherStatus.textContent = "Updating weather...";
+  const checkedAt = new Date();
+  elements.weatherStatus.textContent = "Updating outdoor weather...";
   elements.refreshWeather.disabled = true;
 
   try {
     const response = await fetch(SALE_WEATHER_URL);
     if (!response.ok) throw new Error("Weather request failed");
-
     const data = await response.json();
-    state.outdoorTemp = data.current.temperature_2m;
-    state.outdoorRh = data.current.relative_humidity_2m;
-    state.forecast = buildForecast(data);
-    state.updatedAt = data.current.time;
-    state.lastCheckedAt = new Date();
-    const dataTime = new Date(state.updatedAt);
-    const dataAge = minutesSince(dataTime);
-    const checkedTime = formatShortTime(state.lastCheckedAt);
-    elements.weatherStatus.textContent = `Live updated ${formatShortTime(dataTime)}`;
-    elements.lastCheckedStatus.textContent = `Last checked ${checkedTime}`;
-    if (dataAge >= 60) {
-      elements.weatherStatus.textContent = `Live updated ${formatShortTime(dataTime)}`;
+    const current = data.current ?? {};
+    if (!Number.isFinite(current.temperature_2m) || !Number.isFinite(current.relative_humidity_2m)) {
+      throw new Error("Incomplete weather data");
     }
+
+    state.outdoorTemp = current.temperature_2m;
+    state.outdoorRh = current.relative_humidity_2m;
+    state.outdoorDewPoint = Number.isFinite(current.dew_point_2m)
+      ? current.dew_point_2m
+      : dewPoint(state.outdoorTemp, state.outdoorRh);
+    state.outdoorPressure = Number.isFinite(current.surface_pressure)
+      ? current.surface_pressure
+      : DEFAULT_PRESSURE_HPA;
+    state.outdoorWind = Number.isFinite(current.wind_speed_10m) ? current.wind_speed_10m : 0;
+    state.forecast = buildForecast(data);
+    state.updatedAt = current.time;
+    state.lastCheckedAt = checkedAt;
+    state.weatherLoadFailed = false;
+    if (typeof data.timezone === "string" && data.timezone) state.timezone = data.timezone;
+
+    const dataTime = dateFromApiTime(state.updatedAt);
+    const dataAge = minutesSince(dataTime);
+    elements.weatherStatus.textContent =
+      dataAge >= 60
+        ? `Outdoor weather from ${formatShortTime(dataTime)} · may be stale`
+        : `Outdoor live updated ${formatShortTime(dataTime)}`;
+    elements.lastCheckedStatus.textContent = `Last checked ${formatShortTime(checkedAt)}`;
   } catch {
-    elements.weatherStatus.textContent = "Outdoor unavailable";
-    elements.lastCheckedStatus.textContent = "Last check failed";
-    elements.decisionLabel.textContent = "ENTER READINGS";
-    elements.decisionSummary.textContent =
-      "Outdoor conditions could not be loaded. Check your connection and try again.";
+    state.lastCheckedAt = checkedAt;
+    state.weatherLoadFailed = true;
+    const previousDataTime = dateFromApiTime(state.updatedAt);
+    const hasPreviousWeather = state.outdoorTemp !== null && state.outdoorRh !== null;
+    elements.weatherStatus.textContent =
+      hasPreviousWeather && Number.isFinite(previousDataTime.getTime())
+        ? `Using outdoor data from ${formatShortTime(previousDataTime)}`
+        : "Outdoor unavailable";
+    elements.lastCheckedStatus.textContent = `Last check failed ${formatShortTime(checkedAt)}`;
   } finally {
     elements.refreshWeather.disabled = false;
     render();
   }
+}
+
+
+function bindTypedValue(input, stateKey, min, max, save) {
+  const applyValue = () => {
+    const value = input.valueAsNumber;
+    if (!Number.isFinite(value) || value < min || value > max) return false;
+    state[stateKey] = value;
+    save();
+    render();
+    return true;
+  };
+  input.addEventListener("change", () => {
+    if (!applyValue()) render();
+  });
 }
 
 function bindEvents() {
@@ -421,45 +876,51 @@ function bindEvents() {
     saveIndoorReadings();
     render();
   });
-
   elements.indoorRh.addEventListener("input", (event) => {
     state.indoorRh = Number(event.target.value);
     saveIndoorReadings();
     render();
   });
-
-  elements.refreshWeather.addEventListener("click", fetchWeather);
+  bindTypedValue(elements.indoorTempInput, "indoorTemp", 10, 32, saveIndoorReadings);
+  bindTypedValue(elements.indoorRhInput, "indoorRh", 20, 90, saveIndoorReadings);
+  bindTypedValue(elements.targetRhInput, "targetRh", 40, 65, savePlanSettings);
+  bindTypedValue(elements.minTempInput, "minTemp", 16, 26, savePlanSettings);
 
   elements.targetRh.addEventListener("input", (event) => {
     state.targetRh = Number(event.target.value);
     savePlanSettings();
     render();
   });
-
   elements.minTemp.addEventListener("input", (event) => {
     state.minTemp = Number(event.target.value);
     savePlanSettings();
     render();
   });
 
-  elements.ventilationSpeed.addEventListener("change", (event) => {
-    state.ventilationSpeed = event.target.value;
+  elements.roomPreset.addEventListener("change", (event) => {
+    state.roomPreset = event.target.value;
     savePlanSettings();
     render();
   });
+  bindTypedValue(elements.roomLength, "roomLength", 1, 20, savePlanSettings);
+  bindTypedValue(elements.roomWidth, "roomWidth", 1, 20, savePlanSettings);
+  bindTypedValue(elements.roomHeight, "roomHeight", 1.8, 5, savePlanSettings);
 
+  elements.openingSetup.addEventListener("change", (event) => {
+    state.openingSetup = event.target.value;
+    savePlanSettings();
+    render();
+  });
+  bindTypedValue(elements.customAirflow, "customAirflow", 10, 500, savePlanSettings);
+
+  elements.refreshWeather.addEventListener("click", fetchWeather);
   elements.sourceButton.addEventListener("click", (event) => {
     event.stopPropagation();
     const isOpen = elements.sourceButton.getAttribute("aria-expanded") === "true";
     setSourcePopoverOpen(!isOpen);
   });
-
-  elements.sourcePopover.addEventListener("click", (event) => {
-    event.stopPropagation();
-  });
-
+  elements.sourcePopover.addEventListener("click", (event) => event.stopPropagation());
   document.addEventListener("click", () => setSourcePopoverOpen(false));
-
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") setSourcePopoverOpen(false);
   });

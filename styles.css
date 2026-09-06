@@ -39,7 +39,7 @@ select {
 .app-shell {
   width: min(100%, 31rem);
   margin: 0 auto;
-  padding: 0 0.85rem 1rem;
+  padding: 2rem 0.85rem 1rem;
 }
 
 .recommendation {
@@ -48,8 +48,8 @@ select {
   flex-direction: column;
   justify-content: flex-end;
   gap: 0.65rem;
-  padding: max(1rem, env(safe-area-inset-top)) 1rem 1.1rem;
-  border-radius: 0 0 1.35rem 1.35rem;
+  padding: max(2rem, env(safe-area-inset-top)) 1rem 1.1rem;
+  border-radius: 1.35rem;
   background: var(--ink);
   color: #f9fffc;
   box-shadow: var(--shadow);
@@ -69,7 +69,7 @@ select {
 
 .location-row,
 .section-heading,
-.control span,
+.control-heading,
 .warming-card {
   display: flex;
   align-items: center;
@@ -134,10 +134,10 @@ p {
 }
 
 h1 {
-  font-size: clamp(2.15rem, 12vw, 3.85rem);
-  line-height: 0.95;
-  max-width: 9ch;
-  overflow-wrap: anywhere;
+  max-width: none;
+  font-size: 2.2rem;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .recommendation p:last-child {
@@ -240,15 +240,41 @@ h1 {
   gap: 0.6rem;
 }
 
-.control span,
-.mini-control span,
+.control-heading,
+.setting-label,
 .speed-control span {
   color: var(--muted);
 }
 
-.control strong {
+.reading-field,
+.setting-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
   color: var(--ink);
+  font-weight: 800;
+}
+
+.reading-field input,
+.setting-field input {
+  width: 5.25rem;
+  min-height: 2.2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  padding: 0.3rem 0.45rem;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
   font-size: 1.15rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+.reading-field input:focus-visible,
+.setting-field input:focus-visible {
+  border-color: var(--open);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(8, 127, 91, 0.12);
 }
 
 
@@ -278,6 +304,12 @@ h1 {
 }
 
 .plan-summary strong {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
   color: var(--open);
   font-size: 1.7rem;
   line-height: 1;
@@ -285,7 +317,7 @@ h1 {
 }
 
 .plan-summary p {
-  grid-column: 1 / -1;
+  grid-column: 1;
   color: var(--muted);
   font-size: 0.9rem;
   line-height: 1.4;
@@ -302,12 +334,12 @@ h1 {
   min-width: 0;
 }
 
-.mini-control strong {
-  color: var(--ink);
+.setting-field input {
+  width: 4.75rem;
   font-size: 1rem;
 }
 
-.mini-control span,
+.setting-label,
 .speed-control span {
   display: flex;
   justify-content: space-between;
@@ -339,7 +371,7 @@ h1 {
 .forecast-strip {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(4.6rem, 1fr);
+  grid-auto-columns: max-content;
   gap: 0.45rem;
   overflow-x: auto;
   padding-bottom: 0.1rem;
@@ -347,6 +379,7 @@ h1 {
 }
 
 .forecast-pill {
+  min-width: 5.25rem;
   min-height: 4.45rem;
   display: grid;
   gap: 0.18rem;
@@ -372,12 +405,14 @@ h1 {
   white-space: nowrap;
 }
 
-.forecast-pill.good {
+.forecast-pill.good,
+.forecast-pill.target-met {
   border-color: rgba(8, 127, 91, 0.28);
   background: var(--open-bg);
 }
 
-.forecast-pill.too-cold {
+.forecast-pill.too-cold,
+.forecast-pill.below-minimum {
   border-color: rgba(42, 99, 162, 0.28);
   background: #e6f0ff;
 }
@@ -464,9 +499,22 @@ input[type="range"] {
   color: var(--muted);
 }
 
-.warming-card > strong {
+.adjusted-rh-reading {
+  display: grid;
+  justify-items: end;
+  flex: 0 0 auto;
+}
+
+.adjusted-rh-reading strong {
   color: var(--ink);
   font-size: 1.25rem;
+  white-space: nowrap;
+}
+
+.adjusted-rh-reading small {
+  color: var(--closed);
+  font-size: 0.68rem;
+  font-weight: 800;
   white-space: nowrap;
 }
 
@@ -548,6 +596,10 @@ input[type="range"] {
 }
 
 @media (max-width: 23rem) {
+  h1 {
+    font-size: 1.45rem;
+  }
+
   .app-shell {
     padding-inline: 0.65rem;
   }
@@ -579,6 +631,171 @@ input[type="range"] {
   }
 
   .plan-summary strong {
+    grid-column: 1;
+    grid-row: auto;
+    justify-content: flex-start;
     font-size: 1.45rem;
   }
+}
+
+
+[hidden] {
+  display: none !important;
+}
+
+.select-control,
+.custom-flow-field {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.5rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.select-control select {
+  width: 100%;
+  min-height: 2.4rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  padding: 0 0.75rem;
+  background: #ffffff;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.select-control select:focus-visible,
+.dimension-field input:focus-visible {
+  border-color: var(--open);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(8, 127, 91, 0.12);
+}
+
+.custom-fields {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  padding: 0.75rem 0;
+  border-block: 1px solid var(--line);
+}
+
+.custom-fields label,
+.custom-flow-field {
+  min-width: 0;
+}
+
+.custom-fields label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.dimension-field {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.dimension-field input {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  padding: 0.3rem 0.45rem;
+  background: #ffffff;
+  color: var(--ink);
+  font-weight: 800;
+  text-align: right;
+}
+
+.custom-fields p {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.custom-fields p strong {
+  color: var(--ink);
+}
+
+.estimate-note,
+.forecast-note {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.forecast-note {
+  margin-top: -0.45rem;
+}
+
+.forecast-pill.uncertain,
+.forecast-pill.forecast-limit,
+.forecast-pill.settling,
+.forecast-pill.weather-change {
+  border-color: rgba(138, 103, 0, 0.28);
+  background: var(--caution-bg);
+}
+
+.forecast-pill.condensation,
+.forecast-pill.wetter {
+  border-color: rgba(162, 59, 42, 0.25);
+  background: var(--closed-bg);
+}
+
+@media (max-width: 23rem) {
+  .custom-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .custom-fields p {
+    grid-column: auto;
+  }
+}
+
+#decisionSummary {
+  min-height: 2.85rem;
+  display: grid;
+  grid-template-rows: 1.35rem 1.35rem;
+  gap: 0.15rem;
+  align-content: start;
+}
+
+#decisionSummary strong,
+#decisionSummary span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#decisionPrimary {
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+#decisionSecondary {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+.location-row {
+  justify-content: flex-start;
+  gap: 0.45rem;
+}
+
+.location-icon {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }

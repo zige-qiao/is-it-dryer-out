@@ -1,22 +1,30 @@
 # Is it dryer out
 
-A small personal ventilation checker for deciding whether opening windows should reduce indoor humidity.
+A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
-## Phase 1 architecture
+## How it works
 
-- Static mobile-first web app.
-- Manual indoor temperature and relative humidity inputs.
-- Outdoor temperature and relative humidity from Open-Meteo for Sale / Trafford, Greater Manchester.
-- Browser-side calculations for dew point, absolute humidity, and outdoor relative humidity after warming indoors.
-- Local storage remembers the manual indoor readings on the same device.
+- Enter indoor temperature and relative humidity manually.
+- Outdoor temperature, humidity, dew point, pressure, wind and forecast data come from Open-Meteo for Sale, Greater Manchester.
+- The app compares indoor and outdoor water content before recommending ventilation.
+- The opening plan simulates changing moisture and temperature minute by minute.
+- Forecast humidity between hourly points is derived from interpolated dew point rather than interpolating relative humidity directly.
+- Forecast times use the time zone returned with the location's weather data.
+- Normal sensor uncertainty is included. Small moisture differences are labelled uncertain instead of being treated as reliably wetter or drier.
+- The plan stops when the humidity target is reached, the minimum temperature is reached, condensation is predicted, or forecast air stops being reliably drier.
 
-## Decision logic
+## Timing estimate
 
-The app compares absolute humidity in g/m3. If outdoor air contains at least 0.4 g/m3 less water than indoor air, it recommends opening windows. If it is wetter, or the difference is too small to matter, it recommends keeping windows closed.
+Choose a room-size preset or enter custom room dimensions. Then select an opening setup or enter a custom airflow estimate. Room volume, opening setup, forecast wind and the indoor-outdoor temperature difference are used to estimate air changes per hour.
 
-## Later phases
+The duration is a rough planning estimate, not a measurement. Real airflow depends on the building, window geometry, doors, wind direction and pressure differences. The forecast tiles assume the current indoor readings remain unchanged until each displayed start time.
 
-- Improve installability and offline behaviour.
+## Storage and offline use
+
+Settings are stored only in this browser. The app shell is cached for offline use, but live outdoor data still requires a connection.
+
+## Possible future work
+
+- Calibrate airflow estimates against measured changes in a specific room.
 - Add richer loading and error states.
-- Investigate whether Tado X readings can be accessed safely and reliably. The most promising routes are Home Assistant via Matter for local readings, or Tado's REST API through a small backend that can protect tokens and respect daily API limits.
-- Add forecast-based recommendations.
+- Investigate whether Tado X readings can be accessed safely and reliably through Home Assistant/Matter or a token-protecting backend.
