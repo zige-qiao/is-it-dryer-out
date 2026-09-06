@@ -1,5 +1,8 @@
 # Is it dryer out
 
+## Version 0.1
+
+First public release: live outdoor weather, manual indoor readings, and a forecast-based window-opening estimate that accounts for moisture, temperature, room size and opening setup.
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
 ## How it works
