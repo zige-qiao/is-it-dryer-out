@@ -10,6 +10,7 @@
     <meta name="theme-color" content="#10231f" />
     <title>Is it dryer out</title>
     <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="favicon.png" type="image/png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -17,11 +18,17 @@
       <div class="layout-column left-column">
         <section class="recommendation" aria-live="polite">
           <div class="location-row">
+            <svg class="location-icon" aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
             <span>Sale, Greater Manchester</span>
           </div>
-          <p class="eyebrow">Ventilation</p>
           <h1 id="decisionLabel">Checking weather...</h1>
-          <p id="decisionSummary">Fetching current outdoor conditions.</p>
+          <p id="decisionSummary">
+            <strong id="decisionPrimary">Checking conditions</strong>
+            <span id="decisionSecondary">Fetching current outdoor weather.</span>
+          </p>
         </section>
 
         <section class="panel inputs-panel" aria-labelledby="indoor-heading">
@@ -30,11 +37,23 @@
             <span>Enter readings manually</span>
           </div>
 
-          <label class="control">
-            <span>
-              Temperature
-              <strong><output id="indoorTempOutput">24</output>&deg;C</strong>
-            </span>
+          <div class="control">
+            <div class="control-heading">
+              <label for="indoorTemp">Temperature</label>
+              <label class="reading-field" for="indoorTempInput">
+                <input
+                  id="indoorTempInput"
+                  type="number"
+                  min="10"
+                  max="32"
+                  step="0.1"
+                  value="24"
+                  inputmode="decimal"
+                  aria-label="Indoor temperature"
+                />
+                <span aria-hidden="true">&deg;C</span>
+              </label>
+            </div>
             <input
               id="indoorTemp"
               type="range"
@@ -43,15 +62,27 @@
               step="0.1"
               value="24"
             />
-          </label>
+          </div>
 
-          <label class="control">
-            <span>
-              Relative humidity
-              <strong><output id="indoorRhOutput">58</output>%</strong>
-            </span>
+          <div class="control">
+            <div class="control-heading">
+              <label for="indoorRh">Relative humidity</label>
+              <label class="reading-field" for="indoorRhInput">
+                <input
+                  id="indoorRhInput"
+                  type="number"
+                  min="20"
+                  max="90"
+                  step="1"
+                  value="58"
+                  inputmode="numeric"
+                  aria-label="Indoor relative humidity"
+                />
+                <span aria-hidden="true">%</span>
+              </label>
+            </div>
             <input id="indoorRh" type="range" min="20" max="90" step="1" value="58" />
-          </label>
+          </div>
 
           <button class="secondary-button refresh-button" type="button" id="refreshWeather">
             Check outdoor
@@ -95,7 +126,7 @@
                       View Open-Meteo docs
                     </a>
                     <a
-                      href="https://api.open-meteo.com/v1/forecast?latitude=53.4252&longitude=-2.3244&current=temperature_2m,relative_humidity_2m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m&forecast_hours=12&timezone=Europe%2FLondon"
+                      href="https://api.open-meteo.com/v1/forecast?latitude=53.4252&longitude=-2.3244&current=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&forecast_hours=12&timeformat=unixtime&timezone=auto"
                       target="_blank"
                       rel="noreferrer"
                     >
@@ -128,8 +159,11 @@
           </div>
 
           <div class="warming-card">
-            <span>Outdoor air after warming indoors to <strong id="warmingTemp">24.0C</strong></span>
-            <strong id="warmedOutdoorRh">--</strong>
+            <span>Outdoor air at indoor temperature <strong id="warmingTemp">24.0C</strong></span>
+            <span class="adjusted-rh-reading">
+              <strong id="warmedOutdoorRh">--</strong>
+              <small id="adjustedAirNote"></small>
+            </span>
           </div>
 
           <details class="dashboard-explainer">
@@ -153,30 +187,70 @@
             <p id="planDetails">Set your comfort limits, then check outdoor conditions.</p>
           </div>
 
-          <div class="plan-controls" aria-label="Ventilation targets">
-            <label class="mini-control">
-              <span>Target indoor humidity</span>
-              <strong><output id="targetRhOutput">55</output>%</strong>
+          <div class="plan-controls" aria-label="Ventilation settings">
+            <div class="mini-control">
+              <label class="setting-label" for="targetRh">Target indoor humidity</label>
+              <label class="setting-field" for="targetRhInput">
+                <input id="targetRhInput" type="number" min="40" max="65" step="1" value="55" inputmode="numeric" aria-label="Target indoor humidity" />
+                <span aria-hidden="true">%</span>
+              </label>
               <input id="targetRh" type="range" min="40" max="65" step="1" value="55" />
-            </label>
+            </div>
 
-            <label class="mini-control">
-              <span>Minimum indoor temp</span>
-              <strong><output id="minTempOutput">21</output>&deg;C</strong>
-              <input id="minTemp" type="range" min="16" max="23" step="0.5" value="21" />
-            </label>
+            <div class="mini-control">
+              <label class="setting-label" for="minTemp">Minimum indoor temp</label>
+              <label class="setting-field" for="minTempInput">
+                <input id="minTempInput" type="number" min="16" max="26" step="0.5" value="21" inputmode="decimal" aria-label="Minimum indoor temperature" />
+                <span aria-hidden="true">&deg;C</span>
+              </label>
+              <input id="minTemp" type="range" min="16" max="26" step="0.5" value="21" />
+            </div>
 
-            <label class="speed-control">
-              <span>Ventilation speed</span>
-              <select id="ventilationSpeed" aria-label="Ventilation speed">
-                <option value="slow">Slow</option>
-                <option value="normal" selected>Normal</option>
-                <option value="fast">Fast</option>
+            <label class="select-control">
+              <span>Room size</span>
+              <select id="roomPreset">
+                <option value="small">Small · 30 m3</option>
+                <option value="medium" selected>Medium · 50 m3</option>
+                <option value="large">Large · 80 m3</option>
+                <option value="custom">Custom</option>
               </select>
+            </label>
+
+            <div class="custom-fields" id="customRoomFields" hidden>
+              <label>
+                <span>Length</span>
+                <span class="dimension-field"><input id="roomLength" type="number" min="1" max="20" step="0.1" value="4" inputmode="decimal" /><span>m</span></span>
+              </label>
+              <label>
+                <span>Width</span>
+                <span class="dimension-field"><input id="roomWidth" type="number" min="1" max="20" step="0.1" value="5" inputmode="decimal" /><span>m</span></span>
+              </label>
+              <label>
+                <span>Height</span>
+                <span class="dimension-field"><input id="roomHeight" type="number" min="1.8" max="5" step="0.1" value="2.5" inputmode="decimal" /><span>m</span></span>
+              </label>
+              <p>Calculated volume <strong id="roomVolume">50 m3</strong></p>
+            </div>
+
+            <label class="select-control">
+              <span>Opening setup</span>
+              <select id="openingSetup">
+                <option value="slightly">Window slightly open</option>
+                <option value="single" selected>One window fully open</option>
+                <option value="cross">Cross-ventilation</option>
+                <option value="custom">Custom airflow</option>
+              </select>
+            </label>
+
+            <label class="custom-flow-field" id="customFlowField" hidden>
+              <span>Estimated airflow</span>
+              <span class="dimension-field"><input id="customAirflow" type="number" min="10" max="500" step="5" value="80" inputmode="numeric" /><span>m3/h</span></span>
             </label>
           </div>
 
+          <p class="estimate-note">Timing is a rough estimate based on room volume, opening setup, forecast wind and temperature difference.</p>
           <div class="forecast-strip" id="forecastStrip" aria-label="Hourly opening estimates"></div>
+          <p class="forecast-note">Future times assume the current indoor readings stay unchanged.</p>
         </section>
       </div>
     </main>
