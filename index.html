@@ -10,7 +10,7 @@
     <meta name="theme-color" content="#10231f" />
     <title>Is it dryer out</title>
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="icon" href="favicon.png" type="image/png" />
+    <link rel="icon" href="favicon-v2.png" type="image/png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -22,11 +22,14 @@
               <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
               <circle cx="12" cy="10" r="3" />
             </svg>
-            <span>Sale, Greater Manchester</span>
+            <span id="locationName">Sale, Greater Manchester</span>
+            <button class="location-change-button" type="button" id="locationButton">
+              Update
+            </button>
           </div>
           <h1 id="decisionLabel">Checking weather...</h1>
           <p id="decisionSummary">
-            <strong id="decisionPrimary">Checking conditions</strong>
+            <span id="decisionPrimary">Checking conditions</span>
             <span id="decisionSecondary">Fetching current outdoor weather.</span>
           </p>
         </section>
@@ -87,7 +90,7 @@
           <button class="secondary-button refresh-button" type="button" id="refreshWeather">
             Check outdoor
           </button>
-          <p class="last-checked" id="lastCheckedStatus">Not checked yet</p>
+          <p class="last-checked" id="weatherStatus">Not checked yet</p>
         </section>
       </div>
 
@@ -95,7 +98,6 @@
         <section class="panel" aria-labelledby="numbers-heading">
           <div class="section-heading dashboard-heading">
             <h2 id="numbers-heading">Moisture dashboard</h2>
-            <span id="weatherStatus">Waiting for weather</span>
           </div>
 
           <div class="data-table" role="table" aria-label="Indoor and outdoor readings">
@@ -116,8 +118,8 @@
                     i
                   </button>
                   <p class="source-popover" id="sourcePopover" role="tooltip" hidden>
-                    Outdoor temperature and humidity come from Open-Meteo for Sale, using
-                    latitude 53.4252 and longitude -2.3244.
+                    Outdoor weather comes from Open-Meteo for
+                    <span id="sourceLocationName">Sale, Greater Manchester</span>.
                     <a
                       href="https://open-meteo.com/en/docs"
                       target="_blank"
@@ -127,6 +129,7 @@
                     </a>
                     <a
                       href="https://api.open-meteo.com/v1/forecast?latitude=53.4252&longitude=-2.3244&current=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&forecast_hours=12&timeformat=unixtime&timezone=auto"
+                      id="liveWeatherRequest"
                       target="_blank"
                       rel="noreferrer"
                     >

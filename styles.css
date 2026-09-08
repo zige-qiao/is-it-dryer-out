@@ -760,23 +760,24 @@ input[type="range"] {
 #decisionSummary {
   min-height: 2.85rem;
   display: grid;
-  grid-template-rows: 1.35rem 1.35rem;
+  grid-template-rows: auto auto;
   gap: 0.15rem;
   align-content: start;
 }
 
-#decisionSummary strong,
-#decisionSummary span {
+#decisionSummary > * {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 #decisionPrimary {
   color: #ffffff;
   font-size: 1rem;
   line-height: 1.35;
+}
+
+#decisionSummary strong {
+  display: inline;
+  font-weight: 800;
 }
 
 #decisionSecondary {
@@ -798,4 +799,23 @@ input[type="range"] {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.location-change-button {
+  margin-left: auto;
+  border: 0;
+  padding: 0.15rem 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}
+
+.location-change-button:focus-visible,
+.dialog-close:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
 }

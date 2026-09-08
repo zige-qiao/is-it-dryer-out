@@ -8,11 +8,11 @@ A personal ventilation checker for estimating whether opening windows should red
 ## How it works
 
 - Enter indoor temperature and relative humidity manually.
-- Outdoor temperature, humidity, dew point, pressure, wind and forecast data come from Open-Meteo for Sale, Greater Manchester.
+- On load, the app asks the browser for the current location when needed. When device location is used, its coordinates are also sent to BigDataCloud to show the nearby locality.
 - The app compares indoor and outdoor water content before recommending ventilation.
 - The opening plan simulates changing moisture and temperature minute by minute.
 - Forecast humidity between hourly points is derived from interpolated dew point rather than interpolating relative humidity directly.
-- Forecast times use the time zone returned with the location's weather data.
+- Outdoor temperature, humidity, dew point, pressure, wind and forecast data come from Open-Meteo for the active location. Forecast times use the time zone returned with that weather data.
 - Normal sensor uncertainty is included. Small moisture differences are labelled uncertain instead of being treated as reliably wetter or drier.
 - The plan stops when the humidity target is reached, the minimum temperature is reached, condensation is predicted, or forecast air stops being reliably drier.
 

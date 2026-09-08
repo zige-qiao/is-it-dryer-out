@@ -1,8 +1,16 @@
-const SALE_WEATHER_URL =
-  "https://api.open-meteo.com/v1/forecast?latitude=53.4252&longitude=-2.3244&current=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&forecast_hours=12&timeformat=unixtime&timezone=auto";
-
+const WEATHER_ENDPOINT = "https://api.open-meteo.com/v1/forecast";
+const REVERSE_GEOCODING_ENDPOINT = "https://api.bigdatacloud.net/data/reverse-geocode-client";
+const DEFAULT_LOCATION = {
+  name: "Sale, Greater Manchester",
+  latitude: 53.4252,
+  longitude: -2.3244,
+};
+const LOCATION_LABEL_OVERRIDES = new Map([
+  ["Stretford, Greater Manchester", "Sale, Greater Manchester"],
+]);
 const STORAGE_KEY = "dew-indoor-readings";
 const PLAN_STORAGE_KEY = "is-it-dryer-out-plan";
+const LOCATION_STORAGE_KEY = "is-it-dryer-out-location";
 const DEFAULT_TIMEZONE = "Europe/London";
 const DEFAULT_PRESSURE_HPA = 1013.25;
 const MINIMUM_MOISTURE_MARGIN = 0.4;
@@ -44,6 +52,8 @@ const state = {
   lastCheckedAt: null,
   weatherLoadFailed: false,
   timezone: DEFAULT_TIMEZONE,
+  location: { ...DEFAULT_LOCATION },
+  locationMode: "current",
 };
 
 const elements = {
@@ -69,7 +79,6 @@ const elements = {
   adjustedAirNote: document.querySelector("#adjustedAirNote"),
   explanationText: document.querySelector("#explanationText"),
   refreshWeather: document.querySelector("#refreshWeather"),
-  lastCheckedStatus: document.querySelector("#lastCheckedStatus"),
   targetRh: document.querySelector("#targetRh"),
   minTemp: document.querySelector("#minTemp"),
   targetRhInput: document.querySelector("#targetRhInput"),
@@ -90,6 +99,10 @@ const elements = {
   forecastStrip: document.querySelector("#forecastStrip"),
   sourceButton: document.querySelector("#sourceButton"),
   sourcePopover: document.querySelector("#sourcePopover"),
+  locationName: document.querySelector("#locationName"),
+  sourceLocationName: document.querySelector("#sourceLocationName"),
+  liveWeatherRequest: document.querySelector("#liveWeatherRequest"),
+  locationButton: document.querySelector("#locationButton"),
 };
 
 function clamp(value, min, max) {
@@ -406,6 +419,24 @@ function planResult(status, overrides = {}) {
   };
 }
 
+function reliableDryAirHorizon(startWeather, timeline) {
+  const startTime = startWeather.time instanceof Date ? startWeather.time : new Date();
+  for (let minute = 1; minute <= MAX_OPEN_MINUTES; minute += 1) {
+    const weather = weatherAtTime(
+      timeline,
+      new Date(startTime.getTime() + minute * 60 * 1000),
+    );
+    const comparison = compareMoisture(
+      state.indoorTemp,
+      state.indoorRh,
+      weather.temp,
+      weather.rh,
+    );
+    if (comparison.status !== "drier") return minute - 1;
+  }
+  return MAX_OPEN_MINUTES;
+}
+
 function estimateOpeningWindowPlan(startWeather, timeline) {
   if (state.indoorRh <= state.targetRh + TARGET_MARGIN_RH) return planResult("target-met");
   if (state.indoorTemp < state.minTemp) return planResult("below-minimum");
@@ -455,7 +486,7 @@ function estimateOpeningWindowPlan(startWeather, timeline) {
       weather.rh,
     );
 
-if (usefulness.status !== "drier") {
+    if (usefulness.status !== "drier") {
       const status = forecastHasBecomeLessDry(startWeather, weather)
         ? "forecast-limit"
         : "settling";
@@ -616,6 +647,9 @@ function renderPlan() {
 
   const current = timeline[0];
   const currentPlan = estimateOpeningWindowPlan(current, timeline);
+  if (["good", "settling", "too-cold", "condensation"].includes(currentPlan.status)) {
+    currentPlan.reliableDryMinutes = reliableDryAirHorizon(current, timeline);
+  }
   const exchange = effectiveAirExchange(current, state.indoorTemp);
   elements.planConfidence.textContent = `About ${exchange.airChangesPerHour.toFixed(1)} air changes/hr`;
   setPlanCopy(currentPlan);
@@ -658,11 +692,30 @@ function renderPlan() {
   return currentPlan;
 }
 
-function setDecisionSummary(primary, secondary) {
-  elements.decisionPrimary.textContent = primary;
-  elements.decisionSecondary.textContent = secondary;
+function setDecisionLine(element, text, emphasizedDuration, emphasizeWhole) {
+  element.replaceChildren();
+  if (emphasizedDuration && text.includes(emphasizedDuration)) {
+    const [prefix, suffix] = text.split(emphasizedDuration);
+    const duration = document.createElement("strong");
+    duration.textContent = emphasizedDuration;
+    element.append(prefix, duration, suffix);
+    return;
+  }
+
+  if (emphasizeWhole) {
+    const emphasis = document.createElement("strong");
+    emphasis.textContent = text;
+    element.append(emphasis);
+    return;
+  }
+
+  element.textContent = text;
 }
 
+function setDecisionSummary(primary, secondary, primaryDuration, secondaryDuration) {
+  setDecisionLine(elements.decisionPrimary, primary, primaryDuration, true);
+  setDecisionLine(elements.decisionSecondary, secondary, secondaryDuration, false);
+}
 function renderRecommendation(plan) {
   elements.recommendation.classList.remove("open", "closed", "caution");
   const limited = ["too-cold", "condensation"].includes(plan.status);
@@ -686,7 +739,13 @@ function renderRecommendation(plan) {
   } else if (plan.status === "good") {
     elements.recommendation.classList.add("open");
     elements.decisionLabel.textContent = "OPEN WINDOWS";
-    setDecisionSummary("About " + formatDuration(plan.minutes), "To reach your humidity target.");
+    const targetDuration = formatDuration(plan.minutes);
+    setDecisionSummary(
+      `About ${targetDuration} to reach your humidity target.`,
+      `Up to ${formatDuration(plan.reliableDryMinutes)} while outdoor air remains reliably drier.`,
+      targetDuration,
+      formatDuration(plan.reliableDryMinutes),
+    );
   } else if (plan.status === "forecast-limit") {
     elements.recommendation.classList.add(plan.limitMinutes ? "caution" : "closed");
     elements.decisionLabel.textContent = plan.limitMinutes ? "OPEN WHILE USEFUL" : "KEEP CLOSED";
@@ -699,9 +758,17 @@ function renderRecommendation(plan) {
   } else if (plan.status === "settling") {
     elements.recommendation.classList.add("caution");
     elements.decisionLabel.textContent = "SETTLING";
+    const settlingDuration = formatDuration(plan.minutes);
+    const dryDuration = formatDuration(plan.reliableDryMinutes);
     setDecisionSummary(
-      plan.minutes ? "About " + formatDuration(plan.minutes) : "No further benefit",
-      "Expected to settle near " + formatRh(plan.projectedRh) + " RH.",
+      plan.minutes
+        ? `About ${settlingDuration} to settle near ${formatRh(plan.projectedRh)} RH.`
+        : "No further benefit",
+      plan.minutes
+        ? `Up to ${dryDuration} while outdoor air remains reliably drier.`
+        : "Outdoor air is no longer reliably drier.",
+      plan.minutes ? settlingDuration : null,
+      plan.minutes ? dryDuration : null,
     );
   } else if (limited) {
     elements.recommendation.classList.add(plan.limitMinutes ? "caution" : "closed");
@@ -710,9 +777,15 @@ function renderRecommendation(plan) {
       "too-cold": "Before reaching your temperature limit.",
       condensation: "Before condensation risk increases.",
     }[plan.status];
+    const limitDuration = formatDuration(plan.limitMinutes);
+    const dryDuration = formatDuration(plan.reliableDryMinutes);
     setDecisionSummary(
-      plan.limitMinutes ? "Up to " + formatDuration(plan.limitMinutes) : "Do not open now",
-      reason,
+      plan.limitMinutes ? `Up to ${limitDuration} ${reason.toLowerCase()}` : "Do not open now",
+      plan.limitMinutes
+        ? `Up to ${dryDuration} while outdoor air remains reliably drier.`
+        : reason,
+      plan.limitMinutes ? limitDuration : null,
+      plan.limitMinutes ? dryDuration : null,
     );
   } else {
     elements.recommendation.classList.add("open");
@@ -803,13 +876,141 @@ function render() {
   }
 }
 
+function weatherUrlForLocation(location = state.location) {
+  const params = new URLSearchParams({
+    latitude: location.latitude.toFixed(4),
+    longitude: location.longitude.toFixed(4),
+    current: "temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m",
+    hourly: "temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m",
+    forecast_hours: "12",
+    timeformat: "unixtime",
+    timezone: "auto",
+  });
+  return `${WEATHER_ENDPOINT}?${params}`;
+}
+
+function updateLocationUi() {
+  const locationName = state.location.name || "Selected location";
+  elements.locationName.textContent = locationName;
+  elements.sourceLocationName.textContent = locationName;
+  elements.liveWeatherRequest.href = weatherUrlForLocation();
+}
+
+function saveLocation() {
+  try {
+    localStorage.setItem(
+      LOCATION_STORAGE_KEY,
+      JSON.stringify({ location: state.location, mode: state.locationMode }),
+    );
+  } catch {
+    // Location selection still works when browser storage is unavailable.
+  }
+}
+
+function loadLocation() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(LOCATION_STORAGE_KEY));
+    const location = saved?.location;
+    if (
+      location &&
+      typeof location.name === "string" &&
+      Number.isFinite(location.latitude) &&
+      Number.isFinite(location.longitude)
+    ) {
+      state.location = location;
+      state.locationMode = "current";
+    }
+  } catch {
+    localStorage.removeItem(LOCATION_STORAGE_KEY);
+  }
+}
+
+function setLocation(location, mode) {
+  state.location = location;
+  state.locationMode = mode;
+  state.outdoorTemp = null;
+  state.outdoorRh = null;
+  state.outdoorDewPoint = null;
+  state.forecast = [];
+  state.updatedAt = null;
+  saveLocation();
+  updateLocationUi();
+}
+
+
+function formatBrowserLocation(data) {
+  const locality = data.locality || data.city || "Nearby location";
+  const county = data.localityInfo?.administrative?.find((item) =>
+    /county/i.test(item.description || ""),
+  )?.name;
+  const area = county || (data.city !== locality ? data.city : data.principalSubdivision);
+  const label = area && area !== locality ? `${locality}, ${area}` : locality;
+  return LOCATION_LABEL_OVERRIDES.get(label) || label;
+}
+
+async function reverseGeocodeLocation(latitude, longitude) {
+  const params = new URLSearchParams({ latitude: String(latitude), longitude: String(longitude), localityLanguage: "en" });
+  const response = await fetch(`${REVERSE_GEOCODING_ENDPOINT}?${params}`);
+  if (!response.ok) throw new Error("Reverse geocoding failed");
+  return formatBrowserLocation(await response.json());
+}
+
+function getBrowserLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("Location is not supported by this browser"));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: false,
+      timeout: 10000,
+      maximumAge: 0,
+    });
+  });
+}
+
+async function useCurrentLocation() {
+  elements.locationButton.disabled = true;
+  elements.locationButton.textContent = "Locating...";
+
+  try {
+    const position = await getBrowserLocation();
+    let locationName = "Nearby location";
+    try {
+      locationName = await reverseGeocodeLocation(position.coords.latitude, position.coords.longitude);
+    } catch {
+      // Weather can still be fetched when the locality lookup is unavailable.
+    }
+    setLocation(
+      {
+        name: locationName,
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      },
+      "current",
+    );
+    await fetchWeather();
+  } catch {
+    if (!state.lastCheckedAt) await fetchWeather();
+  } finally {
+    elements.locationButton.disabled = false;
+    elements.locationButton.textContent = "Update";
+  }
+}
+
+async function initializeLocation() {
+  state.locationMode = "current";
+  saveLocation();
+  updateLocationUi();
+  await useCurrentLocation();
+}
 async function fetchWeather() {
   const checkedAt = new Date();
   elements.weatherStatus.textContent = "Updating outdoor weather...";
   elements.refreshWeather.disabled = true;
 
   try {
-    const response = await fetch(SALE_WEATHER_URL);
+    const response = await fetch(weatherUrlForLocation());
     if (!response.ok) throw new Error("Weather request failed");
     const data = await response.json();
     const current = data.current ?? {};
@@ -834,11 +1035,9 @@ async function fetchWeather() {
 
     const dataTime = dateFromApiTime(state.updatedAt);
     const dataAge = minutesSince(dataTime);
-    elements.weatherStatus.textContent =
-      dataAge >= 60
-        ? `Outdoor weather from ${formatShortTime(dataTime)} · may be stale`
-        : `Outdoor live updated ${formatShortTime(dataTime)}`;
-    elements.lastCheckedStatus.textContent = `Last checked ${formatShortTime(checkedAt)}`;
+    elements.weatherStatus.textContent = `Last checked ${formatShortTime(checkedAt)}, weather updated ${formatShortTime(dataTime)}${
+      dataAge >= 60 ? " (may be stale)" : ""
+    }`;
   } catch {
     state.lastCheckedAt = checkedAt;
     state.weatherLoadFailed = true;
@@ -846,9 +1045,8 @@ async function fetchWeather() {
     const hasPreviousWeather = state.outdoorTemp !== null && state.outdoorRh !== null;
     elements.weatherStatus.textContent =
       hasPreviousWeather && Number.isFinite(previousDataTime.getTime())
-        ? `Using outdoor data from ${formatShortTime(previousDataTime)}`
-        : "Outdoor unavailable";
-    elements.lastCheckedStatus.textContent = `Last check failed ${formatShortTime(checkedAt)}`;
+        ? `Last check failed ${formatShortTime(checkedAt)}, weather updated ${formatShortTime(previousDataTime)}`
+        : `Last check failed ${formatShortTime(checkedAt)}`;
   } finally {
     elements.refreshWeather.disabled = false;
     render();
@@ -914,6 +1112,7 @@ function bindEvents() {
   bindTypedValue(elements.customAirflow, "customAirflow", 10, 500, savePlanSettings);
 
   elements.refreshWeather.addEventListener("click", fetchWeather);
+  elements.locationButton.addEventListener("click", useCurrentLocation);
   elements.sourceButton.addEventListener("click", (event) => {
     event.stopPropagation();
     const isOpen = elements.sourceButton.getAttribute("aria-expanded") === "true";
