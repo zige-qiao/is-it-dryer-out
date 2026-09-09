@@ -92,10 +92,7 @@
           </button>
           <p class="last-checked" id="weatherStatus">Not checked yet</p>
         </section>
-      </div>
-
-      <div class="layout-column right-column">
-        <section class="panel" aria-labelledby="numbers-heading">
+        <section class="panel dashboard-panel" aria-labelledby="numbers-heading">
           <div class="section-heading dashboard-heading">
             <h2 id="numbers-heading">Moisture dashboard</h2>
           </div>
@@ -178,10 +175,12 @@
           </details>
         </section>
 
+      </div>
+
+      <div class="layout-column right-column">
         <section class="panel plan-panel" aria-labelledby="plan-heading">
           <div class="section-heading plan-heading">
             <h2 id="plan-heading">Opening window plan</h2>
-            <span id="planConfidence">Estimate</span>
           </div>
 
           <div class="plan-summary">
@@ -209,7 +208,7 @@
               <input id="minTemp" type="range" min="16" max="26" step="0.5" value="21" />
             </div>
 
-            <label class="select-control">
+            <label class="select-control room-size-control">
               <span>Room size</span>
               <select id="roomPreset">
                 <option value="small">Small · 30 m3</option>
@@ -249,9 +248,12 @@
               <span>Estimated airflow</span>
               <span class="dimension-field"><input id="customAirflow" type="number" min="10" max="500" step="5" value="80" inputmode="numeric" /><span>m3/h</span></span>
             </label>
+            <p class="air-change-estimate" id="planConfidence">Estimate</p>
           </div>
 
-          <p class="estimate-note">Timing is a rough estimate based on room volume, opening setup, forecast wind and temperature difference.</p>
+          <div class="estimate-details">
+            <p class="estimate-note">Timing is a rough estimate based on room volume, opening setup, forecast wind and temperature difference.</p>
+          </div>
           <div class="forecast-strip" id="forecastStrip" aria-label="Hourly opening estimates"></div>
           <p class="forecast-note">Future times assume the current indoor readings stay unchanged.</p>
         </section>

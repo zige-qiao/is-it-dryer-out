@@ -49,7 +49,7 @@ select {
   justify-content: flex-end;
   gap: 0.65rem;
   padding: max(2rem, env(safe-area-inset-top)) 1rem 1.1rem;
-  border-radius: 1.35rem;
+  border-radius: 0.8rem;
   background: var(--ink);
   color: #f9fffc;
   box-shadow: var(--shadow);
@@ -292,6 +292,7 @@ h1 {
   grid-template-columns: 1fr auto;
   gap: 0.25rem 0.75rem;
   align-items: end;
+  border: 1px solid transparent;
   border-radius: 0.75rem;
   padding: 0.85rem;
   background: #eef8f4;
@@ -314,6 +315,33 @@ h1 {
   font-size: 1.7rem;
   line-height: 1;
   overflow-wrap: anywhere;
+}
+
+.plan-summary.tone-open {
+  border-color: rgba(8, 127, 91, 0.28);
+  background: var(--open-bg);
+}
+
+.plan-summary.tone-open strong {
+  color: var(--open);
+}
+
+.plan-summary.tone-caution {
+  border-color: rgba(138, 103, 0, 0.28);
+  background: var(--caution-bg);
+}
+
+.plan-summary.tone-caution strong {
+  color: var(--caution);
+}
+
+.plan-summary.tone-closed {
+  border-color: rgba(162, 59, 42, 0.25);
+  background: var(--closed-bg);
+}
+
+.plan-summary.tone-closed strong {
+  color: var(--closed);
 }
 
 .plan-summary p {
@@ -405,27 +433,21 @@ h1 {
   white-space: nowrap;
 }
 
-.forecast-pill.good,
-.forecast-pill.target-met {
+.forecast-pill.tone-open {
   border-color: rgba(8, 127, 91, 0.28);
   background: var(--open-bg);
 }
 
-.forecast-pill.too-cold,
-.forecast-pill.below-minimum {
-  border-color: rgba(42, 99, 162, 0.28);
-  background: #e6f0ff;
-}
-
-.forecast-pill.slow {
+.forecast-pill.tone-caution {
   border-color: rgba(138, 103, 0, 0.28);
   background: var(--caution-bg);
 }
 
-.forecast-pill.wetter {
-  border-color: rgba(162, 59, 42, 0.18);
-  background: #fff4ef;
+.forecast-pill.tone-closed {
+  border-color: rgba(162, 59, 42, 0.25);
+  background: var(--closed-bg);
 }
+
 input[type="range"] {
   width: 100%;
   accent-color: var(--open);
@@ -493,6 +515,7 @@ input[type="range"] {
 
 .warming-card {
   margin-top: 0.9rem;
+  border: 1px solid rgba(8, 127, 91, 0.28);
   border-radius: 0.75rem;
   padding: 0.85rem;
   background: #eef8f4;
@@ -524,7 +547,7 @@ input[type="range"] {
   color: var(--muted);
 }
 
-.right-column > .panel:first-child {
+.dashboard-panel {
   padding-bottom: 0.55rem;
 }
 
@@ -586,8 +609,7 @@ input[type="range"] {
   }
 
   .recommendation {
-    min-height: 24rem;
-    border-radius: 1.75rem;
+    min-height: auto;
   }
 
   .panel {
@@ -729,23 +751,31 @@ input[type="range"] {
   line-height: 1.4;
 }
 
+.estimate-details {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.room-size-control {
+  border-top: 1px solid var(--line);
+  padding-top: 0.85rem;
+}
+
+.air-change-estimate {
+  grid-column: 1 / -1;
+  border: 1px solid rgba(8, 127, 91, 0.28);
+  border-radius: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  background: var(--open-bg);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 .forecast-note {
   margin-top: -0.45rem;
 }
 
-.forecast-pill.uncertain,
-.forecast-pill.forecast-limit,
-.forecast-pill.settling,
-.forecast-pill.weather-change {
-  border-color: rgba(138, 103, 0, 0.28);
-  background: var(--caution-bg);
-}
-
-.forecast-pill.condensation,
-.forecast-pill.wetter {
-  border-color: rgba(162, 59, 42, 0.25);
-  background: var(--closed-bg);
-}
 
 @media (max-width: 23rem) {
   .custom-fields {
