@@ -1,8 +1,8 @@
 # Is it dryer out
 
-## Version 0.2
+## Version 0.3
 
-Version 0.2 adds automatic browser-location refreshes, an in-app location update action, updated app icons, and clearer guidance when the humidity target and the outdoor-air window have different timings.
+Version 0.3 adds clearer ventilation decisions, consistent status colours, room-aware opening estimates, and a more focused responsive layout. It avoids recommending ventilation when the model predicts less than a three-percentage-point reduction in relative humidity.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
@@ -17,8 +17,9 @@ A personal ventilation checker for estimating whether opening windows should red
 - Forecast humidity between hourly points is derived from interpolated dew point rather than interpolating relative humidity directly.
 - Outdoor temperature, humidity, dew point, pressure, wind and forecast data come from Open-Meteo for the active location. Forecast times use the time zone returned with that weather data.
 - Normal sensor uncertainty is included. Small moisture differences are labelled uncertain instead of being treated as reliably wetter or drier.
+- A plan with an expected relative-humidity reduction of under three percentage points is shown as `WAIT` with no clear drying benefit, avoiding recommendations that would produce no noticeable change.
 - The plan stops when the humidity target is reached, the minimum temperature is reached, condensation is predicted, or forecast air stops being reliably drier.
-- Where applicable, the recommendation shows both the estimated time to its outcome and the maximum period that outdoor air remains reliably drier. Follow the earlier limit.
+- Where applicable, the recommendation shows both the estimated time to its outcome and the period that outdoor air remains reliably drier. Follow the earlier limit.
 
 ## Timing estimate
 
@@ -32,6 +33,7 @@ Indoor readings, plan settings, and the most recent location are stored only in 
 
 ## Release history
 
+- `v0.3`: Minimum meaningful humidity-improvement rule, clearer `WAIT` states, consistent open/wait/closed colours, room and opening configuration refinements, and responsive layout updates.
 - `v0.2`: Automatic location refresh, location update action, refreshed app icon, and two-part ventilation timing guidance.
 - `v0.1`: First public release with live outdoor weather, manual indoor readings, and forecast-based ventilation planning.
 
