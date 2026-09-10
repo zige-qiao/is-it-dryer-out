@@ -883,8 +883,7 @@ input[type="range"] {
 }
 
 .room-size-control {
-  border-top: 1px solid var(--line);
-  padding-top: 0.85rem;
+  padding-top: 0.55rem;
 }
 
 .air-change-estimate {
