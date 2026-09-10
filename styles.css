@@ -506,11 +506,6 @@ h1 {
   scrollbar-width: thin;
 }
 
-.forecast-strip-shell {
-  position: relative;
-  min-width: 0;
-}
-
 .forecast-pill {
   min-width: 5.25rem;
   min-height: 4.45rem;
@@ -524,32 +519,6 @@ h1 {
   color: var(--muted);
   cursor: default;
   text-align: left;
-}
-
-@media (max-width: 47.99rem) {
-  .forecast-strip {
-    padding-right: 1.4rem;
-  }
-
-  .forecast-strip-shell.has-overflow-cue::after {
-    content: "›";
-    position: absolute;
-    right: 0.2rem;
-    top: calc(50% - 0.15rem);
-    z-index: 1;
-    display: grid;
-    width: 1.1rem;
-    height: 1.1rem;
-    place-items: center;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.9);
-    color: var(--muted);
-    font-size: 1rem;
-    font-weight: 800;
-    line-height: 1;
-    pointer-events: none;
-  }
 }
 
 .forecast-pill span,

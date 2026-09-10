@@ -99,7 +99,6 @@ const elements = {
   planDuration: document.querySelector("#planDuration"),
   planDetails: document.querySelector("#planDetails"),
   forecastStrip: document.querySelector("#forecastStrip"),
-  forecastStripShell: document.querySelector("#forecastStripShell"),
   sourceButton: document.querySelector("#sourceButton"),
   sourcePopover: document.querySelector("#sourcePopover"),
   locationName: document.querySelector("#locationName"),
@@ -711,7 +710,6 @@ function renderPlanControls() {
 function renderPlan() {
   renderPlanControls();
   elements.forecastStrip.innerHTML = "";
-  elements.forecastStripShell.classList.remove("has-overflow-cue");
 
   const timeline = buildWeatherTimeline();
   if (!timeline.length) {
@@ -737,7 +735,6 @@ function renderPlan() {
     current,
     ...state.forecast.filter((item) => item.time > current.time),
   ].slice(0, 8);
-  elements.forecastStripShell.classList.toggle("has-overflow-cue", forecastStarts.length > 1);
   const labels = {
     "target-met": "No need",
     "below-minimum": "Below min",

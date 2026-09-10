@@ -1,4 +1,4 @@
-const CACHE_NAME = "is-it-dryer-out-v53";
+const CACHE_NAME = "is-it-dryer-out-v54";
 const APP_FILES = ["./", "index.html", "styles.css", "app.js", "manifest.webmanifest", "favicon-v3.png"];
 
 self.addEventListener("install", (event) => {
