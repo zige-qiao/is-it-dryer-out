@@ -1329,9 +1329,11 @@ if ("serviceWorker" in navigator) {
 
 loadIndoorReadings();
 loadPlanSettings();
+loadLocation();
+updateLocationUi();
 bindEvents();
 render();
-fetchWeather();
+initializeLocation();
 setInterval(fetchWeather, WEATHER_REFRESH_INTERVAL_MS);
 
 document.addEventListener("visibilitychange", () => {
