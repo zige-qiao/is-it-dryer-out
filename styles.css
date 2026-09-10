@@ -7,6 +7,8 @@
   --line: #d7e3df;
   --open: #087f5b;
   --open-bg: #dff8ed;
+  --windows: #1769aa;
+  --windows-bg: #e2f1fb;
   --closed: #a23b2a;
   --closed-bg: #ffe8df;
   --caution: #8a6700;
@@ -43,7 +45,7 @@ select {
 }
 
 .recommendation {
-  min-height: 12.5rem;
+  min-height: 13rem;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
@@ -57,6 +59,10 @@ select {
 
 .recommendation.open {
   background: linear-gradient(145deg, #0a654d, #0e8560);
+}
+
+.recommendation.windows {
+  background: linear-gradient(145deg, #14558c, #1976b8);
 }
 
 .recommendation.closed {
@@ -81,6 +87,38 @@ select {
   margin-bottom: auto;
   color: rgba(255, 255, 255, 0.74);
   font-size: 0.86rem;
+}
+
+.location-button {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 0;
+  padding: 0.15rem 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.location-button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+  white-space: nowrap;
+}
+
+.location-button:hover,
+.location-button:focus-visible {
+  color: #ffffff;
+  outline: none;
+}
+
+.location-button:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
 }
 
 .secondary-button {
@@ -138,6 +176,10 @@ h1 {
   font-size: 2.2rem;
   line-height: 1;
   white-space: nowrap;
+}
+
+.recommendation h1 {
+  margin-top: 0.35rem;
 }
 
 .recommendation p:last-child {
@@ -255,6 +297,55 @@ h1 {
   font-weight: 800;
 }
 
+.reading-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.reading-stepper .reading-field input {
+  width: 4.1rem;
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.reading-stepper .reading-field input::-webkit-inner-spin-button,
+.reading-stepper .reading-field input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.step-button {
+  width: 2.75rem;
+  height: 2.75rem;
+  display: inline-grid;
+  flex: 0 0 2.75rem;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 0.45rem;
+  padding: 0;
+  background: #ffffff;
+  color: var(--open);
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.step-button:hover,
+.step-button:focus-visible {
+  border-color: var(--open);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(8, 127, 91, 0.12);
+}
+
+.step-button:active {
+  background: var(--open-bg);
+}
+
 .reading-field input,
 .setting-field input {
   width: 5.25rem;
@@ -324,6 +415,15 @@ h1 {
 
 .plan-summary.tone-open strong {
   color: var(--open);
+}
+
+.plan-summary.tone-windows {
+  border-color: rgba(23, 105, 170, 0.28);
+  background: var(--windows-bg);
+}
+
+.plan-summary.tone-windows strong {
+  color: var(--windows);
 }
 
 .plan-summary.tone-caution {
@@ -406,6 +506,11 @@ h1 {
   scrollbar-width: thin;
 }
 
+.forecast-strip-shell {
+  position: relative;
+  min-width: 0;
+}
+
 .forecast-pill {
   min-width: 5.25rem;
   min-height: 4.45rem;
@@ -419,6 +524,32 @@ h1 {
   color: var(--muted);
   cursor: default;
   text-align: left;
+}
+
+@media (max-width: 47.99rem) {
+  .forecast-strip {
+    padding-right: 1.4rem;
+  }
+
+  .forecast-strip-shell.has-overflow-cue::after {
+    content: "›";
+    position: absolute;
+    right: 0.2rem;
+    top: calc(50% - 0.15rem);
+    z-index: 1;
+    display: grid;
+    width: 1.1rem;
+    height: 1.1rem;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--muted);
+    font-size: 1rem;
+    font-weight: 800;
+    line-height: 1;
+    pointer-events: none;
+  }
 }
 
 .forecast-pill span,
@@ -438,6 +569,11 @@ h1 {
   background: var(--open-bg);
 }
 
+.forecast-pill.tone-windows {
+  border-color: rgba(23, 105, 170, 0.28);
+  background: var(--windows-bg);
+}
+
 .forecast-pill.tone-caution {
   border-color: rgba(138, 103, 0, 0.28);
   background: var(--caution-bg);
@@ -452,6 +588,18 @@ input[type="range"] {
   width: 100%;
   accent-color: var(--open);
   min-height: 2.25rem;
+}
+
+@media (pointer: coarse) {
+  input[type="range"]::-webkit-slider-thumb {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
 }
 
 .data-table {
@@ -499,8 +647,8 @@ input[type="range"] {
 }
 
 .comparison-value.lower {
-  background: var(--open-bg);
-  color: var(--open);
+  background: var(--windows-bg);
+  color: var(--windows);
 }
 
 .comparison-value.higher {
@@ -515,11 +663,16 @@ input[type="range"] {
 
 .warming-card {
   margin-top: 0.9rem;
-  border: 1px solid rgba(8, 127, 91, 0.28);
+  border: 1px solid var(--line);
   border-radius: 0.75rem;
   padding: 0.85rem;
-  background: #eef8f4;
+  background: #f2f5f4;
   color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.warming-card .adjusted-rh-reading strong {
+  color: var(--ink);
 }
 
 .adjusted-rh-reading {
@@ -530,7 +683,7 @@ input[type="range"] {
 
 .adjusted-rh-reading strong {
   color: var(--ink);
-  font-size: 1.25rem;
+  font-size: 0.9rem;
   white-space: nowrap;
 }
 
@@ -569,7 +722,7 @@ input[type="range"] {
 }
 
 .dashboard-explainer summary::after {
-  content: "+";
+  content: "";
   width: 1.35rem;
   height: 1.35rem;
   display: inline-grid;
@@ -577,13 +730,13 @@ input[type="range"] {
   place-items: center;
   border: 1px solid var(--line);
   border-radius: 999px;
-  color: var(--open);
-  font-size: 1rem;
-  line-height: 1;
+  background:
+    linear-gradient(var(--open), var(--open)) center / 0.62rem 0.125rem no-repeat,
+    linear-gradient(var(--open), var(--open)) center / 0.125rem 0.62rem no-repeat;
 }
 
 .dashboard-explainer[open] summary::after {
-  content: "-";
+  background: linear-gradient(var(--open), var(--open)) center / 0.62rem 0.125rem no-repeat;
 }
 
 .dashboard-explainer p {
@@ -610,6 +763,10 @@ input[type="range"] {
 
   .recommendation {
     min-height: auto;
+  }
+
+  .recommendation h1 {
+    margin-top: 1rem;
   }
 
   .panel {
@@ -763,10 +920,10 @@ input[type="range"] {
 
 .air-change-estimate {
   grid-column: 1 / -1;
-  border: 1px solid rgba(8, 127, 91, 0.28);
+  border: 1px solid var(--line);
   border-radius: 0.65rem;
   padding: 0.75rem 0.85rem;
-  background: var(--open-bg);
+  background: #f2f5f4;
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 700;
@@ -831,21 +988,68 @@ input[type="range"] {
   stroke-linejoin: round;
 }
 
-.location-change-button {
-  margin-left: auto;
-  border: 0;
-  padding: 0.15rem 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font-size: 0.86rem;
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 0.2rem;
+.location-dialog {
+  width: min(24rem, calc(100vw - 2rem));
+  margin: auto;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 0;
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 24px 60px rgba(18, 43, 36, 0.28);
 }
 
-.location-change-button:focus-visible,
-.dialog-close:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: 3px;
+.location-dialog::backdrop {
+  background: rgba(16, 35, 31, 0.42);
+}
+
+.location-dialog-content {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.25rem;
+}
+
+.location-dialog h2 {
+  font-size: 1.2rem;
+}
+
+.location-dialog p {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.location-dialog-status:not(:empty) {
+  min-height: 1.3rem;
+}
+
+.location-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+}
+
+.location-update-button {
+  min-height: 2.35rem;
+  border: 1px solid var(--open);
+  border-radius: 999px;
+  padding: 0 0.85rem;
+  background: var(--open);
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.location-update-button:hover,
+.location-update-button:focus-visible {
+  background: #066b4d;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(8, 127, 91, 0.18);
+}
+
+.location-update-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }

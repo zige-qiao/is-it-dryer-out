@@ -2,7 +2,7 @@
 
 ## Version 0.3
 
-Version 0.3 adds clearer ventilation decisions, consistent status colours, room-aware opening estimates, and a more focused responsive layout. It avoids recommending ventilation when the model predicts less than a three-percentage-point reduction in relative humidity.
+Version 0.3 adds clearer ventilation decisions, consistent status colours, room-aware opening estimates, and a more focused responsive layout. Blue indicates active ventilation, green indicates that the target is met, amber indicates a limited or uncertain opportunity, and red indicates that windows should remain closed. It avoids recommending ventilation when the model predicts less than a one-percentage-point reduction in relative humidity.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
@@ -17,9 +17,11 @@ A personal ventilation checker for estimating whether opening windows should red
 - Forecast humidity between hourly points is derived from interpolated dew point rather than interpolating relative humidity directly.
 - Outdoor temperature, humidity, dew point, pressure, wind and forecast data come from Open-Meteo for the active location. Forecast times use the time zone returned with that weather data.
 - Normal sensor uncertainty is included. Small moisture differences are labelled uncertain instead of being treated as reliably wetter or drier.
-- A plan with an expected relative-humidity reduction of under three percentage points is shown as `WAIT` with no clear drying benefit, avoiding recommendations that would produce no noticeable change.
+- A plan with an expected relative-humidity reduction of under one percentage point is shown as `WAIT` with no clear drying benefit, avoiding recommendations that would produce no visible change.
 - The plan stops when the humidity target is reached, the minimum temperature is reached, condensation is predicted, or forecast air stops being reliably drier.
 - Where applicable, the recommendation shows both the estimated time to its outcome and the period that outdoor air remains reliably drier. Follow the earlier limit.
+- When ventilation provides useful drying but cannot reach the target, the app still recommends `OPEN WINDOWS` and shows the useful drying period and expected conditions.
+- Every meaningful opening period uses the blue `OPEN WINDOWS` status. The stated time and supporting text explain whether to stop at the target, a temperature or condensation limit, a forecast change, or the point where drying becomes uncertain.
 
 ## Timing estimate
 

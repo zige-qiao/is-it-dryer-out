@@ -17,7 +17,7 @@ const MINIMUM_MOISTURE_MARGIN = 0.4;
 const WEATHER_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
 const MAX_OPEN_MINUTES = 180;
 const TARGET_MARGIN_RH = 0.5;
-const MINIMUM_NOTICEABLE_RH_CHANGE = 3;
+const MINIMUM_NOTICEABLE_RH_CHANGE = 1;
 const THERMAL_RESPONSE_FACTOR = 0.22;
 const ROOM_PRESETS = { small: 30, medium: 50, large: 80 };
 const OPENING_SETUPS = {
@@ -99,12 +99,17 @@ const elements = {
   planDuration: document.querySelector("#planDuration"),
   planDetails: document.querySelector("#planDetails"),
   forecastStrip: document.querySelector("#forecastStrip"),
+  forecastStripShell: document.querySelector("#forecastStripShell"),
   sourceButton: document.querySelector("#sourceButton"),
   sourcePopover: document.querySelector("#sourcePopover"),
   locationName: document.querySelector("#locationName"),
   sourceLocationName: document.querySelector("#sourceLocationName"),
   liveWeatherRequest: document.querySelector("#liveWeatherRequest"),
   locationButton: document.querySelector("#locationButton"),
+  locationDialog: document.querySelector("#locationDialog"),
+  locationDialogClose: document.querySelector("#locationDialogClose"),
+  locationDialogStatus: document.querySelector("#locationDialogStatus"),
+  locationUpdateButton: document.querySelector("#locationUpdateButton"),
 };
 
 function clamp(value, min, max) {
@@ -494,6 +499,8 @@ function estimateOpeningWindowPlan(startWeather, timeline) {
   let projectedRh = state.indoorRh;
   let finalPressureHpa = startWeather.pressure ?? state.outdoorPressure;
   let lastComfortableMinute = 0;
+  let lastComfortableTemp = state.indoorTemp;
+  let lastComfortableRh = state.indoorRh;
 
   for (let minute = 1; minute <= MAX_OPEN_MINUTES; minute += 1) {
     const targetTime = new Date(startTime.getTime() + minute * 60 * 1000);
@@ -548,30 +555,39 @@ function estimateOpeningWindowPlan(startWeather, timeline) {
     const projectedVapor = vaporPressureFromHumidityRatio(projectedRatio, projectedPressureHpa);
     const saturation = saturationVaporPressure(projectedTemp);
     if (projectedVapor >= saturation) {
+      if (lastComfortableMinute && !hasMeaningfulRhImprovement(lastComfortableRh)) {
+        return planResult("minimal-impact", {
+          limitMinutes: lastComfortableMinute,
+          projectedTemp: lastComfortableTemp,
+          projectedRh: lastComfortableRh,
+        });
+      }
       return planResult("condensation", {
         limitMinutes: minute - 1,
-        projectedTemp,
-        projectedRh: 100,
+        projectedTemp: lastComfortableTemp,
+        projectedRh: lastComfortableRh,
       });
     }
 
     projectedRh = relativeHumidityAtTemperature(projectedVapor, projectedTemp);
     if (projectedTemp < state.minTemp) {
-      if (!hasMeaningfulRhImprovement(projectedRh)) {
+      if (lastComfortableMinute && !hasMeaningfulRhImprovement(lastComfortableRh)) {
         return planResult("minimal-impact", {
           limitMinutes: lastComfortableMinute,
-          projectedTemp,
-          projectedRh,
+          projectedTemp: lastComfortableTemp,
+          projectedRh: lastComfortableRh,
         });
       }
       return planResult("too-cold", {
         limitMinutes: lastComfortableMinute,
-        projectedTemp,
-        projectedRh,
+        projectedTemp: lastComfortableTemp,
+        projectedRh: lastComfortableRh,
       });
     }
 
     lastComfortableMinute = minute;
+    lastComfortableTemp = projectedTemp;
+    lastComfortableRh = projectedRh;
     const projectedAbsolute = (216.7 * projectedVapor) / (projectedTemp + 273.15);
     const netImprovement = initialAbsolute - projectedAbsolute;
     if (
@@ -634,17 +650,23 @@ function setPlanCopy(plan) {
     "too-cold": {
       label: "Temperature limit first",
       duration: plan.limitMinutes ? formatDuration(plan.limitMinutes) : "Avoid",
-      details: `The humidity target is unlikely before the room reaches ${formatTemp(state.minTemp)}.`,
+      details: plan.limitMinutes
+        ? `Expected then: about ${formatRh(plan.projectedRh)} RH and ${formatTemp(plan.projectedTemp)}.`
+        : `The room would fall below ${formatTemp(state.minTemp)} immediately.`,
     },
     condensation: {
       label: "Condensation limit first",
       duration: plan.limitMinutes ? formatDuration(plan.limitMinutes) : "Avoid",
-      details: "Cooling may bring the room to saturation before the humidity target.",
+      details: plan.limitMinutes
+        ? "Stop then to limit condensation risk."
+        : "Cooling may cause condensation immediately.",
     },
     "forecast-limit": {
       label: "Forecast changes first",
       duration: plan.limitMinutes ? formatDuration(plan.limitMinutes) : "Wait",
-      details: "Forecast air becomes less drying after this time.",
+      details: plan.limitMinutes
+        ? `Expected then: about ${formatRh(plan.projectedRh)} RH and ${formatTemp(plan.projectedTemp)}.`
+        : "Forecast air is no longer reliably drier.",
     },
     settling: {
       label: "Drying benefit fades",
@@ -656,12 +678,12 @@ function setPlanCopy(plan) {
     slow: {
       label: "Humidity falls slowly",
       duration: `${formatDuration(MAX_OPEN_MINUTES)}+`,
-      details: `The room may not reach ${formatRh(state.targetRh)} within three hours.`,
+      details: `The room may not reach ${formatRh(state.targetRh)} within three hours. Recheck indoor readings by then.`,
     },
     "minimal-impact": {
       label: "No clear drying benefit",
       duration: "Wait",
-      details: `Expected humidity reduction is under ${MINIMUM_NOTICEABLE_RH_CHANGE} percentage points.`,
+      details: `Expected humidity reduction is under ${MINIMUM_NOTICEABLE_RH_CHANGE} percentage point.`,
     },
   }[plan.status];
 
@@ -689,6 +711,7 @@ function renderPlanControls() {
 function renderPlan() {
   renderPlanControls();
   elements.forecastStrip.innerHTML = "";
+  elements.forecastStripShell.classList.remove("has-overflow-cue");
 
   const timeline = buildWeatherTimeline();
   if (!timeline.length) {
@@ -714,6 +737,7 @@ function renderPlan() {
     current,
     ...state.forecast.filter((item) => item.time > current.time),
   ].slice(0, 8);
+  elements.forecastStripShell.classList.toggle("has-overflow-cue", forecastStarts.length > 1);
   const labels = {
     "target-met": "No need",
     "below-minimum": "Below min",
@@ -729,8 +753,8 @@ function renderPlan() {
 
   forecastStarts.forEach((item, index) => {
     const plan = estimateOpeningWindowPlan(item, timeline);
-    const pill = document.createElement("button");
-    pill.type = "button";
+    const pill = document.createElement("div");
+    pill.setAttribute("role", "listitem");
     pill.className = `forecast-pill ${plan.status} tone-${planTone(plan)}`;
     const valueLabel = (() => {
       if (plan.status === "good") return formatDuration(plan.minutes);
@@ -741,7 +765,7 @@ function renderPlan() {
       return labels[plan.status];
     })();
     const timeLabel = index === 0 ? "Now" : formatShortTime(item.time);
-    pill.setAttribute("aria-label", `${timeLabel}: ${valueLabel}`);
+    pill.setAttribute("aria-label", `${timeLabel}: ${valueLabel}, outdoor temperature ${formatTemp(item.temp)}`);
 
     const time = document.createElement("span");
     time.textContent = timeLabel;
@@ -781,20 +805,25 @@ function setDecisionSummary(primary, secondary, primaryDuration, secondaryDurati
   setDecisionLine(elements.decisionSecondary, secondary, secondaryDuration, false);
 }
 function planTone(plan) {
-  if (["target-met", "good", "slow"].includes(plan.status)) return "open";
-  if (["below-minimum", "wetter"].includes(plan.status)) return "closed";
-  if (["too-cold", "condensation"].includes(plan.status)) {
-    return plan.limitMinutes ? "caution" : "closed";
+  if (plan.status === "target-met") return "open";
+  if (["good", "slow"].includes(plan.status)) return "windows";
+  if (
+    ["forecast-limit", "settling", "too-cold", "condensation"].includes(plan.status) &&
+    (plan.minutes ?? plan.limitMinutes)
+  ) {
+    return "windows";
   }
+  if (["below-minimum", "wetter"].includes(plan.status)) return "closed";
+  if (["too-cold", "condensation"].includes(plan.status)) return "closed";
   return "caution";
 }
 
 function setToneClass(element, tone) {
-  element.classList.remove("tone-open", "tone-caution", "tone-closed");
+  element.classList.remove("tone-open", "tone-windows", "tone-caution", "tone-closed");
   element.classList.add(`tone-${tone}`);
 }
 function renderRecommendation(plan) {
-  elements.recommendation.classList.remove("open", "closed", "caution");
+  elements.recommendation.classList.remove("open", "windows", "closed", "caution");
   elements.recommendation.classList.add(planTone(plan));
   const limited = ["too-cold", "condensation"].includes(plan.status);
 
@@ -835,23 +864,23 @@ function renderRecommendation(plan) {
       dryDuration,
     );
   } else if (plan.status === "forecast-limit") {
-    elements.decisionLabel.textContent = plan.limitMinutes ? "OPEN BRIEFLY" : "WAIT";
+    elements.decisionLabel.textContent = plan.limitMinutes ? "OPEN WINDOWS" : "WAIT";
     const limitDuration = formatDuration(plan.limitMinutes);
     setDecisionSummary(
       plan.limitMinutes
         ? `Up to ${limitDuration} while forecast air remains reliably drier.`
         : "Forecast air is no longer reliably drier.",
       plan.limitMinutes
-        ? "Conditions become less drying after that."
+        ? `Estimated then: ${formatRh(plan.projectedRh)} RH at ${formatTemp(plan.projectedTemp)}.`
         : "Keep windows closed for now.",
       plan.limitMinutes ? limitDuration : null,
     );
   } else if (plan.status === "settling") {
-    elements.decisionLabel.textContent = plan.minutes ? "OPEN BRIEFLY" : "WAIT";
+    elements.decisionLabel.textContent = plan.minutes ? "OPEN WINDOWS" : "WAIT";
     const settlingDuration = formatDuration(plan.minutes);
     setDecisionSummary(
       plan.minutes
-        ? `About ${settlingDuration} until further drying becomes uncertain.`
+        ? `Up to ${settlingDuration} of useful drying.`
         : "Further drying is already uncertain.",
       plan.minutes
         ? `Estimated then: ${formatRh(plan.projectedRh)} RH at ${formatTemp(plan.projectedTemp)}.`
@@ -859,7 +888,7 @@ function renderRecommendation(plan) {
       plan.minutes ? settlingDuration : null,
     );
   } else if (limited) {
-    elements.decisionLabel.textContent = plan.limitMinutes ? "OPEN BRIEFLY" : "KEEP CLOSED";
+    elements.decisionLabel.textContent = plan.limitMinutes ? "OPEN WINDOWS" : "KEEP CLOSED";
     const limitDuration = formatDuration(plan.limitMinutes);
     const primary =
       plan.status === "too-cold"
@@ -867,11 +896,17 @@ function renderRecommendation(plan) {
           ? `Up to ${limitDuration} before the room reaches ${formatTemp(state.minTemp)}.`
           : `The room would fall below ${formatTemp(state.minTemp)} immediately.`
         : plan.limitMinutes
-          ? `Up to ${limitDuration} before cooling may cause condensation.`
+          ? `Up to ${limitDuration} before condensation risk increases.`
           : "Cooling may cause condensation immediately.";
+    const secondary =
+      plan.status === "condensation" && plan.limitMinutes
+        ? "Stop then to limit condensation risk."
+        : plan.limitMinutes
+          ? `Estimated then: ${formatRh(plan.projectedRh)} RH at ${formatTemp(plan.projectedTemp)}.`
+          : "No useful opening time is available.";
     setDecisionSummary(
       primary,
-      "The humidity target is unlikely before then.",
+      secondary,
       plan.limitMinutes ? limitDuration : null,
     );
   } else if (plan.status === "slow") {
@@ -879,14 +914,15 @@ function renderRecommendation(plan) {
     const modelDuration = formatDuration(MAX_OPEN_MINUTES);
     setDecisionSummary(
       `More than ${modelDuration} to reach ${formatRh(state.targetRh)} RH.`,
-      "Humidity should still fall slowly.",
+      `Humidity should still fall slowly. Recheck indoor readings within ${modelDuration}.`,
+      modelDuration,
       modelDuration,
     );
   } else {
     elements.decisionLabel.textContent = "WAIT";
     setDecisionSummary(
       "No clear drying benefit.",
-      `Expected humidity reduction is under ${MINIMUM_NOTICEABLE_RH_CHANGE} percentage points.`,
+      `Expected humidity reduction is under ${MINIMUM_NOTICEABLE_RH_CHANGE} percentage point.`,
     );
   }
 }
@@ -908,7 +944,7 @@ function render() {
   elements.outdoorAbsoluteHumidity.classList.remove("lower", "higher", "near");
 
   if (state.outdoorTemp === null || state.outdoorRh === null) {
-    elements.recommendation.classList.remove("open", "closed", "caution");
+    elements.recommendation.classList.remove("open", "windows", "closed", "caution");
     elements.recommendation.classList.add("caution");
     elements.decisionLabel.textContent = state.weatherLoadFailed
       ? "CAN'T CHECK OUTDOORS"
@@ -1067,8 +1103,9 @@ function getBrowserLocation() {
 }
 
 async function useCurrentLocation() {
-  elements.locationButton.disabled = true;
-  elements.locationButton.textContent = "Locating...";
+  elements.locationUpdateButton.disabled = true;
+  elements.locationUpdateButton.textContent = "Locating...";
+  elements.locationDialogStatus.textContent = "Requesting your current location...";
 
   try {
     const position = await getBrowserLocation();
@@ -1086,13 +1123,24 @@ async function useCurrentLocation() {
       },
       "current",
     );
+    closeLocationDialog();
     await fetchWeather();
   } catch {
+    elements.locationDialogStatus.textContent = "Location access was unavailable. Check permission and try again.";
     if (!state.lastCheckedAt) await fetchWeather();
   } finally {
-    elements.locationButton.disabled = false;
-    elements.locationButton.textContent = "Update";
+    elements.locationUpdateButton.disabled = false;
+    elements.locationUpdateButton.textContent = "Use current location";
   }
+}
+
+function openLocationDialog() {
+  elements.locationDialogStatus.textContent = "";
+  elements.locationDialog.showModal();
+}
+
+function closeLocationDialog() {
+  if (elements.locationDialog.open) elements.locationDialog.close();
 }
 
 async function initializeLocation() {
@@ -1165,6 +1213,54 @@ function bindTypedValue(input, stateKey, min, max, save) {
   });
 }
 
+function bindReadingSteppers() {
+  const settings = {
+    indoorTemp: { min: 10, max: 32, step: 0.1 },
+    indoorRh: { min: 20, max: 90, step: 1 },
+  };
+
+  document.querySelectorAll(".step-button").forEach((button) => {
+    const stateKey = button.dataset.stepTarget;
+    const setting = settings[stateKey];
+    const direction = Number(button.dataset.stepDirection);
+    if (!setting || !Number.isFinite(direction)) return;
+
+    let repeatDelay;
+    let repeatTimer;
+    let repeated = false;
+
+    const applyStep = () => {
+      const precision = setting.step < 1 ? 1 : 0;
+      state[stateKey] = Number(
+        clamp(state[stateKey] + setting.step * direction, setting.min, setting.max).toFixed(precision),
+      );
+      saveIndoorReadings();
+      render();
+    };
+
+    const stopRepeating = () => {
+      clearTimeout(repeatDelay);
+      clearInterval(repeatTimer);
+    };
+
+    button.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      repeated = false;
+      repeatDelay = setTimeout(() => {
+        repeated = true;
+        applyStep();
+        repeatTimer = setInterval(applyStep, 110);
+      }, 450);
+    });
+    button.addEventListener("pointerup", stopRepeating);
+    button.addEventListener("pointercancel", stopRepeating);
+    button.addEventListener("pointerleave", stopRepeating);
+    button.addEventListener("click", () => {
+      if (!repeated) applyStep();
+    });
+  });
+}
+
 function bindEvents() {
   elements.indoorTemp.addEventListener("input", (event) => {
     state.indoorTemp = Number(event.target.value);
@@ -1178,6 +1274,7 @@ function bindEvents() {
   });
   bindTypedValue(elements.indoorTempInput, "indoorTemp", 10, 32, saveIndoorReadings);
   bindTypedValue(elements.indoorRhInput, "indoorRh", 20, 90, saveIndoorReadings);
+  bindReadingSteppers();
   bindTypedValue(elements.targetRhInput, "targetRh", 40, 65, savePlanSettings);
   bindTypedValue(elements.minTempInput, "minTemp", 16, 26, savePlanSettings);
 
@@ -1209,7 +1306,9 @@ function bindEvents() {
   bindTypedValue(elements.customAirflow, "customAirflow", 10, 500, savePlanSettings);
 
   elements.refreshWeather.addEventListener("click", fetchWeather);
-  elements.locationButton.addEventListener("click", useCurrentLocation);
+  elements.locationButton.addEventListener("click", openLocationDialog);
+  elements.locationDialogClose.addEventListener("click", closeLocationDialog);
+  elements.locationUpdateButton.addEventListener("click", useCurrentLocation);
   elements.sourceButton.addEventListener("click", (event) => {
     event.stopPropagation();
     const isOpen = elements.sourceButton.getAttribute("aria-expanded") === "true";
