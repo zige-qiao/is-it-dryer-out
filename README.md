@@ -1,8 +1,8 @@
 # Is it dryer out
 
-## Version 0.3.1
+## Version 0.3.2
 
-Version 0.3.1 refines the opening guidance, status thresholds, and responsive controls. It adds clearer temperature and moisture limits, more precise indoor-reading controls, an update-location dialog, and improved mobile forecast navigation. Blue indicates active ventilation, green indicates that the target is met, amber indicates a limited or uncertain opportunity, and red indicates that windows should remain closed. It avoids recommending ventilation when the model predicts less than a one-percentage-point reduction in relative humidity.
+Version 0.3.2 improves the daily-use flow and visual consistency. It checks location automatically on launch, supports town and UK postcode search, and presents a shorter weather-failure state with a clear retry action. Indoor readings and plan controls now use consistent value fields, the mobile layout is easier to scan, and the opening outlook sits with the recommendation. The interface now uses a clean neutral background with no decorative shadows.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
@@ -35,6 +35,7 @@ Indoor readings, plan settings, and the most recent location are stored only in 
 
 ## Release history
 
+- `v0.3.2`: Automatic location checks, town and postcode search, clearer weather-retry handling, consolidated opening outlook, unified controls, responsive layout refinements, and visual polish.
 - `v0.3.1`: Refined ventilation status logic, location updating, reading controls, forecast navigation, and responsive usability.
 - `v0.3`: Minimum meaningful humidity-improvement rule, clearer `WAIT` states, consistent open/wait/closed colours, room and opening configuration refinements, and responsive layout updates.
 - `v0.2`: Automatic location refresh, location update action, refreshed app icon, and two-part ventilation timing guidance.
