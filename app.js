@@ -66,8 +66,6 @@ const elements = {
   decisionPrimary: document.querySelector("#decisionPrimary"),
   decisionSecondary: document.querySelector("#decisionSecondary"),
   retryWeather: document.querySelector("#retryWeather"),
-  viewPlanLink: document.querySelector("#viewPlanLink"),
-  planHeading: document.querySelector("#plan-heading"),
   weatherStatus: document.querySelector("#weatherStatus"),
   indoorTemp: document.querySelector("#indoorTemp"),
   indoorRh: document.querySelector("#indoorRh"),
@@ -663,13 +661,13 @@ function renderPlan() {
     "target-met": "No need",
     "below-minimum": "Below min",
     wetter: "Avoid",
-    uncertain: "Wait",
+    uncertain: "Uncertain",
     "too-cold": "Temp limit",
     condensation: "Condensation",
     "forecast-limit": "Forecast change",
     settling: "Benefit fades",
     slow: "3 hr+",
-    "minimal-impact": "Too small",
+    "minimal-impact": "Little benefit",
   };
 
   forecastStarts.forEach((item, index) => {
@@ -686,14 +684,17 @@ function renderPlan() {
       return labels[plan.status];
     })();
     const timeLabel = index === 0 ? "Now" : formatShortTime(item.time);
-    pill.setAttribute("aria-label", `${timeLabel}: ${valueLabel}, outdoor temperature ${formatTemp(item.temp)}`);
+    pill.setAttribute(
+      "aria-label",
+      `${timeLabel}: ${valueLabel}, outdoor temperature ${formatTemp(item.temp)}, relative humidity ${formatRh(item.rh)}`,
+    );
 
     const time = document.createElement("span");
     time.textContent = timeLabel;
     const value = document.createElement("strong");
     value.textContent = valueLabel;
     const temp = document.createElement("small");
-    temp.textContent = formatTemp(item.temp);
+    temp.textContent = `${formatTemp(item.temp)} · ${formatRh(item.rh)} RH`;
     pill.append(time, value, temp);
     elements.forecastStrip.append(pill);
   });
@@ -767,10 +768,10 @@ function renderRecommendation(plan) {
       "Opening would likely raise indoor humidity.",
     );
   } else if (plan.status === "uncertain") {
-    elements.decisionLabel.textContent = "WAIT";
+    elements.decisionLabel.textContent = "OPEN IF NEEDED";
     setDecisionSummary(
       "No clear drying benefit.",
-      "The moisture difference is too small to compare reliably.",
+      "Brief ventilation for fresh air, but it may not reduce humidity.",
     );
   } else if (plan.status === "good") {
     elements.decisionLabel.textContent = "OPEN WINDOWS";
@@ -785,27 +786,27 @@ function renderRecommendation(plan) {
       dryDuration,
     );
   } else if (plan.status === "forecast-limit") {
-    elements.decisionLabel.textContent = plan.limitMinutes ? "OPEN WINDOWS" : "WAIT";
+    elements.decisionLabel.textContent = plan.limitMinutes ? "OPEN WINDOWS" : "OPEN IF NEEDED";
     const limitDuration = formatDuration(plan.limitMinutes);
     setDecisionSummary(
       plan.limitMinutes
         ? `Up to ${limitDuration} while forecast air remains reliably drier.`
-        : "Forecast air is no longer reliably drier.",
+        : "No clear drying benefit.",
       plan.limitMinutes
         ? `Estimated then: ${formatRh(plan.projectedRh)} RH at ${formatTemp(plan.projectedTemp)}.`
-        : "Keep windows closed for now.",
+        : "Brief ventilation for fresh air, but it may not reduce humidity.",
       plan.limitMinutes ? limitDuration : null,
     );
   } else if (plan.status === "settling") {
-    elements.decisionLabel.textContent = plan.minutes ? "OPEN WINDOWS" : "WAIT";
+    elements.decisionLabel.textContent = plan.minutes ? "OPEN WINDOWS" : "OPEN IF NEEDED";
     const settlingDuration = formatDuration(plan.minutes);
     setDecisionSummary(
       plan.minutes
         ? `Up to ${settlingDuration} of useful drying.`
-        : "Further drying is already uncertain.",
+        : "No clear drying benefit.",
       plan.minutes
         ? `Estimated then: ${formatRh(plan.projectedRh)} RH at ${formatTemp(plan.projectedTemp)}.`
-        : "Opening is unlikely to make a reliable difference.",
+        : "Brief ventilation for fresh air, but it may not reduce humidity.",
       plan.minutes ? settlingDuration : null,
     );
   } else if (limited) {
@@ -839,12 +840,15 @@ function renderRecommendation(plan) {
       modelDuration,
       modelDuration,
     );
-  } else {
-    elements.decisionLabel.textContent = "WAIT";
+  } else if (plan.status === "minimal-impact") {
+    elements.decisionLabel.textContent = "OPEN IF NEEDED";
     setDecisionSummary(
       "No clear drying benefit.",
-      `Expected humidity reduction is under ${MINIMUM_NOTICEABLE_RH_CHANGE} percentage point.`,
+      "Brief ventilation for fresh air, but it may not reduce humidity.",
     );
+  } else {
+    elements.decisionLabel.textContent = "WAIT";
+    setDecisionSummary("No clear drying benefit.", "Check conditions again later.");
   }
 }
 
@@ -1389,12 +1393,6 @@ function bindEvents() {
   elements.locationDialogClose.addEventListener("click", closeLocationDialog);
   elements.locationUpdateButton.addEventListener("click", useCurrentLocation);
   elements.locationSearchForm.addEventListener("submit", handleLocationSearch);
-  elements.viewPlanLink.addEventListener("click", (event) => {
-    event.preventDefault();
-    const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
-    elements.planHeading.scrollIntoView({ behavior, block: "start" });
-    elements.planHeading.focus({ preventScroll: true });
-  });
 }
 
 if ("serviceWorker" in navigator) {
