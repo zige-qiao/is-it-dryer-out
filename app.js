@@ -28,6 +28,7 @@ const OPENING_SETUPS = {
   single: { label: "One window fully open", airflow: 80 },
   cross: { label: "Cross-ventilation", airflow: 180 },
 };
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const INPUT_UNCERTAINTY = {
   indoorTemp: 0.3,
   indoorRh: 2,
@@ -111,7 +112,174 @@ const elements = {
   locationSearchInput: document.querySelector("#locationSearchInput"),
   locationSearchButton: document.querySelector("#locationSearchButton"),
   locationSearchResults: document.querySelector("#locationSearchResults"),
+  voiceInputButton: document.querySelector("#voiceInputButton"),
+  voiceDialog: document.querySelector("#voiceDialog"),
+  voiceStatus: document.querySelector("#voiceStatus"),
+  voiceTranscript: document.querySelector("#voiceTranscript"),
+  voiceChanges: document.querySelector("#voiceChanges"),
+  voiceListeningIndicator: document.querySelector("#voiceListeningIndicator"),
+  voiceCancelButton: document.querySelector("#voiceCancelButton"),
+  voiceRetryButton: document.querySelector("#voiceRetryButton"),
+  voiceApplyButton: document.querySelector("#voiceApplyButton"),
 };
+
+let voiceRecognition = null;
+let pendingVoiceChanges = null;
+
+const NUMBER_WORDS = {
+  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
+  nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+  sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30,
+  forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+};
+
+function parseSpokenNumber(value) {
+  const numeric = value.match(/\d+(?:[.,]\d+)?/);
+  if (numeric) return Number(numeric[0].replace(",", "."));
+  const words = value.toLowerCase().replace(/-/g, " ").split(/\s+/);
+  let total = 0;
+  let found = false;
+  let decimal = "";
+  let afterPoint = false;
+  for (const word of words) {
+    if (word === "point") {
+      if (!found) continue;
+      afterPoint = true;
+      continue;
+    }
+    const number = NUMBER_WORDS[word];
+    if (number === undefined) {
+      if (found) break;
+      continue;
+    }
+    found = true;
+    if (afterPoint) decimal += String(number);
+    else total += number;
+  }
+  return found ? Number(`${total}${decimal ? `.${decimal}` : ""}`) : null;
+}
+
+function valueAfterLabel(text, pattern, excludedPrefixes = []) {
+  const match = text.match(pattern);
+  if (match && excludedPrefixes.some((prefix) => text.slice(0, match.index).trimEnd().endsWith(prefix))) {
+    return null;
+  }
+  return match ? parseSpokenNumber(text.slice(match.index + match[0].length, match.index + match[0].length + 45)) : null;
+}
+
+function parseVoiceCommand(transcript) {
+  const text = transcript.toLowerCase().replace(/[°%]/g, " ").replace(/,/g, " ");
+  const values = {};
+  const errors = [];
+  const labels = {
+    indoorTemp: "Indoor temperature",
+    indoorRh: "Indoor humidity",
+    minTemp: "Minimum temperature",
+    targetRh: "Target humidity",
+  };
+  const fields = [
+    ["minTemp", /\b(?:minimum|min)\s+(?:indoor\s+)?(?:temperature|temp)\b/, 16, 26, 0.5, []],
+    ["targetRh", /\btarget\s+(?:indoor\s+)?(?:relative\s+)?humidity\b/, 40, 65, 1, []],
+    ["indoorTemp", /\b(?:indoor|room)\s+(?:temperature|temp)\b/, 10, 32, 0.1, ["minimum", "min"]],
+    ["indoorRh", /\bindoor\s+(?:relative\s+)?humidity\b/, 20, 90, 1, ["target"]],
+  ];
+  for (const [key, pattern, min, max, step, excludedPrefixes] of fields) {
+    const value = valueAfterLabel(text, pattern, excludedPrefixes);
+    if (value === null) continue;
+    if (value < min || value > max) errors.push(`${labels[key]} must be between ${min} and ${max}.`);
+    else values[key] = Number((Math.round(value / step) * step).toFixed(step < 1 ? 1 : 0));
+  }
+  if (values.indoorTemp === undefined && values.minTemp === undefined) {
+    const value = valueAfterLabel(text, /\b(?:temperature|temp)\b/);
+    if (value !== null) {
+      if (value < 10 || value > 32) errors.push("Indoor temperature must be between 10 and 32.");
+      else values.indoorTemp = Number(value.toFixed(1));
+    }
+  }
+  if (values.indoorRh === undefined && values.targetRh === undefined) {
+    const value = valueAfterLabel(text, /\b(?:relative\s+)?humidity\b/);
+    if (value !== null) {
+      if (value < 20 || value > 90) errors.push("Indoor humidity must be between 20 and 90.");
+      else values.indoorRh = Math.round(value);
+    }
+  }
+  if (/\bsmall(?:\s+room)?\b/.test(text)) values.roomPreset = "small";
+  else if (/\bmedium(?:\s+room)?\b/.test(text)) values.roomPreset = "medium";
+  else if (/\blarge(?:\s+room)?\b/.test(text)) values.roomPreset = "large";
+  if (/\bcross(?:\s|-)?ventilation\b/.test(text)) values.openingSetup = "cross";
+  else if (/\b(?:one|single)\s+window(?:\s+fully)?\s+open\b|\bfully\s+open\s+window\b/.test(text)) values.openingSetup = "single";
+  else if (/\bwindow\s+slightly\s+open\b|\bslightly\s+open\s+window\b/.test(text)) values.openingSetup = "slightly";
+  return { values, errors };
+}
+
+function voiceChangeRows(values) {
+  const rows = [];
+  if (values.indoorTemp !== undefined) rows.push(["Indoor temperature", formatTemp(values.indoorTemp)]);
+  if (values.indoorRh !== undefined) rows.push(["Indoor humidity", formatRh(values.indoorRh)]);
+  if (values.minTemp !== undefined) rows.push(["Minimum temperature", formatTemp(values.minTemp)]);
+  if (values.targetRh !== undefined) rows.push(["Target humidity", formatRh(values.targetRh)]);
+  if (values.roomPreset) rows.push(["Room size", `${values.roomPreset[0].toUpperCase()}${values.roomPreset.slice(1)}`]);
+  if (values.openingSetup) rows.push(["Opening setup", OPENING_SETUPS[values.openingSetup].label]);
+  return rows;
+}
+
+function showVoiceResult(transcript) {
+  const parsed = parseVoiceCommand(transcript);
+  const rows = voiceChangeRows(parsed.values);
+  pendingVoiceChanges = rows.length ? parsed.values : null;
+  elements.voiceTranscript.textContent = `Heard: “${transcript}”`;
+  elements.voiceTranscript.hidden = false;
+  elements.voiceChanges.replaceChildren(...rows.flatMap(([label, value]) => {
+    const term = document.createElement("dt");
+    const detail = document.createElement("dd");
+    term.textContent = label;
+    detail.textContent = value;
+    return [term, detail];
+  }));
+  elements.voiceStatus.textContent = parsed.errors.length
+    ? parsed.errors.join(" ")
+    : rows.length ? "Review the changes before applying." : "No settings were recognised.";
+  elements.voiceApplyButton.disabled = !pendingVoiceChanges || parsed.errors.length > 0;
+  elements.voiceRetryButton.hidden = false;
+}
+
+function startVoiceInput() {
+  pendingVoiceChanges = null;
+  elements.voiceChanges.replaceChildren();
+  elements.voiceTranscript.hidden = true;
+  elements.voiceApplyButton.disabled = true;
+  elements.voiceRetryButton.hidden = true;
+  elements.voiceStatus.textContent = "Listening...";
+  elements.voiceListeningIndicator.classList.add("is-listening");
+  if (!elements.voiceDialog.open) elements.voiceDialog.showModal();
+  voiceRecognition = new SpeechRecognition();
+  voiceRecognition.lang = document.documentElement.lang || navigator.language || "en-GB";
+  voiceRecognition.continuous = false;
+  voiceRecognition.interimResults = false;
+  voiceRecognition.maxAlternatives = 1;
+  voiceRecognition.addEventListener("result", (event) => showVoiceResult(event.results[0][0].transcript));
+  voiceRecognition.addEventListener("error", (event) => {
+    elements.voiceStatus.textContent = event.error === "not-allowed" ? "Microphone access was not allowed." : "Voice input could not be completed.";
+    elements.voiceRetryButton.hidden = false;
+  });
+  voiceRecognition.addEventListener("end", () => elements.voiceListeningIndicator.classList.remove("is-listening"));
+  voiceRecognition.start();
+}
+
+function closeVoiceDialog() {
+  voiceRecognition?.abort();
+  pendingVoiceChanges = null;
+  elements.voiceDialog.close();
+}
+
+function applyVoiceChanges() {
+  if (!pendingVoiceChanges) return;
+  Object.assign(state, pendingVoiceChanges);
+  saveIndoorReadings();
+  savePlanSettings();
+  closeVoiceDialog();
+  render();
+}
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -1393,6 +1561,17 @@ function bindEvents() {
   elements.locationDialogClose.addEventListener("click", closeLocationDialog);
   elements.locationUpdateButton.addEventListener("click", useCurrentLocation);
   elements.locationSearchForm.addEventListener("submit", handleLocationSearch);
+  if (SpeechRecognition) {
+    elements.voiceInputButton.hidden = false;
+    elements.voiceInputButton.addEventListener("click", startVoiceInput);
+    elements.voiceRetryButton.addEventListener("click", startVoiceInput);
+    elements.voiceCancelButton.addEventListener("click", closeVoiceDialog);
+    elements.voiceApplyButton.addEventListener("click", applyVoiceChanges);
+    elements.voiceDialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      closeVoiceDialog();
+    });
+  }
 }
 
 if ("serviceWorker" in navigator) {

@@ -48,6 +48,13 @@
         <section class="panel inputs-panel" aria-labelledby="indoor-heading">
           <div class="section-heading">
             <h2 id="indoor-heading">Indoor readings</h2>
+            <button class="voice-input-button" type="button" id="voiceInputButton" aria-label="Update readings and plan by voice" title="Update by voice" hidden>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <path d="M12 19v3"></path>
+              </svg>
+            </button>
           </div>
 
           <div class="control">
@@ -291,6 +298,23 @@
           <button class="location-update-button" type="button" id="locationUpdateButton" autofocus>
             Use current location
           </button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog class="voice-dialog" id="voiceDialog" aria-labelledby="voiceDialogTitle">
+      <div class="voice-dialog-content">
+        <div class="voice-dialog-heading">
+          <h2 id="voiceDialogTitle">Update by voice</h2>
+          <span class="voice-listening-indicator" id="voiceListeningIndicator" aria-hidden="true"></span>
+        </div>
+        <p class="voice-status" id="voiceStatus" role="status">Listening...</p>
+        <p class="voice-transcript" id="voiceTranscript" hidden></p>
+        <dl class="voice-changes" id="voiceChanges"></dl>
+        <div class="voice-dialog-actions">
+          <button class="secondary-button" type="button" id="voiceCancelButton">Cancel</button>
+          <button class="secondary-button" type="button" id="voiceRetryButton" hidden>Try again</button>
+          <button class="voice-apply-button" type="button" id="voiceApplyButton" disabled>Apply</button>
         </div>
       </div>
     </dialog>

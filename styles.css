@@ -282,6 +282,37 @@ h1 {
   margin-bottom: 0;
 }
 
+.voice-input-button {
+  width: 2.75rem;
+  height: 2.75rem;
+  display: inline-grid;
+  flex: 0 0 2.75rem;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  padding: 0;
+  background: #ffffff;
+  color: var(--open);
+  cursor: pointer;
+}
+
+.voice-input-button svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.voice-input-button:hover,
+.voice-input-button:focus-visible {
+  border-color: var(--open);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(16, 35, 31, 0.12);
+}
+
 .control,
 .mini-control,
 .speed-control {
@@ -1374,4 +1405,104 @@ input[type="range"] {
 .location-update-button:disabled {
   cursor: wait;
   opacity: 0.7;
+}
+
+.voice-dialog {
+  width: min(26rem, calc(100vw - 2rem));
+  margin: auto;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 0;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.voice-dialog::backdrop {
+  background: rgba(16, 35, 31, 0.42);
+}
+
+.voice-dialog-content {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1.25rem;
+}
+
+.voice-dialog-heading,
+.voice-dialog-actions {
+  display: flex;
+  align-items: center;
+}
+
+.voice-dialog-heading {
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.voice-dialog h2 {
+  font-size: 1.2rem;
+}
+
+.voice-listening-indicator {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: var(--closed);
+}
+
+.voice-listening-indicator:not(.is-listening) {
+  visibility: hidden;
+}
+
+.voice-status,
+.voice-transcript {
+  color: var(--muted);
+  font-size: var(--font-ui);
+  line-height: 1.45;
+}
+
+.voice-transcript {
+  border-left: 2px solid var(--line);
+  padding-left: 0.65rem;
+}
+
+.voice-changes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.45rem 1rem;
+}
+
+.voice-changes:empty {
+  display: none;
+}
+
+.voice-changes dt {
+  color: var(--muted);
+}
+
+.voice-changes dd {
+  margin: 0;
+  font-weight: 800;
+  text-align: right;
+}
+
+.voice-dialog-actions {
+  justify-content: flex-end;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+}
+
+.voice-apply-button {
+  min-height: 2.75rem;
+  border: 1px solid var(--open);
+  border-radius: 999px;
+  padding: 0 0.9rem;
+  background: var(--open);
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.voice-apply-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
