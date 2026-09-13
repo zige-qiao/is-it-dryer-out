@@ -1,4 +1,6 @@
 const WEATHER_ENDPOINT = "https://api.open-meteo.com/v1/forecast";
+const GEOCODING_ENDPOINT = "https://geocoding-api.open-meteo.com/v1/search";
+const UK_POSTCODE_ENDPOINT = "https://api.postcodes.io/postcodes";
 const REVERSE_GEOCODING_ENDPOINT = "https://api.bigdatacloud.net/data/reverse-geocode-client";
 const DEFAULT_LOCATION = {
   name: "Sale, Greater Manchester",
@@ -11,6 +13,7 @@ const LOCATION_LABEL_OVERRIDES = new Map([
 const STORAGE_KEY = "dew-indoor-readings";
 const PLAN_STORAGE_KEY = "is-it-dryer-out-plan";
 const LOCATION_STORAGE_KEY = "is-it-dryer-out-location";
+const LOCATION_REQUESTED_STORAGE_KEY = "is-it-dryer-out-location-requested";
 const DEFAULT_TIMEZONE = "Europe/London";
 const DEFAULT_PRESSURE_HPA = 1013.25;
 const MINIMUM_MOISTURE_MARGIN = 0.4;
@@ -36,7 +39,7 @@ const state = {
   indoorTemp: 24,
   indoorRh: 58,
   targetRh: 55,
-  minTemp: 21,
+  minTemp: 18,
   roomPreset: "medium",
   roomLength: 4,
   roomWidth: 5,
@@ -62,6 +65,9 @@ const elements = {
   decisionLabel: document.querySelector("#decisionLabel"),
   decisionPrimary: document.querySelector("#decisionPrimary"),
   decisionSecondary: document.querySelector("#decisionSecondary"),
+  retryWeather: document.querySelector("#retryWeather"),
+  viewPlanLink: document.querySelector("#viewPlanLink"),
+  planHeading: document.querySelector("#plan-heading"),
   weatherStatus: document.querySelector("#weatherStatus"),
   indoorTemp: document.querySelector("#indoorTemp"),
   indoorRh: document.querySelector("#indoorRh"),
@@ -94,13 +100,7 @@ const elements = {
   customFlowField: document.querySelector("#customFlowField"),
   customAirflow: document.querySelector("#customAirflow"),
   planConfidence: document.querySelector("#planConfidence"),
-  planSummary: document.querySelector(".plan-summary"),
-  planLabel: document.querySelector("#planLabel"),
-  planDuration: document.querySelector("#planDuration"),
-  planDetails: document.querySelector("#planDetails"),
   forecastStrip: document.querySelector("#forecastStrip"),
-  sourceButton: document.querySelector("#sourceButton"),
-  sourcePopover: document.querySelector("#sourcePopover"),
   locationName: document.querySelector("#locationName"),
   sourceLocationName: document.querySelector("#sourceLocationName"),
   liveWeatherRequest: document.querySelector("#liveWeatherRequest"),
@@ -109,6 +109,10 @@ const elements = {
   locationDialogClose: document.querySelector("#locationDialogClose"),
   locationDialogStatus: document.querySelector("#locationDialogStatus"),
   locationUpdateButton: document.querySelector("#locationUpdateButton"),
+  locationSearchForm: document.querySelector("#locationSearchForm"),
+  locationSearchInput: document.querySelector("#locationSearchInput"),
+  locationSearchButton: document.querySelector("#locationSearchButton"),
+  locationSearchResults: document.querySelector("#locationSearchResults"),
 };
 
 function clamp(value, min, max) {
@@ -617,80 +621,6 @@ function estimateOpeningWindowPlan(startWeather, timeline) {
   );
 }
 
-function setPlanCopy(plan) {
-  const copy = {
-    "target-met": {
-      label: "Humidity target met",
-      duration: "No need",
-      details: `Indoor humidity is at or within 0.5% RH of ${formatRh(state.targetRh)}.`,
-    },
-    "below-minimum": {
-      label: "Room is too cool",
-      duration: "Keep closed",
-      details: `The room is already below your ${formatTemp(state.minTemp)} minimum, and ventilation would cool it further.`,
-    },
-    wetter: {
-      label: "Outdoor air is wetter",
-      duration: "Keep closed",
-      details: "Opening now would probably raise indoor humidity.",
-    },
-    uncertain: {
-      label: "No clear drying benefit",
-      duration: "Wait",
-      details: "The moisture difference is too small to compare reliably.",
-    },
-    good: {
-      label: "Open now",
-      duration: formatDuration(plan.minutes),
-      details: `Expected indoor conditions: about ${formatRh(plan.projectedRh)} RH and ${formatTemp(
-        plan.projectedTemp,
-      )}.`,
-    },
-    "too-cold": {
-      label: "Temperature limit first",
-      duration: plan.limitMinutes ? formatDuration(plan.limitMinutes) : "Avoid",
-      details: plan.limitMinutes
-        ? `Expected then: about ${formatRh(plan.projectedRh)} RH and ${formatTemp(plan.projectedTemp)}.`
-        : `The room would fall below ${formatTemp(state.minTemp)} immediately.`,
-    },
-    condensation: {
-      label: "Condensation limit first",
-      duration: plan.limitMinutes ? formatDuration(plan.limitMinutes) : "Avoid",
-      details: plan.limitMinutes
-        ? "Stop then to limit condensation risk."
-        : "Cooling may cause condensation immediately.",
-    },
-    "forecast-limit": {
-      label: "Forecast changes first",
-      duration: plan.limitMinutes ? formatDuration(plan.limitMinutes) : "Wait",
-      details: plan.limitMinutes
-        ? `Expected then: about ${formatRh(plan.projectedRh)} RH and ${formatTemp(plan.projectedTemp)}.`
-        : "Forecast air is no longer reliably drier.",
-    },
-    settling: {
-      label: "Drying benefit fades",
-      duration: plan.minutes ? formatDuration(plan.minutes) : "No further benefit",
-      details: plan.minutes
-        ? `Further drying becomes uncertain near ${formatRh(plan.projectedRh)} RH and ${formatTemp(plan.projectedTemp)}.`
-        : "Further drying is already uncertain.",
-    },
-    slow: {
-      label: "Humidity falls slowly",
-      duration: `${formatDuration(MAX_OPEN_MINUTES)}+`,
-      details: `The room may not reach ${formatRh(state.targetRh)} within three hours. Recheck indoor readings by then.`,
-    },
-    "minimal-impact": {
-      label: "No clear drying benefit",
-      duration: "Wait",
-      details: `Expected humidity reduction is under ${MINIMUM_NOTICEABLE_RH_CHANGE} percentage point.`,
-    },
-  }[plan.status];
-
-  elements.planLabel.textContent = copy.label;
-  elements.planDuration.textContent = copy.duration;
-  elements.planDetails.textContent = copy.details;
-}
-
 function renderPlanControls() {
   elements.targetRh.value = state.targetRh;
   elements.minTemp.value = state.minTemp;
@@ -713,11 +643,7 @@ function renderPlan() {
 
   const timeline = buildWeatherTimeline();
   if (!timeline.length) {
-    setToneClass(elements.planSummary, "caution");
     elements.planConfidence.textContent = "Rough estimate";
-    elements.planLabel.textContent = "Waiting for forecast";
-    elements.planDuration.textContent = "--";
-    elements.planDetails.textContent = "Set your limits, then check outdoor conditions.";
     return null;
   }
 
@@ -728,8 +654,6 @@ function renderPlan() {
   }
   const exchange = effectiveAirExchange(current, state.indoorTemp);
   elements.planConfidence.textContent = `About ${exchange.airChangesPerHour.toFixed(1)} air changes/hr`;
-  setPlanCopy(currentPlan);
-  setToneClass(elements.planSummary, planTone(currentPlan));
 
   const forecastStarts = [
     current,
@@ -941,14 +865,15 @@ function render() {
   elements.outdoorAbsoluteHumidity.classList.remove("lower", "higher", "near");
 
   if (state.outdoorTemp === null || state.outdoorRh === null) {
+    elements.retryWeather.hidden = !state.weatherLoadFailed;
     elements.recommendation.classList.remove("open", "windows", "closed", "caution");
     elements.recommendation.classList.add("caution");
     elements.decisionLabel.textContent = state.weatherLoadFailed
-      ? "CAN'T CHECK OUTDOORS"
-      : "CHECKING OUTDOORS";
+      ? "CHECK FAILED"
+      : "CHECKING";
     setDecisionSummary(
-      state.weatherLoadFailed ? "Weather data unavailable." : "Getting the latest outdoor weather.",
-      state.weatherLoadFailed ? "Try Check outdoor again." : "This normally takes a moment.",
+      state.weatherLoadFailed ? "Outdoor weather is unavailable." : "Getting local conditions...",
+      state.weatherLoadFailed ? "Try again to update the recommendation." : "",
     );
     elements.outdoorTempValue.textContent = "--";
     elements.outdoorRhValue.textContent = "--";
@@ -1049,9 +974,27 @@ function loadLocation() {
     ) {
       state.location = location;
       state.locationMode = "current";
+      return true;
     }
   } catch {
     localStorage.removeItem(LOCATION_STORAGE_KEY);
+  }
+  return false;
+}
+
+function hasRequestedLocation() {
+  try {
+    return localStorage.getItem(LOCATION_REQUESTED_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function markLocationRequested() {
+  try {
+    localStorage.setItem(LOCATION_REQUESTED_STORAGE_KEY, "true");
+  } catch {
+    // The browser may request location again when storage is unavailable.
   }
 }
 
@@ -1083,6 +1026,142 @@ async function reverseGeocodeLocation(latitude, longitude) {
   const response = await fetch(`${REVERSE_GEOCODING_ENDPOINT}?${params}`);
   if (!response.ok) throw new Error("Reverse geocoding failed");
   return formatBrowserLocation(await response.json());
+}
+
+function formatSearchLocation(result) {
+  if (result.source === "postcode") {
+    return [result.postcode, result.admin_district || result.region].filter(Boolean).join(", ");
+  }
+  const parts = [result.name, result.admin2 || result.admin1, result.country].filter(Boolean);
+  return [...new Set(parts)].join(", ");
+}
+
+function normalizeUkPostcode(query) {
+  const compact = query.toUpperCase().replace(/\s+/g, "");
+  if (!/^(GIR0AA|[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2})$/.test(compact)) return null;
+  return `${compact.slice(0, -3)} ${compact.slice(-3)}`;
+}
+
+async function searchUkPostcode(postcode) {
+  const response = await fetch(`${UK_POSTCODE_ENDPOINT}/${encodeURIComponent(postcode)}`);
+  if (response.status === 404) return [];
+  if (!response.ok) throw new Error("Postcode search failed");
+  const data = await response.json();
+  if (!data.result) return [];
+  return [{ ...data.result, source: "postcode" }];
+}
+
+function locationMatchesQualifier(result, qualifier) {
+  if (!qualifier) return true;
+  const fields = [result.admin1, result.admin2, result.admin3, result.admin4, result.country];
+  return fields.some((field) => field?.toLowerCase().includes(qualifier.toLowerCase()));
+}
+
+async function searchTownLocations(query, worldwide = false) {
+  const [town, qualifier = ""] = query.split(",", 2).map((part) => part.trim());
+  const params = new URLSearchParams({
+    name: worldwide ? query : town,
+    count: worldwide ? "5" : "20",
+    language: "en",
+    format: "json",
+  });
+  if (!worldwide) params.set("countryCode", "GB");
+  const response = await fetch(`${GEOCODING_ENDPOINT}?${params}`);
+  if (!response.ok) throw new Error("Location search failed");
+  const data = await response.json();
+  const results = Array.isArray(data.results) ? data.results : [];
+  if (worldwide) return results.slice(0, 5);
+  if (!qualifier) return results.slice(0, 4);
+
+  const matching = results.filter((result) => locationMatchesQualifier(result, qualifier));
+  return (matching.length ? matching : results).slice(0, 4);
+}
+
+async function searchLocations(query, worldwide = false) {
+  const postcode = normalizeUkPostcode(query);
+  if (postcode && !worldwide) return searchUkPostcode(postcode);
+  return searchTownLocations(query, worldwide);
+}
+
+function addWorldwideSearchButton(query) {
+  const button = document.createElement("button");
+  button.className = "location-worldwide-button";
+  button.type = "button";
+  button.textContent = "Search worldwide";
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    elements.locationDialogStatus.textContent = "Searching worldwide...";
+    try {
+      const results = await searchLocations(query, true);
+      elements.locationDialogStatus.textContent = "";
+      renderLocationResults(results, query, true);
+    } catch {
+      elements.locationDialogStatus.textContent = "Worldwide search is unavailable. Try again.";
+    }
+  });
+  elements.locationSearchResults.append(button);
+}
+
+function renderLocationResults(results, query, worldwide = false) {
+  elements.locationSearchResults.replaceChildren();
+
+  if (!results.length) {
+    const isPostcode = Boolean(normalizeUkPostcode(query));
+    elements.locationDialogStatus.textContent = isPostcode
+      ? "Postcode not found. Check it and try again."
+      : worldwide
+        ? "No matching locations found."
+        : "No UK locations found.";
+    if (!isPostcode && !worldwide) addWorldwideSearchButton(query);
+    return;
+  }
+
+  elements.retryWeather.hidden = true;
+
+  results.forEach((result) => {
+    const button = document.createElement("button");
+    button.className = "location-result-button";
+    button.type = "button";
+    button.textContent = formatSearchLocation(result);
+    button.addEventListener("click", async () => {
+      setLocation(
+        {
+          name: formatSearchLocation(result),
+          latitude: result.latitude,
+          longitude: result.longitude,
+        },
+        "search",
+      );
+      closeLocationDialog();
+      await fetchWeather();
+    });
+    elements.locationSearchResults.append(button);
+  });
+
+  if (!worldwide && !normalizeUkPostcode(query)) addWorldwideSearchButton(query);
+}
+
+async function handleLocationSearch(event) {
+  event.preventDefault();
+  const query = elements.locationSearchInput.value.trim();
+  if (query.length < 2) {
+    elements.locationDialogStatus.textContent = "Enter at least two characters.";
+    return;
+  }
+
+  elements.locationSearchButton.disabled = true;
+  elements.locationSearchResults.replaceChildren();
+  elements.locationDialogStatus.textContent = "Searching...";
+
+  try {
+    const results = await searchLocations(query);
+    elements.locationDialogStatus.textContent = "";
+    renderLocationResults(results, query);
+  } catch {
+    elements.locationDialogStatus.textContent = "Location search is unavailable. Try again.";
+  } finally {
+    elements.locationSearchButton.disabled = false;
+  }
 }
 
 function getBrowserLocation() {
@@ -1133,6 +1212,8 @@ async function useCurrentLocation() {
 
 function openLocationDialog() {
   elements.locationDialogStatus.textContent = "";
+  elements.locationSearchInput.value = "";
+  elements.locationSearchResults.replaceChildren();
   elements.locationDialog.showModal();
 }
 
@@ -1140,16 +1221,20 @@ function closeLocationDialog() {
   if (elements.locationDialog.open) elements.locationDialog.close();
 }
 
-async function initializeLocation() {
-  state.locationMode = "current";
-  saveLocation();
-  updateLocationUi();
+async function initializeLocation(hasSavedLocation) {
+  if (hasSavedLocation || hasRequestedLocation()) {
+    await fetchWeather();
+    return;
+  }
+
+  markLocationRequested();
   await useCurrentLocation();
 }
 async function fetchWeather() {
   const checkedAt = new Date();
   elements.weatherStatus.textContent = "Updating outdoor weather...";
   elements.refreshWeather.disabled = true;
+  elements.retryWeather.disabled = true;
 
   try {
     const response = await fetch(weatherUrlForLocation());
@@ -1175,22 +1260,16 @@ async function fetchWeather() {
     state.weatherLoadFailed = false;
     if (typeof data.timezone === "string" && data.timezone) state.timezone = data.timezone;
 
-    const dataTime = dateFromApiTime(state.updatedAt);
-    const dataAge = minutesSince(dataTime);
-    elements.weatherStatus.textContent = `Last checked ${formatShortTime(checkedAt)}, weather updated ${formatShortTime(dataTime)}${
-      dataAge >= 60 ? " (may be stale)" : ""
-    }`;
+    elements.weatherStatus.textContent = `Last checked ${formatShortTime(checkedAt)}`;
   } catch {
     state.lastCheckedAt = checkedAt;
     state.weatherLoadFailed = true;
-    const previousDataTime = dateFromApiTime(state.updatedAt);
     const hasPreviousWeather = state.outdoorTemp !== null && state.outdoorRh !== null;
     elements.weatherStatus.textContent =
-      hasPreviousWeather && Number.isFinite(previousDataTime.getTime())
-        ? `Last check failed ${formatShortTime(checkedAt)}, weather updated ${formatShortTime(previousDataTime)}`
-        : `Last check failed ${formatShortTime(checkedAt)}`;
+      hasPreviousWeather ? `Check failed ${formatShortTime(checkedAt)}` : "Check failed";
   } finally {
     elements.refreshWeather.disabled = false;
+    elements.retryWeather.disabled = false;
     render();
   }
 }
@@ -1210,10 +1289,12 @@ function bindTypedValue(input, stateKey, min, max, save) {
   });
 }
 
-function bindReadingSteppers() {
+function bindSteppers() {
   const settings = {
-    indoorTemp: { min: 10, max: 32, step: 0.1 },
-    indoorRh: { min: 20, max: 90, step: 1 },
+    indoorTemp: { min: 10, max: 32, step: 0.1, save: saveIndoorReadings },
+    indoorRh: { min: 20, max: 90, step: 1, save: saveIndoorReadings },
+    targetRh: { min: 40, max: 65, step: 1, save: savePlanSettings },
+    minTemp: { min: 16, max: 26, step: 0.5, save: savePlanSettings },
   };
 
   document.querySelectorAll(".step-button").forEach((button) => {
@@ -1231,7 +1312,7 @@ function bindReadingSteppers() {
       state[stateKey] = Number(
         clamp(state[stateKey] + setting.step * direction, setting.min, setting.max).toFixed(precision),
       );
-      saveIndoorReadings();
+      setting.save();
       render();
     };
 
@@ -1271,7 +1352,7 @@ function bindEvents() {
   });
   bindTypedValue(elements.indoorTempInput, "indoorTemp", 10, 32, saveIndoorReadings);
   bindTypedValue(elements.indoorRhInput, "indoorRh", 20, 90, saveIndoorReadings);
-  bindReadingSteppers();
+  bindSteppers();
   bindTypedValue(elements.targetRhInput, "targetRh", 40, 65, savePlanSettings);
   bindTypedValue(elements.minTempInput, "minTemp", 16, 26, savePlanSettings);
 
@@ -1303,24 +1384,17 @@ function bindEvents() {
   bindTypedValue(elements.customAirflow, "customAirflow", 10, 500, savePlanSettings);
 
   elements.refreshWeather.addEventListener("click", fetchWeather);
+  elements.retryWeather.addEventListener("click", fetchWeather);
   elements.locationButton.addEventListener("click", openLocationDialog);
   elements.locationDialogClose.addEventListener("click", closeLocationDialog);
   elements.locationUpdateButton.addEventListener("click", useCurrentLocation);
-  elements.sourceButton.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const isOpen = elements.sourceButton.getAttribute("aria-expanded") === "true";
-    setSourcePopoverOpen(!isOpen);
+  elements.locationSearchForm.addEventListener("submit", handleLocationSearch);
+  elements.viewPlanLink.addEventListener("click", (event) => {
+    event.preventDefault();
+    const behavior = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth";
+    elements.planHeading.scrollIntoView({ behavior, block: "start" });
+    elements.planHeading.focus({ preventScroll: true });
   });
-  elements.sourcePopover.addEventListener("click", (event) => event.stopPropagation());
-  document.addEventListener("click", () => setSourcePopoverOpen(false));
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") setSourcePopoverOpen(false);
-  });
-}
-
-function setSourcePopoverOpen(isOpen) {
-  elements.sourceButton.setAttribute("aria-expanded", String(isOpen));
-  elements.sourcePopover.hidden = !isOpen;
 }
 
 if ("serviceWorker" in navigator) {
@@ -1329,11 +1403,11 @@ if ("serviceWorker" in navigator) {
 
 loadIndoorReadings();
 loadPlanSettings();
-loadLocation();
+const hasSavedLocation = loadLocation();
 updateLocationUi();
 bindEvents();
 render();
-initializeLocation();
+initializeLocation(hasSavedLocation);
 setInterval(fetchWeather, WEATHER_REFRESH_INTERVAL_MS);
 
 document.addEventListener("visibilitychange", () => {

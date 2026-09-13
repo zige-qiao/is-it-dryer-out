@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=75" />
   </head>
   <body>
     <main class="app-shell">
@@ -27,11 +27,29 @@
               <span id="locationName">Sale, Greater Manchester</span>
             </button>
           </div>
-          <h1 id="decisionLabel">Checking weather...</h1>
+          <h1 id="decisionLabel">Checking</h1>
           <p id="decisionSummary">
-            <span id="decisionPrimary">Checking conditions</span>
-            <span id="decisionSecondary">Fetching current outdoor weather.</span>
+            <span id="decisionPrimary">Getting local conditions...</span>
+            <span id="decisionSecondary"></span>
           </p>
+          <button class="verdict-retry-button" id="retryWeather" type="button" hidden>
+            Try again
+          </button>
+          <a class="view-plan-link" id="viewPlanLink" href="#plan-heading">
+            View plan <span aria-hidden="true">&darr;</span>
+          </a>
+          <div class="forecast-panel" aria-label="Opening outlook">
+            <div
+              class="forecast-strip"
+              id="forecastStrip"
+              role="list"
+              aria-label="Forecast outlook. Swipe horizontally for later times."
+            ></div>
+            <details class="dashboard-explainer forecast-explainer">
+              <summary>About these estimates</summary>
+              <p>Timing is a rough estimate based on room volume, opening setup, forecast wind and temperature difference. Future times assume the current indoor readings stay unchanged.</p>
+            </details>
+          </div>
         </section>
 
         <section class="panel inputs-panel" aria-labelledby="indoor-heading">
@@ -94,54 +112,23 @@
             <input id="indoorRh" type="range" min="20" max="90" step="1" value="58" />
           </div>
 
-          <button class="secondary-button refresh-button" type="button" id="refreshWeather">
-            Check outdoor
-          </button>
-          <p class="last-checked" id="weatherStatus">Not checked yet</p>
         </section>
         <section class="panel dashboard-panel" aria-labelledby="numbers-heading">
           <div class="section-heading dashboard-heading">
             <h2 id="numbers-heading">Moisture dashboard</h2>
+            <div class="weather-refresh-row">
+              <p class="last-checked" id="weatherStatus">Not checked yet</p>
+              <button class="weather-refresh-button" type="button" id="refreshWeather" aria-label="Refresh outdoor weather" title="Refresh outdoor weather">
+                <span aria-hidden="true">&#8635;</span>
+              </button>
+            </div>
           </div>
 
           <div class="data-table" role="table" aria-label="Indoor and outdoor readings">
             <div class="data-row header" role="row">
               <span role="columnheader"></span>
               <span class="metric-heading" role="columnheader">Indoor</span>
-              <span class="outdoor-heading" role="columnheader">
-                Outdoor
-                <span class="source-disclosure">
-                  <button
-                    class="source-button"
-                    type="button"
-                    id="sourceButton"
-                    aria-label="Show outdoor weather source"
-                    aria-expanded="false"
-                    aria-controls="sourcePopover"
-                  >
-                    i
-                  </button>
-                  <p class="source-popover" id="sourcePopover" role="tooltip" hidden>
-                    Outdoor weather comes from Open-Meteo for
-                    <span id="sourceLocationName">Sale, Greater Manchester</span>.
-                    <a
-                      href="https://open-meteo.com/en/docs"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      View Open-Meteo docs
-                    </a>
-                    <a
-                      href="https://api.open-meteo.com/v1/forecast?latitude=53.4252&longitude=-2.3244&current=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&forecast_hours=12&timeformat=unixtime&timezone=auto"
-                      id="liveWeatherRequest"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Open live request
-                    </a>
-                  </p>
-                </span>
-              </span>
+              <span class="outdoor-heading" role="columnheader">Outdoor</span>
             </div>
             <div class="data-row" role="row">
               <span role="rowheader">Temperature</span>
@@ -179,6 +166,17 @@
               Relative humidity changes when air warms or cools. This app compares actual water
               content first, then shows what the outdoor air would feel like indoors.
             </p>
+            <p class="weather-source-details">
+              Outdoor weather comes from Open-Meteo for
+              <span id="sourceLocationName">Sale, Greater Manchester</span>.
+              <a href="https://open-meteo.com/en/docs" target="_blank" rel="noreferrer">View Open-Meteo docs</a>
+              <a
+                href="https://api.open-meteo.com/v1/forecast?latitude=53.4252&longitude=-2.3244&current=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&forecast_hours=12&timeformat=unixtime&timezone=auto"
+                id="liveWeatherRequest"
+                target="_blank"
+                rel="noreferrer"
+              >Open live request</a>
+            </p>
           </details>
         </section>
 
@@ -187,31 +185,33 @@
       <div class="layout-column right-column">
         <section class="panel plan-panel" aria-labelledby="plan-heading">
           <div class="section-heading plan-heading">
-            <h2 id="plan-heading">Opening window plan</h2>
-          </div>
-
-          <div class="plan-summary">
-            <span id="planLabel">Waiting for forecast</span>
-            <strong id="planDuration">--</strong>
-            <p id="planDetails">Set your comfort limits, then check outdoor conditions.</p>
+            <h2 id="plan-heading" tabindex="-1">Opening window plan</h2>
           </div>
 
           <div class="plan-controls" aria-label="Ventilation settings">
             <div class="mini-control">
               <label class="setting-label" for="targetRh">Target indoor humidity</label>
-              <label class="setting-field" for="targetRhInput">
-                <input id="targetRhInput" type="number" min="40" max="65" step="1" value="55" inputmode="numeric" aria-label="Target indoor humidity" />
-                <span aria-hidden="true">%</span>
-              </label>
+              <div class="reading-stepper plan-stepper">
+                <button class="step-button" type="button" data-step-target="targetRh" data-step-direction="-1" aria-label="Decrease target indoor humidity">&minus;</button>
+                <label class="setting-field" for="targetRhInput">
+                  <input id="targetRhInput" type="number" min="40" max="65" step="1" value="55" inputmode="numeric" aria-label="Target indoor humidity" />
+                  <span aria-hidden="true">%</span>
+                </label>
+                <button class="step-button" type="button" data-step-target="targetRh" data-step-direction="1" aria-label="Increase target indoor humidity">+</button>
+              </div>
               <input id="targetRh" type="range" min="40" max="65" step="1" value="55" />
             </div>
 
             <div class="mini-control">
               <label class="setting-label" for="minTemp">Minimum indoor temp</label>
-              <label class="setting-field" for="minTempInput">
-                <input id="minTempInput" type="number" min="16" max="26" step="0.5" value="21" inputmode="decimal" aria-label="Minimum indoor temperature" />
-                <span aria-hidden="true">&deg;C</span>
-              </label>
+              <div class="reading-stepper plan-stepper">
+                <button class="step-button" type="button" data-step-target="minTemp" data-step-direction="-1" aria-label="Decrease minimum indoor temperature">&minus;</button>
+                <label class="setting-field" for="minTempInput">
+                  <input id="minTempInput" type="number" min="16" max="26" step="0.5" value="21" inputmode="decimal" aria-label="Minimum indoor temperature" />
+                  <span aria-hidden="true">&deg;C</span>
+                </label>
+                <button class="step-button" type="button" data-step-target="minTemp" data-step-direction="1" aria-label="Increase minimum indoor temperature">+</button>
+              </div>
               <input id="minTemp" type="range" min="16" max="26" step="0.5" value="21" />
             </div>
 
@@ -258,16 +258,6 @@
             <p class="air-change-estimate" id="planConfidence">Estimate</p>
           </div>
 
-          <div class="estimate-details">
-            <p class="estimate-note">Timing is a rough estimate based on room volume, opening setup, forecast wind and temperature difference.</p>
-          </div>
-          <div
-            class="forecast-strip"
-            id="forecastStrip"
-            role="list"
-            aria-label="Forecast outlook. Swipe horizontally for later times."
-          ></div>
-          <p class="forecast-note">Future times assume the current indoor readings stay unchanged.</p>
         </section>
       </div>
     </main>
@@ -275,7 +265,15 @@
     <dialog class="location-dialog" id="locationDialog" aria-labelledby="locationDialogTitle">
       <div class="location-dialog-content">
         <h2 id="locationDialogTitle">Update location</h2>
-        <p>Use your device's current location for outdoor weather.</p>
+        <p>Use your current location or search by town or postcode.</p>
+        <form class="location-search-form" id="locationSearchForm">
+          <label for="locationSearchInput">Town or postcode</label>
+          <div class="location-search-row">
+            <input id="locationSearchInput" type="search" autocomplete="postal-code" />
+            <button class="secondary-button" type="submit" id="locationSearchButton">Search</button>
+          </div>
+        </form>
+        <div class="location-search-results" id="locationSearchResults" aria-live="polite"></div>
         <p class="location-dialog-status" id="locationDialogStatus" role="status"></p>
         <div class="location-dialog-actions">
           <button class="secondary-button" type="button" id="locationDialogClose">Cancel</button>
@@ -286,6 +284,6 @@
       </div>
     </dialog>
 
-    <script src="app.js" type="module"></script>
+    <script src="app.js?v=75" type="module"></script>
   </body>
 </html>
