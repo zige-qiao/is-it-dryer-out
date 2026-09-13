@@ -2,6 +2,22 @@
 
 All notable changes to Is it dryer out are documented here.
 
+## Unreleased
+
+## v0.4.2 - 2026-09-13
+
+### Changed
+
+- Aligned the visible heading-to-control gap in Indoor readings and Opening window plan at 12px.
+- Matched the opening-plan bottom padding to the dashboard conclusion spacing.
+- On wide layouts, moved Opening window plan into the left working column and grouped Moisture dashboard with supporting details in the right column.
+- Made the two desktop layout columns equal width.
+- Tightened the verdict card's safe-area-aware top spacing and shortened the fallback ventilation guidance.
+
+### Fixed
+
+- Removed the location underline and reset its native button appearance for consistent rendering across browsers.
+
 ## v0.4.1 - 2026-09-13
 
 ### Changed

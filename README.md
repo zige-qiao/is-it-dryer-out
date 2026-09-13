@@ -1,8 +1,8 @@
 # Is it dryer out
 
-## Version 0.4.1
+## Version 0.4.2
 
-Version 0.4.1 refines the plan and dashboard after the v0.4 mobile-flow update. Opening window plan is expanded by default, with minimum temperature first. The dashboard now finishes with a shorter outdoor-relative-humidity conclusion.
+Version 0.4.2 polishes the responsive dashboard layout. Wide screens now use balanced columns, related controls and sections align more consistently, and the recommendation card has tighter spacing and clearer fallback guidance.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
@@ -46,6 +46,7 @@ Created by Ziggy Qiao. The app links to its [GitHub repository](https://github.c
 
 ## Release history
 
+- `v0.4.2`: Balanced desktop columns, aligned panel spacing, cleaner location rendering, and more compact fallback guidance.
 - `v0.4.1`: Default-expanded opening plan, minimum-temperature-first controls, and a compact outdoor-RH dashboard conclusion.
 - `v0.4`: Mobile-first information flow, collapsible opening-plan controls, clearer no-drying-benefit guidance, forecast relative humidity, refined refresh control, and a supporting-details footer.
 - `v0.3.2`: Automatic location checks, town and postcode search, clearer weather-retry handling, consolidated opening outlook, unified controls, responsive layout refinements, and visual polish.
