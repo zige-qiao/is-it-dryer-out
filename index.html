@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=93" />
+    <link rel="stylesheet" href="styles.css?v=97" />
   </head>
   <body>
     <main class="app-shell">
@@ -143,7 +143,7 @@
               <strong id="indoorDewPoint">--</strong>
               <strong id="outdoorDewPoint">--</strong>
             </div>
-            <div class="data-row" role="row">
+            <div class="data-row final-reading" role="row">
               <span role="rowheader">Absolute humidity</span>
               <strong id="indoorAbsoluteHumidity">--</strong>
               <strong id="outdoorAbsoluteHumidity" class="comparison-value">--</strong>
@@ -151,7 +151,7 @@
           </div>
 
           <div class="warming-card">
-            <span>Outdoor air at indoor temperature <strong id="warmingTemp">24.0C</strong></span>
+            <span class="warming-label">Outdoor air RH at indoor <strong id="warmingTemp">24.0C</strong></span>
             <span class="adjusted-rh-reading">
               <strong id="warmedOutdoorRh">--</strong>
               <small id="adjustedAirNote"></small>
@@ -195,25 +195,12 @@
 
       <div class="layout-column right-column">
         <section class="panel plan-panel" aria-labelledby="plan-heading">
-          <details class="plan-details" id="planDetails">
+          <details class="plan-details" id="planDetails" open>
             <summary class="plan-heading">
               <h2 id="plan-heading" tabindex="-1">Opening window plan</h2>
             </summary>
 
             <div class="plan-controls" aria-label="Ventilation settings">
-            <div class="mini-control">
-              <label class="setting-label" for="targetRh">Target indoor humidity</label>
-              <div class="reading-stepper plan-stepper">
-                <button class="step-button" type="button" data-step-target="targetRh" data-step-direction="-1" aria-label="Decrease target indoor humidity">&minus;</button>
-                <label class="setting-field" for="targetRhInput">
-                  <input id="targetRhInput" type="number" min="40" max="65" step="1" value="55" inputmode="numeric" aria-label="Target indoor humidity" />
-                  <span aria-hidden="true">%</span>
-                </label>
-                <button class="step-button" type="button" data-step-target="targetRh" data-step-direction="1" aria-label="Increase target indoor humidity">+</button>
-              </div>
-              <input id="targetRh" type="range" min="40" max="65" step="1" value="55" />
-            </div>
-
             <div class="mini-control">
               <label class="setting-label" for="minTemp">Minimum indoor temp</label>
               <div class="reading-stepper plan-stepper">
@@ -225,6 +212,19 @@
                 <button class="step-button" type="button" data-step-target="minTemp" data-step-direction="1" aria-label="Increase minimum indoor temperature">+</button>
               </div>
               <input id="minTemp" type="range" min="16" max="26" step="0.5" value="21" />
+            </div>
+
+            <div class="mini-control">
+              <label class="setting-label" for="targetRh">Target indoor humidity</label>
+              <div class="reading-stepper plan-stepper">
+                <button class="step-button" type="button" data-step-target="targetRh" data-step-direction="-1" aria-label="Decrease target indoor humidity">&minus;</button>
+                <label class="setting-field" for="targetRhInput">
+                  <input id="targetRhInput" type="number" min="40" max="65" step="1" value="55" inputmode="numeric" aria-label="Target indoor humidity" />
+                  <span aria-hidden="true">%</span>
+                </label>
+                <button class="step-button" type="button" data-step-target="targetRh" data-step-direction="1" aria-label="Increase target indoor humidity">+</button>
+              </div>
+              <input id="targetRh" type="range" min="40" max="65" step="1" value="55" />
             </div>
 
             <label class="select-control room-size-control">
@@ -297,6 +297,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=93" type="module"></script>
+    <script src="app.js?v=97" type="module"></script>
   </body>
 </html>

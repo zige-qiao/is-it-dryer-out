@@ -2,6 +2,15 @@
 
 All notable changes to Is it dryer out are documented here.
 
+## v0.4.1 - 2026-09-13
+
+### Changed
+
+- Opening window plan now opens by default while remaining collapsible.
+- Reordered plan controls so **Minimum indoor temp** appears before **Target indoor humidity**.
+- Simplified the dashboard conclusion to `Outdoor air RH at indoor 22.5°C` with the resulting RH shown beside it.
+- Removed the final table divider, tightened the summary-row spacing, and restored the dashboard's matching bottom padding.
+
 ## v0.4 - 2026-09-13
 
 ### Added

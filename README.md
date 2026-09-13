@@ -1,15 +1,15 @@
 # Is it dryer out
 
-## Version 0.4
+## Version 0.4.1
 
-Version 0.4 makes the daily decision easier to scan on a phone. Indoor readings stay paired, the opening plan is immediately below them and can be expanded when needed, and the forecast stays with the recommendation. Supporting assumptions and data-source information now sit in a quiet footer below the dashboard.
+Version 0.4.1 refines the plan and dashboard after the v0.4 mobile-flow update. Opening window plan is expanded by default, with minimum temperature first. The dashboard now finishes with a shorter outdoor-relative-humidity conclusion.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
 ## Using the app
 
 - Set the indoor temperature and relative humidity.
-- Expand **Opening window plan** only when you want to adjust the target humidity, minimum temperature, room size, or opening setup.
+- **Opening window plan** is expanded by default. Adjust the minimum temperature, target humidity, room size, or opening setup, then collapse it when you want a shorter page.
 - Read the recommendation and its forecast tiles. Each tile shows the expected opening result, outdoor temperature, and outdoor relative humidity for that start time.
 - Use the refresh icon beside **Last checked** to request current weather again.
 
@@ -46,6 +46,7 @@ Created by Ziggy Qiao. The app links to its [GitHub repository](https://github.c
 
 ## Release history
 
+- `v0.4.1`: Default-expanded opening plan, minimum-temperature-first controls, and a compact outdoor-RH dashboard conclusion.
 - `v0.4`: Mobile-first information flow, collapsible opening-plan controls, clearer no-drying-benefit guidance, forecast relative humidity, refined refresh control, and a supporting-details footer.
 - `v0.3.2`: Automatic location checks, town and postcode search, clearer weather-retry handling, consolidated opening outlook, unified controls, responsive layout refinements, and visual polish.
 - `v0.3.1`: Refined ventilation status logic, location updating, reading controls, forecast navigation, and responsive usability.

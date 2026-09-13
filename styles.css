@@ -715,6 +715,10 @@ input[type="range"] {
   white-space: nowrap;
 }
 
+.data-row.final-reading {
+  border-bottom: 0;
+}
+
 .comparison-value {
   display: inline-flex;
   justify-self: start;
@@ -738,7 +742,7 @@ input[type="range"] {
 }
 
 .warming-card {
-  margin-top: 0.9rem;
+  margin-top: 0.65rem;
   border: 1px solid var(--line);
   border-radius: 0.75rem;
   padding: 0.85rem;
@@ -817,10 +821,6 @@ input[type="range"] {
 
 .dashboard-explainer {
   color: var(--muted);
-}
-
-.dashboard-panel {
-  padding-bottom: 0.55rem;
 }
 
 .details-footnotes .dashboard-explainer {
