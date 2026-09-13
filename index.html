@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=77" />
+    <link rel="stylesheet" href="styles.css?v=93" />
   </head>
   <body>
     <main class="app-shell">
@@ -35,9 +35,6 @@
           <button class="verdict-retry-button" id="retryWeather" type="button" hidden>
             Try again
           </button>
-          <a class="view-plan-link" id="viewPlanLink" href="#plan-heading">
-            View plan <span aria-hidden="true">&darr;</span>
-          </a>
           <div class="forecast-panel" aria-label="Opening outlook">
             <div
               class="forecast-strip"
@@ -45,10 +42,6 @@
               role="list"
               aria-label="Forecast outlook. Swipe horizontally for later times."
             ></div>
-            <details class="dashboard-explainer forecast-explainer">
-              <summary>About these estimates</summary>
-              <p>Timing is a rough estimate based on room volume, opening setup, forecast wind and temperature difference. Future times assume the current indoor readings stay unchanged.</p>
-            </details>
           </div>
         </section>
 
@@ -119,7 +112,12 @@
             <div class="weather-refresh-row">
               <p class="last-checked" id="weatherStatus">Not checked yet</p>
               <button class="weather-refresh-button" type="button" id="refreshWeather" aria-label="Refresh outdoor weather" title="Refresh outdoor weather">
-                <span aria-hidden="true">&#8635;</span>
+                <svg class="refresh-icon" aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M21 12a9 9 0 0 1-15.2 6.5L3 16" />
+                  <path d="M3 21v-5h5" />
+                  <path d="M3 12A9 9 0 0 1 18.2 5.5L21 8" />
+                  <path d="M21 3v5h-5" />
+                </svg>
               </button>
             </div>
           </div>
@@ -160,6 +158,14 @@
             </span>
           </div>
 
+        </section>
+
+        <section class="details-footnotes" aria-label="Supporting details">
+          <details class="dashboard-explainer forecast-explainer">
+            <summary>About these estimates</summary>
+            <p>Timing is a rough estimate based on room volume, opening setup, forecast wind and temperature difference. Future times assume the current indoor readings stay unchanged.</p>
+          </details>
+
           <details class="dashboard-explainer">
             <summary>Why this matters</summary>
             <p id="explanationText">
@@ -178,17 +184,23 @@
               >Open live request</a>
             </p>
           </details>
+
+          <p class="project-credit">
+            By Ziggy Qiao <span aria-hidden="true">&middot;</span>
+            <a href="https://github.com/zige-qiao/is-it-dryer-out" target="_blank" rel="noreferrer">GitHub</a>
+          </p>
         </section>
 
       </div>
 
       <div class="layout-column right-column">
         <section class="panel plan-panel" aria-labelledby="plan-heading">
-          <div class="section-heading plan-heading">
-            <h2 id="plan-heading" tabindex="-1">Opening window plan</h2>
-          </div>
+          <details class="plan-details" id="planDetails">
+            <summary class="plan-heading">
+              <h2 id="plan-heading" tabindex="-1">Opening window plan</h2>
+            </summary>
 
-          <div class="plan-controls" aria-label="Ventilation settings">
+            <div class="plan-controls" aria-label="Ventilation settings">
             <div class="mini-control">
               <label class="setting-label" for="targetRh">Target indoor humidity</label>
               <div class="reading-stepper plan-stepper">
@@ -256,7 +268,8 @@
               <span class="dimension-field"><input id="customAirflow" type="number" min="10" max="500" step="5" value="80" inputmode="numeric" /><span>m3/h</span></span>
             </label>
             <p class="air-change-estimate" id="planConfidence">Estimate</p>
-          </div>
+            </div>
+          </details>
 
         </section>
       </div>
@@ -284,6 +297,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=77" type="module"></script>
+    <script src="app.js?v=93" type="module"></script>
   </body>
 </html>
