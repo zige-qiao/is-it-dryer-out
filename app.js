@@ -1232,7 +1232,7 @@ async function initializeLocation(hasSavedLocation) {
 }
 async function fetchWeather() {
   const checkedAt = new Date();
-  elements.weatherStatus.textContent = "Updating outdoor weather...";
+  elements.weatherStatus.textContent = "Updating outdoor...";
   elements.refreshWeather.disabled = true;
   elements.retryWeather.disabled = true;
 
