@@ -771,7 +771,7 @@ function renderRecommendation(plan) {
     elements.decisionLabel.textContent = "OPEN IF NEEDED";
     setDecisionSummary(
       "No clear drying benefit.",
-      "Brief ventilation for fresh air, but it may not reduce humidity.",
+      "Open briefly for fresh air; humidity may not fall.",
     );
   } else if (plan.status === "good") {
     elements.decisionLabel.textContent = "OPEN WINDOWS";
@@ -794,7 +794,7 @@ function renderRecommendation(plan) {
         : "No clear drying benefit.",
       plan.limitMinutes
         ? `Estimated then: ${formatRh(plan.projectedRh)} RH at ${formatTemp(plan.projectedTemp)}.`
-        : "Brief ventilation for fresh air, but it may not reduce humidity.",
+        : "Open briefly for fresh air; humidity may not fall.",
       plan.limitMinutes ? limitDuration : null,
     );
   } else if (plan.status === "settling") {
@@ -806,7 +806,7 @@ function renderRecommendation(plan) {
         : "No clear drying benefit.",
       plan.minutes
         ? `Estimated then: ${formatRh(plan.projectedRh)} RH at ${formatTemp(plan.projectedTemp)}.`
-        : "Brief ventilation for fresh air, but it may not reduce humidity.",
+        : "Open briefly for fresh air; humidity may not fall.",
       plan.minutes ? settlingDuration : null,
     );
   } else if (limited) {
@@ -844,7 +844,7 @@ function renderRecommendation(plan) {
     elements.decisionLabel.textContent = "OPEN IF NEEDED";
     setDecisionSummary(
       "No clear drying benefit.",
-      "Brief ventilation for fresh air, but it may not reduce humidity.",
+      "Open briefly for fresh air; humidity may not fall.",
     );
   } else {
     elements.decisionLabel.textContent = "WAIT";
