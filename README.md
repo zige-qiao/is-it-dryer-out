@@ -9,13 +9,14 @@ A personal ventilation checker for estimating whether opening windows should red
 ## Using the app
 
 - Set the indoor temperature and relative humidity.
-- **Opening window plan** is expanded by default. Adjust the minimum temperature, target humidity, room size, or opening setup, then collapse it when you want a shorter page.
-- Read the recommendation and its forecast tiles. Each tile shows the expected opening result, outdoor temperature, and outdoor relative humidity for that start time.
+- In supported browsers, use the microphone button to enter one or both indoor readings by voice, then review the recognised values before applying them.
+- **Opening window plan** starts collapsed on mobile and tablet and expanded on desktop. Adjust the minimum temperature, target humidity, room size, or opening setup as needed.
+- Read the recommendation and its forecast tiles. Each tile shows the expected opening result, outdoor temperature, outdoor relative humidity, and estimated air changes per hour for that start time.
 - Use the refresh icon beside **Last checked** to request current weather again.
 
 ## How it works
 
-- Enter indoor temperature, relative humidity, target humidity, and minimum indoor temperature manually.
+- Enter indoor temperature, relative humidity, target humidity, and minimum indoor temperature manually. Voice input can update indoor temperature and humidity in browsers that provide speech recognition and microphone access.
 - On every load, the app asks the browser for the current location. Use `Update` to request a fresh location check.
 - If location permission is unavailable, the app uses the most recently stored location, or Sale, Greater Manchester as the initial fallback.
 - When device location is used, its coordinates are sent to BigDataCloud only to obtain a nearby locality name.

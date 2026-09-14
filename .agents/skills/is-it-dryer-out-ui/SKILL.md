@@ -59,7 +59,7 @@ On mobile, keep this visual order:
 
 On wide screens, use equal-width columns. Put the recommendation, Indoor readings, and Opening window plan in the left column. Put the Moisture dashboard followed by supporting details in the right column. Keep Indoor readings and Opening window plan controls paired in two columns when space permits.
 
-Opening window plan is expanded by default but remains collapsible. Use chevrons for all disclosures. Do not restore the removed `View plan` link while the plan remains directly after Indoor readings.
+Opening window plan starts collapsed below the 48rem desktop breakpoint and expanded on desktop, then preserves the user's manual disclosure choice for the browser session. Use chevrons for all disclosures. Do not restore the removed `View plan` link while the plan remains directly after Indoor readings.
 
 Keep Room size and Opening setup stacked. Custom room dimensions remain three columns inside Room size; custom airflow remains within Opening setup.
 
@@ -90,8 +90,9 @@ Forecast tiles use `Uncertain` instead of `Wait` and `Little benefit` instead of
 ## Forecast And Dashboard
 
 - Keep forecast tiles inside the recommendation card.
-- Show time, outcome or duration, outdoor temperature, and outdoor RH, for example `21.1°C · 60% RH`.
-- Keep tile accessibility labels explicit about temperature and relative humidity.
+- Show time, outcome or duration, outdoor temperature, outdoor RH, and the forecast-specific estimated airflow, for example `21.1°C · 60% RH` followed by `~1.6 ACH`.
+- Keep tile accessibility labels explicit about temperature, relative humidity, and estimated air changes per hour.
+- While weather is loading, preserve the outlook height with quiet skeleton tiles that are hidden from assistive technology and respect reduced-motion preferences.
 - Show `Last checked HH:MM` with a compact black refresh icon. During refresh, use `Updating outdoor...`.
 - If weather loading fails, show a concise failure state and a visible retry button.
 - End the dashboard with `Outdoor air RH at indoor <temperature>` and the resulting RH on the right.
@@ -110,6 +111,7 @@ Keep weather-source links inside `Why this matters`. Keep the final credit under
 - Avoid decorative drop shadows.
 - Use black and white for ordinary control accents; reserve status colors for recommendation meaning.
 - Keep verdict styling aligned without allowing borders or outlines to change card dimensions.
+- Present the coloured verdict above a neutral forecast outlook with a 12px overlap. The outlook keeps side and bottom borders, square top corners, rounded bottom corners, and enough top padding to separate its tiles from the verdict edge.
 - Keep the recommendation's top padding compact while adding the device safe-area inset. Keep the location button un-underlined and explicitly reset its native appearance for consistent rendering across browsers.
 - Keep cards restrained, with the existing small radius and border treatment.
 - Use familiar icons for icon-only actions and provide accessible names and tooltips.
@@ -122,6 +124,8 @@ Keep equivalent sections visually aligned and use the existing spacing scale con
 Outdoor data comes from Open-Meteo. Device coordinates may be sent to BigDataCloud only to obtain a nearby locality name. Preserve the current fallback to the stored location or Sale, Greater Manchester.
 
 Indoor readings, plan settings, and the most recent location stay in browser storage. Do not add a backend or transmit additional user data without an explicit request.
+
+Voice input, when supported by the browser, updates indoor temperature and relative humidity only. Keep a review step before applying values, allow immediate manual stop, use a one-second silence stop, and show microphone activity from real input levels rather than simulated animation. Do not infer a single unlabelled integer when it is valid for both temperature and humidity.
 
 ## Cache Updates
 
