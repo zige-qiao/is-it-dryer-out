@@ -120,6 +120,7 @@ select {
 }
 
 .location-row {
+  justify-content: space-between;
   color: rgba(255, 255, 255, 0.74);
   font-size: 0.86rem;
 }
@@ -143,22 +144,22 @@ select {
 }
 
 .verdict-retry-button {
+  width: 2.75rem;
   min-height: 2.75rem;
-  align-self: flex-start;
+  flex: 0 0 2.75rem;
+  display: grid;
+  place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.75);
-  border-radius: 999px;
-  padding: 0 1rem;
-  background: #ffffff;
-  color: var(--ink);
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  color: #ffffff;
   cursor: pointer;
-  font: inherit;
-  font-size: 0.86rem;
-  font-weight: 800;
 }
 
 .verdict-retry-button:hover,
 .verdict-retry-button:focus-visible {
-  background: #f2f5f4;
+  background: rgba(255, 255, 255, 0.12);
   outline: 2px solid #ffffff;
   outline-offset: 2px;
 }
@@ -690,7 +691,7 @@ h1 {
   gap: 0.18rem;
   align-content: center;
   border: 1px solid var(--line);
-  border-radius: 0.65rem;
+  border-radius: 0.4rem;
   padding: 0.5rem;
   background: #ffffff;
   color: var(--muted);
@@ -736,6 +737,7 @@ h1 {
 }
 
 .forecast-placeholder {
+  grid-template-rows: 0.9rem 1rem 0.9rem 0.9rem;
   border-color: #e1e5e3;
   background: #f2f5f4;
 }
@@ -744,20 +746,32 @@ h1 {
 .forecast-placeholder strong,
 .forecast-placeholder small {
   display: block;
-  width: 3.2rem;
-  height: 0.48rem;
-  border-radius: 0.25rem;
+  align-self: center;
+  width: 2.7rem;
+  height: 0.4rem;
+  border-radius: 2px;
   background: #d8dedb;
   animation: forecast-placeholder-pulse 1.4s ease-in-out infinite alternate;
 }
 
 .forecast-placeholder strong {
-  width: 4.5rem;
-  height: 0.7rem;
+  width: 4rem;
+  height: 0.58rem;
 }
 
 .forecast-placeholder small {
-  width: 5.4rem;
+  width: 5rem;
+}
+
+.forecast-placeholder small:last-child {
+  width: 3.2rem;
+}
+
+.forecast-placeholder.is-static span,
+.forecast-placeholder.is-static strong,
+.forecast-placeholder.is-static small {
+  animation: none;
+  opacity: 0.65;
 }
 
 @keyframes forecast-placeholder-pulse {
@@ -1320,11 +1334,6 @@ input[type="range"] {
   font-size: 0.92rem;
   line-height: 1.45;
 }
-.location-row {
-  justify-content: flex-start;
-  gap: 0.45rem;
-}
-
 .location-icon {
   width: 1rem;
   height: 1rem;

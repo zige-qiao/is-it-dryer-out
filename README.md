@@ -1,8 +1,8 @@
 # Is it dryer out
 
-## Version 0.5
+## Version 0.5.1
 
-Version 0.5 adds optional voice entry for indoor readings, hourly airflow estimates in the forecast outlook, responsive opening-plan defaults, and a clearer stacked recommendation layout.
+Version 0.5.1 improves repeated voice entry on iOS, adds UK postcode-area search, and makes weather loading and failure states clearer and more stable.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
@@ -18,6 +18,7 @@ A personal ventilation checker for estimating whether opening windows should red
 
 - Enter indoor temperature, relative humidity, target humidity, and minimum indoor temperature manually. Voice input can update indoor temperature and humidity in browsers that provide speech recognition and microphone access.
 - On every load, the app asks the browser for the current location. Use `Update` to request a fresh location check.
+- Location search accepts UK postcodes with or without spaces, regardless of letter case, and outward codes such as `M1`, `M33`, or `SW1A`.
 - If location permission is unavailable, the app uses the most recently stored location, or Sale, Greater Manchester as the initial fallback.
 - When device location is used, its coordinates are sent to BigDataCloud only to obtain a nearby locality name.
 - The app compares indoor and outdoor water content before recommending ventilation.
@@ -47,6 +48,7 @@ Created by Ziggy Qiao. The app links to its [GitHub repository](https://github.c
 
 ## Release history
 
+- `v0.5.1`: Reliable repeated voice sessions on iOS, UK postcode-area search, and refined outdoor-data loading and failure states.
 - `v0.5`: Optional voice entry for indoor readings, forecast ACH estimates, responsive plan disclosure, loading placeholders, and a separated verdict and outlook layout.
 - `v0.4.2`: Balanced desktop columns, aligned panel spacing, cleaner location rendering, and more compact fallback guidance.
 - `v0.4.1`: Default-expanded opening plan, minimum-temperature-first controls, and a compact outdoor-RH dashboard conclusion.
@@ -60,5 +62,4 @@ Created by Ziggy Qiao. The app links to its [GitHub repository](https://github.c
 ## Possible future work
 
 - Calibrate airflow estimates against measured changes in a specific room.
-- Add richer loading and error states.
 - Investigate whether Tado X readings can be accessed safely and reliably through Home Assistant/Matter or a token-protecting backend.
