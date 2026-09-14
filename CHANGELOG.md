@@ -4,6 +4,18 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+## v0.5.3 - 2026-09-14
+
+### Changed
+
+- Voice input now detects one continuous second of silence from real microphone levels instead of relying on inconsistent browser `speechend` events.
+- Recognition is asked to stop before its microphone meter is released, with fallback cleanup when a browser does not emit `end`.
+- iOS uses one-shot speech recognition while other browsers retain continuous recognition.
+
+### Fixed
+
+- Intentional iOS `aborted` events no longer replace an otherwise valid result with an error.
+
 ## v0.5.2 - 2026-09-14
 
 ### Added
