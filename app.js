@@ -31,6 +31,11 @@ const OPENING_SETUPS = {
 };
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
+const IS_IOS = /iP(?:hone|ad|od)/.test(navigator.userAgent)
+  || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const VOICE_ACTIVITY_THRESHOLD = 0.06;
+const VOICE_SILENCE_DURATION_MS = 1000;
+const VOICE_CLEANUP_TIMEOUT_MS = 2500;
 const INPUT_UNCERTAINTY = {
   indoorTemp: 0.3,
   indoorRh: 2,
@@ -139,6 +144,9 @@ let voiceHadResult = false;
 let voiceHadError = false;
 let voiceLatestTranscript = "";
 let voiceSilenceTimer = null;
+let voiceCleanupTimer = null;
+let voiceSoundDetected = false;
+let voiceSilentSince = null;
 let voiceDialogCancelled = false;
 let voiceDebugSession = 0;
 let voiceDebugStartedAt = performance.now();
@@ -409,6 +417,12 @@ function stopVoiceMeter() {
   resetVoiceMeter();
 }
 
+function markVoiceActivity(source) {
+  if (!voiceSoundDetected) voiceDebugLog("voice activity detected", { source });
+  voiceSoundDetected = true;
+  voiceSilentSince = null;
+}
+
 async function prepareVoiceAudioContext() {
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   if (!AudioContext) return null;
@@ -452,8 +466,23 @@ async function startVoiceMeter(stream) {
     let total = 0;
     for (const sample of samples) total += Math.abs(sample - 128);
     const measuredLevel = Math.min(1, total / samples.length / 10);
-    const targetLevel = reduceMotion || measuredLevel < 0.06 ? 0 : (measuredLevel - 0.06) / 0.94;
+    const targetLevel = reduceMotion || measuredLevel < VOICE_ACTIVITY_THRESHOLD
+      ? 0
+      : (measuredLevel - VOICE_ACTIVITY_THRESHOLD) / (1 - VOICE_ACTIVITY_THRESHOLD);
     displayedLevel += (targetLevel - displayedLevel) * (targetLevel > displayedLevel ? 0.55 : 0.12);
+    if (voiceIsListening) {
+      if (measuredLevel >= VOICE_ACTIVITY_THRESHOLD) {
+        markVoiceActivity("meter");
+      } else if (voiceSoundDetected) {
+        if (voiceSilentSince === null) voiceSilentSince = performance.now();
+        if (performance.now() - voiceSilentSince >= VOICE_SILENCE_DURATION_MS) {
+          voiceDebugLog("silence threshold reached", { durationMs: VOICE_SILENCE_DURATION_MS });
+          voiceSilentSince = null;
+          stopVoiceInput(false);
+          return;
+        }
+      }
+    }
     document.querySelectorAll(".voice-input-button").forEach((button) => {
       button.style.setProperty("--voice-level", displayedLevel.toFixed(3));
     });
@@ -497,6 +526,10 @@ function finishVoiceListening(recognition = voiceRecognition) {
   if (recognition && recognition !== voiceRecognition) return;
   if (voiceSilenceTimer !== null) clearTimeout(voiceSilenceTimer);
   voiceSilenceTimer = null;
+  if (voiceCleanupTimer !== null) clearTimeout(voiceCleanupTimer);
+  voiceCleanupTimer = null;
+  voiceSoundDetected = false;
+  voiceSilentSince = null;
   voiceIsListening = false;
   voiceIsStopping = false;
   voiceRecognition = null;
@@ -542,6 +575,8 @@ async function startVoiceInput() {
   voiceHadResult = false;
   voiceHadError = false;
   voiceLatestTranscript = "";
+  voiceSoundDetected = false;
+  voiceSilentSince = null;
   elements.voiceStatus.textContent = "Starting microphone...";
   elements.voiceInputButton.disabled = true;
   const audioContextReady = prepareVoiceAudioContext();
@@ -578,9 +613,10 @@ async function startVoiceInput() {
   const recognition = new SpeechRecognition();
   voiceRecognition = recognition;
   recognition.lang = document.documentElement.lang || navigator.language || "en-GB";
-  recognition.continuous = true;
+  recognition.continuous = !IS_IOS;
   recognition.interimResults = true;
   recognition.maxAlternatives = 1;
+  voiceDebugLog("recognition configured", { continuous: recognition.continuous, ios: IS_IOS });
   ["start", "audiostart", "soundstart", "speechstart", "speechend", "soundend", "audioend", "end", "nomatch"].forEach((name) => {
     recognition.addEventListener(name, () => {
       voiceDebugLog(`recognition ${name}`, { current: voiceRecognition === recognition });
@@ -616,6 +652,7 @@ async function startVoiceInput() {
   });
   recognition.addEventListener("result", (event) => {
     if (voiceRecognition !== recognition) return;
+    markVoiceActivity("recognition result");
     const transcript = [...event.results].map((result) => result[0].transcript).join(" ").trim();
     voiceLatestTranscript = transcript;
     elements.voiceTranscript.textContent = `Hearing: “${transcript}”`;
@@ -625,6 +662,7 @@ async function startVoiceInput() {
   });
   recognition.addEventListener("speechstart", () => {
     if (voiceRecognition !== recognition) return;
+    markVoiceActivity("recognition speechstart");
     if (voiceSilenceTimer !== null) clearTimeout(voiceSilenceTimer);
     voiceSilenceTimer = null;
   });
@@ -635,6 +673,10 @@ async function startVoiceInput() {
   });
   recognition.addEventListener("error", (event) => {
     if (voiceRecognition !== recognition) return;
+    if (voiceIsStopping && event.error === "aborted") {
+      voiceDebugLog("intentional stop reported as aborted");
+      return;
+    }
     voiceHadError = true;
     showVoiceError(voiceErrorMessage(event.error));
   });
@@ -673,11 +715,23 @@ function stopVoiceInput(showDialogImmediately) {
   elements.voiceListenButton.disabled = true;
   elements.voiceListenButton.setAttribute("aria-label", "Finishing recording");
   elements.voiceListenButton.title = "Finishing recording";
-  stopVoiceMeter();
   if (showDialogImmediately) showVoiceDialog();
   const recognition = voiceRecognition;
   try {
     recognition?.stop();
+    voiceCleanupTimer = setTimeout(() => {
+      if (voiceRecognition !== recognition) return;
+      voiceDebugLog("recognition cleanup timeout");
+      try {
+        recognition?.abort();
+      } catch {
+        // Continue with local cleanup if Safari has already released recognition.
+      }
+      if (voiceLatestTranscript) showVoiceResult(voiceLatestTranscript, true);
+      else if (!voiceHadResult) showVoiceError("No speech detected. Try again.");
+      finishVoiceListening(recognition);
+      if (!voiceDialogCancelled) showVoiceDialog();
+    }, VOICE_CLEANUP_TIMEOUT_MS);
   } catch {
     voiceHadError = true;
     showVoiceError("Voice input could not be completed.");

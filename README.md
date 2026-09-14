@@ -1,8 +1,8 @@
 # Is it dryer out
 
-## Version 0.5.2
+## Version 0.5.3
 
-Version 0.5.2 adds an opt-in on-device diagnostic log for investigating repeated voice-input failures on iOS.
+Version 0.5.3 tests a more reliable iOS voice lifecycle, using real microphone levels for silence detection and allowing recognition to finish before releasing audio resources.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
@@ -52,6 +52,7 @@ Created by Ziggy Qiao. The app links to its [GitHub repository](https://github.c
 
 ## Release history
 
+- `v0.5.3`: Microphone-level silence detection, graceful recognition shutdown, and one-shot iOS recognition with diagnostics retained for verification.
 - `v0.5.2`: Opt-in on-device voice diagnostics for investigating repeated iOS recording failures.
 - `v0.5.1`: Reliable repeated voice sessions on iOS, UK postcode-area search, and refined outdoor-data loading and failure states.
 - `v0.5`: Optional voice entry for indoor readings, forecast ACH estimates, responsive plan disclosure, loading placeholders, and a separated verdict and outlook layout.
