@@ -30,6 +30,7 @@ const OPENING_SETUPS = {
   cross: { label: "Cross-ventilation", airflow: 180 },
 };
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
 const INPUT_UNCERTAINTY = {
   indoorTemp: 0.3,
   indoorRh: 2,
@@ -139,6 +140,59 @@ let voiceHadError = false;
 let voiceLatestTranscript = "";
 let voiceSilenceTimer = null;
 let voiceDialogCancelled = false;
+let voiceDebugSession = 0;
+let voiceDebugStartedAt = performance.now();
+const voiceDebugEntries = [];
+
+function voiceDebugLog(event, details = {}) {
+  if (!VOICE_DEBUG_ENABLED) return;
+  const elapsed = ((performance.now() - voiceDebugStartedAt) / 1000).toFixed(3);
+  const detailText = Object.entries(details)
+    .map(([key, value]) => `${key}=${String(value)}`)
+    .join(" ");
+  voiceDebugEntries.push(`${elapsed}s [session ${voiceDebugSession || "-"}] ${event}${detailText ? ` ${detailText}` : ""}`);
+  const output = document.querySelector("#voiceDebugOutput");
+  if (output) {
+    output.textContent = voiceDebugEntries.join("\n");
+    output.scrollTop = output.scrollHeight;
+  }
+}
+
+function initializeVoiceDebugPanel() {
+  if (!VOICE_DEBUG_ENABLED) return;
+  const panel = document.createElement("details");
+  panel.className = "voice-debug-panel";
+  panel.open = true;
+  panel.innerHTML = `
+    <summary>Voice diagnostics</summary>
+    <div class="voice-debug-actions">
+      <button type="button" id="voiceDebugCopy">Copy</button>
+      <button type="button" id="voiceDebugClear">Clear</button>
+    </div>
+    <pre id="voiceDebugOutput" aria-live="polite"></pre>
+  `;
+  document.body.append(panel);
+  panel.querySelector("#voiceDebugCopy").addEventListener("click", async () => {
+    const text = voiceDebugEntries.join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      voiceDebugLog("diagnostics copied", { lines: voiceDebugEntries.length });
+    } catch {
+      voiceDebugLog("diagnostics copy failed");
+    }
+  });
+  panel.querySelector("#voiceDebugClear").addEventListener("click", () => {
+    voiceDebugEntries.length = 0;
+    voiceDebugStartedAt = performance.now();
+    panel.querySelector("#voiceDebugOutput").textContent = "";
+    voiceDebugLog("diagnostics cleared");
+  });
+  voiceDebugLog("debug mode ready", {
+    recognition: Boolean(SpeechRecognition),
+    mediaDevices: Boolean(navigator.mediaDevices?.getUserMedia),
+    audioContext: Boolean(window.AudioContext || window.webkitAudioContext),
+  });
+}
 let pendingVoiceChanges = null;
 
 const NUMBER_WORDS = {
@@ -335,6 +389,10 @@ function resetVoiceMeter() {
 }
 
 function stopVoiceMeter() {
+  voiceDebugLog("meter stopping", {
+    track: voiceAudioStream?.getAudioTracks()[0]?.readyState || "none",
+    context: voiceAudioContext?.state || "none",
+  });
   if (voiceMeterFrame !== null) cancelAnimationFrame(voiceMeterFrame);
   voiceMeterFrame = null;
   if (voiceAudioSource) {
@@ -356,11 +414,17 @@ async function prepareVoiceAudioContext() {
   if (!AudioContext) return null;
   if (!voiceAudioContext || voiceAudioContext.state === "closed") {
     voiceAudioContext = new AudioContext();
+    voiceAudioContext.addEventListener("statechange", () => {
+      voiceDebugLog("audio context statechange", { state: voiceAudioContext?.state || "none" });
+    });
+    voiceDebugLog("audio context created", { state: voiceAudioContext.state });
   }
   if (voiceAudioContext.state === "suspended") {
     try {
       await voiceAudioContext.resume();
-    } catch {
+      voiceDebugLog("audio context resumed", { state: voiceAudioContext.state });
+    } catch (error) {
+      voiceDebugLog("audio context resume failed", { name: error?.name || "unknown" });
       return null;
     }
   }
@@ -369,11 +433,15 @@ async function prepareVoiceAudioContext() {
 
 async function startVoiceMeter(stream) {
   const context = await prepareVoiceAudioContext();
-  if (!context || context.state !== "running") return;
+  if (!context || context.state !== "running") {
+    voiceDebugLog("meter unavailable", { context: context?.state || "none" });
+    return;
+  }
   const analyser = context.createAnalyser();
   analyser.fftSize = 256;
   voiceAudioSource = context.createMediaStreamSource(stream);
   voiceAudioSource.connect(analyser);
+  voiceDebugLog("meter started", { context: context.state });
   const samples = new Uint8Array(analyser.frequencyBinCount);
   const waveforms = [...document.querySelectorAll(".voice-waveform")];
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -464,6 +532,11 @@ function resetVoiceResult() {
 
 async function startVoiceInput() {
   if (voiceIsListening || voiceIsStopping) return;
+  voiceDebugSession += 1;
+  voiceDebugLog("session requested", {
+    context: voiceAudioContext?.state || "none",
+    visibility: document.visibilityState,
+  });
   resetVoiceResult();
   voiceDialogCancelled = false;
   voiceHadResult = false;
@@ -473,8 +546,21 @@ async function startVoiceInput() {
   elements.voiceInputButton.disabled = true;
   const audioContextReady = prepareVoiceAudioContext();
   try {
+    voiceDebugLog("getUserMedia requested");
     voiceAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const track = voiceAudioStream.getAudioTracks()[0];
+    voiceDebugLog("getUserMedia resolved", {
+      track: track?.readyState || "none",
+      enabled: track?.enabled ?? "unknown",
+      muted: track?.muted ?? "unknown",
+    });
+    ["mute", "unmute", "ended"].forEach((name) => {
+      track?.addEventListener(name, () => {
+        voiceDebugLog(`track ${name}`, { state: track.readyState, muted: track.muted });
+      });
+    });
   } catch (error) {
+    voiceDebugLog("getUserMedia failed", { name: error?.name || "unknown" });
     stopVoiceMeter();
     showVoiceError(error?.name === "NotAllowedError"
       ? "Microphone access was not allowed."
@@ -495,6 +581,26 @@ async function startVoiceInput() {
   recognition.continuous = true;
   recognition.interimResults = true;
   recognition.maxAlternatives = 1;
+  ["start", "audiostart", "soundstart", "speechstart", "speechend", "soundend", "audioend", "end", "nomatch"].forEach((name) => {
+    recognition.addEventListener(name, () => {
+      voiceDebugLog(`recognition ${name}`, { current: voiceRecognition === recognition });
+    });
+  });
+  recognition.addEventListener("result", (event) => {
+    const latest = event.results[event.results.length - 1];
+    voiceDebugLog("recognition result", {
+      current: voiceRecognition === recognition,
+      results: event.results.length,
+      final: latest?.isFinal ?? false,
+    });
+  });
+  recognition.addEventListener("error", (event) => {
+    voiceDebugLog("recognition error", {
+      current: voiceRecognition === recognition,
+      error: event.error || "unknown",
+      message: event.message || "none",
+    });
+  });
   recognition.addEventListener("start", () => {
     if (voiceRecognition !== recognition) return;
     voiceIsListening = true;
@@ -540,8 +646,10 @@ async function startVoiceInput() {
     if (!voiceDialogCancelled) showVoiceDialog();
   });
   try {
+    voiceDebugLog("recognition start requested");
     recognition.start();
-  } catch {
+  } catch (error) {
+    voiceDebugLog("recognition start threw", { name: error?.name || "unknown" });
     if (voiceRecognition !== recognition) return;
     voiceHadError = true;
     showVoiceError("Speech recognition could not be started.");
@@ -553,6 +661,7 @@ async function startVoiceInput() {
 
 function stopVoiceInput(showDialogImmediately) {
   if (!voiceIsListening || voiceIsStopping) return;
+  voiceDebugLog("stop requested", { immediateDialog: showDialogImmediately });
   if (voiceSilenceTimer !== null) clearTimeout(voiceSilenceTimer);
   voiceSilenceTimer = null;
   voiceIsListening = false;
@@ -586,6 +695,7 @@ function toggleVoiceListening() {
 }
 
 function closeVoiceDialog() {
+  voiceDebugLog("dialog closed");
   voiceDialogCancelled = true;
   const recognition = voiceRecognition;
   recognition?.abort();
@@ -1962,6 +2072,7 @@ if ("serviceWorker" in navigator) {
 
 loadIndoorReadings();
 loadPlanSettings();
+initializeVoiceDebugPanel();
 const hasSavedLocation = loadLocation();
 updateLocationUi();
 initializePlanDisclosure();

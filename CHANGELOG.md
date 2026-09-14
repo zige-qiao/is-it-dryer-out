@@ -4,6 +4,13 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+## v0.5.2 - 2026-09-14
+
+### Added
+
+- Added an opt-in `?voice-debug=1` diagnostics panel for capturing microphone-track, AudioContext, and speech-recognition lifecycle events directly on iOS.
+- Added Copy and Clear controls for collecting diagnostic logs without including recognised speech content.
+
 ## v0.5.1 - 2026-09-14
 
 ### Added
