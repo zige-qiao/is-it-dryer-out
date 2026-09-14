@@ -4,6 +4,8 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+## v0.5 - 2026-09-14
+
 ### Added
 
 - Added optional voice entry for indoor temperature and relative humidity, with live microphone-level feedback and a review step before applying recognised readings.
