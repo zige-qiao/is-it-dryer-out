@@ -12,29 +12,31 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=107" />
+    <link rel="stylesheet" href="styles.css?v=108" />
   </head>
   <body>
     <main class="app-shell">
       <div class="layout-column left-column">
         <section class="recommendation" aria-live="polite">
-          <div class="location-row">
-            <button class="location-button" type="button" id="locationButton" aria-haspopup="dialog">
-              <svg class="location-icon" aria-hidden="true" viewBox="0 0 24 24">
-                <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-              <span id="locationName">Sale, Greater Manchester</span>
+          <div class="verdict-panel">
+            <div class="location-row">
+              <button class="location-button" type="button" id="locationButton" aria-haspopup="dialog">
+                <svg class="location-icon" aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+                <span id="locationName">Sale, Greater Manchester</span>
+              </button>
+            </div>
+            <h1 id="decisionLabel">Checking</h1>
+            <p id="decisionSummary">
+              <span id="decisionPrimary">Getting local conditions...</span>
+              <span id="decisionSecondary"></span>
+            </p>
+            <button class="verdict-retry-button" id="retryWeather" type="button" hidden>
+              Try again
             </button>
           </div>
-          <h1 id="decisionLabel">Checking</h1>
-          <p id="decisionSummary">
-            <span id="decisionPrimary">Getting local conditions...</span>
-            <span id="decisionSecondary"></span>
-          </p>
-          <button class="verdict-retry-button" id="retryWeather" type="button" hidden>
-            Try again
-          </button>
           <div class="forecast-panel" aria-label="Opening outlook">
             <div
               class="forecast-strip"
@@ -48,6 +50,20 @@
         <section class="panel inputs-panel" aria-labelledby="indoor-heading">
           <div class="section-heading">
             <h2 id="indoor-heading">Indoor readings</h2>
+            <button class="voice-input-button" type="button" id="voiceInputButton" aria-label="Update indoor readings by voice" title="Update indoor readings by voice" hidden>
+              <svg class="voice-input-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <path d="M12 19v3"></path>
+              </svg>
+              <span class="voice-waveform voice-button-waveform" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+              </span>
+            </button>
           </div>
 
           <div class="control">
@@ -107,7 +123,7 @@
 
         </section>
         <section class="panel plan-panel" aria-labelledby="plan-heading">
-          <details class="plan-details" id="planDetails" open>
+          <details class="plan-details" id="planDetails">
             <summary class="plan-heading">
               <h2 id="plan-heading" tabindex="-1">Opening window plan</h2>
             </summary>
@@ -295,6 +311,43 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=107" type="module"></script>
+    <dialog class="voice-dialog" id="voiceDialog" aria-labelledby="voiceDialogTitle">
+      <div class="voice-dialog-content">
+        <div class="voice-dialog-heading">
+          <h2 id="voiceDialogTitle">Update by voice</h2>
+          <button class="voice-dialog-close" type="button" id="voiceDialogCloseButton" aria-label="Close voice input" title="Close">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <p class="voice-status" id="voiceStatus" role="status">Ready to listen.</p>
+        <div class="voice-transcript-panel" id="voiceTranscriptPanel" hidden>
+          <p class="voice-transcript" id="voiceTranscript"></p>
+        </div>
+        <dl class="voice-changes" id="voiceChanges"></dl>
+        <p class="voice-update-note" id="voiceUpdateNote" hidden>Will update the current indoor readings.</p>
+        <div class="voice-dialog-actions">
+          <button class="voice-input-button voice-dialog-input-button" type="button" id="voiceListenButton" aria-label="Record again" title="Record again">
+            <svg class="voice-input-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <path d="M12 19v3"></path>
+            </svg>
+            <span class="voice-waveform voice-button-waveform" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
+          </button>
+          <button class="voice-apply-button" type="button" id="voiceApplyButton" disabled hidden>Apply</button>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="app.js?v=108" type="module"></script>
   </body>
 </html>

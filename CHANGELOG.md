@@ -4,6 +4,22 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+## v0.5 - 2026-09-14
+
+### Added
+
+- Added optional voice entry for indoor temperature and relative humidity, with live microphone-level feedback and a review step before applying recognised readings.
+- Added estimated air changes per hour to each forecast tile and accessible forecast description.
+- Added quiet loading placeholders to the forecast outlook while outdoor conditions are being checked.
+
+### Changed
+
+- Simplified voice parsing to indoor readings and added support for labelled phrases, units, corrections, reversed value order, and unlabelled values that can be inferred safely from their valid ranges.
+- Voice recording can be stopped manually or after one second of silence; valid readings can be applied as soon as they are recognised, while errors appear in the transcript panel.
+- Opening window plan now starts collapsed below the desktop breakpoint and expanded on desktop, while preserving a manual choice for the current browser session.
+- Reworked the recommendation into an overlapping coloured verdict panel and separately outlined forecast outlook.
+- Detached the voice control from the Indoor readings heading flow so both input sections keep consistent vertical spacing.
+
 ## v0.4.2 - 2026-09-13
 
 ### Changed

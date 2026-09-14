@@ -28,6 +28,7 @@ const OPENING_SETUPS = {
   single: { label: "One window fully open", airflow: 80 },
   cross: { label: "Cross-ventilation", airflow: 180 },
 };
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const INPUT_UNCERTAINTY = {
   indoorTemp: 0.3,
   indoorRh: 2,
@@ -98,6 +99,7 @@ const elements = {
   customFlowField: document.querySelector("#customFlowField"),
   customAirflow: document.querySelector("#customAirflow"),
   planConfidence: document.querySelector("#planConfidence"),
+  planDetails: document.querySelector("#planDetails"),
   forecastStrip: document.querySelector("#forecastStrip"),
   locationName: document.querySelector("#locationName"),
   sourceLocationName: document.querySelector("#sourceLocationName"),
@@ -111,7 +113,454 @@ const elements = {
   locationSearchInput: document.querySelector("#locationSearchInput"),
   locationSearchButton: document.querySelector("#locationSearchButton"),
   locationSearchResults: document.querySelector("#locationSearchResults"),
+  voiceInputButton: document.querySelector("#voiceInputButton"),
+  voiceDialog: document.querySelector("#voiceDialog"),
+  voiceStatus: document.querySelector("#voiceStatus"),
+  voiceTranscriptPanel: document.querySelector("#voiceTranscriptPanel"),
+  voiceTranscript: document.querySelector("#voiceTranscript"),
+  voiceChanges: document.querySelector("#voiceChanges"),
+  voiceUpdateNote: document.querySelector("#voiceUpdateNote"),
+  voiceDialogCloseButton: document.querySelector("#voiceDialogCloseButton"),
+  voiceListenButton: document.querySelector("#voiceListenButton"),
+  voiceApplyButton: document.querySelector("#voiceApplyButton"),
 };
+
+let voiceRecognition = null;
+let voiceAudioStream = null;
+let voiceAudioContext = null;
+let voiceMeterFrame = null;
+let voiceIsListening = false;
+let voiceIsStopping = false;
+let voiceHadResult = false;
+let voiceHadError = false;
+let voiceLatestTranscript = "";
+let voiceSilenceTimer = null;
+let voiceDialogCancelled = false;
+let pendingVoiceChanges = null;
+
+const NUMBER_WORDS = {
+  zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
+  nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15,
+  sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20, thirty: 30,
+  forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90,
+};
+
+function parseSpokenNumberCore(value) {
+  const normalized = value.toLowerCase().replace(/-/g, " ");
+  const includesHalf = /\b(?:and\s+)?(?:a\s+)?half\b/.test(normalized);
+  const withoutHalf = normalized.replace(/\b(?:and\s+)?(?:a\s+)?half\b/, " ");
+  const numeric = withoutHalf.match(/\d+(?:[.,]\d+)?/);
+  if (numeric) return Number(numeric[0].replace(",", ".")) + (includesHalf ? 0.5 : 0);
+  const words = withoutHalf.split(/\s+/);
+  let total = 0;
+  let found = false;
+  let decimal = "";
+  let afterPoint = false;
+  for (const word of words) {
+    if (word === "point") {
+      if (!found) continue;
+      afterPoint = true;
+      continue;
+    }
+    if (word === "and" || word === "a") continue;
+    const number = NUMBER_WORDS[word];
+    if (number === undefined) {
+      if (found) break;
+      continue;
+    }
+    found = true;
+    if (afterPoint) decimal += String(number);
+    else total += number;
+  }
+  if (!found) return null;
+  return Number(`${total}${decimal ? `.${decimal}` : ""}`) + (includesHalf ? 0.5 : 0);
+}
+
+function parseSpokenNumber(value) {
+  const parts = value.split(/\b(?:actually|sorry|i\s+mean|make\s+that|no)\b/i);
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    const parsed = parseSpokenNumberCore(parts[index]);
+    if (parsed !== null) return parsed;
+  }
+  return null;
+}
+
+const VOICE_FIELD_BOUNDARY = /\b(?:(?:indoor|room)\s+(?:temperature|temp)|(?:indoor\s+)?(?:relative\s+)?humidity|(?:indoor\s+)?rh|room\s+(?:is|at)|(?:temperature|temp))\b/;
+const NEGATED_FIELD = /\b(?:do\s+not|don't|dont)\s+(?:change|update|set)(?:\s+(?:the|my|indoor|room|target|minimum|relative)){0,4}\s*$/;
+
+function lastValueAfterLabel(text, pattern, excludedPattern = null) {
+  const matches = text.matchAll(new RegExp(pattern.source, `${pattern.flags}g`));
+  let value = null;
+  for (const match of matches) {
+    const before = text.slice(0, match.index);
+    if (NEGATED_FIELD.test(before) || excludedPattern?.test(before)) continue;
+    const valueStart = match.index + match[0].length;
+    const nextField = text.slice(valueStart).match(VOICE_FIELD_BOUNDARY);
+    const valueEnd = nextField ? valueStart + nextField.index : text.length;
+    value = parseSpokenNumber(text.slice(valueStart, valueEnd));
+  }
+  return value;
+}
+
+function lastValueBeforeUnit(text, unitType) {
+  const units = [...text.matchAll(/\b(?:degrees?|celsius|c|percent|per\s+cent)\b/g)];
+  let previousEnd = 0;
+  let value = null;
+  for (const unit of units) {
+    const isPercent = /^(?:percent|per\s+cent)$/.test(unit[0]);
+    if ((unitType === "percent") === isPercent) {
+      const segment = text.slice(previousEnd, unit.index);
+      const isPlanValue = unitType === "percent"
+        ? /\btarget(?:\s+indoor)?(?:\s+relative)?\s+(?:humidity|rh)\b/.test(segment)
+        : /\b(?:minimum|min)\s+(?:indoor\s+)?(?:temperature|temp)\b/.test(segment);
+      if (!isPlanValue) value = parseSpokenNumber(segment);
+    }
+    previousEnd = unit.index + unit[0].length;
+  }
+  return value;
+}
+
+function inferUnlabelledIndoorValues(text) {
+  const correctedPhrase = text.split(/\b(?:actually|sorry|i\s+mean|make\s+that|no)\b/i).at(-1);
+  const numberTokens = [...correctedPhrase.matchAll(/\d+(?:\.\d+)?/g)].map((match) => ({
+    value: Number(match[0]),
+    hasDecimal: match[0].includes("."),
+  }));
+  if (numberTokens.length === 0 || numberTokens.length > 2) return {};
+
+  const isTemperature = (number) => number >= 10 && number <= 32;
+  const isHumidity = (number) => Number.isInteger(number) && number >= 20 && number <= 90;
+  if (numberTokens.length === 1) {
+    const [{ value, hasDecimal }] = numberTokens;
+    if (hasDecimal && isTemperature(value)) return { indoorTemp: value };
+    if (isTemperature(value) && !isHumidity(value)) return { indoorTemp: value };
+    if (isHumidity(value) && !isTemperature(value)) return { indoorRh: value };
+    return {};
+  }
+
+  const [first, second] = numberTokens;
+  const temperatureFirst = isTemperature(first.value) && isHumidity(second.value);
+  const temperatureSecond = isTemperature(second.value) && isHumidity(first.value);
+  if (temperatureFirst && !temperatureSecond) return { indoorTemp: first.value, indoorRh: second.value };
+  if (temperatureSecond && !temperatureFirst) return { indoorTemp: second.value, indoorRh: first.value };
+  if (temperatureFirst && temperatureSecond) return { indoorTemp: first.value, indoorRh: second.value };
+  return {};
+}
+
+function parseVoiceCommand(transcript) {
+  const text = transcript.toLowerCase()
+    .replace(/°\s*c?/g, " degrees ")
+    .replace(/%/g, " percent ")
+    .replace(/,/g, " ");
+  const values = {};
+  const errors = [];
+  let indoorTemp = lastValueAfterLabel(
+    text,
+    /\b(?:(?:indoor|room)\s+(?:temperature|temp)|(?:temperature|temp)|room\s+(?:is|at))\b/,
+    /\b(?:minimum|min)(?:\s+indoor)?\s*$/,
+  );
+  let indoorRh = lastValueAfterLabel(
+    text,
+    /\b(?:(?:indoor\s+)?(?:relative\s+)?humidity|(?:indoor\s+)?rh)\b/,
+    /\btarget(?:\s+indoor)?(?:\s+relative)?\s*$/,
+  );
+  if (indoorTemp === null) indoorTemp = lastValueBeforeUnit(text, "temperature");
+  if (indoorRh === null) indoorRh = lastValueBeforeUnit(text, "percent");
+  const hasLabelsOrUnits = VOICE_FIELD_BOUNDARY.test(text)
+    || /\b(?:degrees?|celsius|c|percent|per\s+cent)\b/.test(text);
+  if (indoorTemp === null && indoorRh === null && !hasLabelsOrUnits) {
+    const inferred = inferUnlabelledIndoorValues(text);
+    indoorTemp = inferred.indoorTemp ?? null;
+    indoorRh = inferred.indoorRh ?? null;
+  }
+  if (indoorTemp !== null) {
+    if (indoorTemp < 10 || indoorTemp > 32) errors.push("Indoor temperature must be between 10 and 32.");
+    else values.indoorTemp = Number(indoorTemp.toFixed(1));
+  }
+  if (indoorRh !== null) {
+    if (indoorRh < 20 || indoorRh > 90) errors.push("Indoor humidity must be between 20 and 90.");
+    else values.indoorRh = Math.round(indoorRh);
+  }
+  return { values, errors };
+}
+
+function voiceChangeRows(values) {
+  const rows = [];
+  if (values.indoorTemp !== undefined) rows.push(["Indoor temperature", formatTemp(values.indoorTemp)]);
+  if (values.indoorRh !== undefined) rows.push(["Indoor humidity", formatRh(values.indoorRh)]);
+  return rows;
+}
+
+function showVoiceResult(transcript, allowApply = true) {
+  voiceHadResult = true;
+  const parsed = parseVoiceCommand(transcript);
+  const rows = voiceChangeRows(parsed.values);
+  pendingVoiceChanges = rows.length ? parsed.values : null;
+  elements.voiceTranscript.textContent = `Heard: “${transcript}”`;
+  elements.voiceTranscriptPanel.hidden = false;
+  elements.voiceChanges.classList.toggle("has-single-change", rows.length === 1);
+  elements.voiceChanges.replaceChildren(...rows.map(([label, value]) => {
+    const row = document.createElement("div");
+    row.className = "voice-change";
+    const term = document.createElement("dt");
+    const detail = document.createElement("dd");
+    term.textContent = label;
+    detail.textContent = value;
+    row.append(term, detail);
+    return row;
+  }));
+  elements.voiceUpdateNote.hidden = rows.length === 0;
+  elements.voiceStatus.textContent = allowApply
+    ? parsed.errors.length
+      ? parsed.errors.join(" ")
+      : rows.length ? "Review the changes before applying." : "Couldn't find a temperature or humidity reading."
+    : "Listening...";
+  elements.voiceApplyButton.disabled = !pendingVoiceChanges || parsed.errors.length > 0;
+  elements.voiceApplyButton.hidden = elements.voiceApplyButton.disabled;
+  if (allowApply) {
+    elements.voiceListenButton.setAttribute("aria-label", "Record again");
+    elements.voiceListenButton.title = "Record again";
+  }
+}
+
+function resetVoiceMeter() {
+  document.querySelectorAll(".voice-input-button").forEach((button) => button.style.setProperty("--voice-level", "0"));
+  document.querySelectorAll(".voice-waveform span").forEach((bar) => {
+    bar.style.height = "2px";
+    bar.style.opacity = "0.72";
+  });
+}
+
+function stopVoiceMeter() {
+  if (voiceMeterFrame !== null) cancelAnimationFrame(voiceMeterFrame);
+  voiceMeterFrame = null;
+  voiceAudioStream?.getTracks().forEach((track) => track.stop());
+  voiceAudioStream = null;
+  if (voiceAudioContext) voiceAudioContext.close().catch(() => {});
+  voiceAudioContext = null;
+  resetVoiceMeter();
+}
+
+function startVoiceMeter(stream) {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+  voiceAudioContext = new AudioContext();
+  const analyser = voiceAudioContext.createAnalyser();
+  analyser.fftSize = 256;
+  voiceAudioContext.createMediaStreamSource(stream).connect(analyser);
+  const samples = new Uint8Array(analyser.frequencyBinCount);
+  const waveforms = [...document.querySelectorAll(".voice-waveform")];
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const maximumHeights = [8, 12, 16, 12, 8];
+  let displayedLevel = 0;
+  const draw = () => {
+    analyser.getByteTimeDomainData(samples);
+    let total = 0;
+    for (const sample of samples) total += Math.abs(sample - 128);
+    const measuredLevel = Math.min(1, total / samples.length / 10);
+    const targetLevel = reduceMotion || measuredLevel < 0.06 ? 0 : (measuredLevel - 0.06) / 0.94;
+    displayedLevel += (targetLevel - displayedLevel) * (targetLevel > displayedLevel ? 0.55 : 0.12);
+    document.querySelectorAll(".voice-input-button").forEach((button) => {
+      button.style.setProperty("--voice-level", displayedLevel.toFixed(3));
+    });
+    waveforms.forEach((waveform) => {
+      [...waveform.children].forEach((bar, index) => {
+        bar.style.height = `${Math.round(2 + displayedLevel * (maximumHeights[index] - 2))}px`;
+        bar.style.opacity = `${0.72 + displayedLevel * 0.28}`;
+      });
+    });
+    voiceMeterFrame = requestAnimationFrame(draw);
+  };
+  draw();
+}
+
+function voiceErrorMessage(error) {
+  const messages = {
+    "no-speech": "No speech detected.",
+    "audio-capture": "No microphone is available.",
+    "not-allowed": "Microphone access was not allowed.",
+    "service-not-allowed": "Speech recognition is blocked in this browser.",
+    network: "Voice recognition is unavailable right now.",
+    "language-not-supported": "Speech recognition does not support this language.",
+  };
+  return messages[error] || "Voice input could not be completed.";
+}
+
+function showVoiceError(message) {
+  pendingVoiceChanges = null;
+  elements.voiceStatus.textContent = "";
+  elements.voiceStatus.hidden = true;
+  elements.voiceTranscript.textContent = message;
+  elements.voiceTranscriptPanel.hidden = false;
+  elements.voiceChanges.replaceChildren();
+  elements.voiceChanges.classList.remove("has-single-change");
+  elements.voiceUpdateNote.hidden = true;
+  elements.voiceApplyButton.disabled = true;
+  elements.voiceApplyButton.hidden = true;
+}
+
+function finishVoiceListening() {
+  if (voiceSilenceTimer !== null) clearTimeout(voiceSilenceTimer);
+  voiceSilenceTimer = null;
+  voiceIsListening = false;
+  voiceIsStopping = false;
+  voiceRecognition = null;
+  stopVoiceMeter();
+  elements.voiceInputButton.classList.remove("is-listening");
+  elements.voiceListenButton.classList.remove("is-listening");
+  elements.voiceInputButton.disabled = false;
+  elements.voiceInputButton.setAttribute("aria-label", "Update indoor readings by voice");
+  elements.voiceInputButton.title = "Update indoor readings by voice";
+  elements.voiceListenButton.disabled = false;
+  elements.voiceListenButton.setAttribute("aria-label", "Record again");
+  elements.voiceListenButton.title = "Record again";
+}
+
+function showVoiceDialog() {
+  if (!elements.voiceDialog.open) elements.voiceDialog.showModal();
+}
+
+function resetVoiceResult() {
+  pendingVoiceChanges = null;
+  elements.voiceChanges.replaceChildren();
+  elements.voiceChanges.classList.remove("has-single-change");
+  elements.voiceTranscriptPanel.hidden = true;
+  elements.voiceUpdateNote.hidden = true;
+  elements.voiceApplyButton.disabled = true;
+  elements.voiceApplyButton.hidden = true;
+  elements.voiceListenButton.setAttribute("aria-label", "Record indoor readings");
+  elements.voiceListenButton.title = "Record indoor readings";
+  elements.voiceStatus.hidden = false;
+  elements.voiceStatus.textContent = "Ready to listen.";
+  resetVoiceMeter();
+}
+
+async function startVoiceInput() {
+  if (voiceIsListening || voiceIsStopping) return;
+  resetVoiceResult();
+  voiceDialogCancelled = false;
+  voiceHadResult = false;
+  voiceHadError = false;
+  voiceLatestTranscript = "";
+  elements.voiceStatus.textContent = "Starting microphone...";
+  elements.voiceInputButton.disabled = true;
+  try {
+    voiceAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (error) {
+    showVoiceError(error?.name === "NotAllowedError"
+      ? "Microphone access was not allowed."
+      : "No microphone is available.");
+    elements.voiceListenButton.disabled = false;
+    elements.voiceListenButton.setAttribute("aria-label", "Try recording again");
+    elements.voiceListenButton.title = "Try recording again";
+    elements.voiceInputButton.disabled = false;
+    showVoiceDialog();
+    return;
+  }
+
+  startVoiceMeter(voiceAudioStream);
+  voiceRecognition = new SpeechRecognition();
+  voiceRecognition.lang = document.documentElement.lang || navigator.language || "en-GB";
+  voiceRecognition.continuous = true;
+  voiceRecognition.interimResults = true;
+  voiceRecognition.maxAlternatives = 1;
+  voiceRecognition.addEventListener("start", () => {
+    voiceIsListening = true;
+    elements.voiceInputButton.disabled = false;
+    elements.voiceStatus.textContent = "Listening...";
+    elements.voiceListenButton.disabled = false;
+    elements.voiceInputButton.classList.add("is-listening");
+    elements.voiceListenButton.classList.add("is-listening");
+    elements.voiceInputButton.setAttribute("aria-label", "Stop and review voice input");
+    elements.voiceInputButton.title = "Stop and review";
+    elements.voiceListenButton.setAttribute("aria-label", "Stop recording");
+    elements.voiceListenButton.title = "Stop recording";
+  });
+  voiceRecognition.addEventListener("result", (event) => {
+    const transcript = [...event.results].map((result) => result[0].transcript).join(" ").trim();
+    voiceLatestTranscript = transcript;
+    elements.voiceTranscript.textContent = `Hearing: “${transcript}”`;
+    elements.voiceTranscriptPanel.hidden = false;
+    const latestResult = event.results[event.results.length - 1];
+    if (latestResult.isFinal) showVoiceResult(transcript, false);
+  });
+  voiceRecognition.addEventListener("speechstart", () => {
+    if (voiceSilenceTimer !== null) clearTimeout(voiceSilenceTimer);
+    voiceSilenceTimer = null;
+  });
+  voiceRecognition.addEventListener("speechend", () => {
+    if (voiceSilenceTimer !== null) clearTimeout(voiceSilenceTimer);
+    voiceSilenceTimer = setTimeout(() => stopVoiceInput(false), 1000);
+  });
+  voiceRecognition.addEventListener("error", (event) => {
+    voiceHadError = true;
+    showVoiceError(voiceErrorMessage(event.error));
+  });
+  voiceRecognition.addEventListener("end", () => {
+    if (!voiceHadError && voiceLatestTranscript) showVoiceResult(voiceLatestTranscript, true);
+    if (!voiceHadResult && !voiceHadError) showVoiceError("No speech detected. Try again.");
+    finishVoiceListening();
+    if (!voiceDialogCancelled) showVoiceDialog();
+  });
+  try {
+    voiceRecognition.start();
+  } catch {
+    voiceHadError = true;
+    showVoiceError("Speech recognition could not be started.");
+    finishVoiceListening();
+    elements.voiceListenButton.disabled = false;
+    showVoiceDialog();
+  }
+}
+
+function stopVoiceInput(showDialogImmediately) {
+  if (!voiceIsListening || voiceIsStopping) return;
+  if (voiceSilenceTimer !== null) clearTimeout(voiceSilenceTimer);
+  voiceSilenceTimer = null;
+  voiceIsListening = false;
+  voiceIsStopping = true;
+  elements.voiceStatus.textContent = "Finishing...";
+  elements.voiceInputButton.classList.remove("is-listening");
+  elements.voiceListenButton.classList.remove("is-listening");
+  elements.voiceInputButton.disabled = true;
+  elements.voiceListenButton.disabled = true;
+  elements.voiceListenButton.setAttribute("aria-label", "Finishing recording");
+  elements.voiceListenButton.title = "Finishing recording";
+  stopVoiceMeter();
+  if (showDialogImmediately) showVoiceDialog();
+  try {
+    voiceRecognition?.stop();
+  } catch {
+    voiceHadError = true;
+    showVoiceError("Voice input could not be completed.");
+    finishVoiceListening();
+    showVoiceDialog();
+  }
+}
+
+function toggleVoiceListening() {
+  if (voiceIsListening) {
+    stopVoiceInput(!elements.voiceDialog.open);
+    return;
+  }
+  if (!voiceIsStopping) startVoiceInput();
+}
+
+function closeVoiceDialog() {
+  voiceDialogCancelled = true;
+  voiceRecognition?.abort();
+  finishVoiceListening();
+  pendingVoiceChanges = null;
+  elements.voiceDialog.close();
+}
+
+function applyVoiceChanges() {
+  if (!pendingVoiceChanges) return;
+  Object.assign(state, pendingVoiceChanges);
+  saveIndoorReadings();
+  closeVoiceDialog();
+  render();
+}
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -641,6 +1090,15 @@ function renderPlan() {
 
   const timeline = buildWeatherTimeline();
   if (!timeline.length) {
+    if (!state.weatherLoadFailed) {
+      for (let index = 0; index < 3; index += 1) {
+        const placeholder = document.createElement("div");
+        placeholder.className = "forecast-pill forecast-placeholder";
+        placeholder.setAttribute("aria-hidden", "true");
+        placeholder.innerHTML = "<span></span><strong></strong><small></small><small></small>";
+        elements.forecastStrip.append(placeholder);
+      }
+    }
     elements.planConfidence.textContent = "Rough estimate";
     return null;
   }
@@ -672,6 +1130,7 @@ function renderPlan() {
 
   forecastStarts.forEach((item, index) => {
     const plan = estimateOpeningWindowPlan(item, timeline);
+    const exchange = effectiveAirExchange(item, state.indoorTemp);
     const pill = document.createElement("div");
     pill.setAttribute("role", "listitem");
     pill.className = `forecast-pill ${plan.status} tone-${planTone(plan)}`;
@@ -686,7 +1145,7 @@ function renderPlan() {
     const timeLabel = index === 0 ? "Now" : formatShortTime(item.time);
     pill.setAttribute(
       "aria-label",
-      `${timeLabel}: ${valueLabel}, outdoor temperature ${formatTemp(item.temp)}, relative humidity ${formatRh(item.rh)}`,
+      `${timeLabel}: ${valueLabel}, outdoor temperature ${formatTemp(item.temp)}, relative humidity ${formatRh(item.rh)}, estimated ${exchange.airChangesPerHour.toFixed(1)} air changes per hour`,
     );
 
     const time = document.createElement("span");
@@ -695,7 +1154,10 @@ function renderPlan() {
     value.textContent = valueLabel;
     const temp = document.createElement("small");
     temp.textContent = `${formatTemp(item.temp)} · ${formatRh(item.rh)} RH`;
-    pill.append(time, value, temp);
+    const airflow = document.createElement("small");
+    airflow.className = "forecast-ach";
+    airflow.textContent = `~${exchange.airChangesPerHour.toFixed(1)} ACH`;
+    pill.append(time, value, temp, airflow);
     elements.forecastStrip.append(pill);
   });
 
@@ -1393,6 +1855,36 @@ function bindEvents() {
   elements.locationDialogClose.addEventListener("click", closeLocationDialog);
   elements.locationUpdateButton.addEventListener("click", useCurrentLocation);
   elements.locationSearchForm.addEventListener("submit", handleLocationSearch);
+  elements.planDetails.addEventListener("toggle", () => {
+    try {
+      sessionStorage.setItem("plan-details-state", elements.planDetails.open ? "open" : "closed");
+    } catch {
+      // Keep the disclosure usable when session storage is unavailable.
+    }
+  });
+  if (SpeechRecognition) {
+    elements.voiceInputButton.hidden = false;
+    elements.voiceInputButton.addEventListener("click", toggleVoiceListening);
+    elements.voiceListenButton.addEventListener("click", toggleVoiceListening);
+    elements.voiceDialogCloseButton.addEventListener("click", closeVoiceDialog);
+    elements.voiceApplyButton.addEventListener("click", applyVoiceChanges);
+    elements.voiceDialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      closeVoiceDialog();
+    });
+  }
+}
+
+function initializePlanDisclosure() {
+  let savedState = null;
+  try {
+    savedState = sessionStorage.getItem("plan-details-state");
+  } catch {
+    // Fall back to the viewport default when session storage is unavailable.
+  }
+  elements.planDetails.open = savedState
+    ? savedState === "open"
+    : window.matchMedia("(min-width: 48rem)").matches;
 }
 
 if ("serviceWorker" in navigator) {
@@ -1403,6 +1895,7 @@ loadIndoorReadings();
 loadPlanSettings();
 const hasSavedLocation = loadLocation();
 updateLocationUi();
+initializePlanDisclosure();
 bindEvents();
 render();
 initializeLocation(hasSavedLocation);
