@@ -1,6 +1,7 @@
 const WEATHER_ENDPOINT = "https://api.open-meteo.com/v1/forecast";
 const GEOCODING_ENDPOINT = "https://geocoding-api.open-meteo.com/v1/search";
 const UK_POSTCODE_ENDPOINT = "https://api.postcodes.io/postcodes";
+const UK_OUTCODE_ENDPOINT = "https://api.postcodes.io/outcodes";
 const REVERSE_GEOCODING_ENDPOINT = "https://api.bigdatacloud.net/data/reverse-geocode-client";
 const DEFAULT_LOCATION = {
   name: "Sale, Greater Manchester",
@@ -63,6 +64,7 @@ const state = {
 
 const elements = {
   recommendation: document.querySelector(".recommendation"),
+  dashboardPanel: document.querySelector(".dashboard-panel"),
   decisionLabel: document.querySelector("#decisionLabel"),
   decisionPrimary: document.querySelector("#decisionPrimary"),
   decisionSecondary: document.querySelector("#decisionSecondary"),
@@ -128,6 +130,7 @@ const elements = {
 let voiceRecognition = null;
 let voiceAudioStream = null;
 let voiceAudioContext = null;
+let voiceAudioSource = null;
 let voiceMeterFrame = null;
 let voiceIsListening = false;
 let voiceIsStopping = false;
@@ -334,20 +337,43 @@ function resetVoiceMeter() {
 function stopVoiceMeter() {
   if (voiceMeterFrame !== null) cancelAnimationFrame(voiceMeterFrame);
   voiceMeterFrame = null;
+  if (voiceAudioSource) {
+    try {
+      voiceAudioSource.disconnect();
+    } catch {
+      // The browser may already have disconnected this source.
+    }
+  }
+  voiceAudioSource = null;
   voiceAudioStream?.getTracks().forEach((track) => track.stop());
   voiceAudioStream = null;
-  if (voiceAudioContext) voiceAudioContext.close().catch(() => {});
-  voiceAudioContext = null;
+  if (voiceAudioContext?.state === "running") voiceAudioContext.suspend().catch(() => {});
   resetVoiceMeter();
 }
 
-function startVoiceMeter(stream) {
+async function prepareVoiceAudioContext() {
   const AudioContext = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContext) return;
-  voiceAudioContext = new AudioContext();
-  const analyser = voiceAudioContext.createAnalyser();
+  if (!AudioContext) return null;
+  if (!voiceAudioContext || voiceAudioContext.state === "closed") {
+    voiceAudioContext = new AudioContext();
+  }
+  if (voiceAudioContext.state === "suspended") {
+    try {
+      await voiceAudioContext.resume();
+    } catch {
+      return null;
+    }
+  }
+  return voiceAudioContext;
+}
+
+async function startVoiceMeter(stream) {
+  const context = await prepareVoiceAudioContext();
+  if (!context || context.state !== "running") return;
+  const analyser = context.createAnalyser();
   analyser.fftSize = 256;
-  voiceAudioContext.createMediaStreamSource(stream).connect(analyser);
+  voiceAudioSource = context.createMediaStreamSource(stream);
+  voiceAudioSource.connect(analyser);
   const samples = new Uint8Array(analyser.frequencyBinCount);
   const waveforms = [...document.querySelectorAll(".voice-waveform")];
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -399,7 +425,8 @@ function showVoiceError(message) {
   elements.voiceApplyButton.hidden = true;
 }
 
-function finishVoiceListening() {
+function finishVoiceListening(recognition = voiceRecognition) {
+  if (recognition && recognition !== voiceRecognition) return;
   if (voiceSilenceTimer !== null) clearTimeout(voiceSilenceTimer);
   voiceSilenceTimer = null;
   voiceIsListening = false;
@@ -444,9 +471,11 @@ async function startVoiceInput() {
   voiceLatestTranscript = "";
   elements.voiceStatus.textContent = "Starting microphone...";
   elements.voiceInputButton.disabled = true;
+  const audioContextReady = prepareVoiceAudioContext();
   try {
     voiceAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (error) {
+    stopVoiceMeter();
     showVoiceError(error?.name === "NotAllowedError"
       ? "Microphone access was not allowed."
       : "No microphone is available.");
@@ -458,13 +487,16 @@ async function startVoiceInput() {
     return;
   }
 
-  startVoiceMeter(voiceAudioStream);
-  voiceRecognition = new SpeechRecognition();
-  voiceRecognition.lang = document.documentElement.lang || navigator.language || "en-GB";
-  voiceRecognition.continuous = true;
-  voiceRecognition.interimResults = true;
-  voiceRecognition.maxAlternatives = 1;
-  voiceRecognition.addEventListener("start", () => {
+  await audioContextReady;
+  await startVoiceMeter(voiceAudioStream);
+  const recognition = new SpeechRecognition();
+  voiceRecognition = recognition;
+  recognition.lang = document.documentElement.lang || navigator.language || "en-GB";
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.maxAlternatives = 1;
+  recognition.addEventListener("start", () => {
+    if (voiceRecognition !== recognition) return;
     voiceIsListening = true;
     elements.voiceInputButton.disabled = false;
     elements.voiceStatus.textContent = "Listening...";
@@ -476,7 +508,8 @@ async function startVoiceInput() {
     elements.voiceListenButton.setAttribute("aria-label", "Stop recording");
     elements.voiceListenButton.title = "Stop recording";
   });
-  voiceRecognition.addEventListener("result", (event) => {
+  recognition.addEventListener("result", (event) => {
+    if (voiceRecognition !== recognition) return;
     const transcript = [...event.results].map((result) => result[0].transcript).join(" ").trim();
     voiceLatestTranscript = transcript;
     elements.voiceTranscript.textContent = `Hearing: “${transcript}”`;
@@ -484,30 +517,35 @@ async function startVoiceInput() {
     const latestResult = event.results[event.results.length - 1];
     if (latestResult.isFinal) showVoiceResult(transcript, false);
   });
-  voiceRecognition.addEventListener("speechstart", () => {
+  recognition.addEventListener("speechstart", () => {
+    if (voiceRecognition !== recognition) return;
     if (voiceSilenceTimer !== null) clearTimeout(voiceSilenceTimer);
     voiceSilenceTimer = null;
   });
-  voiceRecognition.addEventListener("speechend", () => {
+  recognition.addEventListener("speechend", () => {
+    if (voiceRecognition !== recognition) return;
     if (voiceSilenceTimer !== null) clearTimeout(voiceSilenceTimer);
     voiceSilenceTimer = setTimeout(() => stopVoiceInput(false), 1000);
   });
-  voiceRecognition.addEventListener("error", (event) => {
+  recognition.addEventListener("error", (event) => {
+    if (voiceRecognition !== recognition) return;
     voiceHadError = true;
     showVoiceError(voiceErrorMessage(event.error));
   });
-  voiceRecognition.addEventListener("end", () => {
+  recognition.addEventListener("end", () => {
+    if (voiceRecognition !== recognition) return;
     if (!voiceHadError && voiceLatestTranscript) showVoiceResult(voiceLatestTranscript, true);
     if (!voiceHadResult && !voiceHadError) showVoiceError("No speech detected. Try again.");
-    finishVoiceListening();
+    finishVoiceListening(recognition);
     if (!voiceDialogCancelled) showVoiceDialog();
   });
   try {
-    voiceRecognition.start();
+    recognition.start();
   } catch {
+    if (voiceRecognition !== recognition) return;
     voiceHadError = true;
     showVoiceError("Speech recognition could not be started.");
-    finishVoiceListening();
+    finishVoiceListening(recognition);
     elements.voiceListenButton.disabled = false;
     showVoiceDialog();
   }
@@ -528,12 +566,13 @@ function stopVoiceInput(showDialogImmediately) {
   elements.voiceListenButton.title = "Finishing recording";
   stopVoiceMeter();
   if (showDialogImmediately) showVoiceDialog();
+  const recognition = voiceRecognition;
   try {
-    voiceRecognition?.stop();
+    recognition?.stop();
   } catch {
     voiceHadError = true;
     showVoiceError("Voice input could not be completed.");
-    finishVoiceListening();
+    finishVoiceListening(recognition);
     showVoiceDialog();
   }
 }
@@ -548,8 +587,9 @@ function toggleVoiceListening() {
 
 function closeVoiceDialog() {
   voiceDialogCancelled = true;
-  voiceRecognition?.abort();
-  finishVoiceListening();
+  const recognition = voiceRecognition;
+  recognition?.abort();
+  finishVoiceListening(recognition);
   pendingVoiceChanges = null;
   elements.voiceDialog.close();
 }
@@ -1090,16 +1130,16 @@ function renderPlan() {
 
   const timeline = buildWeatherTimeline();
   if (!timeline.length) {
-    if (!state.weatherLoadFailed) {
-      for (let index = 0; index < 3; index += 1) {
-        const placeholder = document.createElement("div");
-        placeholder.className = "forecast-pill forecast-placeholder";
-        placeholder.setAttribute("aria-hidden", "true");
-        placeholder.innerHTML = "<span></span><strong></strong><small></small><small></small>";
-        elements.forecastStrip.append(placeholder);
-      }
+    for (let index = 0; index < 3; index += 1) {
+      const placeholder = document.createElement("div");
+      placeholder.className = `forecast-pill forecast-placeholder${state.weatherLoadFailed ? " is-static" : ""}`;
+      placeholder.setAttribute("aria-hidden", "true");
+      placeholder.innerHTML = "<span></span><strong></strong><small></small><small></small>";
+      elements.forecastStrip.append(placeholder);
     }
-    elements.planConfidence.textContent = "Rough estimate";
+    elements.planConfidence.textContent = state.weatherLoadFailed
+      ? "Outdoor data unavailable"
+      : "Waiting for outdoor data...";
     return null;
   }
 
@@ -1333,13 +1373,12 @@ function render() {
   if (state.outdoorTemp === null || state.outdoorRh === null) {
     elements.retryWeather.hidden = !state.weatherLoadFailed;
     elements.recommendation.classList.remove("open", "windows", "closed", "caution");
-    elements.recommendation.classList.add("caution");
     elements.decisionLabel.textContent = state.weatherLoadFailed
-      ? "CHECK FAILED"
+      ? "NO DATA"
       : "CHECKING";
     setDecisionSummary(
-      state.weatherLoadFailed ? "Outdoor weather is unavailable." : "Getting local conditions...",
-      state.weatherLoadFailed ? "Try again to update the recommendation." : "",
+      state.weatherLoadFailed ? "Outdoor weather is currently unavailable." : "Getting local conditions...",
+      state.weatherLoadFailed ? "Check your connection and try again." : "",
     );
     elements.outdoorTempValue.textContent = "--";
     elements.outdoorRhValue.textContent = "--";
@@ -1349,6 +1388,8 @@ function render() {
     elements.adjustedAirNote.textContent = "";
     return;
   }
+
+  elements.retryWeather.hidden = true;
 
   const outdoorDew = Number.isFinite(state.outdoorDewPoint)
     ? state.outdoorDewPoint
@@ -1498,6 +1539,12 @@ function formatSearchLocation(result) {
   if (result.source === "postcode") {
     return [result.postcode, result.admin_district || result.region].filter(Boolean).join(", ");
   }
+  if (result.source === "outcode") {
+    const districts = Array.isArray(result.admin_district)
+      ? result.admin_district.filter(Boolean).join(" / ")
+      : result.admin_district;
+    return [result.outcode, districts].filter(Boolean).join(", ");
+  }
   const parts = [result.name, result.admin2 || result.admin1, result.country].filter(Boolean);
   return [...new Set(parts)].join(", ");
 }
@@ -1508,6 +1555,11 @@ function normalizeUkPostcode(query) {
   return `${compact.slice(0, -3)} ${compact.slice(-3)}`;
 }
 
+function normalizeUkOutcode(query) {
+  const compact = query.toUpperCase().replace(/\s+/g, "");
+  return /^[A-Z]{1,2}\d[A-Z\d]?$/.test(compact) ? compact : null;
+}
+
 async function searchUkPostcode(postcode) {
   const response = await fetch(`${UK_POSTCODE_ENDPOINT}/${encodeURIComponent(postcode)}`);
   if (response.status === 404) return [];
@@ -1515,6 +1567,15 @@ async function searchUkPostcode(postcode) {
   const data = await response.json();
   if (!data.result) return [];
   return [{ ...data.result, source: "postcode" }];
+}
+
+async function searchUkOutcode(outcode) {
+  const response = await fetch(`${UK_OUTCODE_ENDPOINT}/${encodeURIComponent(outcode)}`);
+  if (response.status === 404) return [];
+  if (!response.ok) throw new Error("Outward-code search failed");
+  const data = await response.json();
+  if (!data.result) return [];
+  return [{ ...data.result, source: "outcode" }];
 }
 
 function locationMatchesQualifier(result, qualifier) {
@@ -1546,7 +1607,13 @@ async function searchTownLocations(query, worldwide = false) {
 async function searchLocations(query, worldwide = false) {
   const postcode = normalizeUkPostcode(query);
   if (postcode && !worldwide) return searchUkPostcode(postcode);
+  const outcode = normalizeUkOutcode(query);
+  if (outcode && !worldwide) return searchUkOutcode(outcode);
   return searchTownLocations(query, worldwide);
+}
+
+function isUkPostcodeQuery(query) {
+  return Boolean(normalizeUkPostcode(query) || normalizeUkOutcode(query));
 }
 
 function addWorldwideSearchButton(query) {
@@ -1572,7 +1639,7 @@ function renderLocationResults(results, query, worldwide = false) {
   elements.locationSearchResults.replaceChildren();
 
   if (!results.length) {
-    const isPostcode = Boolean(normalizeUkPostcode(query));
+    const isPostcode = isUkPostcodeQuery(query);
     elements.locationDialogStatus.textContent = isPostcode
       ? "Postcode not found. Check it and try again."
       : worldwide
@@ -1604,7 +1671,7 @@ function renderLocationResults(results, query, worldwide = false) {
     elements.locationSearchResults.append(button);
   });
 
-  if (!worldwide && !normalizeUkPostcode(query)) addWorldwideSearchButton(query);
+  if (!worldwide && !isUkPostcodeQuery(query)) addWorldwideSearchButton(query);
 }
 
 async function handleLocationSearch(event) {
@@ -1699,6 +1766,8 @@ async function initializeLocation(hasSavedLocation) {
 async function fetchWeather() {
   const checkedAt = new Date();
   elements.weatherStatus.textContent = "Updating outdoor...";
+  elements.recommendation.setAttribute("aria-busy", "true");
+  elements.dashboardPanel.setAttribute("aria-busy", "true");
   elements.refreshWeather.disabled = true;
   elements.retryWeather.disabled = true;
 
@@ -1730,10 +1799,10 @@ async function fetchWeather() {
   } catch {
     state.lastCheckedAt = checkedAt;
     state.weatherLoadFailed = true;
-    const hasPreviousWeather = state.outdoorTemp !== null && state.outdoorRh !== null;
-    elements.weatherStatus.textContent =
-      hasPreviousWeather ? `Check failed ${formatShortTime(checkedAt)}` : "Check failed";
+    elements.weatherStatus.textContent = "Update failed";
   } finally {
+    elements.recommendation.removeAttribute("aria-busy");
+    elements.dashboardPanel.removeAttribute("aria-busy");
     elements.refreshWeather.disabled = false;
     elements.retryWeather.disabled = false;
     render();

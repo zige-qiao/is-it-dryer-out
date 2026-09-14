@@ -93,6 +93,7 @@ Forecast tiles use `Uncertain` instead of `Wait` and `Little benefit` instead of
 - Show time, outcome or duration, outdoor temperature, outdoor RH, and the forecast-specific estimated airflow, for example `21.1°C · 60% RH` followed by `~1.6 ACH`.
 - Keep tile accessibility labels explicit about temperature, relative humidity, and estimated air changes per hour.
 - While weather is loading, preserve the outlook height with quiet skeleton tiles that are hidden from assistive technology and respect reduced-motion preferences.
+- Keep checking and no-data states neutral dark so status colours remain reserved for actual ventilation verdicts. On failure, retain static outlook placeholders, use concise `NO DATA` messaging, and keep retry actions out of the verdict's vertical content flow.
 - Show `Last checked HH:MM` with a compact black refresh icon. During refresh, use `Updating outdoor...`.
 - If weather loading fails, show a concise failure state and a visible retry button.
 - End the dashboard with `Outdoor air RH at indoor <temperature>` and the resulting RH on the right.
@@ -123,9 +124,11 @@ Keep equivalent sections visually aligned and use the existing spacing scale con
 
 Outdoor data comes from Open-Meteo. Device coordinates may be sent to BigDataCloud only to obtain a nearby locality name. Preserve the current fallback to the stored location or Sale, Greater Manchester.
 
+UK location search accepts complete postcodes with or without spaces and case-insensitive outward codes such as `M1`, `M33`, and `SW1A`.
+
 Indoor readings, plan settings, and the most recent location stay in browser storage. Do not add a backend or transmit additional user data without an explicit request.
 
-Voice input, when supported by the browser, updates indoor temperature and relative humidity only. Keep a review step before applying values, allow immediate manual stop, use a one-second silence stop, and show microphone activity from real input levels rather than simulated animation. Do not infer a single unlabelled integer when it is valid for both temperature and humidity.
+Voice input, when supported by the browser, updates indoor temperature and relative humidity only. Keep a review step before applying values, allow immediate manual stop, use a one-second silence stop, and show microphone activity from real input levels rather than simulated animation. Ensure repeated sessions work without stale recognition callbacks stopping a newer session. Do not infer a single unlabelled integer when it is valid for both temperature and humidity.
 
 ## Cache Updates
 

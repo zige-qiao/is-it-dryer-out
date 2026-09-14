@@ -4,6 +4,23 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+## v0.5.1 - 2026-09-14
+
+### Added
+
+- Added case-insensitive UK postcode and outward-code search, including compact postcodes without spaces and partial areas such as `M1`, `M33`, and `SW1A`.
+- Added explicit busy-state semantics to the recommendation and moisture dashboard while outdoor weather is updating.
+
+### Changed
+
+- Refined weather loading with a neutral recommendation state, aligned forecast skeleton rows, tighter forecast-tile corners, and clearer plan status copy.
+- Reworked the no-data state with neutral messaging, static outlook placeholders, a compact top-right retry control, and consistent dashboard and plan status text.
+
+### Fixed
+
+- Fixed the weather retry control remaining visible after outdoor data was successfully refreshed.
+- Fixed subsequent iOS voice sessions failing to receive microphone input by safely reusing audio resources and ignoring stale speech-recognition callbacks.
+
 ## v0.5 - 2026-09-14
 
 ### Added
