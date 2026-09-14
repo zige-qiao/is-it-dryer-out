@@ -1,8 +1,8 @@
 # Is it dryer out
 
-## Version 0.5.1
+## Version 0.5.2
 
-Version 0.5.1 improves repeated voice entry on iOS, adds UK postcode-area search, and makes weather loading and failure states clearer and more stable.
+Version 0.5.2 adds an opt-in on-device diagnostic log for investigating repeated voice-input failures on iOS.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
@@ -42,12 +42,17 @@ The duration is a rough planning estimate, not a measurement. Real airflow depen
 
 Indoor readings, plan settings, and the most recent location are stored only in this browser. The app shell is cached for offline use, but live outdoor data and locality lookup still require a connection.
 
+## Voice diagnostics
+
+Add `?voice-debug=1` to the app URL to show the temporary voice diagnostics panel. It records microphone, audio-context, and speech-recognition lifecycle events without recording recognised speech content. Reproduce the issue, then use **Copy** to collect the log.
+
 ## Project information
 
 Created by Ziggy Qiao. The app links to its [GitHub repository](https://github.com/zige-qiao/is-it-dryer-out) from the supporting footer. See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
 
 ## Release history
 
+- `v0.5.2`: Opt-in on-device voice diagnostics for investigating repeated iOS recording failures.
 - `v0.5.1`: Reliable repeated voice sessions on iOS, UK postcode-area search, and refined outdoor-data loading and failure states.
 - `v0.5`: Optional voice entry for indoor readings, forecast ACH estimates, responsive plan disclosure, loading placeholders, and a separated verdict and outlook layout.
 - `v0.4.2`: Balanced desktop columns, aligned panel spacing, cleaner location rendering, and more compact fallback guidance.

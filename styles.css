@@ -1701,3 +1701,48 @@ input[type="range"] {
   cursor: not-allowed;
   opacity: 0.45;
 }
+
+.voice-debug-panel {
+  position: fixed;
+  z-index: 1000;
+  right: max(8px, env(safe-area-inset-right));
+  bottom: max(8px, env(safe-area-inset-bottom));
+  left: max(8px, env(safe-area-inset-left));
+  max-height: 42vh;
+  overflow: auto;
+  border: 1px solid #ffffff;
+  border-radius: 6px;
+  padding: 10px;
+  background: rgba(16, 35, 31, 0.96);
+  color: #ffffff;
+  font-size: 12px;
+}
+
+.voice-debug-panel summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.voice-debug-actions {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.voice-debug-actions button {
+  min-height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 4px;
+  padding: 0 10px;
+  background: transparent;
+  color: #ffffff;
+}
+
+.voice-debug-panel pre {
+  max-height: 27vh;
+  overflow: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 11px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+}

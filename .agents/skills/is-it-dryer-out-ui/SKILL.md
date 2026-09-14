@@ -128,7 +128,7 @@ UK location search accepts complete postcodes with or without spaces and case-in
 
 Indoor readings, plan settings, and the most recent location stay in browser storage. Do not add a backend or transmit additional user data without an explicit request.
 
-Voice input, when supported by the browser, updates indoor temperature and relative humidity only. Keep a review step before applying values, allow immediate manual stop, use a one-second silence stop, and show microphone activity from real input levels rather than simulated animation. Ensure repeated sessions work without stale recognition callbacks stopping a newer session. Do not infer a single unlabelled integer when it is valid for both temperature and humidity.
+Voice input, when supported by the browser, updates indoor temperature and relative humidity only. Keep a review step before applying values, allow immediate manual stop, use a one-second silence stop, and show microphone activity from real input levels rather than simulated animation. Ensure repeated sessions work without stale recognition callbacks stopping a newer session. Do not infer a single unlabelled integer when it is valid for both temperature and humidity. Keep temporary on-device diagnostics behind an explicit query flag and avoid logging recognised speech content.
 
 ## Cache Updates
 
