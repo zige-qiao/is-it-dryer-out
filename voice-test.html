@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Voice diagnostics</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f2f0ed; color: #10231f; font: 16px/1.5 system-ui,sans-serif; }
+    main { max-width: 760px; margin: auto; padding: 24px 16px; }
+    h1 { font-size: 24px; margin: 0 0 8px; }
+    nav, .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
+    a { color: inherit; }
+    nav a { padding: 10px 0; }
+    nav a[aria-current] { font-weight: 700; text-decoration-thickness: 3px; }
+    button { min-height: 44px; padding: 8px 18px; border: 1px solid #b6c5c1; border-radius: 6px; background: white; color: inherit; font: inherit; }
+    button:disabled { opacity: .5; }
+    button:focus-visible, a:focus-visible { outline: 2px solid #1675b5; outline-offset: 3px; }
+    #status { min-height: 24px; font-weight: 600; }
+    textarea { width: 100%; height: 48vh; min-height: 240px; padding: 12px; border: 1px solid #b6c5c1; border-radius: 6px; background: white; font: 12px/1.6 monospace; resize: vertical; }
+    #build { overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Voice diagnostics</h1>
+    <div id="build"></div>
+    <nav aria-label="Recognizer mode">
+      <a id="reuse" href="?mode=reuse">Reuse one recognizer</a>
+      <a id="fresh" href="?mode=fresh">New recognizer each time</a>
+    </nav>
+    <p id="status" role="status">Ready</p>
+    <div class="actions">
+      <button id="start" type="button">Start</button>
+      <button id="stop" type="button" disabled>Stop</button>
+      <button id="copy" type="button">Copy log</button>
+      <button id="clear" type="button">Clear log</button>
+    </div>
+    <textarea id="log" readonly aria-label="Diagnostic log" spellcheck="false"></textarea>
+    <p><a href="./?voice-debug=1">Back to app</a></p>
+  </main>
+  <script type="module" src="voice-test.js?v=113"></script>
+</body>
+</html>

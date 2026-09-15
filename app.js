@@ -30,6 +30,8 @@ const OPENING_SETUPS = {
   cross: { label: "Cross-ventilation", airflow: 180 },
 };
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+// Keep the build identity in the script so stale code identifies itself correctly.
+const APP_BUILD_VERSION = "0.5.3.2+diagnostics.1";
 const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
 const IS_IOS = /iP(?:hone|ad|od)/.test(navigator.userAgent)
   || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -155,6 +157,16 @@ function voiceDebugLog(event, details = {}, sessionId = activeVoiceSession?.id |
   }
 }
 
+function logVoiceDebugEnvironment(event) {
+  voiceDebugLog(event, {
+    build: APP_BUILD_VERSION,
+    assetRevision: new URL(import.meta.url).searchParams.get("v") || "unversioned",
+    recognition: Boolean(SpeechRecognition),
+    mediaDevices: Boolean(navigator.mediaDevices?.getUserMedia),
+    audioContext: Boolean(window.AudioContext || window.webkitAudioContext),
+  });
+}
+
 function initializeVoiceDebugPanel() {
   if (!VOICE_DEBUG_ENABLED) return;
   const panel = document.createElement("details");
@@ -182,13 +194,9 @@ function initializeVoiceDebugPanel() {
     voiceDebugEntries.length = 0;
     voiceDebugStartedAt = performance.now();
     panel.querySelector("#voiceDebugOutput").textContent = "";
-    voiceDebugLog("diagnostics cleared");
+    logVoiceDebugEnvironment("diagnostics cleared");
   });
-  voiceDebugLog("debug mode ready", {
-    recognition: Boolean(SpeechRecognition),
-    mediaDevices: Boolean(navigator.mediaDevices?.getUserMedia),
-    audioContext: Boolean(window.AudioContext || window.webkitAudioContext),
-  });
+  logVoiceDebugEnvironment("debug mode ready");
 }
 let pendingVoiceChanges = null;
 
