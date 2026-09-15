@@ -33,9 +33,12 @@ const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecogni
 const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
 const IS_IOS = /iP(?:hone|ad|od)/.test(navigator.userAgent)
   || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const VOICE_ACTIVITY_THRESHOLD = 0.06;
 const VOICE_SILENCE_DURATION_MS = 1000;
 const VOICE_CLEANUP_TIMEOUT_MS = 2500;
+const VOICE_START_TIMEOUT_MS = 6000;
+const VOICE_MAX_DURATION_MS = 15000;
+const VOICE_METER_CALIBRATION_MS = 600;
+const VOICE_MIN_ACTIVITY_THRESHOLD = 0.018;
 const INPUT_UNCERTAINTY = {
   indoorTemp: 0.3,
   indoorRh: 2,
@@ -133,32 +136,18 @@ const elements = {
   voiceApplyButton: document.querySelector("#voiceApplyButton"),
 };
 
-let voiceRecognition = null;
-let voiceAudioStream = null;
-let voiceAudioContext = null;
-let voiceAudioSource = null;
-let voiceMeterFrame = null;
-let voiceIsListening = false;
-let voiceIsStopping = false;
-let voiceHadResult = false;
-let voiceHadError = false;
-let voiceLatestTranscript = "";
-let voiceSilenceTimer = null;
-let voiceCleanupTimer = null;
-let voiceSoundDetected = false;
-let voiceSilentSince = null;
-let voiceDialogCancelled = false;
+let activeVoiceSession = null;
 let voiceDebugSession = 0;
 let voiceDebugStartedAt = performance.now();
 const voiceDebugEntries = [];
 
-function voiceDebugLog(event, details = {}) {
+function voiceDebugLog(event, details = {}, sessionId = activeVoiceSession?.id || voiceDebugSession) {
   if (!VOICE_DEBUG_ENABLED) return;
   const elapsed = ((performance.now() - voiceDebugStartedAt) / 1000).toFixed(3);
   const detailText = Object.entries(details)
     .map(([key, value]) => `${key}=${String(value)}`)
     .join(" ");
-  voiceDebugEntries.push(`${elapsed}s [session ${voiceDebugSession || "-"}] ${event}${detailText ? ` ${detailText}` : ""}`);
+  voiceDebugEntries.push(`${elapsed}s [session ${sessionId || "-"}] ${event}${detailText ? ` ${detailText}` : ""}`);
   const output = document.querySelector("#voiceDebugOutput");
   if (output) {
     output.textContent = voiceDebugEntries.join("\n");
@@ -356,8 +345,8 @@ function voiceChangeRows(values) {
   return rows;
 }
 
-function showVoiceResult(transcript, allowApply = true) {
-  voiceHadResult = true;
+function showVoiceResult(transcript, allowApply = true, session = activeVoiceSession) {
+  if (session) session.hadResult = true;
   const parsed = parseVoiceCommand(transcript);
   const rows = voiceChangeRows(parsed.values);
   pendingVoiceChanges = rows.length ? parsed.values : null;
@@ -396,89 +385,142 @@ function resetVoiceMeter() {
   });
 }
 
-function stopVoiceMeter() {
+function stopVoiceMeter(session) {
+  if (!session) return;
   voiceDebugLog("meter stopping", {
-    track: voiceAudioStream?.getAudioTracks()[0]?.readyState || "none",
-    context: voiceAudioContext?.state || "none",
-  });
-  if (voiceMeterFrame !== null) cancelAnimationFrame(voiceMeterFrame);
-  voiceMeterFrame = null;
-  if (voiceAudioSource) {
+    track: session.stream?.getAudioTracks()[0]?.readyState || "none",
+    context: session.context?.state || "none",
+  }, session.id);
+  if (session.meterFrame !== null) cancelAnimationFrame(session.meterFrame);
+  session.meterFrame = null;
+  if (session.source) {
     try {
-      voiceAudioSource.disconnect();
+      session.source.disconnect();
     } catch {
       // The browser may already have disconnected this source.
     }
   }
-  voiceAudioSource = null;
-  voiceAudioStream?.getTracks().forEach((track) => track.stop());
-  voiceAudioStream = null;
-  if (voiceAudioContext?.state === "running") voiceAudioContext.suspend().catch(() => {});
-  resetVoiceMeter();
+  session.source = null;
+  session.stream?.getTracks().forEach((track) => track.stop());
+  session.stream = null;
+  if (session.context && session.context.state !== "closed") session.context.close().catch(() => {});
+  session.context = null;
+  if (activeVoiceSession === session) resetVoiceMeter();
 }
 
-function markVoiceActivity(source) {
-  if (!voiceSoundDetected) voiceDebugLog("voice activity detected", { source });
-  voiceSoundDetected = true;
-  voiceSilentSince = null;
+function markVoiceActivity(session, source) {
+  if (activeVoiceSession !== session) return;
+  if (!session.soundDetected) voiceDebugLog("voice activity detected", { source }, session.id);
+  session.soundDetected = true;
+  session.silentSince = null;
 }
 
-async function prepareVoiceAudioContext() {
+async function prepareVoiceAudioContext(session) {
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   if (!AudioContext) return null;
-  if (!voiceAudioContext || voiceAudioContext.state === "closed") {
-    voiceAudioContext = new AudioContext();
-    voiceAudioContext.addEventListener("statechange", () => {
-      voiceDebugLog("audio context statechange", { state: voiceAudioContext?.state || "none" });
+  if (!session.context || session.context.state === "closed") {
+    session.context = new AudioContext();
+    const context = session.context;
+    context.addEventListener("statechange", () => {
+      voiceDebugLog("audio context statechange", { state: context.state }, session.id);
     });
-    voiceDebugLog("audio context created", { state: voiceAudioContext.state });
+    voiceDebugLog("audio context created", { state: context.state }, session.id);
   }
-  if (voiceAudioContext.state === "suspended") {
+  if (session.context.state === "suspended") {
     try {
-      await voiceAudioContext.resume();
-      voiceDebugLog("audio context resumed", { state: voiceAudioContext.state });
+      await session.context.resume();
+      voiceDebugLog("audio context resumed", { state: session.context.state }, session.id);
     } catch (error) {
-      voiceDebugLog("audio context resume failed", { name: error?.name || "unknown" });
+      voiceDebugLog("audio context resume failed", { name: error?.name || "unknown" }, session.id);
       return null;
     }
   }
-  return voiceAudioContext;
+  return session.context;
 }
 
-async function startVoiceMeter(stream) {
-  const context = await prepareVoiceAudioContext();
-  if (!context || context.state !== "running") {
-    voiceDebugLog("meter unavailable", { context: context?.state || "none" });
+async function startVoiceMeter(session) {
+  try {
+    voiceDebugLog("getUserMedia requested", {}, session.id);
+    session.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (error) {
+    voiceDebugLog("meter unavailable", { name: error?.name || "unknown" }, session.id);
+    return;
+  }
+  if (activeVoiceSession !== session || session.finished) {
+    session.stream.getTracks().forEach((track) => track.stop());
+    session.stream = null;
+    return;
+  }
+  const track = session.stream.getAudioTracks()[0];
+  voiceDebugLog("getUserMedia resolved", {
+    track: track?.readyState || "none",
+    enabled: track?.enabled ?? "unknown",
+    muted: track?.muted ?? "unknown",
+  }, session.id);
+  ["mute", "unmute", "ended"].forEach((name) => {
+    track?.addEventListener(name, () => {
+      voiceDebugLog(`track ${name}`, { state: track.readyState, muted: track.muted }, session.id);
+    });
+  });
+  const context = await prepareVoiceAudioContext(session);
+  if (activeVoiceSession !== session || !context || context.state !== "running") {
+    voiceDebugLog("meter unavailable", { context: context?.state || "none" }, session.id);
+    stopVoiceMeter(session);
     return;
   }
   const analyser = context.createAnalyser();
   analyser.fftSize = 256;
-  voiceAudioSource = context.createMediaStreamSource(stream);
-  voiceAudioSource.connect(analyser);
-  voiceDebugLog("meter started", { context: context.state });
-  const samples = new Uint8Array(analyser.frequencyBinCount);
+  session.source = context.createMediaStreamSource(session.stream);
+  session.source.connect(analyser);
+  voiceDebugLog("meter started", { context: context.state }, session.id);
+  const samples = new Float32Array(analyser.fftSize);
   const waveforms = [...document.querySelectorAll(".voice-waveform")];
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const maximumHeights = [8, 12, 16, 12, 8];
+  const calibrationLevels = [];
+  const meterStartedAt = performance.now();
+  let noiseFloor = 0.006;
+  let activityThreshold = VOICE_MIN_ACTIVITY_THRESHOLD;
+  let calibrationLogged = false;
   let displayedLevel = 0;
   const draw = () => {
-    analyser.getByteTimeDomainData(samples);
+    if (activeVoiceSession !== session || session.finished) return;
+    analyser.getFloatTimeDomainData(samples);
+    let mean = 0;
+    for (const sample of samples) mean += sample;
+    mean /= samples.length;
     let total = 0;
-    for (const sample of samples) total += Math.abs(sample - 128);
-    const measuredLevel = Math.min(1, total / samples.length / 10);
-    const targetLevel = reduceMotion || measuredLevel < VOICE_ACTIVITY_THRESHOLD
+    for (const sample of samples) total += (sample - mean) ** 2;
+    const measuredLevel = Math.sqrt(total / samples.length);
+    const elapsed = performance.now() - meterStartedAt;
+    if (elapsed <= VOICE_METER_CALIBRATION_MS) {
+      calibrationLevels.push(measuredLevel);
+    } else if (!calibrationLogged) {
+      const sorted = calibrationLevels.sort((a, b) => a - b);
+      noiseFloor = sorted[Math.floor(sorted.length * 0.2)] || noiseFloor;
+      activityThreshold = Math.max(VOICE_MIN_ACTIVITY_THRESHOLD, noiseFloor * 2.8);
+      calibrationLogged = true;
+      voiceDebugLog("meter calibrated", {
+        noiseFloor: noiseFloor.toFixed(4),
+        threshold: activityThreshold.toFixed(4),
+      }, session.id);
+    } else if (!session.soundDetected && measuredLevel < activityThreshold) {
+      noiseFloor = noiseFloor * 0.98 + measuredLevel * 0.02;
+      activityThreshold = Math.max(VOICE_MIN_ACTIVITY_THRESHOLD, noiseFloor * 2.8);
+    }
+    const targetLevel = reduceMotion || measuredLevel < activityThreshold
       ? 0
-      : (measuredLevel - VOICE_ACTIVITY_THRESHOLD) / (1 - VOICE_ACTIVITY_THRESHOLD);
+      : Math.min(1, (measuredLevel - activityThreshold) / Math.max(0.08, 0.18 - activityThreshold));
     displayedLevel += (targetLevel - displayedLevel) * (targetLevel > displayedLevel ? 0.55 : 0.12);
-    if (voiceIsListening) {
-      if (measuredLevel >= VOICE_ACTIVITY_THRESHOLD) {
-        markVoiceActivity("meter");
-      } else if (voiceSoundDetected) {
-        if (voiceSilentSince === null) voiceSilentSince = performance.now();
-        if (performance.now() - voiceSilentSince >= VOICE_SILENCE_DURATION_MS) {
-          voiceDebugLog("silence threshold reached", { durationMs: VOICE_SILENCE_DURATION_MS });
-          voiceSilentSince = null;
-          stopVoiceInput(false);
+    if (session.isListening && calibrationLogged) {
+      if (measuredLevel >= activityThreshold) {
+        markVoiceActivity(session, "meter");
+      } else if (session.soundDetected) {
+        if (session.silentSince === null) session.silentSince = performance.now();
+        if (performance.now() - session.silentSince >= VOICE_SILENCE_DURATION_MS) {
+          voiceDebugLog("silence threshold reached", { durationMs: VOICE_SILENCE_DURATION_MS }, session.id);
+          session.silentSince = null;
+          stopVoiceInput(false, session);
           return;
         }
       }
@@ -492,7 +534,7 @@ async function startVoiceMeter(stream) {
         bar.style.opacity = `${0.72 + displayedLevel * 0.28}`;
       });
     });
-    voiceMeterFrame = requestAnimationFrame(draw);
+    session.meterFrame = requestAnimationFrame(draw);
   };
   draw();
 }
@@ -522,26 +564,39 @@ function showVoiceError(message) {
   elements.voiceApplyButton.hidden = true;
 }
 
-function finishVoiceListening(recognition = voiceRecognition) {
-  if (recognition && recognition !== voiceRecognition) return;
-  if (voiceSilenceTimer !== null) clearTimeout(voiceSilenceTimer);
-  voiceSilenceTimer = null;
-  if (voiceCleanupTimer !== null) clearTimeout(voiceCleanupTimer);
-  voiceCleanupTimer = null;
-  voiceSoundDetected = false;
-  voiceSilentSince = null;
-  voiceIsListening = false;
-  voiceIsStopping = false;
-  voiceRecognition = null;
-  stopVoiceMeter();
+function clearVoiceSessionTimers(session) {
+  ["silenceTimer", "cleanupTimer", "startupTimer", "maxTimer", "finalTimer"].forEach((name) => {
+    if (session[name] !== null) clearTimeout(session[name]);
+    session[name] = null;
+  });
+}
+
+function finishVoiceListening(session) {
+  if (!session || session.finished) return;
+  session.finished = true;
+  clearVoiceSessionTimers(session);
+  session.isListening = false;
+  session.isStopping = false;
+  stopVoiceMeter(session);
+  if (activeVoiceSession === session) activeVoiceSession = null;
   elements.voiceInputButton.classList.remove("is-listening");
+  elements.voiceInputButton.classList.remove("is-meterless");
   elements.voiceListenButton.classList.remove("is-listening");
+  elements.voiceListenButton.classList.remove("is-meterless");
   elements.voiceInputButton.disabled = false;
   elements.voiceInputButton.setAttribute("aria-label", "Update indoor readings by voice");
   elements.voiceInputButton.title = "Update indoor readings by voice";
   elements.voiceListenButton.disabled = false;
   elements.voiceListenButton.setAttribute("aria-label", "Record again");
   elements.voiceListenButton.title = "Record again";
+}
+
+function completeVoiceSession(session) {
+  if (activeVoiceSession !== session || session.finished) return;
+  if (session.latestTranscript) showVoiceResult(session.latestTranscript, true, session);
+  else if (!session.hadError) showVoiceError("No speech detected. Try again.");
+  finishVoiceListening(session);
+  if (!session.dialogCancelled) showVoiceDialog();
 }
 
 function showVoiceDialog() {
@@ -563,197 +618,236 @@ function resetVoiceResult() {
   resetVoiceMeter();
 }
 
-async function startVoiceInput() {
-  if (voiceIsListening || voiceIsStopping) return;
+function startVoiceInput() {
+  if (activeVoiceSession) return;
   voiceDebugSession += 1;
+  const recognition = new SpeechRecognition();
+  const session = {
+    id: voiceDebugSession,
+    recognition,
+    stream: null,
+    context: null,
+    source: null,
+    meterFrame: null,
+    silenceTimer: null,
+    cleanupTimer: null,
+    startupTimer: null,
+    maxTimer: null,
+    finalTimer: null,
+    isListening: false,
+    isStopping: false,
+    hadResult: false,
+    hadError: false,
+    latestTranscript: "",
+    soundDetected: false,
+    silentSince: null,
+    dialogCancelled: false,
+    started: false,
+    audioStarted: false,
+    finished: false,
+  };
+  activeVoiceSession = session;
   voiceDebugLog("session requested", {
-    context: voiceAudioContext?.state || "none",
+    context: "none",
     visibility: document.visibilityState,
-  });
+  }, session.id);
   resetVoiceResult();
-  voiceDialogCancelled = false;
-  voiceHadResult = false;
-  voiceHadError = false;
-  voiceLatestTranscript = "";
-  voiceSoundDetected = false;
-  voiceSilentSince = null;
   elements.voiceStatus.textContent = "Starting microphone...";
   elements.voiceInputButton.disabled = true;
-  const audioContextReady = prepareVoiceAudioContext();
-  try {
-    voiceDebugLog("getUserMedia requested");
-    voiceAudioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const track = voiceAudioStream.getAudioTracks()[0];
-    voiceDebugLog("getUserMedia resolved", {
-      track: track?.readyState || "none",
-      enabled: track?.enabled ?? "unknown",
-      muted: track?.muted ?? "unknown",
-    });
-    ["mute", "unmute", "ended"].forEach((name) => {
-      track?.addEventListener(name, () => {
-        voiceDebugLog(`track ${name}`, { state: track.readyState, muted: track.muted });
-      });
-    });
-  } catch (error) {
-    voiceDebugLog("getUserMedia failed", { name: error?.name || "unknown" });
-    stopVoiceMeter();
-    showVoiceError(error?.name === "NotAllowedError"
-      ? "Microphone access was not allowed."
-      : "No microphone is available.");
-    elements.voiceListenButton.disabled = false;
-    elements.voiceListenButton.setAttribute("aria-label", "Try recording again");
-    elements.voiceListenButton.title = "Try recording again";
-    elements.voiceInputButton.disabled = false;
-    showVoiceDialog();
-    return;
-  }
-
-  await audioContextReady;
-  await startVoiceMeter(voiceAudioStream);
-  const recognition = new SpeechRecognition();
-  voiceRecognition = recognition;
+  elements.voiceListenButton.disabled = true;
   recognition.lang = document.documentElement.lang || navigator.language || "en-GB";
   recognition.continuous = !IS_IOS;
   recognition.interimResults = true;
   recognition.maxAlternatives = 1;
-  voiceDebugLog("recognition configured", { continuous: recognition.continuous, ios: IS_IOS });
+  voiceDebugLog("recognition configured", { continuous: recognition.continuous, ios: IS_IOS }, session.id);
   ["start", "audiostart", "soundstart", "speechstart", "speechend", "soundend", "audioend", "end", "nomatch"].forEach((name) => {
     recognition.addEventListener(name, () => {
-      voiceDebugLog(`recognition ${name}`, { current: voiceRecognition === recognition });
+      voiceDebugLog(`recognition ${name}`, { current: activeVoiceSession === session }, session.id);
     });
   });
   recognition.addEventListener("result", (event) => {
     const latest = event.results[event.results.length - 1];
     voiceDebugLog("recognition result", {
-      current: voiceRecognition === recognition,
+      current: activeVoiceSession === session,
       results: event.results.length,
       final: latest?.isFinal ?? false,
-    });
+    }, session.id);
   });
   recognition.addEventListener("error", (event) => {
     voiceDebugLog("recognition error", {
-      current: voiceRecognition === recognition,
+      current: activeVoiceSession === session,
       error: event.error || "unknown",
       message: event.message || "none",
-    });
+    }, session.id);
   });
   recognition.addEventListener("start", () => {
-    if (voiceRecognition !== recognition) return;
-    voiceIsListening = true;
+    if (activeVoiceSession !== session) return;
+    session.started = true;
+    session.isListening = true;
+    session.maxTimer = setTimeout(() => {
+      voiceDebugLog("maximum duration reached", { durationMs: VOICE_MAX_DURATION_MS }, session.id);
+      stopVoiceInput(false, session);
+    }, VOICE_MAX_DURATION_MS);
     elements.voiceInputButton.disabled = false;
     elements.voiceStatus.textContent = "Listening...";
     elements.voiceListenButton.disabled = false;
     elements.voiceInputButton.classList.add("is-listening");
     elements.voiceListenButton.classList.add("is-listening");
+    elements.voiceInputButton.classList.toggle("is-meterless", IS_IOS);
+    elements.voiceListenButton.classList.toggle("is-meterless", IS_IOS);
     elements.voiceInputButton.setAttribute("aria-label", "Stop and review voice input");
     elements.voiceInputButton.title = "Stop and review";
     elements.voiceListenButton.setAttribute("aria-label", "Stop recording");
     elements.voiceListenButton.title = "Stop recording";
   });
+  recognition.addEventListener("audiostart", () => {
+    if (activeVoiceSession !== session) return;
+    session.audioStarted = true;
+    if (session.startupTimer !== null) clearTimeout(session.startupTimer);
+    session.startupTimer = null;
+  });
   recognition.addEventListener("result", (event) => {
-    if (voiceRecognition !== recognition) return;
-    markVoiceActivity("recognition result");
+    if (activeVoiceSession !== session) return;
+    markVoiceActivity(session, "recognition result");
+    if (session.finalTimer !== null) clearTimeout(session.finalTimer);
+    session.finalTimer = null;
     const transcript = [...event.results].map((result) => result[0].transcript).join(" ").trim();
-    voiceLatestTranscript = transcript;
+    session.latestTranscript = transcript;
     elements.voiceTranscript.textContent = `Hearing: “${transcript}”`;
     elements.voiceTranscriptPanel.hidden = false;
     const latestResult = event.results[event.results.length - 1];
-    if (latestResult.isFinal) showVoiceResult(transcript, false);
+    if (latestResult.isFinal) {
+      showVoiceResult(transcript, false, session);
+      session.finalTimer = setTimeout(() => {
+        voiceDebugLog("final result silence fallback", { durationMs: VOICE_SILENCE_DURATION_MS }, session.id);
+        stopVoiceInput(false, session);
+      }, VOICE_SILENCE_DURATION_MS);
+    }
   });
   recognition.addEventListener("speechstart", () => {
-    if (voiceRecognition !== recognition) return;
-    markVoiceActivity("recognition speechstart");
-    if (voiceSilenceTimer !== null) clearTimeout(voiceSilenceTimer);
-    voiceSilenceTimer = null;
+    if (activeVoiceSession !== session) return;
+    markVoiceActivity(session, "recognition speechstart");
+    if (session.silenceTimer !== null) clearTimeout(session.silenceTimer);
+    session.silenceTimer = null;
   });
   recognition.addEventListener("speechend", () => {
-    if (voiceRecognition !== recognition) return;
-    if (voiceSilenceTimer !== null) clearTimeout(voiceSilenceTimer);
-    voiceSilenceTimer = setTimeout(() => stopVoiceInput(false), 1000);
+    if (activeVoiceSession !== session) return;
+    if (session.silenceTimer !== null) clearTimeout(session.silenceTimer);
+    session.silenceTimer = setTimeout(() => stopVoiceInput(false, session), VOICE_SILENCE_DURATION_MS);
   });
   recognition.addEventListener("error", (event) => {
-    if (voiceRecognition !== recognition) return;
-    if (voiceIsStopping && event.error === "aborted") {
-      voiceDebugLog("intentional stop reported as aborted");
+    if (activeVoiceSession !== session) return;
+    if (session.isStopping && event.error === "aborted") {
+      voiceDebugLog("intentional stop reported as aborted", {}, session.id);
       return;
     }
-    voiceHadError = true;
+    if (session.latestTranscript) {
+      voiceDebugLog("recognition error ignored after result", { error: event.error || "unknown" }, session.id);
+      return;
+    }
+    session.hadError = true;
     showVoiceError(voiceErrorMessage(event.error));
   });
   recognition.addEventListener("end", () => {
-    if (voiceRecognition !== recognition) return;
-    if (!voiceHadError && voiceLatestTranscript) showVoiceResult(voiceLatestTranscript, true);
-    if (!voiceHadResult && !voiceHadError) showVoiceError("No speech detected. Try again.");
-    finishVoiceListening(recognition);
-    if (!voiceDialogCancelled) showVoiceDialog();
+    if (activeVoiceSession !== session) return;
+    completeVoiceSession(session);
   });
   try {
-    voiceDebugLog("recognition start requested");
+    voiceDebugLog("recognition start requested", {}, session.id);
     recognition.start();
+    session.startupTimer = setTimeout(() => {
+      if (activeVoiceSession !== session || session.audioStarted) return;
+      voiceDebugLog("recognition startup timeout", { durationMs: VOICE_START_TIMEOUT_MS }, session.id);
+      session.hadError = true;
+      showVoiceError("Speech recognition could not be started.");
+      try {
+        recognition.abort();
+      } catch {
+        // Continue with local cleanup if recognition never entered a running state.
+      }
+      finishVoiceListening(session);
+      showVoiceDialog();
+    }, VOICE_START_TIMEOUT_MS);
+    if (IS_IOS) {
+      voiceDebugLog("meter skipped", { platform: "ios" }, session.id);
+    } else if (navigator.mediaDevices?.getUserMedia) {
+      startVoiceMeter(session).catch((error) => {
+        voiceDebugLog("meter failed", { name: error?.name || "unknown" }, session.id);
+        stopVoiceMeter(session);
+      });
+    } else {
+      voiceDebugLog("meter unavailable", { reason: "mediaDevices" }, session.id);
+    }
   } catch (error) {
-    voiceDebugLog("recognition start threw", { name: error?.name || "unknown" });
-    if (voiceRecognition !== recognition) return;
-    voiceHadError = true;
+    voiceDebugLog("recognition start threw", { name: error?.name || "unknown" }, session.id);
+    if (activeVoiceSession !== session) return;
+    session.hadError = true;
     showVoiceError("Speech recognition could not be started.");
-    finishVoiceListening(recognition);
+    finishVoiceListening(session);
     elements.voiceListenButton.disabled = false;
     showVoiceDialog();
   }
 }
 
-function stopVoiceInput(showDialogImmediately) {
-  if (!voiceIsListening || voiceIsStopping) return;
-  voiceDebugLog("stop requested", { immediateDialog: showDialogImmediately });
-  if (voiceSilenceTimer !== null) clearTimeout(voiceSilenceTimer);
-  voiceSilenceTimer = null;
-  voiceIsListening = false;
-  voiceIsStopping = true;
+function stopVoiceInput(showDialogImmediately, session = activeVoiceSession) {
+  if (!session || activeVoiceSession !== session || session.isStopping || session.finished) return;
+  voiceDebugLog("stop requested", { immediateDialog: showDialogImmediately }, session.id);
+  ["silenceTimer", "startupTimer", "maxTimer", "finalTimer"].forEach((name) => {
+    if (session[name] !== null) clearTimeout(session[name]);
+    session[name] = null;
+  });
+  session.isListening = false;
+  session.isStopping = true;
   elements.voiceStatus.textContent = "Finishing...";
   elements.voiceInputButton.classList.remove("is-listening");
+  elements.voiceInputButton.classList.remove("is-meterless");
   elements.voiceListenButton.classList.remove("is-listening");
+  elements.voiceListenButton.classList.remove("is-meterless");
   elements.voiceInputButton.disabled = true;
   elements.voiceListenButton.disabled = true;
   elements.voiceListenButton.setAttribute("aria-label", "Finishing recording");
   elements.voiceListenButton.title = "Finishing recording";
   if (showDialogImmediately) showVoiceDialog();
-  const recognition = voiceRecognition;
   try {
-    recognition?.stop();
-    voiceCleanupTimer = setTimeout(() => {
-      if (voiceRecognition !== recognition) return;
-      voiceDebugLog("recognition cleanup timeout");
+    session.recognition.stop();
+    session.cleanupTimer = setTimeout(() => {
+      if (activeVoiceSession !== session) return;
+      voiceDebugLog("recognition cleanup timeout", {}, session.id);
       try {
-        recognition?.abort();
+        session.recognition.abort();
       } catch {
         // Continue with local cleanup if Safari has already released recognition.
       }
-      if (voiceLatestTranscript) showVoiceResult(voiceLatestTranscript, true);
-      else if (!voiceHadResult) showVoiceError("No speech detected. Try again.");
-      finishVoiceListening(recognition);
-      if (!voiceDialogCancelled) showVoiceDialog();
+      completeVoiceSession(session);
     }, VOICE_CLEANUP_TIMEOUT_MS);
   } catch {
-    voiceHadError = true;
+    session.hadError = true;
     showVoiceError("Voice input could not be completed.");
-    finishVoiceListening(recognition);
+    finishVoiceListening(session);
     showVoiceDialog();
   }
 }
 
 function toggleVoiceListening() {
-  if (voiceIsListening) {
-    stopVoiceInput(!elements.voiceDialog.open);
+  if (activeVoiceSession?.isListening) {
+    stopVoiceInput(!elements.voiceDialog.open, activeVoiceSession);
     return;
   }
-  if (!voiceIsStopping) startVoiceInput();
+  if (!activeVoiceSession) startVoiceInput();
 }
 
 function closeVoiceDialog() {
-  voiceDebugLog("dialog closed");
-  voiceDialogCancelled = true;
-  const recognition = voiceRecognition;
-  recognition?.abort();
-  finishVoiceListening(recognition);
+  const session = activeVoiceSession;
+  voiceDebugLog("dialog closed", {}, session?.id);
+  if (session) {
+    session.dialogCancelled = true;
+    try {
+      session.recognition.abort();
+    } catch {
+      // Continue closing if recognition has already ended.
+    }
+    finishVoiceListening(session);
+  }
   pendingVoiceChanges = null;
   elements.voiceDialog.close();
 }
@@ -2136,6 +2230,19 @@ initializeLocation(hasSavedLocation);
 setInterval(fetchWeather, WEATHER_REFRESH_INTERVAL_MS);
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState !== "visible") return;
+  if (document.visibilityState !== "visible") {
+    const session = activeVoiceSession;
+    if (session) {
+      voiceDebugLog("page hidden during session", {}, session.id);
+      session.dialogCancelled = true;
+      try {
+        session.recognition.abort();
+      } catch {
+        // Continue cleanup if recognition was interrupted by the browser first.
+      }
+      finishVoiceListening(session);
+    }
+    return;
+  }
   if (!state.lastCheckedAt || minutesSince(state.lastCheckedAt) >= 15) fetchWeather();
 });
