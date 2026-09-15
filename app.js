@@ -31,7 +31,7 @@ const OPENING_SETUPS = {
 };
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 // Keep the build identity in the script so stale code identifies itself correctly.
-const APP_BUILD_VERSION = "0.5.3.2+diagnostics.1";
+const APP_BUILD_VERSION = "0.5.3.3+diagnostics.1";
 const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
 const IS_IOS = /iP(?:hone|ad|od)/.test(navigator.userAgent)
   || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);

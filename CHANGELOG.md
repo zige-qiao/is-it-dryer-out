@@ -4,6 +4,13 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+## v0.5.3.3 - 2026-09-15
+
+### Added
+
+- Added an audio-interruption mode to voice diagnostics with before/after markers and visibility-event logging; the mode leaves recognition running when the page is hidden and retains the 30-second safety limit.
+- Added browser, available operating-system, and WebKit version details to copied voice logs without including speech transcripts.
+
 ## v0.5.3.2 - 2026-09-15
 
 ### Added

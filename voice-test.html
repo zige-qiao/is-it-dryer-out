@@ -10,6 +10,7 @@
     main { max-width: 760px; margin: auto; padding: 24px 16px; }
     h1 { font-size: 24px; margin: 0 0 8px; }
     nav, .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
+    [hidden] { display: none !important; }
     a { color: inherit; }
     nav a { padding: 10px 0; }
     nav a[aria-current] { font-weight: 700; text-decoration-thickness: 3px; }
@@ -28,17 +29,23 @@
     <nav aria-label="Recognizer mode">
       <a id="reuse" href="?mode=reuse">Reuse one recognizer</a>
       <a id="fresh" href="?mode=fresh">New recognizer each time</a>
+      <a id="interrupt" href="?mode=interrupt">Audio interruption test</a>
     </nav>
+    <section id="interruption-guide" aria-labelledby="interruption-title" hidden>
+      <h2 id="interruption-title">Audio interruption test</h2>
+      <p>Start a recording and tap Mark before switching. Switch to another app, start and stop some audio, then return and tap Mark return. This mode does not stop recognition just because this page is hidden; iOS may still suspend it. The attempt is limited to 30 seconds. Logs include browser and recognition events, never your transcript.</p>
+    </section>
     <p id="status" role="status">Ready</p>
     <div class="actions">
       <button id="start" type="button">Start</button>
       <button id="stop" type="button" disabled>Stop</button>
+      <button id="mark-interruption" type="button" hidden disabled>Mark before switching</button>
       <button id="copy" type="button">Copy log</button>
       <button id="clear" type="button">Clear log</button>
     </div>
     <textarea id="log" readonly aria-label="Diagnostic log" spellcheck="false"></textarea>
     <p><a href="./?voice-debug=1">Back to app</a></p>
   </main>
-  <script type="module" src="voice-test.js?v=113"></script>
+  <script type="module" src="voice-test.js?v=114"></script>
 </body>
 </html>

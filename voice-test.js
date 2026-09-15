@@ -1,7 +1,8 @@
-const BUILD = "0.5.3.2+diagnostics.1";
+const BUILD = "0.5.3.3+diagnostics.1";
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const mode = new URLSearchParams(location.search).get("mode") === "fresh" ? "fresh" : "reuse";
-const ui = Object.fromEntries(["build", "status", "start", "stop", "copy", "clear", "log"].map(id => [id, document.getElementById(id)]));
+const requestedMode = new URLSearchParams(location.search).get("mode");
+const mode = ["fresh", "interrupt"].includes(requestedMode) ? requestedMode : "reuse";
+const ui = Object.fromEntries(["build", "status", "start", "stop", "mark-interruption", "interruption-guide", "copy", "clear", "log"].map(id => [id.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), document.getElementById(id)]));
 let startedAt = performance.now();
 let attempt = 0;
 let objectCount = 0;
@@ -17,22 +18,54 @@ function log(event, detail = {}, run = active) {
   ui.log.scrollTop = ui.log.scrollHeight;
 }
 
+function browserDetails() {
+  const userAgent = navigator.userAgent || "";
+  const browsers = [
+    ["Chrome_iOS", /CriOS\/([\d.]+)/i],
+    ["Firefox_iOS", /FxiOS\/([\d.]+)/i],
+    ["Edge_iOS", /EdgiOS\/([\d.]+)/i],
+    ["Opera_iOS", /OPiOS\/([\d.]+)/i],
+    ["Edge", /Edg\/([\d.]+)/i],
+    ["Chrome", /Chrome\/([\d.]+)/i],
+    ["Firefox", /Firefox\/([\d.]+)/i],
+    ["Safari", /Version\/([\d.]+).*Safari\//i],
+  ];
+  const browser = browsers.find(([, pattern]) => pattern.test(userAgent));
+  const osVersion = userAgent.match(/(?:iPhone OS|CPU OS)\s([\d_]+)/i)?.[1]?.replace(/_/g, ".") || "unknown";
+  const webkit = userAgent.match(/AppleWebKit\/([\d.]+)/i)?.[1] || "unknown";
+  return {
+    browser: browser?.[0] || "unknown",
+    browserVersion: browser ? userAgent.match(browser[1])?.[1] : "unknown",
+    osVersion,
+    webkit,
+    platform: navigator.platform || "unknown",
+    touchPoints: navigator.maxTouchPoints || 0,
+  };
+}
+
 function header() {
   log("diagnostics ready", {
     build: BUILD, assetRevision: new URL(import.meta.url).searchParams.get("v"),
     mode, recognition: Boolean(Recognition), secure: window.isSecureContext,
     language: document.documentElement.lang, meter: "disabled", continuous: false,
   });
+  log("browser details", browserDetails());
+  log("user agent", { value: JSON.stringify(navigator.userAgent || "unavailable") });
 }
 
 function controls() {
   ui.start.disabled = !Recognition || Boolean(active) || requiresReload;
   ui.stop.disabled = !active || active.stopping;
+  ui.markInterruption.hidden = mode !== "interrupt";
+  ui.markInterruption.disabled = mode !== "interrupt" || !active || active.stopping;
+  ui.markInterruption.textContent = active?.interruptionStartedAt == null ? "Mark before switching" : "Mark return";
+  ui.interruptionGuide.hidden = mode !== "interrupt";
   document.querySelectorAll("nav a").forEach(link => link.setAttribute("aria-disabled", String(Boolean(active))));
 }
 
 function finish(run, timedOut = false) {
   if (active !== run) return;
+  if (run.interruptionStartedAt != null) log("audio interruption ended before return marker", {}, run);
   clearTimeout(run.limit);
   clearTimeout(run.cleanup);
   active = null;
@@ -100,7 +133,7 @@ ui.start.addEventListener("click", () => {
   if (active || requiresReload || !Recognition) return;
   try {
     const holder = mode === "reuse" ? (shared ||= createRecognizer()) : createRecognizer();
-    const run = { id: ++attempt, ...holder, results: 0, error: null, stopping: false, cleanup: null };
+    const run = { id: ++attempt, ...holder, results: 0, error: null, stopping: false, cleanup: null, interruptionStartedAt: null, startedAt: performance.now() };
     active = run;
     ui.status.textContent = "Starting microphone";
     controls();
@@ -114,6 +147,21 @@ ui.start.addEventListener("click", () => {
   }
 });
 ui.stop.addEventListener("click", () => stop());
+ui.markInterruption.addEventListener("click", () => {
+  const run = active;
+  if (mode !== "interrupt" || !run || run.stopping) return;
+  if (run.interruptionStartedAt == null) {
+    run.interruptionStartedAt = performance.now();
+    log("external audio interruption marker", { phase: "before" }, run);
+    ui.status.textContent = "Switch apps, start and stop audio, then return and mark it.";
+  } else {
+    const durationMs = Math.max(0, Math.round(performance.now() - run.interruptionStartedAt));
+    log("external audio interruption marker", { phase: "after", durationMs }, run);
+    run.interruptionStartedAt = null;
+    ui.status.textContent = "Interruption marked. Continue speaking or stop the test.";
+  }
+  controls();
+});
 ui.copy.addEventListener("click", async () => {
   try {
     await navigator.clipboard.writeText(entries.join("\n"));
@@ -136,6 +184,11 @@ document.querySelectorAll("nav a").forEach(link => link.addEventListener("click"
 }));
 document.addEventListener("visibilitychange", () => {
   log("visibility", { state: document.visibilityState });
+  if (mode === "interrupt") {
+    if (active && !document.hidden && performance.now() - active.startedAt >= 30000) stop("30-second limit after background");
+    else if (active) ui.status.textContent = document.hidden ? "Backgrounded; interruption test remains active." : "Back in the page; check the recognition events.";
+    return;
+  }
   if (document.hidden) stop("page hidden");
 });
 document.getElementById(mode).setAttribute("aria-current", "page");
