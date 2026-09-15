@@ -46,7 +46,7 @@ function fixture(mode) {
     clearTimeout(id) { timers.delete(id); },
   };
   const source = readFileSync(require.resolve('../voice-test.js'), 'utf8')
-    .replace('import.meta.url', JSON.stringify('https://example.test/voice-test.js?v=114'));
+    .replace('import.meta.url', JSON.stringify('https://example.test/voice-test.js?v=115'));
   vm.runInNewContext(source, context);
   return {
     node, objects, timers,
@@ -79,7 +79,7 @@ for (const mode of ['reuse', 'fresh']) {
     assert.match(f.node('log').value, /browser=Chrome_iOS browserVersion=140\.0\.0\.0 osVersion=27\.0 webkit=605\.1\.15/);
     assert.match(f.node('log').value, /user agent value="Mozilla\/5\.0/);
     f.node('clear').click();
-    assert.match(f.node('log').value, /build=0.5.3.3\+diagnostics.1 assetRevision=114/);
+    assert.match(f.node('log').value, /build=0.5.4\+diagnostics.1 assetRevision=115/);
   });
 }
 

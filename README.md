@@ -1,8 +1,8 @@
 # Is it dryer out
 
-## Version 0.5.3.3
+## Version 0.5.4
 
-Version 0.5.3.3 adds browser, operating-system, and WebKit identification to voice diagnostics, plus a bounded audio-interruption test mode.
+Version 0.5.4 moves ventilation settings into a shared dialog below the outlook, adds plain-language recommendation explanations, and makes weather-source and refresh status easier to inspect.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
@@ -10,9 +10,10 @@ A personal ventilation checker for estimating whether opening windows should red
 
 - Set the indoor temperature and relative humidity.
 - In supported browsers, use the microphone button to enter one or both indoor readings by voice, then review the recognised values before applying them.
-- **Opening window plan** starts collapsed on mobile and tablet and expanded on desktop. Adjust the minimum temperature, target humidity, room size, or opening setup as needed.
+- Use the ventilation summary below the outlook to open **Ventilation settings**. Changes to minimum temperature, target humidity, room size, or opening setup save immediately and update the outlook without an Apply step.
 - Read the recommendation and its forecast tiles. Each tile shows the expected opening result, outdoor temperature, outdoor relative humidity, and estimated air changes per hour for that start time.
 - Use the refresh icon beside **Last checked** to request current weather again.
+- Open **Why this recommendation?** for the calculation-specific explanation, **How estimates work** for modelling limitations, and **Weather data** for the provider, request location, update status, and source links.
 
 ## How it works
 
@@ -54,6 +55,7 @@ Created by Ziggy Qiao. The app links to its [GitHub repository](https://github.c
 
 ## Release history
 
+- `v0.5.4`: Shared ventilation-settings dialog, calculation-specific recommendation explanations, clearer weather provenance, and refined responsive accessibility.
 - `v0.5.3.3`: Browser and WebKit identification plus bounded audio-interruption testing for voice diagnostics.
 - `v0.5.3.1`: Immediate recognition startup, isolated recording sessions, adaptive desktop silence detection, and an iOS microphone-conflict workaround.
 - `v0.5.3`: Microphone-level silence detection, graceful recognition shutdown, and one-shot iOS recognition with diagnostics retained for verification.
