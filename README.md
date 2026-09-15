@@ -1,8 +1,8 @@
 # Is it dryer out
 
-## Version 0.5.3
+## Version 0.5.3.1
 
-Version 0.5.3 tests a more reliable iOS voice lifecycle, using real microphone levels for silence detection and allowing recognition to finish before releasing audio resources.
+Version 0.5.3.1 tests faster, repeatable voice input. Recognition starts without waiting for the optional desktop level meter, while iOS gives speech recognition exclusive access to the microphone.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
@@ -52,6 +52,7 @@ Created by Ziggy Qiao. The app links to its [GitHub repository](https://github.c
 
 ## Release history
 
+- `v0.5.3.1`: Immediate recognition startup, isolated recording sessions, adaptive desktop silence detection, and an iOS microphone-conflict workaround.
 - `v0.5.3`: Microphone-level silence detection, graceful recognition shutdown, and one-shot iOS recognition with diagnostics retained for verification.
 - `v0.5.2`: Opt-in on-device voice diagnostics for investigating repeated iOS recording failures.
 - `v0.5.1`: Reliable repeated voice sessions on iOS, UK postcode-area search, and refined outdoor-data loading and failure states.

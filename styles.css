@@ -339,6 +339,21 @@ h1 {
   transform: scale(calc(1 + var(--voice-level, 0) * 0.13));
 }
 
+.voice-input-button.is-listening.is-meterless::after {
+  animation: voice-listening-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes voice-listening-pulse {
+  0%, 100% {
+    opacity: 0.22;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.52;
+    transform: scale(1.08);
+  }
+}
+
 .voice-input-button.is-listening .voice-input-icon {
   opacity: 0;
   transform: scale(0.75);
@@ -1576,6 +1591,7 @@ input[type="range"] {
   .voice-input-button.is-listening::after {
     opacity: 0.45;
     transform: none;
+    animation: none;
   }
 }
 

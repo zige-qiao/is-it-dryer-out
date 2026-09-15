@@ -4,6 +4,20 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+## v0.5.3.1 - 2026-09-15
+
+### Changed
+
+- Speech recognition now starts immediately instead of waiting for the optional microphone-level stream.
+- Desktop voice input uses an adaptive noise floor for its waveform and one-second silence detection.
+- iOS gives speech recognition exclusive microphone access; its flat waveform and pulsing outline indicate listening without opening a competing audio stream.
+
+### Fixed
+
+- Isolated each recording session so delayed callbacks and audio cleanup cannot affect a later attempt.
+- Added startup, final-result, and maximum-duration safeguards so stalled recognition sessions finish predictably without discarding a valid result.
+- Voice resources are released when the page is backgrounded or the device is locked.
+
 ## v0.5.3 - 2026-09-14
 
 ### Changed
