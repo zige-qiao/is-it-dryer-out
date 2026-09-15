@@ -67,6 +67,8 @@ const state = {
   forecast: [],
   updatedAt: null,
   lastCheckedAt: null,
+  lastSuccessfulUpdateAt: null,
+  weatherRequestPending: false,
   weatherLoadFailed: false,
   timezone: DEFAULT_TIMEZONE,
   location: { ...DEFAULT_LOCATION },
@@ -97,6 +99,7 @@ const elements = {
   warmedOutdoorRh: document.querySelector("#warmedOutdoorRh"),
   adjustedAirNote: document.querySelector("#adjustedAirNote"),
   explanationText: document.querySelector("#explanationText"),
+  weatherDataStatus: document.querySelector("#weatherDataStatus"),
   refreshWeather: document.querySelector("#refreshWeather"),
   targetRh: document.querySelector("#targetRh"),
   minTemp: document.querySelector("#minTemp"),
@@ -112,7 +115,11 @@ const elements = {
   customFlowField: document.querySelector("#customFlowField"),
   customAirflow: document.querySelector("#customAirflow"),
   planConfidence: document.querySelector("#planConfidence"),
-  planDetails: document.querySelector("#planDetails"),
+  planSummaryButton: document.querySelector("#planSummaryButton"),
+  planSummaryText: document.querySelector("#planSummaryText"),
+  planSummaryVentilationText: document.querySelector("#planSummaryVentilationText"),
+  planDialog: document.querySelector("#planDialog"),
+  planDialogCloseButton: document.querySelector("#planDialogCloseButton"),
   forecastStrip: document.querySelector("#forecastStrip"),
   locationName: document.querySelector("#locationName"),
   sourceLocationName: document.querySelector("#sourceLocationName"),
@@ -138,6 +145,7 @@ const elements = {
   voiceApplyButton: document.querySelector("#voiceApplyButton"),
 };
 
+let activeWeatherRequestId = 0;
 let activeVoiceSession = null;
 let voiceDebugSession = 0;
 let voiceDebugStartedAt = performance.now();
@@ -587,6 +595,7 @@ function finishVoiceListening(session) {
   session.isStopping = false;
   stopVoiceMeter(session);
   if (activeVoiceSession === session) activeVoiceSession = null;
+  elements.voiceStatus.classList.remove("is-listening");
   elements.voiceInputButton.classList.remove("is-listening");
   elements.voiceInputButton.classList.remove("is-meterless");
   elements.voiceListenButton.classList.remove("is-listening");
@@ -623,6 +632,7 @@ function resetVoiceResult() {
   elements.voiceListenButton.title = "Record indoor readings";
   elements.voiceStatus.hidden = false;
   elements.voiceStatus.textContent = "Ready to listen.";
+  elements.voiceStatus.classList.remove("is-listening");
   resetVoiceMeter();
 }
 
@@ -698,6 +708,7 @@ function startVoiceInput() {
     }, VOICE_MAX_DURATION_MS);
     elements.voiceInputButton.disabled = false;
     elements.voiceStatus.textContent = "Listening...";
+    elements.voiceStatus.classList.add("is-listening");
     elements.voiceListenButton.disabled = false;
     elements.voiceInputButton.classList.add("is-listening");
     elements.voiceListenButton.classList.add("is-listening");
@@ -807,6 +818,7 @@ function stopVoiceInput(showDialogImmediately, session = activeVoiceSession) {
   session.isListening = false;
   session.isStopping = true;
   elements.voiceStatus.textContent = "Finishing...";
+  elements.voiceStatus.classList.remove("is-listening");
   elements.voiceInputButton.classList.remove("is-listening");
   elements.voiceInputButton.classList.remove("is-meterless");
   elements.voiceListenButton.classList.remove("is-listening");
@@ -932,6 +944,18 @@ function formatShortTime(date) {
   } catch {
     state.timezone = DEFAULT_TIMEZONE;
     return formatShortTime(date);
+  }
+}
+
+function formatWeatherTimestamp(date) {
+  const options = { dateStyle: "medium", timeStyle: "short" };
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      ...options,
+      timeZone: state.timezone,
+    }).format(date);
+  } catch {
+    return new Intl.DateTimeFormat("en-GB", options).format(date);
   }
 }
 
@@ -1374,6 +1398,21 @@ function estimateOpeningWindowPlan(startWeather, timeline) {
   );
 }
 
+function formatPlanSummary() {
+  const minimum = state.minTemp.toFixed(1).replace(/\.0$/, "");
+  return `Min ${minimum}°C · Target ${formatRh(state.targetRh)} RH`;
+}
+
+function formatVentilationSummary() {
+  const volume = roomVolume().toFixed(1).replace(/\.0$/, "");
+  const opening = state.openingSetup === "custom"
+    ? `Custom airflow · ${state.customAirflow.toFixed(1).replace(/\.0$/, "")} m³/h`
+    : state.openingSetup === "single"
+      ? "One window open"
+      : OPENING_SETUPS[state.openingSetup]?.label ?? OPENING_SETUPS.single.label;
+  return `${volume} m³ · ${opening}`;
+}
+
 function renderPlanControls() {
   elements.targetRh.value = state.targetRh;
   elements.minTemp.value = state.minTemp;
@@ -1388,6 +1427,8 @@ function renderPlanControls() {
   elements.openingSetup.value = state.openingSetup;
   elements.customAirflow.value = state.customAirflow;
   elements.customFlowField.hidden = state.openingSetup !== "custom";
+  elements.planSummaryText.textContent = formatPlanSummary();
+  elements.planSummaryVentilationText.textContent = formatVentilationSummary();
 }
 
 function renderPlan() {
@@ -1620,6 +1661,125 @@ function renderRecommendation(plan) {
   }
 }
 
+function planLimitingExplanation(plan, comparison) {
+  const limitedAfter = Number.isFinite(plan.limitMinutes) && plan.limitMinutes > 0
+    ? `after about ${formatDuration(plan.limitMinutes)}`
+    : "almost immediately";
+
+  switch (plan.status) {
+    case "target-met":
+      return `indoor humidity is already at or near your ${formatRh(state.targetRh)} target, so ventilation is not needed now.`;
+    case "below-minimum":
+      return `the room is already below your ${formatTemp(state.minTemp)} minimum, so opening would cool it further.`;
+    case "wetter":
+      return "opening would bring in air with more moisture and could raise indoor humidity.";
+    case "uncertain":
+      return "the model therefore recommends opening only if needed for fresh air.";
+    case "good":
+      return `the model estimates about ${formatDuration(plan.minutes)} to reach your ${formatRh(state.targetRh)} target.`;
+    case "forecast-limit":
+      return plan.limitMinutes
+        ? `forecast air is expected to stop being reliably drier ${limitedAfter}.`
+        : "the forecast does not stay reliably drier long enough for useful airing.";
+    case "settling":
+      return `the simulated indoor-outdoor moisture difference no longer clears the uncertainty allowance ${limitedAfter}.`;
+    case "too-cold":
+      return plan.limitMinutes
+        ? `the room is estimated to reach your ${formatTemp(state.minTemp)} minimum ${limitedAfter}.`
+        : `the room would fall below your ${formatTemp(state.minTemp)} minimum almost immediately.`;
+    case "condensation":
+      return plan.limitMinutes
+        ? `the model predicts condensation risk ${limitedAfter}.`
+        : "the model predicts condensation risk almost immediately.";
+    case "slow":
+      return `the model projects some drying, but does not reach your target within its ${MAX_OPEN_MINUTES / 60}-hour simulation.`;
+    case "minimal-impact": {
+      const projectedRhDrop = state.indoorRh - plan.projectedRh;
+      if (projectedRhDrop < MINIMUM_NOTICEABLE_RH_CHANGE) {
+        return "With this plan, opening a window isn't expected to lower the indoor humidity reading by even one percentage point.";
+      }
+      const projectedMoisture = absoluteHumidity(plan.projectedTemp, plan.projectedRh);
+      if (comparison.indoor - projectedMoisture <= comparison.margin) {
+        return "With this plan, the expected moisture reduction is within the margin of error, so the change is unclear.";
+      }
+      return "With this plan, the model does not predict a clear reduction in indoor moisture.";
+    }
+    default:
+      return "the model does not find a clear drying benefit under the current settings.";
+  }
+}
+
+function renderRecommendationExplanation(plan, comparison, adjustedRh, condensationRisk) {
+  if (state.outdoorTemp === null || state.outdoorRh === null) {
+    const locationName = state.location.name || "the selected location";
+    elements.explanationText.textContent = state.weatherLoadFailed
+      ? `Outdoor weather is unavailable for ${locationName}. No successful weather data is available, so a recommendation cannot be made.`
+      : `Checking outdoor weather for ${locationName}. The recommendation will appear when current data arrives.`;
+    return;
+  }
+
+  const freshness = state.weatherRequestPending && state.lastSuccessfulUpdateAt
+    ? `A refresh is in progress; this recommendation uses the last successful update from ${formatWeatherTimestamp(
+        state.lastSuccessfulUpdateAt,
+      )}.`
+    : state.weatherLoadFailed && state.lastSuccessfulUpdateAt
+      ? `The latest refresh failed at ${formatWeatherTimestamp(
+          state.lastCheckedAt,
+        )}; this recommendation uses the last successful update from ${formatWeatherTimestamp(
+          state.lastSuccessfulUpdateAt,
+        )}.`
+      : "";
+
+  const percentDifference = (Math.abs(comparison.difference) / comparison.indoor) * 100;
+  const relationship = comparison.status === "drier"
+    ? `Outdoor air contains about ${percentDifference.toFixed(
+        0,
+      )}% less water vapour than indoors, more than the margin of error in the readings (about ±${comparison.margin.toFixed(
+        1,
+      )} g/m³).`
+    : comparison.status === "wetter"
+      ? `Outdoor air contains about ${percentDifference.toFixed(
+        0,
+      )}% more water vapour than indoors, more than the margin of error in the readings (about ±${comparison.margin.toFixed(
+        1,
+      )} g/m³).`
+      : `Indoor and outdoor air contain similar amounts of water vapour, within the margin of error in the readings (about ±${comparison.margin.toFixed(
+        1,
+      )} g/m³).`;
+  const adjustedHumidity = condensationRisk
+    ? "If warmed to your room's current temperature, outdoor air would be at 100% RH"
+    : `If warmed to your room's current temperature, it would be about ${formatRh(adjustedRh)} RH`;
+  const sentences = [freshness, relationship].filter(Boolean);
+  const limitingExplanation = planLimitingExplanation(plan, comparison);
+  sentences.push(plan.status === "minimal-impact"
+    ? `${adjustedHumidity}. ${limitingExplanation}`
+    : `${adjustedHumidity}; ${limitingExplanation}`);
+  elements.explanationText.textContent = sentences.join(" ");
+}
+
+function renderWeatherDataDetails() {
+  elements.sourceLocationName.textContent = state.location.name || "Selected location";
+  elements.liveWeatherRequest.href = weatherUrlForLocation(state.location);
+
+  const lastSuccess = state.lastSuccessfulUpdateAt;
+  if (state.weatherRequestPending) {
+    elements.weatherDataStatus.textContent = lastSuccess
+      ? `Weather refresh in progress. Showing the last successful update from ${formatWeatherTimestamp(lastSuccess)}.`
+      : "Weather update in progress. No successful update is available yet.";
+  } else if (state.weatherLoadFailed) {
+    const failedAt = state.lastCheckedAt
+      ? `Latest refresh failed at ${formatWeatherTimestamp(state.lastCheckedAt)}.`
+      : "The latest weather refresh failed.";
+    elements.weatherDataStatus.textContent = lastSuccess
+      ? `${failedAt} Showing the last successful update from ${formatWeatherTimestamp(lastSuccess)}.`
+      : `${failedAt} No successful weather data is available.`;
+  } else {
+    elements.weatherDataStatus.textContent = lastSuccess
+      ? `Last successful update: ${formatWeatherTimestamp(lastSuccess)}.`
+      : "No successful weather update is available yet.";
+  }
+}
+
 function render() {
   elements.indoorTemp.value = state.indoorTemp;
   elements.indoorRh.value = state.indoorRh;
@@ -1630,6 +1790,7 @@ function render() {
   elements.warmingTemp.textContent = formatTemp(state.indoorTemp);
 
   const plan = renderPlan();
+  renderWeatherDataDetails();
   const indoorDew = dewPoint(state.indoorTemp, state.indoorRh);
   const indoorAbsolute = absoluteHumidity(state.indoorTemp, state.indoorRh);
   elements.indoorDewPoint.textContent = formatTemp(indoorDew);
@@ -1646,6 +1807,7 @@ function render() {
       state.weatherLoadFailed ? "Outdoor weather is currently unavailable." : "Getting local conditions...",
       state.weatherLoadFailed ? "Check your connection and try again." : "",
     );
+    renderRecommendationExplanation(null, null, null, false);
     elements.outdoorTempValue.textContent = "--";
     elements.outdoorRhValue.textContent = "--";
     elements.outdoorDewPoint.textContent = "--";
@@ -1670,12 +1832,6 @@ function render() {
   const adjustedRh = relativeHumidityAtTemperature(outdoorVaporPressure, state.indoorTemp);
   const condensationRisk = adjustedRh >= 100;
   const displayedAdjustedRh = Math.min(adjustedRh, 100);
-  const percentDifference = (Math.abs(comparison.difference) / comparison.indoor) * 100;
-  const adjustedAirExplanation = condensationRisk
-    ? "At the current indoor temperature, this air would be saturated, so condensation may form."
-    : `At the current indoor temperature, outdoor air would be about ${formatRh(
-        displayedAdjustedRh,
-      )} RH.`;
 
   elements.outdoorTempValue.textContent = formatTemp(state.outdoorTemp);
   elements.outdoorRhValue.textContent = formatRh(state.outdoorRh);
@@ -1688,20 +1844,7 @@ function render() {
   elements.outdoorAbsoluteHumidity.classList.toggle("near", comparison.status === "uncertain");
 
   renderRecommendation(plan);
-
-  if (comparison.status === "drier") {
-    elements.explanationText.textContent = `Outdoor air currently contains about ${percentDifference.toFixed(
-      0,
-    )}% less moisture than indoor air, beyond the estimated sensor uncertainty. ${adjustedAirExplanation}`;
-  } else if (comparison.status === "wetter") {
-    elements.explanationText.textContent = `Outdoor air currently contains about ${percentDifference.toFixed(
-      0,
-    )}% more moisture than indoor air, so ventilation would probably raise indoor humidity. ${adjustedAirExplanation}`;
-  } else {
-    elements.explanationText.textContent = `The indoor-outdoor moisture difference is smaller than the estimated \u00b1${comparison.margin.toFixed(
-      1,
-    )} g/m3 uncertainty, so the direction is unclear. ${adjustedAirExplanation}`;
-  }
+  renderRecommendationExplanation(plan, comparison, displayedAdjustedRh, condensationRisk);
 }
 
 function weatherUrlForLocation(location = state.location) {
@@ -1772,6 +1915,7 @@ function markLocationRequested() {
 }
 
 function setLocation(location, mode) {
+  activeWeatherRequestId += 1;
   state.location = location;
   state.locationMode = mode;
   state.outdoorTemp = null;
@@ -1779,8 +1923,13 @@ function setLocation(location, mode) {
   state.outdoorDewPoint = null;
   state.forecast = [];
   state.updatedAt = null;
+  state.lastCheckedAt = null;
+  state.lastSuccessfulUpdateAt = null;
+  state.weatherRequestPending = false;
+  state.weatherLoadFailed = false;
   saveLocation();
   updateLocationUi();
+  render();
 }
 
 
@@ -2016,6 +2165,16 @@ function openLocationDialog() {
   elements.locationDialog.showModal();
 }
 
+function openPlanDialog() {
+  if (elements.planDialog.open) return;
+  elements.planDialog.showModal();
+  elements.planDialogCloseButton.focus();
+}
+
+function closePlanDialog() {
+  if (elements.planDialog.open) elements.planDialog.close();
+}
+
 function closeLocationDialog() {
   if (elements.locationDialog.open) elements.locationDialog.close();
 }
@@ -2030,17 +2189,22 @@ async function initializeLocation(hasSavedLocation) {
   await useCurrentLocation();
 }
 async function fetchWeather() {
-  const checkedAt = new Date();
+  const requestId = ++activeWeatherRequestId;
+  const requestLocation = { ...state.location };
+  state.weatherRequestPending = true;
+  state.weatherLoadFailed = false;
   elements.weatherStatus.textContent = "Updating outdoor...";
   elements.recommendation.setAttribute("aria-busy", "true");
   elements.dashboardPanel.setAttribute("aria-busy", "true");
   elements.refreshWeather.disabled = true;
   elements.retryWeather.disabled = true;
+  render();
 
   try {
-    const response = await fetch(weatherUrlForLocation());
+    const response = await fetch(weatherUrlForLocation(requestLocation));
     if (!response.ok) throw new Error("Weather request failed");
     const data = await response.json();
+    if (requestId !== activeWeatherRequestId) return;
     const current = data.current ?? {};
     if (!Number.isFinite(current.temperature_2m) || !Number.isFinite(current.relative_humidity_2m)) {
       throw new Error("Incomplete weather data");
@@ -2057,16 +2221,20 @@ async function fetchWeather() {
     state.outdoorWind = Number.isFinite(current.wind_speed_10m) ? current.wind_speed_10m : 0;
     state.forecast = buildForecast(data);
     state.updatedAt = current.time;
-    state.lastCheckedAt = checkedAt;
+    state.lastCheckedAt = new Date();
+    state.lastSuccessfulUpdateAt = state.lastCheckedAt;
     state.weatherLoadFailed = false;
     if (typeof data.timezone === "string" && data.timezone) state.timezone = data.timezone;
 
-    elements.weatherStatus.textContent = `Last checked ${formatShortTime(checkedAt)}`;
+    elements.weatherStatus.textContent = `Last checked ${formatShortTime(state.lastCheckedAt)}`;
   } catch {
-    state.lastCheckedAt = checkedAt;
+    if (requestId !== activeWeatherRequestId) return;
+    state.lastCheckedAt = new Date();
     state.weatherLoadFailed = true;
     elements.weatherStatus.textContent = "Update failed";
   } finally {
+    if (requestId !== activeWeatherRequestId) return;
+    state.weatherRequestPending = false;
     elements.recommendation.removeAttribute("aria-busy");
     elements.dashboardPanel.removeAttribute("aria-busy");
     elements.refreshWeather.disabled = false;
@@ -2190,12 +2358,10 @@ function bindEvents() {
   elements.locationDialogClose.addEventListener("click", closeLocationDialog);
   elements.locationUpdateButton.addEventListener("click", useCurrentLocation);
   elements.locationSearchForm.addEventListener("submit", handleLocationSearch);
-  elements.planDetails.addEventListener("toggle", () => {
-    try {
-      sessionStorage.setItem("plan-details-state", elements.planDetails.open ? "open" : "closed");
-    } catch {
-      // Keep the disclosure usable when session storage is unavailable.
-    }
+  elements.planSummaryButton.addEventListener("click", openPlanDialog);
+  elements.planDialogCloseButton.addEventListener("click", closePlanDialog);
+  elements.planDialog.addEventListener("close", () => {
+    elements.planSummaryButton.focus({ preventScroll: true });
   });
   if (SpeechRecognition) {
     elements.voiceInputButton.hidden = false;
@@ -2210,18 +2376,6 @@ function bindEvents() {
   }
 }
 
-function initializePlanDisclosure() {
-  let savedState = null;
-  try {
-    savedState = sessionStorage.getItem("plan-details-state");
-  } catch {
-    // Fall back to the viewport default when session storage is unavailable.
-  }
-  elements.planDetails.open = savedState
-    ? savedState === "open"
-    : window.matchMedia("(min-width: 48rem)").matches;
-}
-
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("service-worker.js");
 }
@@ -2231,7 +2385,6 @@ loadPlanSettings();
 initializeVoiceDebugPanel();
 const hasSavedLocation = loadLocation();
 updateLocationUi();
-initializePlanDisclosure();
 bindEvents();
 render();
 initializeLocation(hasSavedLocation);
