@@ -1,8 +1,8 @@
 # Is it dryer out
 
-## Version 0.5.3.1
+## Version 0.5.3.2
 
-Version 0.5.3.1 tests faster, repeatable voice input. Recognition starts without waiting for the optional desktop level meter, while iOS gives speech recognition exclusive access to the microphone.
+Version 0.5.3.2 adds build identification to voice logs and a separate recognizer comparison page for investigating repeated recording failures.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
@@ -43,6 +43,8 @@ The duration is a rough planning estimate, not a measurement. Real airflow depen
 Indoor readings, plan settings, and the most recent location are stored only in this browser. The app shell is cached for offline use, but live outdoor data and locality lookup still require a connection.
 
 ## Voice diagnostics
+
+Open `voice-test.html?mode=reuse` to test reusing a recognizer, or `voice-test.html?mode=fresh` to create a new one for each attempt. Run three recordings per mode without reloading between attempts, copy the log, then switch modes (which reloads the page). Both modes use one-shot recognition without a separate microphone meter, parser, or automatic silence stop. A 30-second safety limit stops stalled tests. Logs identify the build, mode, attempt, and recognizer without including speech content. Build identification also remains in the app's normal diagnostic logs after Clear.
 
 Add `?voice-debug=1` to the app URL to show the temporary voice diagnostics panel. It records microphone, audio-context, and speech-recognition lifecycle events without recording recognised speech content. Reproduce the issue, then use **Copy** to collect the log.
 

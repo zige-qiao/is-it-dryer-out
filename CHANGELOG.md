@@ -4,6 +4,14 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+## v0.5.3.2 - 2026-09-15
+
+### Added
+
+- Added a separate voice comparison page for repeated recordings with a reused or newly created recognizer.
+- Added embedded build identification and asset revision to copied diagnostics, including after clearing logs.
+- Comparison logs identify recognizer objects, attempts, events, and safety timeouts without including recognised speech.
+
 ## v0.5.3.1 - 2026-09-15
 
 ### Changed
