@@ -1,4 +1,4 @@
-const BUILD = "0.5.3.3+diagnostics.1";
+const BUILD = "0.5.4+diagnostics.1";
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const requestedMode = new URLSearchParams(location.search).get("mode");
 const mode = ["fresh", "interrupt"].includes(requestedMode) ? requestedMode : "reuse";

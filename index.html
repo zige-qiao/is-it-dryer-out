@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=114" />
+    <link rel="stylesheet" href="styles.css?v=115" />
   </head>
   <body>
     <main class="app-shell">
@@ -56,6 +56,16 @@
               role="list"
               aria-label="Forecast outlook. Swipe horizontally for later times."
             ></div>
+            <button class="plan-summary-trigger" id="planSummaryButton" type="button" aria-haspopup="dialog" aria-controls="planDialog">
+              <span class="plan-summary-copy">
+                <span class="plan-summary-group plan-summary-primary" id="planSummaryText"></span>
+                <span class="plan-summary-group plan-summary-secondary">
+                  <span class="plan-summary-divider" aria-hidden="true">|</span>
+                  <span class="plan-summary-secondary-text" id="planSummaryVentilationText"></span>
+                </span>
+              </span>
+              <span class="plan-summary-chevron" aria-hidden="true"></span>
+            </button>
           </div>
         </section>
 
@@ -134,84 +144,6 @@
           </div>
 
         </section>
-        <section class="panel plan-panel" aria-labelledby="plan-heading">
-          <details class="plan-details" id="planDetails">
-            <summary class="plan-heading">
-              <h2 id="plan-heading" tabindex="-1">Opening window plan</h2>
-            </summary>
-
-            <div class="plan-controls" aria-label="Ventilation settings">
-            <div class="mini-control">
-              <label class="setting-label" for="minTemp">Minimum indoor temp</label>
-              <div class="reading-stepper plan-stepper">
-                <button class="step-button" type="button" data-step-target="minTemp" data-step-direction="-1" aria-label="Decrease minimum indoor temperature">&minus;</button>
-                <label class="setting-field" for="minTempInput">
-                  <input id="minTempInput" type="number" min="16" max="26" step="0.5" value="21" inputmode="decimal" aria-label="Minimum indoor temperature" />
-                  <span aria-hidden="true">&deg;C</span>
-                </label>
-                <button class="step-button" type="button" data-step-target="minTemp" data-step-direction="1" aria-label="Increase minimum indoor temperature">+</button>
-              </div>
-              <input id="minTemp" type="range" min="16" max="26" step="0.5" value="21" />
-            </div>
-
-            <div class="mini-control">
-              <label class="setting-label" for="targetRh">Target indoor humidity</label>
-              <div class="reading-stepper plan-stepper">
-                <button class="step-button" type="button" data-step-target="targetRh" data-step-direction="-1" aria-label="Decrease target indoor humidity">&minus;</button>
-                <label class="setting-field" for="targetRhInput">
-                  <input id="targetRhInput" type="number" min="40" max="65" step="1" value="55" inputmode="numeric" aria-label="Target indoor humidity" />
-                  <span aria-hidden="true">%</span>
-                </label>
-                <button class="step-button" type="button" data-step-target="targetRh" data-step-direction="1" aria-label="Increase target indoor humidity">+</button>
-              </div>
-              <input id="targetRh" type="range" min="40" max="65" step="1" value="55" />
-            </div>
-
-            <label class="select-control room-size-control">
-              <span>Room size</span>
-              <select id="roomPreset">
-                <option value="small">Small · 30 m3</option>
-                <option value="medium" selected>Medium · 50 m3</option>
-                <option value="large">Large · 80 m3</option>
-                <option value="custom">Custom</option>
-              </select>
-            </label>
-
-            <div class="custom-fields" id="customRoomFields" hidden>
-              <label>
-                <span>Length</span>
-                <span class="dimension-field"><input id="roomLength" type="number" min="1" max="20" step="0.1" value="4" inputmode="decimal" /><span>m</span></span>
-              </label>
-              <label>
-                <span>Width</span>
-                <span class="dimension-field"><input id="roomWidth" type="number" min="1" max="20" step="0.1" value="5" inputmode="decimal" /><span>m</span></span>
-              </label>
-              <label>
-                <span>Height</span>
-                <span class="dimension-field"><input id="roomHeight" type="number" min="1.8" max="5" step="0.1" value="2.5" inputmode="decimal" /><span>m</span></span>
-              </label>
-              <p>Calculated volume <strong id="roomVolume">50 m3</strong></p>
-            </div>
-
-            <label class="select-control">
-              <span>Opening setup</span>
-              <select id="openingSetup">
-                <option value="slightly">Window slightly open</option>
-                <option value="single" selected>One window fully open</option>
-                <option value="cross">Cross-ventilation</option>
-                <option value="custom">Custom airflow</option>
-              </select>
-            </label>
-
-            <label class="custom-flow-field" id="customFlowField" hidden>
-              <span>Estimated airflow</span>
-              <span class="dimension-field"><input id="customAirflow" type="number" min="10" max="500" step="5" value="80" inputmode="numeric" /><span>m3/h</span></span>
-            </label>
-            <p class="air-change-estimate" id="planConfidence">Estimate</p>
-            </div>
-          </details>
-
-        </section>
       </div>
 
       <div class="layout-column right-column">
@@ -268,28 +200,34 @@
           </div>
         </section>
 
-        <section class="details-footnotes" aria-label="Supporting details">
-          <details class="dashboard-explainer forecast-explainer">
-            <summary>About these estimates</summary>
-            <p>Timing is a rough estimate based on room volume, opening setup, forecast wind and temperature difference. Future times assume the current indoor readings stay unchanged.</p>
+        <section class="details-footnotes" aria-label="Recommendation and weather details">
+          <details class="dashboard-explainer recommendation-explainer" open>
+            <summary>Why this recommendation?</summary>
+            <p id="explanationText">Checking outdoor weather for Sale, Greater Manchester. The recommendation will appear when current data arrives.</p>
           </details>
 
-          <details class="dashboard-explainer">
-            <summary>Why this matters</summary>
-            <p id="explanationText">
-              Relative humidity changes when air warms or cools. This app compares actual water
-              content first, then shows what the outdoor air would feel like indoors.
-            </p>
+          <details class="dashboard-explainer forecast-explainer">
+            <summary>How estimates work</summary>
+            <ul>
+              <li>Timing is approximate and depends on room volume, opening setup, forecast wind, and the indoor-outdoor temperature difference.</li>
+              <li>Future outlooks use the current indoor readings; they do not predict how the room will change before that hour.</li>
+              <li>ACH means air changes per hour: an estimated ventilation rate, not a measured airflow.</li>
+              <li>Real results vary with airflow, room layout, and indoor moisture sources.</li>
+            </ul>
+          </details>
+
+          <details class="dashboard-explainer weather-data-explainer">
+            <summary>Weather data</summary>
+            <p>Weather is provided by <strong>Open-Meteo</strong> for <span id="sourceLocationName">Sale, Greater Manchester</span>.</p>
+            <p id="weatherDataStatus" class="weather-data-status">No successful weather update is available yet.</p>
             <p class="weather-source-details">
-              Outdoor weather comes from Open-Meteo for
-              <span id="sourceLocationName">Sale, Greater Manchester</span>.
-              <a href="https://open-meteo.com/en/docs" target="_blank" rel="noreferrer">View Open-Meteo docs</a>
+              <a href="https://open-meteo.com/en/docs" target="_blank" rel="noreferrer">Source documentation</a>
               <a
                 href="https://api.open-meteo.com/v1/forecast?latitude=53.4252&longitude=-2.3244&current=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&forecast_hours=12&timeformat=unixtime&timezone=auto"
                 id="liveWeatherRequest"
                 target="_blank"
                 rel="noreferrer"
-              >Open live request</a>
+              >View weather data</a>
             </p>
           </details>
 
@@ -300,6 +238,90 @@
         </section>
       </div>
     </main>
+
+    <dialog class="plan-dialog" id="planDialog" aria-labelledby="planDialogTitle">
+      <div class="plan-dialog-content">
+        <div class="plan-dialog-heading">
+          <h2 id="planDialogTitle">Ventilation settings</h2>
+          <button class="plan-dialog-close" type="button" id="planDialogCloseButton" aria-label="Close ventilation settings" title="Close ventilation settings" autofocus>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </div>
+
+        <div class="plan-controls" role="group" aria-label="Ventilation settings">
+          <div class="mini-control">
+            <label class="setting-label" for="minTemp">Minimum indoor temp</label>
+            <div class="reading-stepper plan-stepper">
+              <button class="step-button" type="button" data-step-target="minTemp" data-step-direction="-1" aria-label="Decrease minimum indoor temperature">&minus;</button>
+              <label class="setting-field" for="minTempInput">
+                <input id="minTempInput" type="number" min="16" max="26" step="0.5" value="21" inputmode="decimal" aria-label="Minimum indoor temperature" />
+                <span aria-hidden="true">&deg;C</span>
+              </label>
+              <button class="step-button" type="button" data-step-target="minTemp" data-step-direction="1" aria-label="Increase minimum indoor temperature">+</button>
+            </div>
+            <input id="minTemp" type="range" min="16" max="26" step="0.5" value="21" />
+          </div>
+
+          <div class="mini-control">
+            <label class="setting-label" for="targetRh">Target indoor humidity</label>
+            <div class="reading-stepper plan-stepper">
+              <button class="step-button" type="button" data-step-target="targetRh" data-step-direction="-1" aria-label="Decrease target indoor humidity">&minus;</button>
+              <label class="setting-field" for="targetRhInput">
+                <input id="targetRhInput" type="number" min="40" max="65" step="1" value="55" inputmode="numeric" aria-label="Target indoor humidity" />
+                <span aria-hidden="true">%</span>
+              </label>
+              <button class="step-button" type="button" data-step-target="targetRh" data-step-direction="1" aria-label="Increase target indoor humidity">+</button>
+            </div>
+            <input id="targetRh" type="range" min="40" max="65" step="1" value="55" />
+          </div>
+
+          <label class="select-control room-size-control">
+            <span>Room size</span>
+            <select id="roomPreset">
+              <option value="small">Small · 30 m3</option>
+              <option value="medium" selected>Medium · 50 m3</option>
+              <option value="large">Large · 80 m3</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+
+          <div class="custom-fields" id="customRoomFields" hidden>
+            <label>
+              <span>Length</span>
+              <span class="dimension-field"><input id="roomLength" type="number" min="1" max="20" step="0.1" value="4" inputmode="decimal" /><span>m</span></span>
+            </label>
+            <label>
+              <span>Width</span>
+              <span class="dimension-field"><input id="roomWidth" type="number" min="1" max="20" step="0.1" value="5" inputmode="decimal" /><span>m</span></span>
+            </label>
+            <label>
+              <span>Height</span>
+              <span class="dimension-field"><input id="roomHeight" type="number" min="1.8" max="5" step="0.1" value="2.5" inputmode="decimal" /><span>m</span></span>
+            </label>
+            <p>Calculated volume <strong id="roomVolume">50 m3</strong></p>
+          </div>
+
+          <label class="select-control">
+            <span>Opening setup</span>
+            <select id="openingSetup">
+              <option value="slightly">Window slightly open</option>
+              <option value="single" selected>One window fully open</option>
+              <option value="cross">Cross-ventilation</option>
+              <option value="custom">Custom airflow</option>
+            </select>
+          </label>
+
+          <label class="custom-flow-field" id="customFlowField" hidden>
+            <span>Estimated airflow</span>
+            <span class="dimension-field"><input id="customAirflow" type="number" min="10" max="500" step="5" value="80" inputmode="numeric" /><span>m3/h</span></span>
+          </label>
+          <p class="air-change-estimate" id="planConfidence">Estimate</p>
+        </div>
+      </div>
+    </dialog>
 
     <dialog class="location-dialog" id="locationDialog" aria-labelledby="locationDialogTitle">
       <div class="location-dialog-content">
@@ -360,6 +382,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=114" type="module"></script>
+    <script src="app.js?v=115" type="module"></script>
   </body>
 </html>

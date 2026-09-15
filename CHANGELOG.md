@@ -4,6 +4,25 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+## v0.5.4 - 2026-09-16
+
+### Added
+
+- Added a shared `Ventilation settings` dialog opened from a live summary below the forecast outlook; changes save immediately and update the recommendation and forecasts.
+- Added calculation-specific, plain-language recommendation explanations for successful, uncertain, limited-benefit, loading, failed-refresh, and retained-data states.
+- Added a dedicated weather-data accordion with provider attribution, request location, last successful update status, and source links.
+
+### Changed
+
+- Reorganised dashboard details into `Why this recommendation?`, `How estimates work`, and `Weather data`, while preserving each disclosure state during live updates.
+- Refined the outlook footer, accordions, refresh control, listening state, safe-area spacing, and narrow-screen ventilation controls.
+- Shortened the single-opening label to `One window open` in the summary while retaining the full control label in ventilation settings.
+
+### Fixed
+
+- Prevented stale weather requests and explanations from being presented after the selected location changes.
+- Distinguished failed refresh attempts from the last successful weather update when retained data remains visible.
+
 ## v0.5.3.3 - 2026-09-15
 
 ### Added

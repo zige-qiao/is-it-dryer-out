@@ -53,15 +53,14 @@ On mobile, keep this visual order:
 
 1. Recommendation and forecast outlook.
 2. Indoor readings.
-3. Opening window plan.
-4. Moisture dashboard.
-5. Supporting footnotes and project credit.
+3. Moisture dashboard.
+4. Supporting details and project credit.
 
-On wide screens, use equal-width columns. Put the recommendation, Indoor readings, and Opening window plan in the left column. Put the Moisture dashboard followed by supporting details in the right column. Keep Indoor readings and Opening window plan controls paired in two columns when space permits.
+On wide screens, use equal-width columns. Put the recommendation and Indoor readings in the left column. Put the Moisture dashboard followed by supporting details in the right column.
 
-Opening window plan starts collapsed below the 48rem desktop breakpoint and expanded on desktop, then preserves the user's manual disclosure choice for the browser session. Use chevrons for all disclosures. Do not restore the removed `View plan` link while the plan remains directly after Indoor readings.
+Keep the shared ventilation-plan summary directly below the forecast tiles as the outlook footer. The whole summary row opens the `Ventilation settings` dialog and remains available during weather loading and errors. Show the current minimum temperature, target humidity, room size, and opening setup; allow the two content groups to wrap naturally without shrinking the text. Keep forecast tiles read-only because one shared plan applies to every outlook hour.
 
-Keep Room size and Opening setup stacked. Custom room dimensions remain three columns inside Room size; custom airflow remains within Opening setup.
+Keep all plan controls in the dialog and update saved settings, the summary, and forecasts immediately without an Apply button. Provide a top-right close button, Escape-to-close, visible focus states, and return focus to the summary trigger when the dialog closes. Keep Room size and Opening setup stacked. Custom room dimensions remain three columns inside Room size; custom airflow remains within Opening setup.
 
 ## Responsive Controls
 
@@ -94,7 +93,7 @@ Forecast tiles use `Uncertain` instead of `Wait` and `Little benefit` instead of
 - Keep tile accessibility labels explicit about temperature, relative humidity, and estimated air changes per hour.
 - While weather is loading, preserve the outlook height with quiet skeleton tiles that are hidden from assistive technology and respect reduced-motion preferences.
 - Keep checking and no-data states neutral dark so status colours remain reserved for actual ventilation verdicts. On failure, retain static outlook placeholders, use concise `NO DATA` messaging, and keep retry actions out of the verdict's vertical content flow.
-- Show `Last checked HH:MM` with a compact black refresh icon. During refresh, use `Updating outdoor...`.
+- Show `Last checked HH:MM` with a compact muted-grey refresh icon and a comfortable touch target. During refresh, use `Updating outdoor...`.
 - If weather loading fails, show a concise failure state and a visible retry button.
 - End the dashboard with `Outdoor air RH at indoor <temperature>` and the resulting RH on the right.
 - Do not add a divider below the final Absolute humidity row.
@@ -102,9 +101,15 @@ Forecast tiles use `Uncertain` instead of `Wait` and `Little benefit` instead of
 
 ## Supporting Details
 
-Keep `About these estimates` and `Why this matters` as collapsed, unframed footnotes below the dashboard. Align them to the dashboard's inner content width, separate the two rows with one thin rule, and do not add a rule before the first row.
+Keep three unframed accordions below the dashboard in this order:
 
-Keep weather-source links inside `Why this matters`. Keep the final credit understated: `By Ziggy Qiao · GitHub`, linking to `https://github.com/zige-qiao/is-it-dryer-out`.
+1. `Why this recommendation?`, expanded by default, with a short plain-language explanation derived from the current calculation and state.
+2. `How estimates work`, collapsed by default, with concise limitations and definitions supported by the implementation.
+3. `Weather data`, collapsed by default, with provider, request location, last successful update, freshness state, and source links when available.
+
+Preserve each accordion's open or closed state during live updates; apply defaults only on initialisation. Never leave an old recommendation or location explanation visible while new weather data is loading. Use full-width clickable headings, consistent chevrons, correct expanded-state semantics, visible keyboard focus, subtle dividers, and natural mobile wrapping.
+
+Keep Open-Meteo attribution and the `Source documentation` and `View weather data` links inside `Weather data`. Keep the final credit outside the accordions and understated: `By Ziggy Qiao · GitHub`, linking to `https://github.com/zige-qiao/is-it-dryer-out`.
 
 ## Visual Conventions
 
