@@ -65,7 +65,7 @@ Keep all plan controls in the dialog and update saved settings, the summary, and
 ## Responsive Controls
 
 - Keep Temperature and Relative humidity in two columns on mobile and desktop.
-- Keep Minimum indoor temp on the left and Target indoor humidity on the right.
+- Keep Minimum indoor temp and Target indoor humidity in two columns on mobile and desktop, with Minimum indoor temp on the left.
 - Use unified minus/value/plus fields for all four paired controls.
 - On narrow screens, use 36px-wide minus/plus buttons while retaining 44px height.
 - Keep values and units inside the central field and prevent digits from clipping.

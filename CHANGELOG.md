@@ -4,6 +4,10 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+### Changed
+
+- Kept minimum indoor temperature and target indoor humidity controls side by side in the mobile ventilation-settings dialog.
+
 ## v0.5.4 - 2026-09-16
 
 ### Added

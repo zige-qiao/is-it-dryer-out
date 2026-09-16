@@ -10,7 +10,7 @@ A personal ventilation checker for estimating whether opening windows should red
 
 - Set the indoor temperature and relative humidity.
 - In supported browsers, use the microphone button to enter one or both indoor readings by voice, then review the recognised values before applying them.
-- Use the ventilation summary below the outlook to open **Ventilation settings**. Changes to minimum temperature, target humidity, room size, or opening setup save immediately and update the outlook without an Apply step.
+- Use the ventilation summary below the outlook to open **Ventilation settings**. Changes to minimum temperature, target humidity, room size, or opening setup save immediately and update the outlook without an Apply step. On mobile, minimum temperature and target humidity remain side by side.
 - Read the recommendation and its forecast tiles. Each tile shows the expected opening result, outdoor temperature, outdoor relative humidity, and estimated air changes per hour for that start time.
 - Use the refresh icon beside **Last checked** to request current weather again.
 - Open **Why this recommendation?** for the calculation-specific explanation, **How estimates work** for modelling limitations, and **Weather data** for the provider, request location, update status, and source links.
