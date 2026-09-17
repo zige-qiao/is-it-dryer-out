@@ -4,11 +4,6 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
-### Changed
-
-- Kept minimum indoor temperature and target indoor humidity controls side by side in the mobile ventilation-settings dialog.
-- Tightened the outlook footer's text-to-chevron spacing so decimal temperature values are less likely to wrap on narrow screens.
-
 ## v0.5.4 - 2026-09-16
 
 ### Added
@@ -22,6 +17,9 @@ All notable changes to Is it dryer out are documented here.
 - Reorganised dashboard details into `Why this recommendation?`, `How estimates work`, and `Weather data`, while preserving each disclosure state during live updates.
 - Refined the outlook footer, accordions, refresh control, listening state, safe-area spacing, and narrow-screen ventilation controls.
 - Shortened the single-opening label to `One window open` in the summary while retaining the full control label in ventilation settings.
+- Kept minimum indoor temperature and target indoor humidity controls side by side in the mobile ventilation-settings dialog.
+- Tightened the outlook footer's text-to-chevron spacing so decimal temperature values are less likely to wrap on narrow screens.
+- Shortened timed recommendation copy and placed durations first to keep verdicts compact on mobile.
 
 ### Fixed
 

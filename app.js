@@ -1589,8 +1589,8 @@ function renderRecommendation(plan) {
     setDecisionSummary(
       `About ${targetDuration} to reach ${formatRh(state.targetRh)} RH.`,
       plan.dryAirHorizon.capped
-        ? `At least ${dryDuration} while outdoor air remains reliably drier.`
-        : `Up to ${dryDuration} while outdoor air remains reliably drier.`,
+        ? `At least ${dryDuration} of reliably drier air.`
+        : `Up to ${dryDuration} of reliably drier air.`,
       targetDuration,
       dryDuration,
     );
@@ -1599,7 +1599,7 @@ function renderRecommendation(plan) {
     const limitDuration = formatDuration(plan.limitMinutes);
     setDecisionSummary(
       plan.limitMinutes
-        ? `Up to ${limitDuration} while forecast air remains reliably drier.`
+        ? `Up to ${limitDuration} of reliably drier forecast air.`
         : "No clear drying benefit.",
       plan.limitMinutes
         ? `Estimated then: ${formatRh(plan.projectedRh)} RH at ${formatTemp(plan.projectedTemp)}.`
@@ -1624,11 +1624,11 @@ function renderRecommendation(plan) {
     const primary =
       plan.status === "too-cold"
         ? plan.limitMinutes
-          ? `Up to ${limitDuration} before the room reaches ${formatTemp(state.minTemp)}.`
-          : `The room would fall below ${formatTemp(state.minTemp)} immediately.`
+          ? `${limitDuration} to minimum indoor temperature.`
+          : `Opening would drop it below ${formatTemp(state.minTemp)} now.`
         : plan.limitMinutes
-          ? `Up to ${limitDuration} before condensation risk increases.`
-          : "Cooling may cause condensation immediately.";
+          ? `${limitDuration} until condensation risk rises.`
+          : "Opening may cause condensation now.";
     const secondary =
       plan.status === "condensation" && plan.limitMinutes
         ? "Stop then to limit condensation risk."
@@ -1645,7 +1645,7 @@ function renderRecommendation(plan) {
     const modelDuration = formatDuration(MAX_OPEN_MINUTES);
     setDecisionSummary(
       `More than ${modelDuration} to reach ${formatRh(state.targetRh)} RH.`,
-      `Humidity should still fall slowly. Recheck indoor readings within ${modelDuration}.`,
+      `Recheck within ${modelDuration}; drying will be slow.`,
       modelDuration,
       modelDuration,
     );
