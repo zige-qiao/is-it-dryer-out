@@ -58,7 +58,7 @@ On mobile, keep this visual order:
 
 On wide screens, use equal-width columns. Put the recommendation and Indoor readings in the left column. Put the Moisture dashboard followed by supporting details in the right column.
 
-Keep the shared ventilation-plan summary directly below the forecast tiles as the outlook footer. The whole summary row opens the `Ventilation settings` dialog and remains available during weather loading and errors. Show the current minimum temperature, target humidity, room size, and opening setup; allow the two content groups to wrap naturally without shrinking the text. Keep forecast tiles read-only because one shared plan applies to every outlook hour.
+Keep the shared ventilation-plan summary directly below the forecast tiles as the outlook footer. The whole summary row opens the `Ventilation settings` dialog and remains available during weather loading and errors. Show the current minimum temperature, target humidity, room size, and opening setup; keep the text-to-chevron gap compact, and allow the two content groups to wrap naturally without shrinking the text. Keep forecast tiles read-only because one shared plan applies to every outlook hour.
 
 Keep all plan controls in the dialog and update saved settings, the summary, and forecasts immediately without an Apply button. Provide a top-right close button, Escape-to-close, visible focus states, and return focus to the summary trigger when the dialog closes. Keep Room size and Opening setup stacked. Custom room dimensions remain three columns inside Room size; custom airflow remains within Opening setup.
 

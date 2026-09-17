@@ -7,6 +7,7 @@ All notable changes to Is it dryer out are documented here.
 ### Changed
 
 - Kept minimum indoor temperature and target indoor humidity controls side by side in the mobile ventilation-settings dialog.
+- Tightened the outlook footer's text-to-chevron spacing so decimal temperature values are less likely to wrap on narrow screens.
 
 ## v0.5.4 - 2026-09-16
 
