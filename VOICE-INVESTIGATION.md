@@ -242,7 +242,7 @@ Each stream opened live, enabled and unmuted. Each fresh recogniser then reached
 
 The contrast with `mode=prime` isolates the important condition: merely opening and releasing `getUserMedia` before recognition did not recover the speech service, while overlapping the standard stream with recognition worked repeatedly. This strongly supports the audio-session keep-alive hypothesis on the tested device.
 
-Production diagnostic build `0.5.4+diagnostics.2` therefore restores the same lifecycle in the app UI on iOS. It prepares the real microphone meter before starting recognition, keeps the stream active throughout the session, stops recognition first and releases the stream after `end`. If the meter cannot open, recognition retains the meterless fallback rather than becoming unavailable.
+Production build `v0.5.4.4-voice-diagnostics` mirrors the successful held-stream lifecycle in the app UI on iOS. It prepares the real microphone meter before starting a fresh one-shot recogniser, uses the same waveform calculation without meter-based silence stopping, lets WebKit end the attempt after speech, applies the same 30-second safety limit and releases the stream after `end`. If the meter cannot open, recognition retains the meterless fallback rather than becoming unavailable.
 
 ## Privacy
 

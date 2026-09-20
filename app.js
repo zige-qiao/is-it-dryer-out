@@ -31,14 +31,15 @@ const OPENING_SETUPS = {
 };
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 // Keep the build identity in the script so stale code identifies itself correctly.
-const APP_BUILD_VERSION = "0.5.4+diagnostics.2";
+const APP_BUILD_VERSION = "v0.5.4.4-voice-diagnostics";
 const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
 const IS_IOS = /iP(?:hone|ad|od)/.test(navigator.userAgent)
   || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const VOICE_SILENCE_DURATION_MS = 1000;
-const VOICE_CLEANUP_TIMEOUT_MS = 2500;
+const VOICE_CLEANUP_TIMEOUT_MS = 3000;
 const VOICE_START_TIMEOUT_MS = 6000;
 const VOICE_MAX_DURATION_MS = 15000;
+const VOICE_IOS_MAX_DURATION_MS = 30000;
 const VOICE_METER_CALIBRATION_MS = 600;
 const VOICE_MIN_ACTIVITY_THRESHOLD = 0.018;
 const INPUT_UNCERTAINTY = {
@@ -489,10 +490,10 @@ async function startVoiceMeter(session) {
   session.source = context.createMediaStreamSource(session.stream);
   session.source.connect(analyser);
   voiceDebugLog("meter started", { context: context.state }, session.id);
-  const samples = new Float32Array(analyser.fftSize);
+  const samples = IS_IOS ? new Uint8Array(analyser.fftSize) : new Float32Array(analyser.fftSize);
   const waveforms = [...document.querySelectorAll(".voice-waveform")];
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const maximumHeights = [8, 12, 16, 12, 8];
+  const maximumHeights = IS_IOS ? [8, 14, 22, 14, 8] : [8, 12, 16, 12, 8];
   const calibrationLevels = [];
   const meterStartedAt = performance.now();
   let noiseFloor = 0.006;
@@ -501,46 +502,53 @@ async function startVoiceMeter(session) {
   let displayedLevel = 0;
   const draw = () => {
     if (activeVoiceSession !== session || session.finished) return;
-    analyser.getFloatTimeDomainData(samples);
+    if (IS_IOS) analyser.getByteTimeDomainData(samples);
+    else analyser.getFloatTimeDomainData(samples);
     let mean = 0;
     for (const sample of samples) mean += sample;
     mean /= samples.length;
     let total = 0;
     for (const sample of samples) total += (sample - mean) ** 2;
-    const measuredLevel = Math.sqrt(total / samples.length);
-    const elapsed = performance.now() - meterStartedAt;
-    if (elapsed <= VOICE_METER_CALIBRATION_MS) {
-      calibrationLevels.push(measuredLevel);
-    } else if (!calibrationLogged) {
-      const sorted = calibrationLevels.sort((a, b) => a - b);
-      noiseFloor = sorted[Math.floor(sorted.length * 0.2)] || noiseFloor;
-      activityThreshold = Math.max(VOICE_MIN_ACTIVITY_THRESHOLD, noiseFloor * 2.8);
-      calibrationLogged = true;
-      voiceDebugLog("meter calibrated", {
-        noiseFloor: noiseFloor.toFixed(4),
-        threshold: activityThreshold.toFixed(4),
-      }, session.id);
-    } else if (!session.soundDetected && measuredLevel < activityThreshold) {
-      noiseFloor = noiseFloor * 0.98 + measuredLevel * 0.02;
-      activityThreshold = Math.max(VOICE_MIN_ACTIVITY_THRESHOLD, noiseFloor * 2.8);
-    }
-    const targetLevel = reduceMotion || measuredLevel < activityThreshold
-      ? 0
-      : Math.min(1, (measuredLevel - activityThreshold) / Math.max(0.08, 0.18 - activityThreshold));
-    displayedLevel += (targetLevel - displayedLevel) * (targetLevel > displayedLevel ? 0.55 : 0.12);
-    if (session.isListening && calibrationLogged) {
-      if (measuredLevel >= activityThreshold) {
-        markVoiceActivity(session, "meter");
-      } else if (session.soundDetected) {
-        if (session.silentSince === null) session.silentSince = performance.now();
-        if (performance.now() - session.silentSince >= VOICE_SILENCE_DURATION_MS) {
-          voiceDebugLog("silence threshold reached", { durationMs: VOICE_SILENCE_DURATION_MS }, session.id);
-          session.silentSince = null;
-          stopVoiceInput(false, session);
-          return;
+    let targetLevel;
+    if (IS_IOS) {
+      const measuredLevel = Math.min(1, Math.sqrt(total / samples.length) / 24);
+      targetLevel = measuredLevel;
+    } else {
+      const measuredLevel = Math.sqrt(total / samples.length);
+      const elapsed = performance.now() - meterStartedAt;
+      if (elapsed <= VOICE_METER_CALIBRATION_MS) {
+        calibrationLevels.push(measuredLevel);
+      } else if (!calibrationLogged) {
+        const sorted = calibrationLevels.sort((a, b) => a - b);
+        noiseFloor = sorted[Math.floor(sorted.length * 0.2)] || noiseFloor;
+        activityThreshold = Math.max(VOICE_MIN_ACTIVITY_THRESHOLD, noiseFloor * 2.8);
+        calibrationLogged = true;
+        voiceDebugLog("meter calibrated", {
+          noiseFloor: noiseFloor.toFixed(4),
+          threshold: activityThreshold.toFixed(4),
+        }, session.id);
+      } else if (!session.soundDetected && measuredLevel < activityThreshold) {
+        noiseFloor = noiseFloor * 0.98 + measuredLevel * 0.02;
+        activityThreshold = Math.max(VOICE_MIN_ACTIVITY_THRESHOLD, noiseFloor * 2.8);
+      }
+      targetLevel = reduceMotion || measuredLevel < activityThreshold
+        ? 0
+        : Math.min(1, (measuredLevel - activityThreshold) / Math.max(0.08, 0.18 - activityThreshold));
+      if (session.isListening && calibrationLogged) {
+        if (measuredLevel >= activityThreshold) {
+          markVoiceActivity(session, "meter");
+        } else if (session.soundDetected) {
+          if (session.silentSince === null) session.silentSince = performance.now();
+          if (performance.now() - session.silentSince >= VOICE_SILENCE_DURATION_MS) {
+            voiceDebugLog("silence threshold reached", { durationMs: VOICE_SILENCE_DURATION_MS }, session.id);
+            session.silentSince = null;
+            stopVoiceInput(false, session);
+            return;
+          }
         }
       }
     }
+    displayedLevel += (targetLevel - displayedLevel) * (targetLevel > displayedLevel ? 0.55 : (IS_IOS ? 0.14 : 0.12));
     document.querySelectorAll(".voice-input-button").forEach((button) => {
       button.style.setProperty("--voice-level", displayedLevel.toFixed(3));
     });
@@ -702,10 +710,11 @@ function startVoiceInput() {
     if (activeVoiceSession !== session) return;
     session.started = true;
     session.isListening = true;
+    const maximumDuration = IS_IOS ? VOICE_IOS_MAX_DURATION_MS : VOICE_MAX_DURATION_MS;
     session.maxTimer = setTimeout(() => {
-      voiceDebugLog("maximum duration reached", { durationMs: VOICE_MAX_DURATION_MS }, session.id);
+      voiceDebugLog("maximum duration reached", { durationMs: maximumDuration }, session.id);
       stopVoiceInput(false, session);
-    }, VOICE_MAX_DURATION_MS);
+    }, maximumDuration);
     elements.voiceInputButton.disabled = false;
     elements.voiceStatus.textContent = "Listening...";
     elements.voiceStatus.classList.add("is-listening");
@@ -737,10 +746,12 @@ function startVoiceInput() {
     const latestResult = event.results[event.results.length - 1];
     if (latestResult.isFinal) {
       showVoiceResult(transcript, false, session);
-      session.finalTimer = setTimeout(() => {
-        voiceDebugLog("final result silence fallback", { durationMs: VOICE_SILENCE_DURATION_MS }, session.id);
-        stopVoiceInput(false, session);
-      }, VOICE_SILENCE_DURATION_MS);
+      if (!IS_IOS) {
+        session.finalTimer = setTimeout(() => {
+          voiceDebugLog("final result silence fallback", { durationMs: VOICE_SILENCE_DURATION_MS }, session.id);
+          stopVoiceInput(false, session);
+        }, VOICE_SILENCE_DURATION_MS);
+      }
     }
   });
   recognition.addEventListener("speechstart", () => {
@@ -751,6 +762,7 @@ function startVoiceInput() {
   });
   recognition.addEventListener("speechend", () => {
     if (activeVoiceSession !== session) return;
+    if (IS_IOS) return;
     if (session.silenceTimer !== null) clearTimeout(session.silenceTimer);
     session.silenceTimer = setTimeout(() => stopVoiceInput(false, session), VOICE_SILENCE_DURATION_MS);
   });

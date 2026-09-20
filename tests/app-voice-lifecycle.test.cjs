@@ -28,6 +28,19 @@ test('iOS holds the microphone meter before starting speech recognition', () => 
   assert.match(source, /recognition start requested[^\n]+meter: session\.stream \? "held" : "unavailable"/);
 });
 
+test('iOS matches the successful hold-test waveform and completion lifecycle', () => {
+  const meter = functionSource('startVoiceMeter', 'voiceErrorMessage');
+  const start = functionSource('startVoiceInput', 'stopVoiceInput');
+
+  assert.match(meter, /IS_IOS \? new Uint8Array/);
+  assert.match(meter, /getByteTimeDomainData\(samples\)/);
+  assert.match(meter, /Math\.sqrt\(total \/ samples\.length\) \/ 24/);
+  assert.match(meter, /IS_IOS \? \[8, 14, 22, 14, 8\]/);
+  assert.match(start, /maximumDuration = IS_IOS \? VOICE_IOS_MAX_DURATION_MS : VOICE_MAX_DURATION_MS/);
+  assert.match(start, /if \(!IS_IOS\) \{\s*session\.finalTimer/);
+  assert.match(start, /recognition\.addEventListener\("speechend"[^]*?if \(IS_IOS\) return/);
+});
+
 test('the iOS fallback pulse is used only when no held stream is available', () => {
   assert.match(app, /classList\.toggle\("is-meterless", IS_IOS && !session\.stream\)/);
 });
@@ -41,11 +54,11 @@ test('recognition stops before the held meter is released', () => {
   assert.match(finish, /stopVoiceMeter\(session\)/);
 });
 
-test('production assets consistently use cache revision 119', () => {
-  assert.match(app, /APP_BUILD_VERSION = "0\.5\.4\+diagnostics\.2"/);
-  assert.match(index, /styles\.css\?v=119/);
-  assert.match(index, /app\.js\?v=119/);
-  assert.match(serviceWorker, /is-it-dryer-out-v119/);
-  assert.match(serviceWorker, /styles\.css\?v=119/);
-  assert.match(serviceWorker, /app\.js\?v=119/);
+test('production build and assets identify the v0.5.4.4 diagnostics branch', () => {
+  assert.match(app, /APP_BUILD_VERSION = "v0\.5\.4\.4-voice-diagnostics"/);
+  assert.match(index, /styles\.css\?v=120/);
+  assert.match(index, /app\.js\?v=120/);
+  assert.match(serviceWorker, /is-it-dryer-out-v120/);
+  assert.match(serviceWorker, /styles\.css\?v=120/);
+  assert.match(serviceWorker, /app\.js\?v=120/);
 });

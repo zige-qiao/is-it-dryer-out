@@ -17,7 +17,7 @@ A personal ventilation checker for estimating whether opening windows should red
 
 ## How it works
 
-- Enter indoor temperature, relative humidity, target humidity, and minimum indoor temperature manually. Voice input can update indoor temperature and humidity in browsers that provide speech recognition and microphone access. On iPhone, the live waveform uses a standard microphone stream that remains active throughout recognition to keep the iOS audio session available across repeated attempts.
+- Enter indoor temperature, relative humidity, target humidity, and minimum indoor temperature manually. Voice input can update indoor temperature and humidity in browsers that provide speech recognition and microphone access. On iPhone, the live waveform uses a standard microphone stream that remains active throughout each one-shot recognition attempt to keep the iOS audio session available; WebKit ends the attempt after speech, with a 30-second safety limit.
 - On every load, the app asks the browser for the current location. Use `Update` to request a fresh location check.
 - Location search accepts UK postcodes with or without spaces, regardless of letter case, and outward codes such as `M1`, `M33`, or `SW1A`.
 - If location permission is unavailable, the app uses the most recently stored location, or Sale, Greater Manchester as the initial fallback.
