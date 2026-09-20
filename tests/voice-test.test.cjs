@@ -12,6 +12,7 @@ function fixture(mode) {
   let hidden = false;
   let visibilityState = 'visible';
   let timerId = 0;
+  const mediaTracks = [];
   class Node {
     constructor() { this.events = {}; this.value = ''; this.textContent = ''; this.hidden = false; this.disabled = false; }
     addEventListener(name, callback) { this.events[name] = callback; }
@@ -40,16 +41,23 @@ function fixture(mode) {
     navigator: {
       userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 27_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/140.0.0.0 Mobile/15E148 Safari/604.1',
       platform: 'iPhone', maxTouchPoints: 5,
+      mediaDevices: {
+        async getUserMedia() {
+          const track = { readyState: 'live', stop() { this.readyState = 'ended'; this.stopCount = (this.stopCount || 0) + 1; } };
+          mediaTracks.push(track);
+          return { getAudioTracks: () => [track], getTracks: () => [track] };
+        },
+      },
     }, location: { search: `?mode=${mode}` }, performance: { now: () => now },
     URL, URLSearchParams,
     setTimeout(fn, ms) { timers.set(++timerId, { fn, ms }); return timerId; },
     clearTimeout(id) { timers.delete(id); },
   };
   const source = readFileSync(require.resolve('../voice-test.js'), 'utf8')
-    .replace('import.meta.url', JSON.stringify('https://example.test/voice-test.js?v=115'));
+    .replace('import.meta.url', JSON.stringify('https://example.test/voice-test.js?v=116'));
   vm.runInNewContext(source, context);
   return {
-    node, objects, timers,
+    node, objects, timers, mediaTracks,
     setTime(value) { now = value; },
     visibility(state) {
       hidden = state === 'hidden';
@@ -79,7 +87,7 @@ for (const mode of ['reuse', 'fresh']) {
     assert.match(f.node('log').value, /browser=Chrome_iOS browserVersion=140\.0\.0\.0 osVersion=27\.0 webkit=605\.1\.15/);
     assert.match(f.node('log').value, /user agent value="Mozilla\/5\.0/);
     f.node('clear').click();
-    assert.match(f.node('log').value, /build=0.5.4\+diagnostics.1 assetRevision=115/);
+    assert.match(f.node('log').value, /build=0.5.4\+diagnostics.2 assetRevision=116/);
   });
 }
 
@@ -135,4 +143,21 @@ test('late events from an old fresh recognizer do not end the current attempt', 
   assert.equal(f.node('start').disabled, true);
   f.objects[1].emit('end');
   assert.equal(f.node('start').disabled, false);
+});
+
+test('prime mode briefly opens and releases a microphone stream before retry', async () => {
+  const f = fixture('prime');
+  assert.equal(f.node('reset-guide').hidden, false);
+  const reset = f.node('reset-microphone').click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(f.node('start').disabled, true);
+  assert.equal(f.mediaTracks.length, 1);
+  const hold = [...f.timers.values()].find(timer => timer.ms === 400);
+  assert.ok(hold);
+  hold.fn();
+  await reset;
+  assert.equal(f.mediaTracks[0].stopCount, 1);
+  assert.equal(f.node('start').disabled, false);
+  assert.match(f.node('log').value, /microphone reset opened tracks=1 state=live/);
+  assert.match(f.node('log').value, /microphone reset released tracks=1/);
 });

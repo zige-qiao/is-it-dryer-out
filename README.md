@@ -45,9 +45,11 @@ Indoor readings, plan settings, and the most recent location are stored only in 
 
 ## Voice diagnostics
 
-Open `voice-test.html?mode=reuse` to test reusing a recognizer, or `voice-test.html?mode=fresh` to create a new one for each attempt. Run three recordings per mode without reloading between attempts, copy the log, then switch modes (which reloads the page). Use `voice-test.html?mode=interrupt` to mark an external audio interruption while recognition is active. That mode does not stop recognition just because the page is hidden; iOS may still suspend it, and the attempt is limited to 30 seconds. Logs include browser, available OS and WebKit versions, visibility, and recognition events, never speech content. Build identification also remains in the app's normal diagnostic logs after Clear.
+Open `voice-test.html?mode=reuse` to test reusing a recogniser, or `voice-test.html?mode=fresh` to create a new one for each attempt. Run three recordings per mode without reloading between attempts, copy the log, then switch modes (which reloads the page). Use `voice-test.html?mode=interrupt` to mark an external audio interruption while recognition is active. That mode does not stop recognition just because this page is hidden; iOS may still suspend it, and the attempt is limited to 30 seconds. Use `voice-test.html?mode=prime` to test whether briefly opening and releasing a normal microphone stream restores speech recognition without a reload. Logs include browser, available OS and WebKit versions, visibility, and recognition events, never speech content. Build identification also remains in the app's normal diagnostic logs after Clear.
 
 Add `?voice-debug=1` to the app URL to show the temporary voice diagnostics panel. It records microphone, audio-context, and speech-recognition lifecycle events without recording recognised speech content. Reproduce the issue, then use **Copy** to collect the log.
+
+See [iOS voice recognition investigation](VOICE-INVESTIGATION.md) for the complete device-test record, event timings, current findings, related WebKit reports, and pending reset experiment.
 
 ## Project information
 

@@ -1,14 +1,15 @@
-const BUILD = "0.5.4+diagnostics.1";
+const BUILD = "0.5.4+diagnostics.2";
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const requestedMode = new URLSearchParams(location.search).get("mode");
-const mode = ["fresh", "interrupt"].includes(requestedMode) ? requestedMode : "reuse";
-const ui = Object.fromEntries(["build", "status", "start", "stop", "mark-interruption", "interruption-guide", "copy", "clear", "log"].map(id => [id.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), document.getElementById(id)]));
+const mode = ["fresh", "interrupt", "prime"].includes(requestedMode) ? requestedMode : "reuse";
+const ui = Object.fromEntries(["build", "status", "start", "stop", "mark-interruption", "interruption-guide", "reset-microphone", "reset-guide", "copy", "clear", "log"].map(id => [id.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), document.getElementById(id)]));
 let startedAt = performance.now();
 let attempt = 0;
 let objectCount = 0;
 let active = null;
 let shared = null;
 let requiresReload = false;
+let resettingMicrophone = false;
 const entries = [];
 
 function log(event, detail = {}, run = active) {
@@ -54,12 +55,15 @@ function header() {
 }
 
 function controls() {
-  ui.start.disabled = !Recognition || Boolean(active) || requiresReload;
+  ui.start.disabled = !Recognition || Boolean(active) || requiresReload || resettingMicrophone;
   ui.stop.disabled = !active || active.stopping;
   ui.markInterruption.hidden = mode !== "interrupt";
   ui.markInterruption.disabled = mode !== "interrupt" || !active || active.stopping;
   ui.markInterruption.textContent = active?.interruptionStartedAt == null ? "Mark before switching" : "Mark return";
   ui.interruptionGuide.hidden = mode !== "interrupt";
+  ui.resetMicrophone.hidden = mode !== "prime";
+  ui.resetMicrophone.disabled = mode !== "prime" || Boolean(active) || resettingMicrophone || !navigator.mediaDevices?.getUserMedia;
+  ui.resetGuide.hidden = mode !== "prime";
   document.querySelectorAll("nav a").forEach(link => link.setAttribute("aria-disabled", String(Boolean(active))));
 }
 
@@ -147,6 +151,32 @@ ui.start.addEventListener("click", () => {
   }
 });
 ui.stop.addEventListener("click", () => stop());
+ui.resetMicrophone.addEventListener("click", async () => {
+  if (mode !== "prime" || active || resettingMicrophone || !navigator.mediaDevices?.getUserMedia) return;
+  resettingMicrophone = true;
+  ui.status.textContent = "Resetting microphone";
+  controls();
+  log("microphone reset requested");
+  let stream = null;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const tracks = stream.getAudioTracks();
+    log("microphone reset opened", { tracks: tracks.length, state: tracks[0]?.readyState || "none" });
+    await new Promise(resolve => setTimeout(resolve, 400));
+    tracks.forEach(track => track.stop());
+    log("microphone reset released", { tracks: tracks.length });
+    ui.status.textContent = "Microphone reset complete. Try Start now.";
+  } catch (error) {
+    log("microphone reset failed", { name: error?.name || "unknown" });
+    ui.status.textContent = "Microphone reset failed.";
+  } finally {
+    stream?.getTracks().forEach(track => {
+      if (track.readyState !== "ended") track.stop();
+    });
+    resettingMicrophone = false;
+    controls();
+  }
+});
 ui.markInterruption.addEventListener("click", () => {
   const run = active;
   if (mode !== "interrupt" || !run || run.stopping) return;
