@@ -201,6 +201,7 @@ The evidence supports these conclusions:
 8. A full page reload reliably restores the next recognition attempt.
 9. The physical microphone remains healthy and available to other iOS applications.
 10. Foregrounding another browser often preceded fast recovery in the video, but switching browsers was not consistently sufficient and the recording does not separate lifecycle effects from elapsed time.
+11. Keeping a standard microphone stream active throughout recognition produced three consecutive successful attempts without a reload on the affected iPhone.
 
 The most likely cause is a browser or iOS speech-recognition audio-session lifecycle defect below the JavaScript API. This is an inference from the recorded behaviour, not direct access to browser or operating-system internals.
 
@@ -223,13 +224,25 @@ The local diagnostics page now includes `mode=prime`. The **Reset microphone** c
 
 The affected iPhone successfully opened and released the standard microphone stream six times. The two subsequent recognition attempts still failed to receive speech. This shows that microphone capture through `getUserMedia` remains available while `webkitSpeechRecognition` is stuck, and that priming the microphone this way does not reset the speech-recognition lifecycle state. The reset technique should not be promoted into the production voice flow as a recovery mechanism.
 
-## Pending held microphone experiment
+## Held microphone experiment
 
 The earlier production implementation kept a separate `getUserMedia` stream alive while speech recognition was running and used it to drive the live waveform on iPhone. That behaviour was removed in v0.5.3.1 when iOS speech recognition was given exclusive microphone access. The tester's observation that the iPhone waveform worked before that change creates a separate audio-session hypothesis: an already-active standard microphone stream may have kept the shared iOS audio session alive during recognition.
 
-Diagnostic build `0.5.4+diagnostics.3` adds `mode=hold` to reproduce the earlier concurrency without changing the production voice path. Each attempt opens one audio-only stream, leaves its track live while a fresh recogniser runs, displays the measured level and releases the track after the recogniser ends. This differs materially from the completed reset experiment, which released the stream before recognition started.
+Diagnostic build `0.5.4+diagnostics.3` added `mode=hold` to reproduce the earlier concurrency without changing the production voice path. Each attempt opened one audio-only stream, left its track live while a fresh recogniser ran, displayed the measured level and released the track after the recogniser ended. This differed materially from the completed reset experiment, which released the stream before recognition started.
 
-Run at least three held-stream attempts without reloading. A useful result must record both sides of the comparison: whether the waveform and iOS amber microphone indicator remain active, and whether each recognition attempt reaches `speechstart` or a result. Repeated recognition success would support the audio-session keep-alive hypothesis; a moving waveform alongside stalled recognition would show that the standard microphone stream remains healthy without repairing the speech service.
+The affected iPhone completed all three consecutive held-stream attempts without a reload:
+
+| Attempt | Stream opened | Recognition requested | Speech started | Final result | Recognition ended | Stream released | Outcome |
+|---|---:|---:|---:|---:|---:|---:|---|
+| 1 | 15.885 | 15.903 | 17.531 | 22.567 | 22.602 | 22.603 | Worked |
+| 2 | 26.115 | 26.135 | 28.212 | 33.501 | 33.530 | 33.532 | Worked |
+| 3 | 36.692 | 36.709 | 38.782 | 44.067 | 44.096 | 44.097 | Worked |
+
+Each stream opened live, enabled and unmuted. Each fresh recogniser then reached `start`, `audiostart`, `speechstart`, multiple interim results and a final result before ending normally. The stream was released immediately after the corresponding recognition `end` event.
+
+The contrast with `mode=prime` isolates the important condition: merely opening and releasing `getUserMedia` before recognition did not recover the speech service, while overlapping the standard stream with recognition worked repeatedly. This strongly supports the audio-session keep-alive hypothesis on the tested device.
+
+Production diagnostic build `0.5.4+diagnostics.2` therefore restores the same lifecycle in the app UI on iOS. It prepares the real microphone meter before starting recognition, keeps the stream active throughout the session, stops recognition first and releases the stream after `end`. If the meter cannot open, recognition retains the meterless fallback rather than becoming unavailable.
 
 ## Privacy
 

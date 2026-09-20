@@ -1,0 +1,51 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { readFileSync } = require('node:fs');
+
+const app = readFileSync(require.resolve('../app.js'), 'utf8');
+const index = readFileSync(require.resolve('../index.html'), 'utf8');
+const serviceWorker = readFileSync(require.resolve('../service-worker.js'), 'utf8');
+
+function functionSource(name, nextName) {
+  const start = app.indexOf(`function ${name}`);
+  const end = app.indexOf(`function ${nextName}`, start);
+  assert.notEqual(start, -1, `${name} should exist`);
+  assert.notEqual(end, -1, `${nextName} should follow ${name}`);
+  return app.slice(start, end);
+}
+
+test('iOS holds the microphone meter before starting speech recognition', () => {
+  const source = functionSource('startVoiceInput', 'stopVoiceInput');
+  const iosPath = source.indexOf('if (IS_IOS && navigator.mediaDevices?.getUserMedia)');
+  const meterStart = source.indexOf('startVoiceMeter(session)', iosPath);
+  const recognitionContinuation = source.indexOf('.then(startRecognition)', meterStart);
+
+  assert.notEqual(iosPath, -1);
+  assert.notEqual(meterStart, -1);
+  assert.notEqual(recognitionContinuation, -1);
+  assert.ok(iosPath < meterStart && meterStart < recognitionContinuation);
+  assert.match(source, /recognition waiting for held meter/);
+  assert.match(source, /recognition start requested[^\n]+meter: session\.stream \? "held" : "unavailable"/);
+});
+
+test('the iOS fallback pulse is used only when no held stream is available', () => {
+  assert.match(app, /classList\.toggle\("is-meterless", IS_IOS && !session\.stream\)/);
+});
+
+test('recognition stops before the held meter is released', () => {
+  const stop = functionSource('stopVoiceInput', 'toggleVoiceListening');
+  const finish = functionSource('finishVoiceListening', 'completeVoiceSession');
+
+  assert.match(stop, /session\.recognition\.stop\(\)/);
+  assert.doesNotMatch(stop, /stopVoiceMeter\(session\)/);
+  assert.match(finish, /stopVoiceMeter\(session\)/);
+});
+
+test('production assets consistently use cache revision 119', () => {
+  assert.match(app, /APP_BUILD_VERSION = "0\.5\.4\+diagnostics\.2"/);
+  assert.match(index, /styles\.css\?v=119/);
+  assert.match(index, /app\.js\?v=119/);
+  assert.match(serviceWorker, /is-it-dryer-out-v119/);
+  assert.match(serviceWorker, /styles\.css\?v=119/);
+  assert.match(serviceWorker, /app\.js\?v=119/);
+});

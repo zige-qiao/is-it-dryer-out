@@ -31,7 +31,7 @@ const OPENING_SETUPS = {
 };
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 // Keep the build identity in the script so stale code identifies itself correctly.
-const APP_BUILD_VERSION = "0.5.4+diagnostics.1";
+const APP_BUILD_VERSION = "0.5.4+diagnostics.2";
 const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
 const IS_IOS = /iP(?:hone|ad|od)/.test(navigator.userAgent)
   || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -712,8 +712,8 @@ function startVoiceInput() {
     elements.voiceListenButton.disabled = false;
     elements.voiceInputButton.classList.add("is-listening");
     elements.voiceListenButton.classList.add("is-listening");
-    elements.voiceInputButton.classList.toggle("is-meterless", IS_IOS);
-    elements.voiceListenButton.classList.toggle("is-meterless", IS_IOS);
+    elements.voiceInputButton.classList.toggle("is-meterless", IS_IOS && !session.stream);
+    elements.voiceListenButton.classList.toggle("is-meterless", IS_IOS && !session.stream);
     elements.voiceInputButton.setAttribute("aria-label", "Stop and review voice input");
     elements.voiceInputButton.title = "Stop and review";
     elements.voiceListenButton.setAttribute("aria-label", "Stop recording");
@@ -771,40 +771,52 @@ function startVoiceInput() {
     if (activeVoiceSession !== session) return;
     completeVoiceSession(session);
   });
-  try {
-    voiceDebugLog("recognition start requested", {}, session.id);
-    recognition.start();
-    session.startupTimer = setTimeout(() => {
-      if (activeVoiceSession !== session || session.audioStarted) return;
-      voiceDebugLog("recognition startup timeout", { durationMs: VOICE_START_TIMEOUT_MS }, session.id);
+  const startRecognition = () => {
+    if (activeVoiceSession !== session || session.finished) return;
+    try {
+      voiceDebugLog("recognition start requested", { meter: session.stream ? "held" : "unavailable" }, session.id);
+      recognition.start();
+      session.startupTimer = setTimeout(() => {
+        if (activeVoiceSession !== session || session.audioStarted) return;
+        voiceDebugLog("recognition startup timeout", { durationMs: VOICE_START_TIMEOUT_MS }, session.id);
+        session.hadError = true;
+        showVoiceError("Speech recognition could not be started.");
+        try {
+          recognition.abort();
+        } catch {
+          // Continue with local cleanup if recognition never entered a running state.
+        }
+        finishVoiceListening(session);
+        showVoiceDialog();
+      }, VOICE_START_TIMEOUT_MS);
+      if (!IS_IOS && navigator.mediaDevices?.getUserMedia) {
+        startVoiceMeter(session).catch((error) => {
+          voiceDebugLog("meter failed", { name: error?.name || "unknown" }, session.id);
+          stopVoiceMeter(session);
+        });
+      }
+    } catch (error) {
+      voiceDebugLog("recognition start threw", { name: error?.name || "unknown" }, session.id);
+      if (activeVoiceSession !== session) return;
       session.hadError = true;
       showVoiceError("Speech recognition could not be started.");
-      try {
-        recognition.abort();
-      } catch {
-        // Continue with local cleanup if recognition never entered a running state.
-      }
       finishVoiceListening(session);
+      elements.voiceListenButton.disabled = false;
       showVoiceDialog();
-    }, VOICE_START_TIMEOUT_MS);
-    if (IS_IOS) {
-      voiceDebugLog("meter skipped", { platform: "ios" }, session.id);
-    } else if (navigator.mediaDevices?.getUserMedia) {
-      startVoiceMeter(session).catch((error) => {
+    }
+  };
+
+  if (IS_IOS && navigator.mediaDevices?.getUserMedia) {
+    voiceDebugLog("recognition waiting for held meter", {}, session.id);
+    startVoiceMeter(session)
+      .catch((error) => {
         voiceDebugLog("meter failed", { name: error?.name || "unknown" }, session.id);
         stopVoiceMeter(session);
-      });
-    } else {
-      voiceDebugLog("meter unavailable", { reason: "mediaDevices" }, session.id);
-    }
-  } catch (error) {
-    voiceDebugLog("recognition start threw", { name: error?.name || "unknown" }, session.id);
-    if (activeVoiceSession !== session) return;
-    session.hadError = true;
-    showVoiceError("Speech recognition could not be started.");
-    finishVoiceListening(session);
-    elements.voiceListenButton.disabled = false;
-    showVoiceDialog();
+      })
+      .then(startRecognition);
+  } else {
+    if (!navigator.mediaDevices?.getUserMedia) voiceDebugLog("meter unavailable", { reason: "mediaDevices" }, session.id);
+    startRecognition();
   }
 }
 
