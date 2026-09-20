@@ -1,6 +1,6 @@
 # iOS voice recognition investigation
 
-This document records the investigation into repeated voice-input failures in iOS Safari. It is an evidence log, not a claim that the underlying WebKit defect has been fixed.
+This document records the investigation into repeated voice-input failures in iOS browsers. It is an evidence log, not a claim that the underlying platform defect has been fixed.
 
 ## Summary
 
@@ -8,7 +8,7 @@ On the tested iPhone, one `webkitSpeechRecognition` session succeeds and immedia
 
 On the tested iPhone, the failure occurred whether the page reused one recogniser or created a new recogniser for every attempt. A full page reload restores recognition immediately. Without a reload, recognition has repeatedly recovered after approximately one minute, after which one session succeeds and the next immediate attempt fails again.
 
-Voice Memos continues to activate the physical microphone and record normally while Safari recognition is in the failed state. This rules out a faulty device microphone and points to WebKit's internal speech-recognition audio session.
+Voice Memos continues to activate the physical microphone and record normally while browser recognition is in the failed state. This rules out a faulty device microphone and points to the browser or platform speech-recognition audio session.
 
 ## Tested environments
 
@@ -36,19 +36,24 @@ Voice Memos continues to activate the physical microphone and record normally wh
 
 The Mac and iPhone results are not equivalent even though both user agents report WebKit 605.1.15. Speech recognition is backed by platform-native services whose lifecycle differs between macOS and iOS.
 
+A later iPhone screen recording covers the same immediate-retry failure in both Safari and Chrome. The video report does not record exact browser version strings.
+
 ## Diagnostic pages
 
 - `?voice-debug=1` enables the real app's privacy-safe voice lifecycle log.
 - `voice-test.html?mode=reuse` repeats recordings with one recogniser object.
 - `voice-test.html?mode=fresh` creates a new recogniser object for every attempt.
 - `voice-test.html?mode=interrupt` records page visibility and manually marked audio interruptions.
-- `voice-test.html?mode=prime` briefly opens and releases a standard `getUserMedia` microphone stream before another recognition attempt. This experimental mode is included in diagnostic build `0.5.4+diagnostics.2` but has not yet been tested on the affected iPhone.
+- `voice-test.html?mode=prime` briefly opens and releases a standard `getUserMedia` microphone stream before another recognition attempt. On the affected iPhone, the stream opened normally but did not restore speech recognition.
+- `voice-test.html?mode=hold` opens a standard `getUserMedia` stream before recognition, keeps it alive throughout the attempt, uses it for a live waveform and releases it only after recognition ends. This mode is included in diagnostic build `0.5.4+diagnostics.3` for the next iPhone comparison.
 
 The diagnostic logs record lifecycle events and timings but never recognised speech content.
 
+The full frame-by-frame supporting report is retained in [the iOS Web Speech microphone video analysis](tests/ios_web_speech_microphone_video_analysis.md). Its video timestamps and indicator observations are approximate rather than instrument-grade measurements.
+
 ## Results
 
-All timestamps are elapsed seconds since the relevant page loaded or its diagnostics were cleared. `Worked` means that `speechstart` and at least one `result` event were received. `Failed` means that Safari emitted `start` and `audiostart`, but no speech or result events arrived before the attempt was manually stopped.
+Unless otherwise stated, timestamps are elapsed seconds since the relevant page loaded or its diagnostics were cleared. `Worked` means that `speechstart` and at least one `result` event were received. `Failed` means that the browser emitted `start` and `audiostart`, but no speech or result events arrived before the attempt was manually stopped.
 
 ### Mac comparison page: reused recogniser
 
@@ -155,28 +160,49 @@ The tester also observed:
 
 This distinguishes two behaviours: automatic completion can leave the visible microphone indicator active, but clearing that indicator manually does not reset the speech service or make the next attempt work.
 
+### iPhone microphone reset experiment
+
+The reset control successfully opened one live `getUserMedia` audio track on every use, held it for approximately 400 milliseconds and released it. Four consecutive resets were followed by attempt 7, and two further resets were followed by attempt 8.
+
+| Attempt | Resets before attempt | Last reset released | Start requested | Audio started | Speech/result received | End | Outcome |
+|---|---:|---:|---:|---:|---:|---:|---|
+| 7 | 4 | 124.419 | 125.532 | 125.572 | Never | 129.283 | Failed; manually stopped |
+| 8 | 2 | 132.136 | 133.040 | 133.082 | Never | 137.279 | Failed; manually stopped |
+
+Both recognition attempts reached `start` and `audiostart` but produced no `speechstart` or `result`. Their later `aborted` errors were the expected result of manually stopping the failed attempts. Repeatedly opening and releasing a normal microphone stream therefore did not recover the stuck speech-recognition session.
+
+### iPhone cross-browser video run
+
+A 141-second screen recording shows the failure in both Safari and Chrome on iOS. The first permitted attempt in each browser succeeded: the iOS amber microphone indicator appeared, followed by `speechstart` and recognition results. An immediate retry in the same browser then emitted `start` and `audiostart` while the amber indicator remained absent and no speech events or results arrived.
+
+The clearest pair occurs near the end of the recording. A Chrome attempt at approximately 2:08–2:15 activated the amber indicator and completed normally. Its immediate retry at approximately 2:16 emitted `audiostart` but showed no amber indicator, `speechstart` or result before manual stopping.
+
+Later Safari-to-Chrome and Chrome-to-Safari transitions were often followed by successful microphone acquisition in the newly foregrounded browser, sometimes in under one second. An earlier switch back to Safari did not recover immediately, so browser switching is not a reliable fix. The recording does not isolate whether recovery comes from elapsed time, page visibility changes, browser backgrounding, audio-session interruption or a combination of those effects.
+
 ### Page reload control
 
 Three separate first attempts, each preceded by a page reload, all worked. A full document reload therefore resets the failed state immediately on the tested device.
 
 ### Device microphone control
 
-Voice Memos successfully recorded audio and activated the iOS microphone indicator while Safari recognition was otherwise failing. The phone's microphone hardware and system-level microphone permission were therefore working.
+Voice Memos successfully recorded audio and activated the iOS microphone indicator while browser recognition was otherwise failing. The phone's microphone hardware and system-level microphone permission were therefore working.
 
 ## Findings
 
 The evidence supports these conclusions:
 
-1. The failure is specific to iOS Safari on the tested device; it was not reproduced on macOS Safari.
+1. The failure was reproduced in Safari and Chrome on the tested iPhone; it was not reproduced in Safari on the tested Mac.
 2. The production app is not required to reproduce it. The minimal comparison page fails with the audio meter disabled and no transcript handling.
 3. Changing whether recogniser objects were reused did not prevent the failure on the tested iPhone.
-4. Safari's `audiostart` event is not reliable evidence that the physical iPhone microphone has activated.
+4. A browser's `audiostart` event is not reliable evidence that the physical iPhone microphone has activated; the failed video attempts showed no iOS amber microphone indicator.
 5. Manual `stop()` releases the visible microphone indicator but does not reset the underlying speech service.
-6. The failed state can recover after approximately one minute without a reload, although longer and shorter recovery periods have also been observed.
-7. A full page reload reliably restores the next recognition attempt.
-8. The physical microphone remains healthy and available to other iOS applications.
+6. A normal `getUserMedia` stream can open and release while speech recognition remains stuck, and repeated microphone resets do not restore it.
+7. The failed state can recover after approximately one minute without a reload, although longer and shorter recovery periods have also been observed.
+8. A full page reload reliably restores the next recognition attempt.
+9. The physical microphone remains healthy and available to other iOS applications.
+10. Foregrounding another browser often preceded fast recovery in the video, but switching browsers was not consistently sufficient and the recording does not separate lifecycle effects from elapsed time.
 
-The most likely cause is a WebKit speech-recognition audio-session lifecycle defect below the JavaScript API. This is an inference from the recorded behaviour, not direct access to WebKit's internal state.
+The most likely cause is a browser or iOS speech-recognition audio-session lifecycle defect below the JavaScript API. This is an inference from the recorded behaviour, not direct access to browser or operating-system internals.
 
 ## Related WebKit reports
 
@@ -186,7 +212,7 @@ The most likely cause is a WebKit speech-recognition audio-session lifecycle def
 
 The app's minimal reproduction does not require audio or video playback, so its evidence may represent a broader trigger than WebKit bug 321436 currently describes.
 
-## Pending microphone reset experiment
+## Microphone reset experiment
 
 The local diagnostics page now includes `mode=prime`. The **Reset microphone** control:
 
@@ -195,11 +221,15 @@ The local diagnostics page now includes `mode=prime`. The **Reset microphone** c
 3. Stops every audio track.
 4. Allows the tester to start speech recognition again manually.
 
-This tests whether a standard microphone stream can force WebKit to rebuild or re-prime its audio session without a page reload. It is an experiment, not a production fix. The result should be interpreted as follows:
+The affected iPhone successfully opened and released the standard microphone stream six times. The two subsequent recognition attempts still failed to receive speech. This shows that microphone capture through `getUserMedia` remains available while `webkitSpeechRecognition` is stuck, and that priming the microphone this way does not reset the speech-recognition lifecycle state. The reset technique should not be promoted into the production voice flow as a recovery mechanism.
 
-- If the physical microphone activates and the next recognition attempt works immediately, the app may be able to recover WebKit's audio session programmatically.
-- If the stream activates but recognition still fails, `getUserMedia` and `webkitSpeechRecognition` are using independently stuck lifecycle state.
-- If the stream itself cannot activate, the failure affects WebKit microphone capture more broadly than speech recognition.
+## Pending held microphone experiment
+
+The earlier production implementation kept a separate `getUserMedia` stream alive while speech recognition was running and used it to drive the live waveform on iPhone. That behaviour was removed in v0.5.3.1 when iOS speech recognition was given exclusive microphone access. The tester's observation that the iPhone waveform worked before that change creates a separate audio-session hypothesis: an already-active standard microphone stream may have kept the shared iOS audio session alive during recognition.
+
+Diagnostic build `0.5.4+diagnostics.3` adds `mode=hold` to reproduce the earlier concurrency without changing the production voice path. Each attempt opens one audio-only stream, leaves its track live while a fresh recogniser runs, displays the measured level and releases the track after the recogniser ends. This differs materially from the completed reset experiment, which released the stream before recognition started.
+
+Run at least three held-stream attempts without reloading. A useful result must record both sides of the comparison: whether the waveform and iOS amber microphone indicator remain active, and whether each recognition attempt reaches `speechstart` or a result. Repeated recognition success would support the audio-session keep-alive hypothesis; a moving waveform alongside stalled recognition would show that the standard microphone stream remains healthy without repairing the speech service.
 
 ## Privacy
 

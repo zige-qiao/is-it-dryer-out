@@ -6,8 +6,8 @@ All notable changes to Is it dryer out are documented here.
 
 ### Added
 
-- Added an experimental microphone-reset mode to the voice comparison page for testing whether a short `getUserMedia` stream can restore repeated iOS speech recognition without a page reload.
-- Added a detailed iOS voice investigation record covering every supplied Mac and iPhone test run, microphone-indicator observations, recovery timings, conclusions, and related WebKit reports.
+- Added microphone reset and held-stream modes to the voice comparison page. The reset experiment confirmed that a short `getUserMedia` stream opens normally but does not restore stuck speech recognition; the held-stream mode keeps that track active and drives a live waveform throughout recognition for the next iPhone comparison.
+- Added a detailed iOS voice investigation record and supporting cross-browser video analysis covering the supplied Mac and iPhone test runs, Safari and Chrome behaviour, microphone-indicator observations, recovery timings, the completed reset experiment, conclusions, and related WebKit reports.
 
 ## v0.5.4 - 2026-09-16
 

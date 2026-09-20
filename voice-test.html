@@ -18,8 +18,11 @@
     button:disabled { opacity: .5; }
     button:focus-visible, a:focus-visible { outline: 2px solid #1675b5; outline-offset: 3px; }
     #status { min-height: 24px; font-weight: 600; }
+    #hold-waveform { min-height: 28px; display: flex; align-items: center; gap: 4px; margin: 12px 0; }
+    #hold-waveform span { width: 4px; height: 2px; border-radius: 2px; background: #1675b5; opacity: .72; transition: height 80ms ease-out, opacity 80ms linear; }
     textarea { width: 100%; height: 48vh; min-height: 240px; padding: 12px; border: 1px solid #b6c5c1; border-radius: 6px; background: white; font: 12px/1.6 monospace; resize: vertical; }
     #build { overflow-wrap: anywhere; }
+    @media (prefers-reduced-motion: reduce) { #hold-waveform span { transition: none; } }
   </style>
 </head>
 <body>
@@ -31,6 +34,7 @@
       <a id="fresh" href="?mode=fresh">New recognizer each time</a>
       <a id="interrupt" href="?mode=interrupt">Audio interruption test</a>
       <a id="prime" href="?mode=prime">Microphone reset test</a>
+      <a id="hold" href="?mode=hold">Held microphone test</a>
     </nav>
     <section id="interruption-guide" aria-labelledby="interruption-title" hidden>
       <h2 id="interruption-title">Audio interruption test</h2>
@@ -40,7 +44,14 @@
       <h2 id="reset-title">Microphone reset test</h2>
       <p>After a recording fails to hear speech, tap Reset microphone. This briefly opens and releases a standard microphone stream. When the reset completes, tap Start and speak again. The log records microphone and recognition events, never your transcript.</p>
     </section>
+    <section id="hold-guide" aria-labelledby="hold-title" hidden>
+      <h2 id="hold-title">Held microphone stream test</h2>
+      <p>Start a recording and speak normally. This mode opens a standard microphone stream first, keeps it alive while speech recognition runs, and releases it only after recognition ends. Repeat at least three attempts without reloading. The moving bars show the held stream's live microphone level; logs never include your transcript.</p>
+    </section>
     <p id="status" role="status">Ready</p>
+    <div id="hold-waveform" aria-label="Live microphone level" hidden>
+      <span id="hold-wave-1"></span><span id="hold-wave-2"></span><span id="hold-wave-3"></span><span id="hold-wave-4"></span><span id="hold-wave-5"></span>
+    </div>
     <div class="actions">
       <button id="start" type="button">Start</button>
       <button id="stop" type="button" disabled>Stop</button>
@@ -52,6 +63,6 @@
     <textarea id="log" readonly aria-label="Diagnostic log" spellcheck="false"></textarea>
     <p><a href="./?voice-debug=1">Back to app</a></p>
   </main>
-  <script type="module" src="voice-test.js?v=116"></script>
+  <script type="module" src="voice-test.js?v=117"></script>
 </body>
 </html>
