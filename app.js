@@ -31,7 +31,7 @@ const OPENING_SETUPS = {
 };
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 // Keep the build identity in the script so stale code identifies itself correctly.
-const APP_BUILD_VERSION = "v0.5.4.4-voice-diagnostics";
+const APP_BUILD_VERSION = "v0.5.4.5-voice-diagnostics";
 const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
 const IS_IOS = /iP(?:hone|ad|od)/.test(navigator.userAgent)
   || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -819,6 +819,8 @@ function startVoiceInput() {
   };
 
   if (IS_IOS && navigator.mediaDevices?.getUserMedia) {
+    // This stream is an iOS audio-session keep-alive, not merely a visual meter.
+    // Releasing it before recognition or skipping it reproduced silent immediate retries.
     voiceDebugLog("recognition waiting for held meter", {}, session.id);
     startVoiceMeter(session)
       .catch((error) => {

@@ -32,7 +32,7 @@ function fixture(mode) {
     window: { SpeechRecognition: Recognition, isSecureContext: true },
     document: {
       getElementById: node,
-      querySelectorAll: () => [node('reuse'), node('fresh'), node('interrupt'), node('prime'), node('hold')],
+      querySelectorAll: () => [node('reuse'), node('fresh'), node('interrupt'), node('prime'), node('hold'), node('hold-persist')],
       addEventListener(name, callback) { documentEvents[name] = callback; },
       get hidden() { return hidden; },
       get visibilityState() { return visibilityState; },
@@ -54,7 +54,7 @@ function fixture(mode) {
     clearTimeout(id) { timers.delete(id); },
   };
   const source = readFileSync(require.resolve('../voice-test.js'), 'utf8')
-    .replace('import.meta.url', JSON.stringify('https://example.test/voice-test.js?v=117'));
+    .replace('import.meta.url', JSON.stringify('https://example.test/voice-test.js?v=121'));
   vm.runInNewContext(source, context);
   return {
     node, objects, timers, mediaTracks,
@@ -87,7 +87,7 @@ for (const mode of ['reuse', 'fresh']) {
     assert.match(f.node('log').value, /browser=Chrome_iOS browserVersion=140\.0\.0\.0 osVersion=27\.0 webkit=605\.1\.15/);
     assert.match(f.node('log').value, /user agent value="Mozilla\/5\.0/);
     f.node('clear').click();
-    assert.match(f.node('log').value, /build=0.5.4\+diagnostics.3 assetRevision=117/);
+    assert.match(f.node('log').value, /build=v0.5.4.5-voice-diagnostics assetRevision=121/);
   });
 }
 
@@ -177,4 +177,27 @@ test('hold mode keeps the microphone stream open until recognition ends', async 
   assert.equal(f.mediaTracks[0].stopCount, 1);
   assert.match(f.node('log').value, /held microphone released tracks=1/);
   assert.equal(f.node('start').disabled, false);
+});
+
+test('persistent hold mode reuses the same live stream after manual stop', async () => {
+  const f = fixture('hold-persist');
+  assert.equal(f.node('hold-guide').hidden, false);
+  assert.equal(f.node('hold-waveform').hidden, false);
+  await f.node('start').click();
+  const firstRecognition = f.objects[0];
+  f.node('stop').click();
+  firstRecognition.emit('end');
+  assert.equal(f.mediaTracks.length, 1);
+  assert.equal(f.mediaTracks[0].readyState, 'live');
+  assert.equal(f.mediaTracks[0].stopCount || 0, 0);
+  assert.match(f.node('log').value, /held microphone retained reason=manual stop nextAttempt=2/);
+
+  await f.node('start').click();
+  assert.equal(f.objects.length, 2);
+  assert.equal(f.mediaTracks.length, 1);
+  assert.match(f.node('log').value, /held microphone reused tracks=1 state=live/);
+  f.objects[1].emit('end');
+  assert.equal(f.mediaTracks[0].readyState, 'ended');
+  assert.equal(f.mediaTracks[0].stopCount, 1);
+  assert.match(f.node('log').value, /held microphone released tracks=1/);
 });

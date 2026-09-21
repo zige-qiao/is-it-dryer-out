@@ -1,6 +1,8 @@
 # iOS voice recognition investigation
 
-This document records the investigation into repeated voice-input failures in iOS browsers. It is an evidence log, not a claim that the underlying platform defect has been fixed.
+This document records the investigation into repeated voice-input failures in iOS browsers and the verified application-level mitigation. The underlying platform defect is not claimed to be fixed.
+
+**Status: Reopened for manual stopping.** Build `v0.5.4.4-voice-diagnostics`, asset revision 120, completed three consecutive naturally ending held-stream diagnostic attempts and three consecutive naturally ending normal-app attempts without reloading. A later diagnostic sequence showed that manually calling `recognition.stop()` can leave the immediately following attempt at `audiostart` without `speechstart` or results, even though its held microphone track is live. Build `v0.5.4.5-voice-diagnostics` adds a controlled persistent-stream test for that second failure mode.
 
 ## Summary
 
@@ -9,6 +11,8 @@ On the tested iPhone, one `webkitSpeechRecognition` session succeeds and immedia
 On the tested iPhone, the failure occurred whether the page reused one recogniser or created a new recogniser for every attempt. A full page reload restores recognition immediately. Without a reload, recognition has repeatedly recovered after approximately one minute, after which one session succeeds and the next immediate attempt fails again.
 
 Voice Memos continues to activate the physical microphone and record normally while browser recognition is in the failed state. This rules out a faulty device microphone and points to the browser or platform speech-recognition audio session.
+
+The regression was introduced when v0.5.3.1 stopped opening the app's normal `getUserMedia` waveform stream on iOS. That stream had appeared optional but was also keeping the iOS audio session active while `webkitSpeechRecognition` ran. Restoring the overlap, while retaining the safer isolated-session cleanup added later, produced three consecutive successful diagnostic attempts and three consecutive successful production-app attempts without reloading.
 
 ## Tested environments
 
@@ -21,7 +25,8 @@ Voice Memos continues to activate the physical microphone and record normally wh
 - Touch points: 5
 - Secure context: yes
 - Speech recognition available: yes
-- Diagnostic build: `0.5.4+diagnostics.1`
+- Affected diagnostic build: `0.5.4+diagnostics.1`
+- Verified mitigation build: `v0.5.4.4-voice-diagnostics`, asset revision 120
 
 ### Mac
 
@@ -45,7 +50,7 @@ A later iPhone screen recording covers the same immediate-retry failure in both 
 - `voice-test.html?mode=fresh` creates a new recogniser object for every attempt.
 - `voice-test.html?mode=interrupt` records page visibility and manually marked audio interruptions.
 - `voice-test.html?mode=prime` briefly opens and releases a standard `getUserMedia` microphone stream before another recognition attempt. On the affected iPhone, the stream opened normally but did not restore speech recognition.
-- `voice-test.html?mode=hold` opens a standard `getUserMedia` stream before recognition, keeps it alive throughout the attempt, uses it for a live waveform and releases it only after recognition ends. This mode is included in diagnostic build `0.5.4+diagnostics.3` for the next iPhone comparison.
+- `voice-test.html?mode=hold` opens a standard `getUserMedia` stream before recognition, keeps it alive throughout the attempt, uses it for a live waveform and releases it only after recognition ends. Diagnostic build `0.5.4+diagnostics.3` used this mode to verify the keep-alive mitigation.
 
 The diagnostic logs record lifecycle events and timings but never recognised speech content.
 
@@ -77,9 +82,9 @@ All three sessions worked. Each session opened a separate `getUserMedia` meter s
 
 These runs show that repeated recognition and the app's JavaScript session cleanup work on macOS Safari.
 
-### iPhone real app
+### iPhone real app before mitigation
 
-The real app gives speech recognition exclusive microphone access on iOS and deliberately skips its separate audio meter stream.
+The affected production build gave speech recognition exclusive microphone access on iOS and deliberately skipped its separate audio meter stream.
 
 | Session | Requested | Speech/result received | End | Outcome |
 |---|---:|---:|---:|---|
@@ -88,6 +93,18 @@ The real app gives speech recognition exclusive microphone access on iOS and del
 | 3 | 25.242 | Never | 31.141 | Failed; manual stop produced intentional `aborted` event |
 
 The app's stale-session protection and cleanup completed normally. Sessions 2 and 3 reached `audiostart`, but Safari never delivered speech.
+
+### iPhone real app after mitigation
+
+Production build `v0.5.4.4-voice-diagnostics`, asset revision 120, reproduced the held-stream lifecycle in the normal app UI. All three consecutive sessions worked without a reload.
+
+| Session | Stream opened | Meter started | Recognition requested | Speech started | Final result | Recognition ended | Meter stopped | Outcome |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| 1 | 4.254 | 4.261 | 4.262 | 6.596 | 10.194 | 10.224 | 10.225 | Worked |
+| 2 | 11.407 | 11.424 | 11.425 | 12.778 | 16.388 | 16.416 | 16.418 | Worked |
+| 3 | 17.884 | 17.901 | 17.901 | 19.527 | 23.139 | 23.172 | 23.173 | Worked |
+
+Each session opened a live, enabled and unmuted track, started recognition only after the meter was running, received interim and final results, ended normally and released its meter immediately afterward. No meter silence threshold stopped any iOS session.
 
 ### iPhone comparison page: reused recogniser
 
@@ -201,9 +218,46 @@ The evidence supports these conclusions:
 8. A full page reload reliably restores the next recognition attempt.
 9. The physical microphone remains healthy and available to other iOS applications.
 10. Foregrounding another browser often preceded fast recovery in the video, but switching browsers was not consistently sufficient and the recording does not separate lifecycle effects from elapsed time.
-11. Keeping a standard microphone stream active throughout recognition produced three consecutive successful attempts without a reload on the affected iPhone.
+11. Keeping a standard microphone stream active throughout recognition produced three consecutive successful diagnostic attempts without a reload on the affected iPhone.
+12. Applying the same lifecycle in the normal app UI produced another three consecutive successful attempts without a reload.
 
 The most likely cause is a browser or iOS speech-recognition audio-session lifecycle defect below the JavaScript API. This is an inference from the recorded behaviour, not direct access to browser or operating-system internals.
+
+## Regression history and engineering conclusion
+
+The earliest `voice-input` branch already opened `getUserMedia`, started the real waveform and then started speech recognition while the stream remained live. That ordering unintentionally protected the iOS audio session. The early implementation nevertheless had real cleanup weaknesses: it used continuous recognition, relied on a one-second `speechend` timer, stored voice state globally and released the meter before asking recognition to stop.
+
+Later versions correctly introduced fresh recognisers, stale-callback guards, one-shot iOS recognition and recognition-first cleanup. The v0.5.3.1 refactor then made a separate assumption: because the waveform stream and Web Speech both used the microphone, the stream might be competing with recognition. It therefore started recognition immediately and explicitly skipped the meter on iOS. The waveform disappeared, and the first-attempt-works/immediate-retry-fails behaviour became reproducible.
+
+The experiments distinguish the cause from coincidence:
+
+- Reusing or recreating recogniser objects did not change the failure.
+- A 400-millisecond `getUserMedia` reset that ended before recognition did not recover it.
+- Keeping the same kind of stream active during recognition succeeded three times in the standalone diagnostic.
+- Moving that exact held-stream lifecycle into the app succeeded another three times.
+
+The evidence therefore supports this application-level explanation: removing the stream exposed an iOS/WebKit audio-session lifecycle defect; the stream was not competing with recognition on the tested device but keeping the shared audio session available. This does not prove the inaccessible WebKit internals, but the overlap is the only tested variable that consistently separates failure from repeated success.
+
+The production solution combines the useful original ordering with the safer later architecture:
+
+1. Create an isolated, fresh one-shot recogniser for each iOS attempt.
+2. Open a normal audio-only `getUserMedia` stream and start the real waveform before recognition.
+3. Keep that stream active for the entire recognition attempt.
+4. Use the meter only for visual feedback on iOS; do not let it impose silence timers.
+5. Let WebKit finish after speech, with a 30-second watchdog and manual stop still available.
+6. Release the meter only after recognition emits `end`, or during bounded error cleanup.
+
+The held iOS stream must be treated as functional lifecycle infrastructure, not as an optional visual enhancement. Removing it, delaying it until after recognition starts or releasing it before recognition ends would discard the condition verified by both successful tests.
+
+## Resolution status
+
+The held-stream mitigation is resolved for attempts that WebKit ends naturally. It restored reliable repeated iPhone voice input on the tested device by holding a standard microphone stream throughout each one-shot Web Speech attempt. It also restored the real waveform while retaining isolated sessions, stale-callback protection, bounded cleanup and a 30-second safety limit.
+
+The conclusion is supported by two independent 3/3 sequences without reloads: first in the minimal held-stream diagnostic and then in the normal production UI. The earlier failure reproduced when the stream was absent, while a stream released before recognition did not help. Overlap between the standard stream and speech recognition is therefore the verified application condition.
+
+Manual stopping remains unresolved. In the newly observed sequence, attempt 4 heard speech and was stopped manually; attempt 5 opened another healthy held stream and reached `start` and `audiostart`, but never reached `speechstart` or produced a result. This narrows the remaining question to whether `recognition.stop()` disrupts WebKit's speech-capture session independently of the standard microphone track.
+
+Build `v0.5.4.5-voice-diagnostics` adds `mode=hold-persist` as the next control. It keeps the exact `getUserMedia` track, AudioContext and waveform alive after a manual stop and reuses them for the next fresh recogniser. If the following attempt works, releasing and reopening the keep-alive stream is implicated; if it still fails, the stronger inference is that calling `recognition.stop()` itself poisons the next Web Speech session.
 
 ## Related WebKit reports
 

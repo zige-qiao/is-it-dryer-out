@@ -35,6 +35,7 @@
       <a id="interrupt" href="?mode=interrupt">Audio interruption test</a>
       <a id="prime" href="?mode=prime">Microphone reset test</a>
       <a id="hold" href="?mode=hold">Held microphone test</a>
+      <a id="hold-persist" href="?mode=hold-persist">Persistent manual-stop test</a>
     </nav>
     <section id="interruption-guide" aria-labelledby="interruption-title" hidden>
       <h2 id="interruption-title">Audio interruption test</h2>
@@ -46,7 +47,7 @@
     </section>
     <section id="hold-guide" aria-labelledby="hold-title" hidden>
       <h2 id="hold-title">Held microphone stream test</h2>
-      <p>Start a recording and speak normally. This mode opens a standard microphone stream first, keeps it alive while speech recognition runs, and releases it only after recognition ends. Repeat at least three attempts without reloading. The moving bars show the held stream's live microphone level; logs never include your transcript.</p>
+      <p id="hold-guide-copy">Start a recording and speak normally. Held mode opens a standard microphone stream first, keeps it alive while speech recognition runs, and releases it after recognition ends. Persistent manual-stop mode instead retains that same live stream and waveform after you tap Stop, then reuses it for the next attempt; a naturally completed next attempt releases it. The log records whether the stream was opened, retained, reused, or released and never includes your transcript.</p>
     </section>
     <p id="status" role="status">Ready</p>
     <div id="hold-waveform" aria-label="Live microphone level" hidden>
@@ -63,6 +64,6 @@
     <textarea id="log" readonly aria-label="Diagnostic log" spellcheck="false"></textarea>
     <p><a href="./?voice-debug=1">Back to app</a></p>
   </main>
-  <script type="module" src="voice-test.js?v=117"></script>
+  <script type="module" src="voice-test.js?v=121"></script>
 </body>
 </html>

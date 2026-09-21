@@ -11,7 +11,9 @@ All notable changes to Is it dryer out are documented here.
 
 ### Fixed
 
-- Restored the live iPhone voice waveform and made the production lifecycle match the held-stream diagnostic that succeeded three times without a reload: recognition starts after the stream is ready, the meter only drives the waveform, WebKit ends the one-shot attempt without meter-based silence timers, a 30-second watchdog remains available, and the stream is released after recognition ends.
+- Restored the live iPhone voice waveform and made the production lifecycle match the held-stream diagnostic that succeeded three times without a reload: recognition starts after the stream is ready, the meter only drives the waveform, WebKit ends the one-shot attempt without meter-based silence timers, a 30-second watchdog remains available, and the stream is released after recognition ends. This reverses the v0.5.3.1 assumption that the extra stream competed with speech recognition; device testing instead showed that its overlap keeps the iOS audio session available for immediate retries.
+- Verified the held-stream lifecycle for naturally completed iOS recognition in two independent 3/3 sequences: the standalone diagnostic and the normal production UI. A later manual-stop sequence reopened the investigation because the next recognition attempt reached `audiostart` but heard no speech.
+- Added a persistent-stream manual-stop control that retains the same live microphone track and waveform after `recognition.stop()`, reuses them for the next fresh recogniser, and identifies itself as `v0.5.4.5-voice-diagnostics`.
 
 ## v0.5.4 - 2026-09-16
 

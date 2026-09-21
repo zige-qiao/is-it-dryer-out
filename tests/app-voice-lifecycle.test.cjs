@@ -54,11 +54,11 @@ test('recognition stops before the held meter is released', () => {
   assert.match(finish, /stopVoiceMeter\(session\)/);
 });
 
-test('production build and assets identify the v0.5.4.4 diagnostics branch', () => {
-  assert.match(app, /APP_BUILD_VERSION = "v0\.5\.4\.4-voice-diagnostics"/);
-  assert.match(index, /styles\.css\?v=120/);
-  assert.match(index, /app\.js\?v=120/);
-  assert.match(serviceWorker, /is-it-dryer-out-v120/);
-  assert.match(serviceWorker, /styles\.css\?v=120/);
-  assert.match(serviceWorker, /app\.js\?v=120/);
+test('production build identifies the v0.5.4.5 diagnostics branch', () => {
+  assert.match(app, /APP_BUILD_VERSION = "v0\.5\.4\.5-voice-diagnostics"/);
+  assert.match(index, /styles\.css\?v=121/);
+  assert.match(index, /app\.js\?v=121/);
+  assert.match(serviceWorker, /is-it-dryer-out-v121/);
+  assert.match(serviceWorker, /styles\.css\?v=121/);
+  assert.match(serviceWorker, /app\.js\?v=121/);
 });
