@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const vm = require('node:vm');
 
-function fixture(mode) {
+function fixture(mode, options = {}) {
   const nodes = new Map();
   const timers = new Map();
   const objects = [];
@@ -13,6 +13,9 @@ function fixture(mode) {
   let visibilityState = 'visible';
   let timerId = 0;
   const mediaTracks = [];
+  const animationFrames = new Map();
+  const windowEvents = {};
+  let animationId = 0;
   class Node {
     constructor() { this.events = {}; this.style = {}; this.value = ''; this.textContent = ''; this.hidden = false; this.disabled = false; }
     addEventListener(name, callback) { this.events[name] = callback; }
@@ -23,16 +26,19 @@ function fixture(mode) {
     constructor() { this.listeners = {}; objects.push(this); }
     addEventListener(name, fn) { (this.listeners[name] ||= []).push(fn); }
     emit(name, event = {}) { for (const fn of this.listeners[name] || []) fn(event); }
-    start() { this.emit('start'); this.emit('audiostart'); }
+    start() { this.startCount = (this.startCount || 0) + 1; this.emit('start'); this.emit('audiostart'); }
     stop() { this.stopCount = (this.stopCount || 0) + 1; }
-    abort() {}
+    abort() { this.abortCount = (this.abortCount || 0) + 1; }
   }
   const node = id => { if (!nodes.has(id)) nodes.set(id, new Node()); return nodes.get(id); };
   const context = {
-    window: { SpeechRecognition: Recognition, isSecureContext: true },
+    window: {
+      SpeechRecognition: Recognition, isSecureContext: true,
+      addEventListener(name, callback) { windowEvents[name] = callback; },
+    },
     document: {
       getElementById: node,
-      querySelectorAll: () => [node('reuse'), node('fresh'), node('interrupt'), node('prime'), node('hold'), node('hold-persist')],
+      querySelectorAll: () => [node('reuse'), node('fresh'), node('interrupt'), node('prime'), node('hold'), node('hold-persist'), node('track-pause')],
       addEventListener(name, callback) { documentEvents[name] = callback; },
       get hidden() { return hidden; },
       get visibilityState() { return visibilityState; },
@@ -43,7 +49,8 @@ function fixture(mode) {
       platform: 'iPhone', maxTouchPoints: 5,
       mediaDevices: {
         async getUserMedia() {
-          const track = { readyState: 'live', stop() { this.readyState = 'ended'; this.stopCount = (this.stopCount || 0) + 1; } };
+          if (options.getUserMedia) return options.getUserMedia(mediaTracks);
+          const track = { readyState: 'live', enabled: true, stop() { this.readyState = 'ended'; this.stopCount = (this.stopCount || 0) + 1; } };
           mediaTracks.push(track);
           return { getAudioTracks: () => [track], getTracks: () => [track] };
         },
@@ -52,18 +59,26 @@ function fixture(mode) {
     URL, URLSearchParams,
     setTimeout(fn, ms) { timers.set(++timerId, { fn, ms }); return timerId; },
     clearTimeout(id) { timers.delete(id); },
+    requestAnimationFrame(fn) {
+      const id = ++animationId;
+      animationFrames.set(id, () => { animationFrames.delete(id); fn(); });
+      return id;
+    },
+    cancelAnimationFrame(id) { animationFrames.delete(id); },
   };
+  if (options.AudioContext) context.window.AudioContext = options.AudioContext;
   const source = readFileSync(require.resolve('../voice-test.js'), 'utf8')
-    .replace('import.meta.url', JSON.stringify('https://example.test/voice-test.js?v=121'));
+    .replace('import.meta.url', JSON.stringify('https://example.test/voice-test.js?v=123'));
   vm.runInNewContext(source, context);
   return {
-    node, objects, timers, mediaTracks,
+    node, objects, timers, mediaTracks, animationFrames,
     setTime(value) { now = value; },
     visibility(state) {
       hidden = state === 'hidden';
       visibilityState = state;
       documentEvents.visibilitychange();
     },
+    pagehide() { windowEvents.pagehide?.(); },
   };
 }
 
@@ -87,7 +102,7 @@ for (const mode of ['reuse', 'fresh']) {
     assert.match(f.node('log').value, /browser=Chrome_iOS browserVersion=140\.0\.0\.0 osVersion=27\.0 webkit=605\.1\.15/);
     assert.match(f.node('log').value, /user agent value="Mozilla\/5\.0/);
     f.node('clear').click();
-    assert.match(f.node('log').value, /build=v0.5.4.5-voice-diagnostics assetRevision=121/);
+    assert.match(f.node('log').value, /build=v0.5.4.6-track-pause-test assetRevision=123/);
   });
 }
 
@@ -200,4 +215,170 @@ test('persistent hold mode reuses the same live stream after manual stop', async
   assert.equal(f.mediaTracks[0].readyState, 'ended');
   assert.equal(f.mediaTracks[0].stopCount, 1);
   assert.match(f.node('log').value, /held microphone released tracks=1/);
+});
+
+function MeterAudioContext() {
+  this.state = 'running';
+  this.closeCount = 0;
+  this.resume = async () => { this.state = 'running'; };
+  this.close = async () => { this.state = 'closed'; this.closeCount++; };
+  this.createAnalyser = () => ({
+    fftSize: 0,
+    getByteTimeDomainData(samples) {
+      for (let i = 0; i < samples.length; i++) samples[i] = i % 2 ? 160 : 96;
+    },
+  });
+  this.createMediaStreamSource = () => ({ connect() {}, disconnect() {} });
+  MeterAudioContext.instances.push(this);
+}
+MeterAudioContext.instances = [];
+
+test('track-pause immediately pauses its real meter and retries with the same re-enabled stream', async () => {
+  MeterAudioContext.instances.length = 0;
+  const f = fixture('track-pause', { AudioContext: MeterAudioContext });
+  await f.node('start').click();
+  const track = f.mediaTracks[0];
+  assert.equal(track.enabled, true);
+  assert.equal(f.animationFrames.size, 1);
+  const firstFrame = [...f.animationFrames.values()][0];
+  firstFrame();
+  assert.notEqual(f.node('hold-wave-3').style.height, '2px');
+
+  f.node('stop').click();
+  assert.equal(track.enabled, false);
+  assert.equal(f.animationFrames.size, 0);
+  assert.equal(f.node('hold-wave-3').style.height, '2px');
+  assert.equal(f.objects[0].stopCount, 1);
+  f.objects[0].emit('end');
+  assert.equal(track.readyState, 'live');
+  assert.match(f.node('log').value, /disabled-does-not-prove-hardware-off-or-capture-stopped/);
+
+  await f.node('start').click();
+  assert.equal(f.mediaTracks.length, 1);
+  assert.equal(track.enabled, true);
+  assert.equal(f.animationFrames.size, 1);
+  f.objects[1].emit('end');
+  assert.equal(track.readyState, 'ended');
+  assert.equal(MeterAudioContext.instances[0].state, 'closed');
+});
+
+test('track-pause abort disables immediately, discards late results, and retries the same stream', async () => {
+  const f = fixture('track-pause', { AudioContext: MeterAudioContext });
+  await f.node('start').click();
+  const track = f.mediaTracks[0];
+  f.node('abort').click();
+  assert.equal(track.enabled, false);
+  assert.equal(f.objects[0].abortCount, 1);
+  f.objects[0].emit('error', { error: 'aborted' });
+  assert.equal(track.readyState, 'live');
+  f.objects[0].emit('result', { results: [{ isFinal: true }] });
+  assert.match(f.node('log').value, /result discarded reason=aborted run/);
+  f.objects[0].emit('end');
+  await f.node('start').click();
+  assert.equal(f.mediaTracks.length, 1);
+  assert.equal(track.enabled, true);
+  f.objects[1].emit('end');
+});
+
+test('track-pause explicit release and retained idle timeout stop the stream', async () => {
+  const f = fixture('track-pause');
+  await f.node('start').click();
+  f.node('stop').click();
+  f.objects[0].emit('end');
+  const track = f.mediaTracks[0];
+  assert.equal(f.node('release-microphone').disabled, false);
+  f.node('release-microphone').click();
+  assert.equal(track.readyState, 'ended');
+
+  await f.node('start').click();
+  f.node('stop').click();
+  f.objects[1].emit('end');
+  const secondTrack = f.mediaTracks[1];
+  const idle = [...f.timers.values()].find(timer => timer.ms === 30000);
+  assert.ok(idle);
+  idle.fn();
+  assert.equal(secondTrack.readyState, 'ended');
+  assert.match(f.node('log').value, /held microphone idle timeout seconds=30/);
+});
+
+test('track-pause hidden page releases immediately even after Stop is pending', async () => {
+  const f = fixture('track-pause', { AudioContext: MeterAudioContext });
+  await f.node('start').click();
+  const track = f.mediaTracks[0];
+  f.node('stop').click();
+  assert.equal(track.enabled, false);
+  f.visibility('hidden');
+  assert.equal(track.readyState, 'ended');
+  f.objects[0].emit('end');
+  assert.equal(track.readyState, 'ended');
+});
+
+test('track-pause pagehide releases active resources', async () => {
+  const f = fixture('track-pause');
+  await f.node('start').click();
+  const track = f.mediaTracks[0];
+  f.pagehide();
+  assert.equal(track.readyState, 'ended');
+  assert.equal(f.objects[0].abortCount, 1);
+});
+
+test('track-pause cancels async microphone preparation and releases the late stream', async () => {
+  let resolveMedia;
+  const f = fixture('track-pause', {
+    getUserMedia(mediaTracks) {
+      return new Promise(resolve => {
+        resolveMedia = () => {
+          const track = { readyState: 'live', enabled: true, stop() { this.readyState = 'ended'; this.stopCount = (this.stopCount || 0) + 1; } };
+          mediaTracks.push(track);
+          resolve({ getAudioTracks: () => [track], getTracks: () => [track] });
+        };
+      });
+    },
+  });
+  const starting = f.node('start').click();
+  f.node('stop').click();
+  resolveMedia();
+  await starting;
+  assert.equal(f.mediaTracks[0].readyState, 'ended');
+  assert.equal(f.objects[0].startCount || 0, 0);
+  assert.equal(f.node('start').disabled, false);
+  assert.match(f.node('log').value, /held microphone preparation discarded reason=run cancelled/);
+});
+
+test('track-pause hidden during async preparation cannot retain or re-enable the late stream', async () => {
+  let resolveMedia;
+  const f = fixture('track-pause', {
+    getUserMedia(mediaTracks) {
+      return new Promise(resolve => {
+        resolveMedia = () => {
+          const track = { readyState: 'live', enabled: true, stop() { this.readyState = 'ended'; this.stopCount = (this.stopCount || 0) + 1; } };
+          mediaTracks.push(track);
+          resolve({ getAudioTracks: () => [track], getTracks: () => [track] });
+        };
+      });
+    },
+  });
+  const starting = f.node('start').click();
+  f.visibility('hidden');
+  resolveMedia();
+  await starting;
+  assert.equal(f.mediaTracks[0].readyState, 'ended');
+  assert.equal(f.objects[0].startCount || 0, 0);
+  assert.match(f.node('log').value, /held microphone preparation discarded reason=page hidden/);
+});
+
+test('track-pause error and missing end release resources and reject stale callbacks', async () => {
+  const f = fixture('track-pause');
+  await f.node('start').click();
+  const first = f.objects[0];
+  const track = f.mediaTracks[0];
+  first.emit('error', { error: 'network' });
+  assert.equal(track.readyState, 'ended');
+  const cleanup = [...f.timers.values()].find(timer => timer.ms === 3000);
+  assert.ok(cleanup);
+  cleanup.fn();
+  assert.match(f.node('status').textContent, /Reload/);
+  first.emit('result', { results: [{ isFinal: true }] });
+  first.emit('end');
+  assert.equal(track.stopCount, 1);
 });

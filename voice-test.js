@@ -1,8 +1,8 @@
-const BUILD = "v0.5.4.5-voice-diagnostics";
+const BUILD = "v0.5.4.6-track-pause-test";
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const requestedMode = new URLSearchParams(location.search).get("mode");
-const mode = ["fresh", "interrupt", "prime", "hold", "hold-persist"].includes(requestedMode) ? requestedMode : "reuse";
-const ui = Object.fromEntries(["build", "status", "start", "stop", "mark-interruption", "interruption-guide", "reset-microphone", "reset-guide", "hold-guide", "hold-waveform", "copy", "clear", "log"].map(id => [id.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), document.getElementById(id)]));
+const mode = ["fresh", "interrupt", "prime", "hold", "hold-persist", "track-pause"].includes(requestedMode) ? requestedMode : "reuse";
+const ui = Object.fromEntries(["build", "status", "start", "stop", "abort", "release-microphone", "mark-interruption", "interruption-guide", "reset-microphone", "reset-guide", "hold-guide", "hold-waveform", "copy", "clear", "log"].map(id => [id.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), document.getElementById(id)]));
 const holdWaveBars = [1, 2, 3, 4, 5].map(number => document.getElementById(`hold-wave-${number}`));
 let startedAt = performance.now();
 let attempt = 0;
@@ -50,7 +50,7 @@ function header() {
   log("diagnostics ready", {
     build: BUILD, assetRevision: new URL(import.meta.url).searchParams.get("v"),
     mode, recognition: Boolean(Recognition), secure: window.isSecureContext,
-    language: document.documentElement.lang, meter: mode === "hold-persist" ? "held-persistent" : mode === "hold" ? "held" : "disabled", continuous: false,
+    language: document.documentElement.lang, meter: mode === "track-pause" ? "track-pause" : mode === "hold-persist" ? "held-persistent" : mode === "hold" ? "held" : "disabled", continuous: false,
   });
   log("browser details", browserDetails());
   log("user agent", { value: JSON.stringify(navigator.userAgent || "unavailable") });
@@ -59,6 +59,10 @@ function header() {
 function controls() {
   ui.start.disabled = !Recognition || Boolean(active) || requiresReload || resettingMicrophone;
   ui.stop.disabled = !active || active.stopping;
+  ui.abort.hidden = mode !== "track-pause";
+  ui.abort.disabled = mode !== "track-pause" || !active || active.stopping;
+  ui.releaseMicrophone.hidden = mode !== "track-pause";
+  ui.releaseMicrophone.disabled = mode !== "track-pause" || Boolean(active) || !heldMicrophone;
   ui.markInterruption.hidden = mode !== "interrupt";
   ui.markInterruption.disabled = mode !== "interrupt" || !active || active.stopping;
   ui.markInterruption.textContent = active?.interruptionStartedAt == null ? "Mark before switching" : "Mark return";
@@ -66,9 +70,13 @@ function controls() {
   ui.resetMicrophone.hidden = mode !== "prime";
   ui.resetMicrophone.disabled = mode !== "prime" || Boolean(active) || resettingMicrophone || !navigator.mediaDevices?.getUserMedia;
   ui.resetGuide.hidden = mode !== "prime";
-  ui.holdGuide.hidden = mode !== "hold" && mode !== "hold-persist";
-  ui.holdWaveform.hidden = mode !== "hold" && mode !== "hold-persist";
+  ui.holdGuide.hidden = !isHeldMode();
+  ui.holdWaveform.hidden = !isHeldMode();
   document.querySelectorAll("nav a").forEach(link => link.setAttribute("aria-disabled", String(Boolean(active))));
+}
+
+function isHeldMode() {
+  return mode === "hold" || mode === "hold-persist" || mode === "track-pause";
 }
 
 function resetHoldWaveform() {
@@ -81,6 +89,8 @@ function resetHoldWaveform() {
 function releaseHeldMicrophone(run = null) {
   const microphone = run?.microphone || heldMicrophone;
   if (!microphone) return;
+  clearTimeout(microphone.idleTimer);
+  microphone.idleTimer = null;
   if (microphone.meterFrame != null) cancelAnimationFrame(microphone.meterFrame);
   microphone.meterFrame = null;
   try { microphone.meterSource?.disconnect(); } catch { /* The source may already be disconnected. */ }
@@ -98,6 +108,40 @@ function releaseHeldMicrophone(run = null) {
   resetHoldWaveform();
 }
 
+function pauseHeldMicrophone(run, reason) {
+  const microphone = run?.microphone || heldMicrophone;
+  if (!microphone?.stream) return;
+  if (microphone.meterFrame != null) cancelAnimationFrame(microphone.meterFrame);
+  microphone.meterFrame = null;
+  resetHoldWaveform();
+  const tracks = microphone.stream.getAudioTracks();
+  tracks.forEach(track => { if (track.readyState === "live") track.enabled = false; });
+  log("held microphone tracks disabled", {
+    reason, tracks: tracks.length,
+    guidance: "observe-iPhone-mic-indicator; disabled-does-not-prove-hardware-off-or-capture-stopped",
+  }, run);
+  clearTimeout(microphone.idleTimer);
+  microphone.idleTimer = setTimeout(() => {
+    if (heldMicrophone !== microphone || active) return;
+    log("held microphone idle timeout", { seconds: 30 }, run);
+    releaseHeldMicrophone();
+    ui.status.textContent = "Paused microphone released after 30 seconds.";
+    controls();
+  }, 30000);
+}
+
+async function resumeHeldMicrophone(run, microphone) {
+  clearTimeout(microphone.idleTimer);
+  microphone.idleTimer = null;
+  const tracks = microphone.stream.getAudioTracks();
+  tracks.forEach(track => { if (track.readyState === "live") track.enabled = true; });
+  if (microphone.audioContext?.state === "suspended") await microphone.audioContext.resume();
+  if (active !== run || run.stopping || document.hidden) return false;
+  log("held microphone tracks re-enabled", { tracks: tracks.length }, run);
+  microphone.startMeter?.();
+  return true;
+}
+
 async function startHeldMicrophone(run) {
   if (!navigator.mediaDevices?.getUserMedia) throw new Error("MediaDevicesUnavailable");
   const existingTrack = heldMicrophone?.stream?.getAudioTracks()?.[0];
@@ -108,16 +152,25 @@ async function startHeldMicrophone(run) {
       state: existingTrack.readyState,
       context: heldMicrophone.audioContext?.state || "unavailable",
     }, run);
+    if (mode === "track-pause") return resumeHeldMicrophone(run, heldMicrophone);
     if (heldMicrophone.audioContext?.state === "suspended") await heldMicrophone.audioContext.resume();
-    return;
+    return true;
   }
   if (heldMicrophone) releaseHeldMicrophone(run);
   log("held microphone requested", {}, run);
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  if (active !== run || run.stopping || document.hidden) {
+    stream.getTracks().forEach(track => { if (track.readyState !== "ended") track.stop(); });
+    log("held microphone preparation discarded", { reason: document.hidden ? "page hidden" : "run cancelled" }, run);
+    return false;
+  }
   const microphone = {
-    stream: await navigator.mediaDevices.getUserMedia({ audio: true }),
+    stream,
     audioContext: null,
     meterSource: null,
     meterFrame: null,
+    idleTimer: null,
+    startMeter: null,
   };
   heldMicrophone = microphone;
   run.microphone = microphone;
@@ -136,7 +189,7 @@ async function startHeldMicrophone(run) {
   const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
   if (!AudioContextConstructor) {
     log("held meter unavailable", { reason: "AudioContext" }, run);
-    return;
+    return true;
   }
   microphone.audioContext = new AudioContextConstructor();
   if (microphone.audioContext.state === "suspended") await microphone.audioContext.resume();
@@ -164,8 +217,12 @@ async function startHeldMicrophone(run) {
     });
     microphone.meterFrame = requestAnimationFrame(draw);
   };
+  microphone.startMeter = () => {
+    if (microphone.meterFrame == null && heldMicrophone === microphone && microphone.stream) draw();
+  };
   log("held meter started", { context: microphone.audioContext.state }, run);
-  draw();
+  microphone.startMeter();
+  return true;
 }
 
 function finish(run, timedOut = false) {
@@ -173,8 +230,12 @@ function finish(run, timedOut = false) {
   if (run.interruptionStartedAt != null) log("audio interruption ended before return marker", {}, run);
   clearTimeout(run.limit);
   clearTimeout(run.cleanup);
-  const retainMicrophone = mode === "hold-persist" && run.stopReason === "manual" && !timedOut;
-  if (retainMicrophone) log("held microphone retained", { reason: "manual stop", nextAttempt: attempt + 1 }, run);
+  const retainMicrophone = !timedOut && ((mode === "hold-persist" && run.stopReason === "manual")
+    || (mode === "track-pause" && (run.stopReason === "manual" || run.stopReason === "abort")));
+  if (retainMicrophone) {
+    if (mode === "track-pause") pauseHeldMicrophone(run, run.stopReason);
+    log("held microphone retained", { reason: run.stopReason === "manual" ? "manual stop" : run.stopReason, nextAttempt: attempt + 1 }, run);
+  }
   else releaseHeldMicrophone(run);
   active = null;
   // A missing end event makes safe attribution on a reused recognizer impossible.
@@ -205,10 +266,24 @@ function createRecognizer() {
       if (!run) return;
       if (name === "audiostart" && !run.stopping) ui.status.textContent = "Listening";
       if (name === "result") {
+        if (run.aborted) {
+          log("result discarded", { reason: "aborted run" }, run);
+          return;
+        }
         run.results++;
         if (!run.stopping) ui.status.textContent = detail.final ? "Final result received" : "Speech received";
       }
-      if (name === "error" && !(run.stopping && event.error === "aborted")) run.error = event.error || "unknown";
+      const expectedAbortError = name === "error" && run.stopping && event.error === "aborted";
+      if (name === "error" && !expectedAbortError) run.error = event.error || "unknown";
+      if (name === "error" && !expectedAbortError) {
+        releaseHeldMicrophone(run);
+        if (!run.cleanup) run.cleanup = setTimeout(() => {
+          if (active === run) {
+            log("end timeout", { after: "error" }, run);
+            finish(run, true);
+          }
+        }, 3000);
+      }
       if (name === "end") finish(run);
     });
   }
@@ -224,6 +299,7 @@ function stop(reason = "manual") {
   log("stop requested", { reason });
   ui.status.textContent = "Stopping";
   controls();
+  if (mode === "track-pause") pauseHeldMicrophone(run, reason);
   if (run.preparing) return;
   clearTimeout(run.limit);
   run.cleanup = setTimeout(() => {
@@ -239,17 +315,46 @@ function stop(reason = "manual") {
   }
 }
 
+function abort() {
+  const run = active;
+  if (mode !== "track-pause" || !run || run.stopping) return;
+  run.stopping = true;
+  run.aborted = true;
+  run.stopReason = "abort";
+  log("abort requested");
+  ui.status.textContent = "Aborting";
+  pauseHeldMicrophone(run, "abort");
+  controls();
+  if (run.preparing) return;
+  clearTimeout(run.limit);
+  run.cleanup = setTimeout(() => {
+    if (active !== run) return;
+    log("end timeout");
+    releaseHeldMicrophone(run);
+    finish(run, true);
+  }, 3000);
+  try { run.recognition.abort(); }
+  catch (error) { log("abort threw", { name: error.name }); }
+}
+
 ui.start.addEventListener("click", async () => {
   if (active || requiresReload || !Recognition) return;
   try {
     const holder = mode === "reuse" ? (shared ||= createRecognizer()) : createRecognizer();
-    const run = { id: ++attempt, ...holder, results: 0, error: null, stopping: false, stopReason: null, preparing: mode === "hold" || mode === "hold-persist", cleanup: null, interruptionStartedAt: null, startedAt: performance.now(), microphone: null };
+    const run = { id: ++attempt, ...holder, results: 0, error: null, stopping: false, aborted: false, stopReason: null, preparing: isHeldMode(), cleanup: null, interruptionStartedAt: null, startedAt: performance.now(), microphone: null };
     active = run;
     ui.status.textContent = "Starting microphone";
     controls();
-    if (mode === "hold" || mode === "hold-persist") {
+    if (isHeldMode()) {
       try {
-        await startHeldMicrophone(run);
+        const prepared = await startHeldMicrophone(run);
+        if (!prepared) {
+          if (active === run) {
+            run.stopReason = null;
+            finish(run);
+          }
+          return;
+        }
       } catch (error) {
         if (run.stopping) {
           finish(run);
@@ -276,6 +381,14 @@ ui.start.addEventListener("click", async () => {
   }
 });
 ui.stop.addEventListener("click", () => stop());
+ui.abort.addEventListener("click", abort);
+ui.releaseMicrophone.addEventListener("click", () => {
+  if (mode !== "track-pause" || active) return;
+  log("explicit microphone release requested");
+  releaseHeldMicrophone();
+  ui.status.textContent = "Microphone released.";
+  controls();
+});
 ui.resetMicrophone.addEventListener("click", async () => {
   if (mode !== "prime" || active || resettingMicrophone || !navigator.mediaDevices?.getUserMedia) return;
   resettingMicrophone = true;
@@ -345,11 +458,27 @@ document.addEventListener("visibilitychange", () => {
     return;
   }
   if (document.hidden) {
-    if (active) stop("page hidden");
+    if (active && isHeldMode()) {
+      const run = active;
+      run.stopReason = "page hidden";
+      run.stopping = true;
+      releaseHeldMicrophone(run);
+      if (!run.preparing) try { run.recognition.abort(); } catch { /* Cleanup watchdog handles it. */ }
+      finish(run, true);
+    } else if (active) stop("page hidden");
     else releaseHeldMicrophone();
   }
 });
-window.addEventListener?.("pagehide", () => releaseHeldMicrophone());
+window.addEventListener?.("pagehide", () => {
+  if (active) {
+    const run = active;
+    run.stopping = true;
+    run.stopReason = "page hide";
+    releaseHeldMicrophone(run);
+    if (!run.preparing) try { run.recognition.abort(); } catch { /* Navigation is already releasing resources. */ }
+    finish(run, true);
+  } else releaseHeldMicrophone();
+});
 document.getElementById(mode).setAttribute("aria-current", "page");
 ui.build.textContent = `Build ${BUILD}`;
 if (!Recognition) ui.status.textContent = "Speech recognition is unavailable in this browser.";

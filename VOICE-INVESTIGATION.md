@@ -300,6 +300,24 @@ The contrast with `mode=prime` isolates the important condition: merely opening 
 
 Production build `v0.5.4.4-voice-diagnostics` mirrors the successful held-stream lifecycle in the app UI on iOS. It prepares the real microphone meter before starting a fresh one-shot recogniser, uses the same waveform calculation without meter-based silence stopping, lets WebKit end the attempt after speech, applies the same 30-second safety limit and releases the stream after `end`. If the meter cannot open, recognition retains the meterless fallback rather than becoming unavailable.
 
+## Track pause experiment — pending device validation
+
+Branch and diagnostic build: `v0.5.4.6-track-pause-test`; mode: `track-pause`.
+
+The production revision 122 logs reproduce failure after manual stop followed by dialog closure and stream release. They do not establish that release after Apply or the idle timeout is safe. Earlier statements that the manual-stop problem was fully resolved were too strong.
+
+This experiment disables the existing held track on Stop or Abort, then re-enables that same track for a fresh recognition attempt. Stop requests completion; Abort discards the attempt. The waveform must become still immediately for both actions. Retaining a disabled track does not prove that the browser has released the hardware microphone; observe the iPhone microphone indicator separately. No production voice behaviour changes in this branch experiment.
+
+Device protocol, without reload between attempts:
+
+1. Start and speak, tap Stop while speaking, and record whether the waveform stops and the system microphone indicator changes.
+2. Start again within 30 seconds. Confirm track reuse and re-enable in the log, then check that speech results arrive.
+3. Tap Abort while speaking, observe the same indicators, then retry. Confirm that the aborted attempt's later results are ignored.
+4. Let the next attempt complete naturally, then start another attempt to test release and reopening.
+5. Separately test explicit microphone release, page hiding, and expiry of the disabled-track idle timeout before retrying. These release paths remain unverified recovery boundaries.
+
+Pass criteria include successful retries after Stop and Abort, no moving waveform while paused, and acceptable device microphone behaviour. Automated tests only verify the JavaScript lifecycle; they cannot establish WebKit recovery or hardware capture state.
+
 ## Privacy
 
 The diagnostics intentionally omit recognised transcript text. The recorded evidence contains browser details, event names, object and attempt numbers, relative timings, microphone track state and user observations only.
