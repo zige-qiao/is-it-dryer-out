@@ -2,7 +2,7 @@
 
 This document records the investigation into repeated voice-input failures in iOS browsers and the verified application-level mitigation. The underlying platform defect is not claimed to be fixed.
 
-**Status: Reopened for manual stopping.** Build `v0.5.4.4-voice-diagnostics`, asset revision 120, completed three consecutive naturally ending held-stream diagnostic attempts and three consecutive naturally ending normal-app attempts without reloading. A later diagnostic sequence showed that manually calling `recognition.stop()` can leave the immediately following attempt at `audiostart` without `speechstart` or results, even though its held microphone track is live. Build `v0.5.4.5-voice-diagnostics` adds a controlled persistent-stream test for that second failure mode.
+**Status: Manual-stop mitigation verified in the diagnostic and implemented in the app for production-UI validation.** Build `v0.5.4.4-voice-diagnostics`, asset revision 120, completed three consecutive naturally ending held-stream diagnostic attempts and three consecutive naturally ending normal-app attempts without reloading. Build `v0.5.4.5-voice-diagnostics` then isolated the remaining manual-stop failure and verified that retaining the same live stream across manual stops keeps immediate fresh-recogniser retries working.
 
 ## Summary
 
@@ -255,9 +255,11 @@ The held-stream mitigation is resolved for attempts that WebKit ends naturally. 
 
 The conclusion is supported by two independent 3/3 sequences without reloads: first in the minimal held-stream diagnostic and then in the normal production UI. The earlier failure reproduced when the stream was absent, while a stream released before recognition did not help. Overlap between the standard stream and speech recognition is therefore the verified application condition.
 
-Manual stopping remains unresolved. In the newly observed sequence, attempt 4 heard speech and was stopped manually; attempt 5 opened another healthy held stream and reached `start` and `audiostart`, but never reached `speechstart` or produced a result. This narrows the remaining question to whether `recognition.stop()` disrupts WebKit's speech-capture session independently of the standard microphone track.
+The manual-stop failure was caused by releasing the keep-alive stream immediately after the stopped Web Speech session, not by `recognition.stop()` alone. In the failing sequence, attempt 4 heard speech and was stopped manually; attempt 5 opened another healthy held stream and reached `start` and `audiostart`, but never reached `speechstart` or produced a result.
 
-Build `v0.5.4.5-voice-diagnostics` adds `mode=hold-persist` as the next control. It keeps the exact `getUserMedia` track, AudioContext and waveform alive after a manual stop and reuses them for the next fresh recogniser. If the following attempt works, releasing and reopening the keep-alive stream is implicated; if it still fails, the stronger inference is that calling `recognition.stop()` itself poisons the next Web Speech session.
+Build `v0.5.4.5-voice-diagnostics` added `mode=hold-persist` as the decisive control. It kept the exact `getUserMedia` track, AudioContext and waveform alive after a manual stop and reused them for the next fresh recogniser. An initial manual-stop-to-natural-completion pair worked. A stronger four-attempt sequence then produced: manual stop and retain; successful reuse followed by another manual stop and retain; successful reuse followed by natural completion and release; and a successful new stream after that natural completion. Every attempt reached `speechstart` and produced results.
+
+This establishes the required lifecycle: retain the local stream across one or more manual stops, reuse it with each fresh recogniser, and release it once WebKit completes naturally. The production app now applies that lifecycle. It also releases the retained stream when the dialog closes, readings are applied, the page is hidden, recognition fails, cleanup times out, or the retained state reaches 30 seconds. The microphone indicator and live waveform may therefore remain active briefly after manual stop, but Web Speech has stopped and no audio is stored or transmitted by the app.
 
 ## Related WebKit reports
 
