@@ -1,9 +1,11 @@
-const BUILD = "v0.5.4.7-audio-path-probe";
+const BUILD = "v0.5.4.8-staged-mic-test";
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const requestedMode = new URLSearchParams(location.search).get("mode");
+const staged = requestedMode === "track-pause" && new URLSearchParams(location.search).get("staged") === "1";
 const mode = ["fresh", "interrupt", "prime", "hold", "hold-persist", "track-pause"].includes(requestedMode) ? requestedMode : "reuse";
 const ui = Object.fromEntries(["build", "status", "start", "stop", "abort", "release-microphone", "mark-interruption", "interruption-guide", "reset-microphone", "reset-guide", "hold-guide", "hold-waveform", "copy", "clear", "log"].map(id => [id.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), document.getElementById(id)]));
 const holdWaveBars = [1, 2, 3, 4, 5].map(number => document.getElementById(`hold-wave-${number}`));
+ui.openMicrophone = document.getElementById("open-microphone");
 let startedAt = performance.now();
 let attempt = 0;
 let objectCount = 0;
@@ -52,6 +54,7 @@ function header() {
     mode, recognition: Boolean(Recognition), secure: window.isSecureContext,
     language: document.documentElement.lang, meter: mode === "track-pause" ? "track-pause" : mode === "hold-persist" ? "held-persistent" : mode === "hold" ? "held" : "disabled", continuous: false,
     audioProbe: "levels-v1",
+    staged,
   });
   log("browser details", browserDetails());
   log("user agent", { value: JSON.stringify(navigator.userAgent || "unavailable") });
@@ -59,11 +62,23 @@ function header() {
 
 function controls() {
   ui.start.disabled = !Recognition || Boolean(active) || requiresReload || resettingMicrophone;
+  ui.openMicrophone.hidden = !staged;
+  ui.openMicrophone.disabled = Boolean(active) || requiresReload || !navigator.mediaDevices?.getUserMedia;
+  if (staged) {
+    ui.start.textContent = "Start recognition";
+    ui.start.disabled = !Recognition || !active?.stagedReady || active.stopping;
+  }
+  document.getElementById("staged-guide").hidden = !staged;
   ui.stop.disabled = !active || active.stopping;
   ui.abort.hidden = mode !== "track-pause";
   ui.abort.disabled = mode !== "track-pause" || !active || active.stopping;
+  if (staged && active?.preparing) {
+    ui.stop.disabled = true;
+    ui.abort.disabled = true;
+  }
   ui.releaseMicrophone.hidden = mode !== "track-pause";
   ui.releaseMicrophone.disabled = mode !== "track-pause" || Boolean(active) || !heldMicrophone;
+  if (staged && active?.preparing) ui.releaseMicrophone.disabled = false;
   ui.markInterruption.hidden = mode !== "interrupt";
   ui.markInterruption.disabled = mode !== "interrupt" || !active || active.stopping;
   ui.markInterruption.textContent = active?.interruptionStartedAt == null ? "Mark before switching" : "Mark return";
@@ -95,6 +110,11 @@ function startAudioProbe(microphone) {
   let rmsMax = 0;
   let peakMax = 0;
   let readError = "none";
+  microphone.resetProbeWindow = () => {
+    previousReads = sampleReads;
+    previousFrames = microphone.waveformFrames || 0;
+    rmsMax = peakMax = 0;
+  };
   const samples = new Float32Array(256);
   const current = () => heldMicrophone === microphone && Boolean(microphone.stream);
   const read = () => {
@@ -121,6 +141,7 @@ function startAudioProbe(microphone) {
     const track = microphone.stream.getAudioTracks()[0];
     const frames = microphone.waveformFrames || 0;
     log("audio probe", {
+      phase: active?.microphone === microphone ? (active.preparing ? "microphone-only" : "recognition") : "retained",
       enabled: track?.enabled ?? "unknown", muted: track?.muted ?? "unknown",
       readyState: track?.readyState || "none",
       context: microphone.audioContext?.state || "unavailable",
@@ -288,6 +309,7 @@ async function startHeldMicrophone(run) {
 
 function finish(run, timedOut = false) {
   if (active !== run) return;
+  clearTimeout(run.stageLimit);
   if (run.interruptionStartedAt != null) log("audio interruption ended before return marker", {}, run);
   clearTimeout(run.limit);
   clearTimeout(run.cleanup);
@@ -398,7 +420,18 @@ function abort() {
   catch (error) { log("abort threw", { name: error.name }); }
 }
 
-ui.start.addEventListener("click", async () => {
+function beginRecognition(run) {
+  clearTimeout(run.stageLimit);
+  run.microphone?.resetProbeWindow?.();
+  run.stagedReady = false;
+  run.preparing = false;
+  log("start requested", { object: run.objectId, mode });
+  run.limit = setTimeout(() => stop("30-second limit"), 30000);
+  run.recognition.start();
+  controls();
+}
+
+async function prepareAttempt() {
   if (active || requiresReload || !Recognition) return;
   try {
     const holder = mode === "reuse" ? (shared ||= createRecognizer()) : createRecognizer();
@@ -426,24 +459,57 @@ ui.start.addEventListener("click", async () => {
         finish(run);
         return;
       }
+      if (staged && active === run && !run.stopping) {
+        run.stagedReady = true;
+        log("microphone-only phase ready", {}, run);
+        ui.status.textContent = "Microphone active — recognition not started. Speak for five seconds, then Start recognition.";
+        run.stageLimit = setTimeout(() => {
+          if (active !== run || !run.preparing) return;
+          log("microphone-only timeout", { seconds: 30 }, run);
+          run.stopReason = null;
+          finish(run);
+          ui.status.textContent = "Microphone released after 30 seconds without recognition.";
+        }, 30000);
+        controls();
+        return;
+      }
       run.preparing = false;
       if (active !== run || run.stopping) {
         if (active === run) finish(run);
         return;
       }
     }
-    log("start requested", { object: run.objectId, mode });
-    run.limit = setTimeout(() => stop("30-second limit"), 30000);
-    run.recognition.start();
+    beginRecognition(run);
   } catch (error) {
     log("start threw", { name: error.name });
     if (active) { active.error = error.name; finish(active, true); }
     else ui.status.textContent = `Could not create recognizer: ${error.name}`;
   }
+}
+ui.openMicrophone.addEventListener("click", () => { if (staged) return prepareAttempt(); });
+ui.start.addEventListener("click", () => {
+  if (!staged) return prepareAttempt();
+  if (!active?.stagedReady || active.stopping || !Recognition) return;
+  const run = active;
+  try { beginRecognition(run); }
+  catch (error) {
+    log("start threw", { name: error.name }, run);
+    run.error = error.name;
+    finish(run, true);
+  }
 });
 ui.stop.addEventListener("click", () => stop());
 ui.abort.addEventListener("click", abort);
 ui.releaseMicrophone.addEventListener("click", () => {
+  if (staged && active?.preparing) {
+    const run = active;
+    run.stopping = true;
+    run.stopReason = null;
+    log("explicit microphone release requested", { phase: "microphone-only" }, run);
+    finish(run);
+    ui.status.textContent = "Microphone released; recognition was not started.";
+    return;
+  }
   if (mode !== "track-pause" || active) return;
   log("explicit microphone release requested");
   releaseHeldMicrophone();

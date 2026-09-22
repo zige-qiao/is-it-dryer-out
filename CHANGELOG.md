@@ -4,6 +4,10 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+### Diagnostic build v0.5.4.8-staged-mic-test
+
+- Added opt-in two-stage microphone opening and recognition startup with phase-labelled numeric probes, explicit release, and a 30-second microphone-only timeout. Diagnostic asset revision 125; production voice code is unchanged.
+
 ### Diagnostic build v0.5.4.7-audio-path-probe
 
 - Added waveform-independent audio-level sampling and once-per-second track, audio-context, analyser-read and animation-frame logging to the diagnostic page only. Numeric summaries contain no recorded audio or transcript.

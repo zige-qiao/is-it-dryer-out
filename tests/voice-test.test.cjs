@@ -55,7 +55,7 @@ function fixture(mode, options = {}) {
           return { getAudioTracks: () => [track], getTracks: () => [track] };
         },
       },
-    }, location: { search: `?mode=${mode}` }, performance: { now: () => now },
+    }, location: { search: `?mode=${mode}${options.staged ? '&staged=1' : ''}` }, performance: { now: () => now },
     URL, URLSearchParams,
     setTimeout(fn, ms) { timers.set(++timerId, { fn, ms }); return timerId; },
     clearTimeout(id) { timers.delete(id); },
@@ -68,7 +68,7 @@ function fixture(mode, options = {}) {
   };
   if (options.AudioContext) context.window.AudioContext = options.AudioContext;
   const source = readFileSync(require.resolve('../voice-test.js'), 'utf8')
-    .replace('import.meta.url', JSON.stringify('https://example.test/voice-test.js?v=124'));
+    .replace('import.meta.url', JSON.stringify('https://example.test/voice-test.js?v=125'));
   vm.runInNewContext(source, context);
   return {
     node, objects, timers, mediaTracks, animationFrames,
@@ -108,7 +108,7 @@ for (const mode of ['reuse', 'fresh']) {
     assert.match(f.node('log').value, /browser=Chrome_iOS browserVersion=140\.0\.0\.0 osVersion=27\.0 webkit=605\.1\.15/);
     assert.match(f.node('log').value, /user agent value="Mozilla\/5\.0/);
     f.node('clear').click();
-    assert.match(f.node('log').value, /build=v0.5.4.7-audio-path-probe assetRevision=124/);
+    assert.match(f.node('log').value, /build=v0.5.4.8-staged-mic-test assetRevision=125/);
   });
 }
 
@@ -242,6 +242,53 @@ function MeterAudioContext() {
 }
 MeterAudioContext.instances = [];
 
+test('staged microphone measures before recognition, then releases and reopens without reload', async () => {
+  const f = fixture('track-pause', { staged: true, AudioContext: MeterAudioContext });
+  assert.equal(f.node('start').disabled, true);
+  await f.node('open-microphone').click();
+  assert.equal(f.objects[0].startCount || 0, 0);
+  assert.equal(f.node('release-microphone').disabled, false);
+  f.tick(100);
+  f.tick(1000);
+  assert.match(f.node('log').value, /audio probe phase=microphone-only/);
+  f.node('start').click();
+  assert.equal(f.objects[0].startCount, 1);
+  f.tick(100);
+  f.tick(1000);
+  assert.match(f.node('log').value, /audio probe phase=recognition/);
+  f.node('stop').click();
+  f.objects[0].emit('end');
+  f.node('release-microphone').click();
+  await f.node('open-microphone').click();
+  assert.equal(f.mediaTracks.length, 2);
+  assert.equal(f.objects[1].startCount || 0, 0);
+  f.node('release-microphone').click();
+  assert.equal(f.mediaTracks[1].readyState, 'ended');
+  assert.equal(f.timers.size, 0);
+});
+
+test('staged microphone timeout releases without starting recognition', async () => {
+  const f = fixture('track-pause', { staged: true, AudioContext: MeterAudioContext });
+  await f.node('open-microphone').click();
+  f.tick(30000);
+  assert.equal(f.mediaTracks[0].readyState, 'ended');
+  assert.equal(f.objects[0].startCount || 0, 0);
+  assert.equal(f.timers.size, 0);
+});
+
+test('staged release cancels pending permission and disposes its late stream', async () => {
+  let resolveMedia;
+  const track = { readyState: 'live', stop() { this.readyState = 'ended'; } };
+  const f = fixture('track-pause', { staged: true, getUserMedia: () => new Promise(resolve => { resolveMedia = resolve; }) });
+  const pending = f.node('open-microphone').click();
+  f.node('release-microphone').click();
+  resolveMedia({ getAudioTracks: () => [track], getTracks: () => [track] });
+  await pending;
+  assert.equal(track.readyState, 'ended');
+  assert.equal(f.objects[0].startCount || 0, 0);
+  assert.equal(f.timers.size, 0);
+});
+
 test('audio probe measures independently of waveform frames and reports silent/interrupted capture', async () => {
   const f = fixture('track-pause', { AudioContext: MeterAudioContext });
   await f.node('start').click();
@@ -249,7 +296,7 @@ test('audio probe measures independently of waveform frames and reports silent/i
   f.mediaTracks[0].muted = false;
   f.tick(100);
   f.tick(1000);
-  assert.match(f.node('log').value, /audio probe enabled=true muted=false readyState=live context=running sampleReads=1 readsSinceReport=1 waveformFrames=1 framesSinceReport=1 rmsMax=0.250000 peakMax=0.250000/);
+  assert.match(f.node('log').value, /audio probe phase=recognition enabled=true muted=false readyState=live context=running sampleReads=1 readsSinceReport=1 waveformFrames=1 framesSinceReport=0 rmsMax=0.250000 peakMax=0.250000/);
   context.silent = true;
   context.state = 'interrupted';
   f.tick(100);
@@ -259,7 +306,7 @@ test('audio probe measures independently of waveform frames and reports silent/i
   f.objects[0].emit('end');
   f.tick(100);
   f.tick(1000);
-  assert.match(f.node('log').value, /\[attempt -\] audio probe enabled=false/);
+  assert.match(f.node('log').value, /\[attempt -\] audio probe phase=retained enabled=false/);
   assert.equal(f.animationFrames.size, 0);
   f.node('release-microphone').click();
   assert.equal([...f.timers.values()].filter(timer => [100, 1000].includes(timer.ms)).length, 0);
