@@ -4,6 +4,11 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+### Diagnostic build v0.5.4.9-stop-enabled-test
+
+- Added an opt-in staged control that keeps the waveform track enabled after manual recognition Stop, with explicit active-microphone wording and existing bounded cleanup. Abort is unchanged. Diagnostic revision 126; production code unchanged.
+- Corrected navigation highlighting for staged diagnostic controls.
+
 ### Diagnostic build v0.5.4.8-staged-mic-test
 
 - Added opt-in two-stage microphone opening and recognition startup with phase-labelled numeric probes, explicit release, and a 30-second microphone-only timeout. Diagnostic asset revision 125; production voice code is unchanged.

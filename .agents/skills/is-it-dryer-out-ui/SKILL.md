@@ -147,6 +147,8 @@ This prevents the installed app from showing stale UI without creating a cache r
 
 ## Verification
 
+Diagnostic controls that retain enabled capture after recognition Stop must explicitly tell the user the microphone is still active, provide release after end, and retain timeout/background cleanup. Do not label retained capture as microphone-off.
+
 When isolating capture from recognition startup, label microphone-only and recognition phases explicitly, reset measurement windows at the transition, and provide release/cancellation during asynchronous microphone preparation as well as after opening.
 
 For audio-path diagnostics, distinguish track liveness, successful analyser reads, measured sound levels, and waveform rendering. A live track or advancing read counter alone does not establish usable or fresh microphone audio. Keep numeric probes independent of animation, exclude audio/transcript content, and release probe timers with microphone resources.

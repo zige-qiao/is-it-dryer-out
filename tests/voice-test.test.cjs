@@ -55,7 +55,7 @@ function fixture(mode, options = {}) {
           return { getAudioTracks: () => [track], getTracks: () => [track] };
         },
       },
-    }, location: { search: `?mode=${mode}${options.staged ? '&staged=1' : ''}` }, performance: { now: () => now },
+    }, location: { search: `?mode=${mode}${options.staged ? '&staged=1' : ''}${options.stopEnabled ? '&stopTrack=enabled' : ''}` }, performance: { now: () => now },
     URL, URLSearchParams,
     setTimeout(fn, ms) { timers.set(++timerId, { fn, ms }); return timerId; },
     clearTimeout(id) { timers.delete(id); },
@@ -68,7 +68,7 @@ function fixture(mode, options = {}) {
   };
   if (options.AudioContext) context.window.AudioContext = options.AudioContext;
   const source = readFileSync(require.resolve('../voice-test.js'), 'utf8')
-    .replace('import.meta.url', JSON.stringify('https://example.test/voice-test.js?v=125'));
+    .replace('import.meta.url', JSON.stringify('https://example.test/voice-test.js?v=126'));
   vm.runInNewContext(source, context);
   return {
     node, objects, timers, mediaTracks, animationFrames,
@@ -108,7 +108,7 @@ for (const mode of ['reuse', 'fresh']) {
     assert.match(f.node('log').value, /browser=Chrome_iOS browserVersion=140\.0\.0\.0 osVersion=27\.0 webkit=605\.1\.15/);
     assert.match(f.node('log').value, /user agent value="Mozilla\/5\.0/);
     f.node('clear').click();
-    assert.match(f.node('log').value, /build=v0.5.4.8-staged-mic-test assetRevision=125/);
+    assert.match(f.node('log').value, /build=v0.5.4.9-stop-enabled-test assetRevision=126/);
   });
 }
 
@@ -241,6 +241,47 @@ function MeterAudioContext() {
   MeterAudioContext.instances.push(this);
 }
 MeterAudioContext.instances = [];
+
+test('enabled-stop control retains live capture through end, then explicitly releases and reopens', async () => {
+  const f = fixture('track-pause', { staged: true, stopEnabled: true, AudioContext: MeterAudioContext });
+  assert.equal(f.node('stop-enabled').attributes['aria-current'], 'page');
+  await f.node('open-microphone').click();
+  f.node('start').click();
+  f.node('stop').click();
+  assert.equal(f.objects[0].stopCount, 1);
+  assert.equal(f.mediaTracks[0].enabled, true);
+  assert.equal(f.animationFrames.size, 1);
+  f.objects[0].emit('end');
+  assert.equal(f.mediaTracks[0].enabled, true);
+  assert.match(f.node('status').textContent, /microphone still active/);
+  assert.equal(f.node('release-microphone').disabled, false);
+  f.node('release-microphone').click();
+  assert.equal(f.mediaTracks[0].readyState, 'ended');
+  assert.equal(f.timers.size, 0);
+  await f.node('open-microphone').click();
+  assert.equal(f.mediaTracks.length, 2);
+  assert.equal(f.objects[1].startCount || 0, 0);
+  f.node('start').click();
+  f.node('abort').click();
+  assert.equal(f.mediaTracks[1].enabled, false);
+  f.objects[1].emit('end');
+  f.node('release-microphone').click();
+});
+
+test('enabled-stop retained stream is bounded by idle timeout and hidden cleanup', async () => {
+  for (const cleanup of ['timeout', 'hidden']) {
+    const f = fixture('track-pause', { staged: true, stopEnabled: true, AudioContext: MeterAudioContext });
+    await f.node('open-microphone').click();
+    f.node('start').click();
+    f.node('stop').click();
+    f.objects[0].emit('end');
+    if (cleanup === 'timeout') f.tick(30000);
+    else f.visibility('hidden');
+    assert.equal(f.mediaTracks[0].readyState, 'ended');
+    assert.equal(f.timers.size, 0);
+    assert.equal(f.animationFrames.size, 0);
+  }
+});
 
 test('staged microphone measures before recognition, then releases and reopens without reload', async () => {
   const f = fixture('track-pause', { staged: true, AudioContext: MeterAudioContext });

@@ -37,7 +37,8 @@
       <a id="hold" href="?mode=hold">Held microphone test</a>
       <a id="hold-persist" href="?mode=hold-persist">Persistent manual-stop test</a>
       <a id="track-pause" href="?mode=track-pause">Track pause test</a>
-      <a href="?mode=track-pause&amp;staged=1">Staged microphone test</a>
+      <a id="staged" href="?mode=track-pause&amp;staged=1">Staged microphone test</a>
+      <a id="stop-enabled" href="?mode=track-pause&amp;staged=1&amp;stopTrack=enabled">Stop with track enabled</a>
     </nav>
     <section id="interruption-guide" aria-labelledby="interruption-title" hidden>
       <h2 id="interruption-title">Audio interruption test</h2>
@@ -52,6 +53,7 @@
       <p id="hold-guide-copy">Start a recording and speak normally. Held mode opens a standard microphone stream first and releases it after recognition ends. Persistent manual-stop mode retains the live stream and waveform after Stop. Track pause mode instead immediately disables the retained audio track and pauses the waveform after Stop or Abort, then re-enables that same track for the next attempt. A disabled track is not proof that microphone hardware or capture has stopped: observe the iPhone microphone indicator and include what it does in your report. Natural completion and the Release microphone button fully release resources; a paused stream is also released after 30 seconds.</p>
     </section>
     <p id="status" role="status">Ready</p>
+    <p id="stop-enabled-guide" hidden>This control leaves the microphone and live waveform active after manual Stop. Wait for recognition to end, then press Release microphone and observe the amber dot. Reopen without reloading and check audio before starting recognition. Abort still disables the track. Retained capture is released after 30 seconds or when the page is hidden.</p>
     <p id="staged-guide" hidden>Open microphone and speak for five seconds before starting recognition. After Stop or Abort, release the microphone and repeat without reloading. Compare audio levels before and after recognition starts. Microphone-only capture is limited to 30 seconds; Release microphone cancels it immediately.</p>
     <div id="hold-waveform" aria-label="Live microphone level" hidden>
       <span id="hold-wave-1"></span><span id="hold-wave-2"></span><span id="hold-wave-3"></span><span id="hold-wave-4"></span><span id="hold-wave-5"></span>
@@ -70,6 +72,6 @@
     <textarea id="log" readonly aria-label="Diagnostic log" spellcheck="false"></textarea>
     <p><a href="./?voice-debug=1">Back to app</a></p>
   </main>
-  <script type="module" src="voice-test.js?v=125"></script>
+  <script type="module" src="voice-test.js?v=126"></script>
 </body>
 </html>

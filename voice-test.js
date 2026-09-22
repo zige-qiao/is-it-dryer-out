@@ -1,7 +1,8 @@
-const BUILD = "v0.5.4.8-staged-mic-test";
+const BUILD = "v0.5.4.9-stop-enabled-test";
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const requestedMode = new URLSearchParams(location.search).get("mode");
 const staged = requestedMode === "track-pause" && new URLSearchParams(location.search).get("staged") === "1";
+const stopEnabled = staged && new URLSearchParams(location.search).get("stopTrack") === "enabled";
 const mode = ["fresh", "interrupt", "prime", "hold", "hold-persist", "track-pause"].includes(requestedMode) ? requestedMode : "reuse";
 const ui = Object.fromEntries(["build", "status", "start", "stop", "abort", "release-microphone", "mark-interruption", "interruption-guide", "reset-microphone", "reset-guide", "hold-guide", "hold-waveform", "copy", "clear", "log"].map(id => [id.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()), document.getElementById(id)]));
 const holdWaveBars = [1, 2, 3, 4, 5].map(number => document.getElementById(`hold-wave-${number}`));
@@ -55,6 +56,7 @@ function header() {
     language: document.documentElement.lang, meter: mode === "track-pause" ? "track-pause" : mode === "hold-persist" ? "held-persistent" : mode === "hold" ? "held" : "disabled", continuous: false,
     audioProbe: "levels-v1",
     staged,
+    stopTrack: stopEnabled ? "enabled" : "default",
   });
   log("browser details", browserDetails());
   log("user agent", { value: JSON.stringify(navigator.userAgent || "unavailable") });
@@ -69,6 +71,7 @@ function controls() {
     ui.start.disabled = !Recognition || !active?.stagedReady || active.stopping;
   }
   document.getElementById("staged-guide").hidden = !staged;
+  document.getElementById("stop-enabled-guide").hidden = !stopEnabled;
   ui.stop.disabled = !active || active.stopping;
   ui.abort.hidden = mode !== "track-pause";
   ui.abort.disabled = mode !== "track-pause" || !active || active.stopping;
@@ -188,6 +191,18 @@ function releaseHeldMicrophone(run = null) {
 function pauseHeldMicrophone(run, reason) {
   const microphone = run?.microphone || heldMicrophone;
   if (!microphone?.stream) return;
+  if (stopEnabled && reason === "manual") {
+    log("held microphone kept enabled", { reason, enabled: microphone.stream.getAudioTracks()[0]?.enabled }, run);
+    clearTimeout(microphone.idleTimer);
+    microphone.idleTimer = setTimeout(() => {
+      if (heldMicrophone !== microphone || active) return;
+      log("held microphone idle timeout", { seconds: 30 }, run);
+      releaseHeldMicrophone();
+      ui.status.textContent = "Microphone released after 30 seconds.";
+      controls();
+    }, 30000);
+    return;
+  }
   if (microphone.meterFrame != null) cancelAnimationFrame(microphone.meterFrame);
   microphone.meterFrame = null;
   resetHoldWaveform();
@@ -321,6 +336,12 @@ function finish(run, timedOut = false) {
   }
   else releaseHeldMicrophone(run);
   active = null;
+  if (stopEnabled && retainMicrophone && run.stopReason === "manual" && heldMicrophone) {
+    ui.status.textContent = "Recognition ended — microphone still active. Press Release microphone.";
+    requiresReload = timedOut;
+    controls();
+    return;
+  }
   // A missing end event makes safe attribution on a reused recognizer impossible.
   requiresReload = timedOut;
   ui.status.textContent = timedOut ? "Recognition did not finish. Reload to continue."
@@ -606,7 +627,7 @@ window.addEventListener?.("pagehide", () => {
     finish(run, true);
   } else releaseHeldMicrophone();
 });
-document.getElementById(mode).setAttribute("aria-current", "page");
+document.getElementById(stopEnabled ? "stop-enabled" : staged ? "staged" : mode).setAttribute("aria-current", "page");
 ui.build.textContent = `Build ${BUILD}`;
 if (!Recognition) ui.status.textContent = "Speech recognition is unavailable in this browser.";
 header();
