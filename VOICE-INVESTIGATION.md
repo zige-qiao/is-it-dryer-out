@@ -2,7 +2,80 @@
 
 This document records the investigation into repeated voice-input failures in iOS browsers and the verified application-level mitigation. The underlying platform defect is not claimed to be fixed.
 
-**Status: Manual-stop mitigation verified in the diagnostic and implemented in the app for production-UI validation.** Build `v0.5.4.4-voice-diagnostics`, asset revision 120, completed three consecutive naturally ending held-stream diagnostic attempts and three consecutive naturally ending normal-app attempts without reloading. Build `v0.5.4.5-voice-diagnostics` then isolated the remaining manual-stop failure and verified that retaining the same live stream across manual stops keeps immediate fresh-recogniser retries working.
+**Status (2026-09-22): OPEN — full microphone release after manual recognition termination can leave subsequent capture silent.** Retaining a stream is a verified limited mitigation, not a resolved privacy-compatible Stop/Abort lifecycle. Read the current handoff below before drawing conclusions from the historical sections. Earlier natural-completion and retained-stream successes remain valid observations, not proof of a platform fix.
+
+## Current handoff — through v0.5.4.9
+
+### Requirements and interpretation guardrails
+
+- User-confirmed operating system: **iOS 27.0**, Safari 27.0. `osVersion=18.7` is parsed from the user agent, not the actual user-confirmed OS. Do not ask again or silently relabel the device as iOS 18.7. Mac comparison hardware is Apple M2.
+- Stop should finish promptly; Abort should cancel/discard. No unexpected moving waveform/capture after the user believes recording has stopped. Reload is not an acceptable production recovery mechanism. No new backend/transcription service.
+- The orange/amber indicator is a user observation of microphone use, not proof of stored audio. Track `live`, `audiostart`, and cleanup logs alone do not establish real samples or hardware release. Numeric probes store no audio files or transcripts. Browser Web Speech may be local or server-backed: this app does not enforce on-device recognition, so do not repeat the earlier blanket “entirely local” claim.
+- Production remains `.5` voice behaviour; `.6`–`.9` are diagnostic controls only. Public Pages currently deploys the diagnostic branch, not main. No merge to main is implied. Untracked `VOICE-RECOVERY-RESEARCH.md` is separate research, not part of these deployed changes.
+
+### Observations leading to the probe
+
+- `.4` held-stream overlap worked 3/3 naturally completed attempts in diagnostics and 3/3 in the app. Prime (open then release before recognition) did not recover the failure.
+- `.5` retained an enabled stream after manual Stop and supported repeated recognition retries. Explicit release after manual termination remained problematic. User reported Apply in both sessions 3 and 4, but only session 4 cleared the amber indicator: do not assume a natural-end cleanup log always means physical microphone use ended.
+- `.6` track-pause disabled the extra track and froze the waveform after Stop/Abort. The user saw the amber dot persist. Explicit Release cleared it, but subsequent recognition failed after both Stop→Release and Abort→Release. In one Stop test, waiting roughly 9.7 seconds after release did not help. A final result after manual Stop did not ensure recovery.
+- User clarified that the waveform was also flat during failed retries. This prompted independent numeric measurements rather than assuming only transcription had failed.
+
+### v0.5.4.7-audio-path-probe, asset 124
+
+Sampling is independent of waveform animation (100ms analyser reads, one-second numeric reports). Counters count JavaScript analyser calls/animation callbacks, not hardware sample freshness. RMS/peak values are rounded to six decimals.
+
+| Phase | Exact evidence from supplied run | Finding |
+|---|---|---|
+| Attempt 1 healthy | Open 8.762; nonzero RMS 0.062185 at 9.763; speech 10.466 | Capture and recognition initially work |
+| Manual Stop | Stop 13.046; disabled 13.047; end 13.117 | Track-pause intervention accompanies Stop |
+| Retained | Reports 14.779 and 15.783 are zero; animation counter fixed at 253 | Disabled track and paused waveform behave as intended |
+| Release/reopen | Release 15.936; new stream 17.317; recognition start 17.322 | Fresh stream reports enabled/live/unmuted |
+| Failed retry | Reports 18.318–35.391 all zero; 172 reads; 1,073 animation frames; context running; no read errors or speech/results | Not a stopped animation loop; measured path is silent |
+
+The first report after Stop spans pre-Stop samples and can therefore remain nonzero. Do not infer continued sound capture from that aggregated window. The final `aborted` error followed manual Stop; it did not initiate the silence.
+
+### v0.5.4.8-staged-mic-test, asset 125: recognition and capture separated
+
+URL: `voice-test.html?mode=track-pause&staged=1`. Open microphone prepares capture only; Start recognition is a separate action. Constructing a recogniser object does not start it. The page intentionally does not show recognised words; statuses and result-event counts confirm recognition. Probe windows reset at recognition startup.
+
+| Attempt | Microphone-only phase | Recognition/end | Outcome |
+|---|---|---|---|
+| 1 | Ready 4.188; RMS 0.074111 at 6.183 | Start 8.671; speech 9.758; final 14.813; natural end 14.841; release 14.842 | Healthy |
+| 2 | Ready 25.059; RMS 0.088517 at 27.049 | Start 29.633; speech 31.204; manual Stop 33.836; final 33.857; end 33.866; explicit release 37.031 | Healthy until manual termination/release |
+| 3 | Ready 40.663; six zero reports 41.529–46.552 despite enabled/live/unmuted track, running context and advancing loops | Recognition starts only at 46.582; remains zero/no speech until Stop 54.734; release 64.499 | Silence exists BEFORE recognition startup |
+
+This rules out attempt 3's recognition startup as the initial trigger in this sequence. It supports a capture/session teardown or reactivation problem following the prior manual termination/release; it does not locate the exact WebKit/iOS component or fully exclude the Web Audio connection.
+
+### v0.5.4.8 microphone-only release/reopen control
+
+User never pressed Start recognition. Three attempts, two successful reopen cycles, no reload between attempts:
+
+| Attempt | Open / ready | Representative nonzero RMS | Explicit release |
+|---|---|---|---|
+| 1 | 56.801 / 56.812 | 0.079474 at 59.806 | 63.169 |
+| 2 | 67.652 / 67.660 | 0.077310 at 69.656 | 71.679 |
+| 3 | 74.207 / 74.214 | 0.071474 at 76.209 | 76.420 |
+
+**User explicitly confirmed the amber dot disappeared on EVERY release.** Successful retries therefore were not merely continuous retained microphone access. Ordinary capture release/reopen worked in this control. There are `recognizer created` lines but no recognition-start events.
+
+### Pending control: v0.5.4.9-stop-enabled-test, asset 126
+
+URL: `voice-test.html?mode=track-pause&staged=1&stopTrack=enabled`. Header must show `staged=true stopTrack=enabled`. Branch/build names match. Automated checks: 24 diagnostic + 6 production lifecycle tests pass. **No iPhone outcome yet.**
+
+Only manual Stop changes: do not disable the extra track; keep its real waveform and capture enabled through recognition `end`. Then the user explicitly releases it. Abort still disables the track. Existing errors, hidden-page cleanup, missing-end watchdog, and 30-second retained timeout remain. UI explicitly warns that microphone capture is still active after Stop. Staged navigation highlighting was corrected.
+
+Device sequence:
+
+1. Open microphone, speak five seconds, verify levels.
+2. Start recognition; while speaking and after Speech received, manually Stop.
+3. Wait for recognition end and the release prompt. Confirm logs show `held microphone kept enabled`, not manual track disabling.
+4. Release microphone; report whether amber dot disappears.
+5. Without reloading, Open microphone and speak five seconds; then Start recognition and speak again.
+6. Copy log; stop/release remaining capture.
+
+Interpretation: healthy retry would implicate immediate track disabling as a contributor, not prove a universal fix. Silent microphone-only retry would show that removing track disabling is insufficient. Earlier `.5` release failures already caution against treating this as a guaranteed new solution; the purpose is a clean phase-instrumented control. Do not deploy a production workaround based solely on this pending test.
+
+## Historical record (interpret alongside current handoff)
 
 ## Summary
 
@@ -19,7 +92,7 @@ The regression was introduced when v0.5.3.1 stopped opening the app's normal `ge
 ### iPhone
 
 - Platform: iPhone
-- Operating system reported by the user agent: iOS 18.7
+- User-confirmed operating system: iOS 27.0; user-agent OS token: 18.7 (not authoritative)
 - Browser: Safari 27.0
 - WebKit user-agent version: 605.1.15
 - Touch points: 5
