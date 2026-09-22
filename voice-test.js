@@ -1,4 +1,4 @@
-const BUILD = "v0.5.4.6-track-pause-test";
+const BUILD = "v0.5.4.7-audio-path-probe";
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const requestedMode = new URLSearchParams(location.search).get("mode");
 const mode = ["fresh", "interrupt", "prime", "hold", "hold-persist", "track-pause"].includes(requestedMode) ? requestedMode : "reuse";
@@ -51,6 +51,7 @@ function header() {
     build: BUILD, assetRevision: new URL(import.meta.url).searchParams.get("v"),
     mode, recognition: Boolean(Recognition), secure: window.isSecureContext,
     language: document.documentElement.lang, meter: mode === "track-pause" ? "track-pause" : mode === "hold-persist" ? "held-persistent" : mode === "hold" ? "held" : "disabled", continuous: false,
+    audioProbe: "levels-v1",
   });
   log("browser details", browserDetails());
   log("user agent", { value: JSON.stringify(navigator.userAgent || "unavailable") });
@@ -86,9 +87,64 @@ function resetHoldWaveform() {
   });
 }
 
+// Independent of requestAnimationFrame: numeric levels only, never retained audio.
+function startAudioProbe(microphone) {
+  let sampleReads = 0;
+  let previousReads = 0;
+  let previousFrames = microphone.waveformFrames || 0;
+  let rmsMax = 0;
+  let peakMax = 0;
+  let readError = "none";
+  const samples = new Float32Array(256);
+  const current = () => heldMicrophone === microphone && Boolean(microphone.stream);
+  const read = () => {
+    if (!current()) return;
+    if (microphone.probeAnalyser) {
+      try {
+        microphone.probeAnalyser.getFloatTimeDomainData(samples);
+        let sum = 0;
+        let peak = 0;
+        for (const value of samples) {
+          sum += value * value;
+          peak = Math.max(peak, Math.abs(value));
+        }
+        rmsMax = Math.max(rmsMax, Math.sqrt(sum / samples.length));
+        peakMax = Math.max(peakMax, peak);
+        sampleReads++;
+        readError = "none";
+      } catch (error) { readError = error.name || "unknown"; }
+    }
+    microphone.probeSampleTimer = setTimeout(read, 100);
+  };
+  const report = () => {
+    if (!current()) return;
+    const track = microphone.stream.getAudioTracks()[0];
+    const frames = microphone.waveformFrames || 0;
+    log("audio probe", {
+      enabled: track?.enabled ?? "unknown", muted: track?.muted ?? "unknown",
+      readyState: track?.readyState || "none",
+      context: microphone.audioContext?.state || "unavailable",
+      sampleReads, readsSinceReport: sampleReads - previousReads,
+      waveformFrames: frames, framesSinceReport: frames - previousFrames,
+      rmsMax: sampleReads > previousReads ? rmsMax.toFixed(6) : "unavailable",
+      peakMax: sampleReads > previousReads ? peakMax.toFixed(6) : "unavailable",
+      readError,
+    }, active?.microphone === microphone ? active : null);
+    previousReads = sampleReads;
+    previousFrames = frames;
+    rmsMax = peakMax = 0;
+    microphone.probeReportTimer = setTimeout(report, 1000);
+  };
+  read();
+  microphone.probeReportTimer = setTimeout(report, 1000);
+}
+
 function releaseHeldMicrophone(run = null) {
   const microphone = run?.microphone || heldMicrophone;
   if (!microphone) return;
+  clearTimeout(microphone.probeSampleTimer);
+  clearTimeout(microphone.probeReportTimer);
+  microphone.probeAnalyser = null;
   clearTimeout(microphone.idleTimer);
   microphone.idleTimer = null;
   if (microphone.meterFrame != null) cancelAnimationFrame(microphone.meterFrame);
@@ -174,6 +230,7 @@ async function startHeldMicrophone(run) {
   };
   heldMicrophone = microphone;
   run.microphone = microphone;
+  startAudioProbe(microphone);
   const tracks = microphone.stream.getAudioTracks();
   const track = tracks[0];
   log("held microphone opened", {
@@ -198,12 +255,16 @@ async function startHeldMicrophone(run) {
   analyser.fftSize = 256;
   microphone.meterSource = microphone.audioContext.createMediaStreamSource(microphone.stream);
   microphone.meterSource.connect(analyser);
+  microphone.probeAnalyser = microphone.audioContext.createAnalyser();
+  microphone.probeAnalyser.fftSize = 256;
+  microphone.meterSource.connect(microphone.probeAnalyser);
   const samples = new Uint8Array(analyser.fftSize);
   const maximumHeights = [8, 14, 22, 14, 8];
   let displayedLevel = 0;
   const draw = () => {
     if (heldMicrophone !== microphone || !microphone.stream) return;
     analyser.getByteTimeDomainData(samples);
+    microphone.waveformFrames = (microphone.waveformFrames || 0) + 1;
     let mean = 0;
     for (const sample of samples) mean += sample;
     mean /= samples.length;

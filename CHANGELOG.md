@@ -4,6 +4,11 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+### Diagnostic build v0.5.4.7-audio-path-probe
+
+- Added waveform-independent audio-level sampling and once-per-second track, audio-context, analyser-read and animation-frame logging to the diagnostic page only. Numeric summaries contain no recorded audio or transcript.
+- Updated diagnostic asset revision to 124 and matched its build name to the branch. Production voice behaviour remains unchanged; iPhone validation is pending.
+
 ### Added
 
 - Added microphone reset and held-stream modes to the voice comparison page. The reset experiment confirmed that a short `getUserMedia` stream opens normally but does not restore stuck speech recognition; the held-stream mode then completed three consecutive iPhone attempts successfully while driving a live waveform throughout recognition.

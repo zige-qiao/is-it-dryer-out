@@ -147,6 +147,8 @@ This prevents the installed app from showing stale UI without creating a cache r
 
 ## Verification
 
+For audio-path diagnostics, distinguish track liveness, successful analyser reads, measured sound levels, and waveform rendering. A live track or advancing read counter alone does not establish usable or fresh microphone audio. Keep numeric probes independent of animation, exclude audio/transcript content, and release probe timers with microphone resources.
+
 Verify in proportion to the change while iterating:
 
 - For copy changes, inspect the affected rendered state.

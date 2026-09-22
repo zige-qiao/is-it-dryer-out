@@ -68,10 +68,16 @@ function fixture(mode, options = {}) {
   };
   if (options.AudioContext) context.window.AudioContext = options.AudioContext;
   const source = readFileSync(require.resolve('../voice-test.js'), 'utf8')
-    .replace('import.meta.url', JSON.stringify('https://example.test/voice-test.js?v=123'));
+    .replace('import.meta.url', JSON.stringify('https://example.test/voice-test.js?v=124'));
   vm.runInNewContext(source, context);
   return {
     node, objects, timers, mediaTracks, animationFrames,
+    tick(ms) {
+      const entry = [...timers.entries()].find(([, timer]) => timer.ms === ms);
+      assert.ok(entry, `Expected ${ms}ms timer`);
+      timers.delete(entry[0]);
+      entry[1].fn();
+    },
     setTime(value) { now = value; },
     visibility(state) {
       hidden = state === 'hidden';
@@ -102,7 +108,7 @@ for (const mode of ['reuse', 'fresh']) {
     assert.match(f.node('log').value, /browser=Chrome_iOS browserVersion=140\.0\.0\.0 osVersion=27\.0 webkit=605\.1\.15/);
     assert.match(f.node('log').value, /user agent value="Mozilla\/5\.0/);
     f.node('clear').click();
-    assert.match(f.node('log').value, /build=v0.5.4.6-track-pause-test assetRevision=123/);
+    assert.match(f.node('log').value, /build=v0.5.4.7-audio-path-probe assetRevision=124/);
   });
 }
 
@@ -224,6 +230,9 @@ function MeterAudioContext() {
   this.close = async () => { this.state = 'closed'; this.closeCount++; };
   this.createAnalyser = () => ({
     fftSize: 0,
+    getFloatTimeDomainData: samples => {
+      for (let i = 0; i < samples.length; i++) samples[i] = this.silent ? 0 : (i % 2 ? 0.25 : -0.25);
+    },
     getByteTimeDomainData(samples) {
       for (let i = 0; i < samples.length; i++) samples[i] = i % 2 ? 160 : 96;
     },
@@ -232,6 +241,44 @@ function MeterAudioContext() {
   MeterAudioContext.instances.push(this);
 }
 MeterAudioContext.instances = [];
+
+test('audio probe measures independently of waveform frames and reports silent/interrupted capture', async () => {
+  const f = fixture('track-pause', { AudioContext: MeterAudioContext });
+  await f.node('start').click();
+  const context = MeterAudioContext.instances.at(-1);
+  f.mediaTracks[0].muted = false;
+  f.tick(100);
+  f.tick(1000);
+  assert.match(f.node('log').value, /audio probe enabled=true muted=false readyState=live context=running sampleReads=1 readsSinceReport=1 waveformFrames=1 framesSinceReport=1 rmsMax=0.250000 peakMax=0.250000/);
+  context.silent = true;
+  context.state = 'interrupted';
+  f.tick(100);
+  f.tick(1000);
+  assert.match(f.node('log').value, /context=interrupted sampleReads=2 readsSinceReport=1 waveformFrames=1 framesSinceReport=0 rmsMax=0.000000 peakMax=0.000000/);
+  f.node('stop').click();
+  f.objects[0].emit('end');
+  f.tick(100);
+  f.tick(1000);
+  assert.match(f.node('log').value, /\[attempt -\] audio probe enabled=false/);
+  assert.equal(f.animationFrames.size, 0);
+  f.node('release-microphone').click();
+  assert.equal([...f.timers.values()].filter(timer => [100, 1000].includes(timer.ms)).length, 0);
+  await f.node('start').click();
+  f.tick(100);
+  f.tick(1000);
+  assert.match(f.node('log').value, /\[attempt 2\] audio probe .*sampleReads=1 readsSinceReport=1/);
+  f.objects[1].emit('end');
+  assert.equal(f.timers.size, 0);
+});
+
+test('audio probe reports unavailable measurements without an audio context and cleans up on hide', async () => {
+  const f = fixture('track-pause');
+  await f.node('start').click();
+  f.tick(1000);
+  assert.match(f.node('log').value, /context=unavailable sampleReads=0 readsSinceReport=0 waveformFrames=0 framesSinceReport=0 rmsMax=unavailable peakMax=unavailable/);
+  f.visibility('hidden');
+  assert.equal(f.timers.size, 0);
+});
 
 test('track-pause immediately pauses its real meter and retries with the same re-enabled stream', async () => {
   MeterAudioContext.instances.length = 0;
