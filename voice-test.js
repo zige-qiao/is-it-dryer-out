@@ -1,4 +1,4 @@
-const BUILD = "v0.5.4.9-stop-enabled-test";
+const BUILD = "v0.5.4.10-cleanup-audit";
 const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const requestedMode = new URLSearchParams(location.search).get("mode");
 const staged = requestedMode === "track-pause" && new URLSearchParams(location.search).get("staged") === "1";
@@ -15,6 +15,9 @@ let shared = null;
 let heldMicrophone = null;
 let requiresReload = false;
 let resettingMicrophone = false;
+let cleanupPending = false;
+let cleanupFailed = false;
+let cleanupCount = 0;
 const entries = [];
 
 function log(event, detail = {}, run = active) {
@@ -57,6 +60,7 @@ function header() {
     audioProbe: "levels-v1",
     staged,
     stopTrack: stopEnabled ? "enabled" : "default",
+    cleanupAudit: "close-v1",
   });
   log("browser details", browserDetails());
   log("user agent", { value: JSON.stringify(navigator.userAgent || "unavailable") });
@@ -92,6 +96,13 @@ function controls() {
   ui.holdGuide.hidden = !isHeldMode();
   ui.holdWaveform.hidden = !isHeldMode();
   document.querySelectorAll("nav a").forEach(link => link.setAttribute("aria-disabled", String(Boolean(active))));
+  if (cleanupPending || cleanupFailed) {
+    ui.openMicrophone.disabled = true;
+    ui.start.disabled = true;
+    ui.resetMicrophone.disabled = true;
+    ui.status.textContent = cleanupFailed ? "Audio cleanup failed — reopening blocked. Copy the log."
+      : "Waiting for audio cleanup — reopening blocked.";
+  }
 }
 
 function isHeldMode() {
@@ -176,12 +187,39 @@ function releaseHeldMicrophone(run = null) {
   try { microphone.meterSource?.disconnect(); } catch { /* The source may already be disconnected. */ }
   microphone.meterSource = null;
   const tracks = microphone.stream?.getTracks() || [];
+  const cleanupId = ++cleanupCount;
   tracks.forEach(track => {
     if (track.readyState !== "ended") track.stop();
   });
+  log("cleanup tracks stopped", { cleanupId, tracks: tracks.length, states: tracks.map(track => track.readyState).join(",") || "none" }, run);
   if (microphone.stream) log("held microphone released", { tracks: tracks.length }, run);
   microphone.stream = null;
-  if (microphone.audioContext && microphone.audioContext.state !== "closed") microphone.audioContext.close().catch(() => {});
+  const context = microphone.audioContext;
+  const closeStartedAt = performance.now();
+  if (context && context.state !== "closed") {
+    cleanupPending = true;
+    log("audio context close requested", { cleanupId, state: context.state }, run);
+    const watchdog = setTimeout(() => {
+      log("audio context close pending", { cleanupId, state: context.state, elapsedMs: Math.round(performance.now() - closeStartedAt) }, run);
+      ui.status.textContent = "Audio cleanup still pending — reopening blocked. Copy the log.";
+    }, 5000);
+    const settled = error => {
+      clearTimeout(watchdog);
+      cleanupPending = false;
+      cleanupFailed = Boolean(error) || context.state !== "closed" || tracks.some(track => track.readyState !== "ended");
+      log(error ? "audio context close failed" : "audio context close resolved", {
+        cleanupId, state: context.state, elapsedMs: Math.round(performance.now() - closeStartedAt),
+        tracksEnded: tracks.every(track => track.readyState === "ended"), error: error?.name || "none",
+      }, run);
+      ui.status.textContent = cleanupFailed ? "Audio cleanup failed — reopening blocked. Copy the log."
+        : "Tracked audio resources closed. Observe whether the amber dot disappears.";
+      controls();
+    };
+    try { Promise.resolve(context.close()).then(() => settled(null), settled); }
+    catch (error) { settled(error); }
+  } else {
+    log("audio cleanup complete", { cleanupId, context: context?.state || "unavailable", tracksEnded: tracks.every(track => track.readyState === "ended") }, run);
+  }
   microphone.audioContext = null;
   if (heldMicrophone === microphone) heldMicrophone = null;
   if (run) run.microphone = null;
@@ -453,6 +491,7 @@ function beginRecognition(run) {
 }
 
 async function prepareAttempt() {
+  if (cleanupPending || cleanupFailed) return;
   if (active || requiresReload || !Recognition) return;
   try {
     const holder = mode === "reuse" ? (shared ||= createRecognizer()) : createRecognizer();
@@ -538,6 +577,7 @@ ui.releaseMicrophone.addEventListener("click", () => {
   controls();
 });
 ui.resetMicrophone.addEventListener("click", async () => {
+  if (cleanupPending || cleanupFailed) return;
   if (mode !== "prime" || active || resettingMicrophone || !navigator.mediaDevices?.getUserMedia) return;
   resettingMicrophone = true;
   ui.status.textContent = "Resetting microphone";

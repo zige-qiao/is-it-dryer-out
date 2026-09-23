@@ -45,6 +45,8 @@ Indoor readings, plan settings, and the most recent location are stored only in 
 
 ## Voice diagnostics
 
+Build `v0.5.4.10-cleanup-audit` (diagnostic asset 127, `cleanupAudit=close-v1`) logs stopped track states and audio-context close requests, completion or failure. Reopening is blocked until closure succeeds; a five-second warning reports pending closure without bypassing it. Use the staged stop-enabled test to compare natural completion with manual Stop followed by Release. Report the amber indicator separately: closed JavaScript resources do not prove system microphone use has ended. Production voice behaviour is unchanged.
+
 The `v0.5.4.9-stop-enabled-test` control (revision 126) is at `voice-test.html?mode=track-pause&staged=1&stopTrack=enabled`. It changes only manual Stop: the waveform track stays enabled through recognition end, until explicit Release microphone, the 30-second retained timeout, or existing cleanup. Open microphone, speak, start recognition, manually Stop while speaking, wait for end, release, then reopen without reloading. Compare microphone-only levels. Abort still disables the track. This is a diagnostic control, not a production fix.
 
 For the two-stage control, open `voice-test.html?mode=track-pause&staged=1` (build `v0.5.4.8-staged-mic-test`, asset revision 125). Tap **Open microphone**, speak for five seconds, then **Start recognition** and speak again. Stop or Abort, release the microphone, and repeat without reloading. Logs label `microphone-only`, `recognition`, and `retained` phases. Release is available during microphone preparation and the microphone-only phase; that phase has a 30-second safety timeout. This isolates whether silence precedes recognition startup. Production app behaviour is unchanged.

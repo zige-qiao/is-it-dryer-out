@@ -4,6 +4,11 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+### Diagnostic build v0.5.4.10-cleanup-audit
+
+- Added track-state and asynchronous AudioContext closure auditing, with retry gating until successful cleanup and a pending-close warning. Diagnostic asset revision 127; production code unchanged.
+- Recorded natural-completion retries that worked while the user observed the microphone indicator remaining active. These are not verified hardware-release successes.
+
 ### Diagnostic build v0.5.4.9-stop-enabled-test
 
 - Added an opt-in staged control that keeps the waveform track enabled after manual recognition Stop, with explicit active-microphone wording and existing bounded cleanup. Abort is unchanged. Diagnostic revision 126; production code unchanged.

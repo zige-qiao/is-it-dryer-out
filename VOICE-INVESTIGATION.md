@@ -6,6 +6,12 @@ This document records the investigation into repeated voice-input failures in iO
 
 ## Current handoff — through v0.5.4.9
 
+### Latest natural-end control and unfinished-release audit (24 September)
+
+The latest `.9` run completed three natural recognition attempts successfully, with logged stream release at 19.712, 43.801 and 54.256 seconds. The user explicitly reported **the amber dot never disappeared**, including the ~13.6-second interval before the second attempt. These are successful recognition retries, NOT verified hardware-off/reopen controls. Browser-level capture retention could explain the difference from manual-stop/full-release failures, but is not proven.
+
+Cleanup-completion audit is prepared for publication as `v0.5.4.10-cleanup-audit`, asset 127, header `cleanupAudit=close-v1`. It logs track states after stopping and AudioContext.close request/resolution/rejection with elapsed time; it blocks fresh capture until closure settles successfully. A five-second pending warning does not bypass cleanup or enable retry. Numeric probes and waveform callbacks are cancelled immediately on release. Production app code is unchanged. Even successful tracked-resource closure cannot prove the system microphone indicator has cleared; device observation remains essential. Automated checks: 26 diagnostic and six app lifecycle tests pass. iPhone outcome remains pending.
+
 ### Requirements and interpretation guardrails
 
 - User-confirmed operating system: **iOS 27.0**, Safari 27.0. `osVersion=18.7` is parsed from the user agent, not the actual user-confirmed OS. Do not ask again or silently relabel the device as iOS 18.7. Mac comparison hardware is Apple M2.
@@ -58,9 +64,9 @@ User never pressed Start recognition. Three attempts, two successful reopen cycl
 
 **User explicitly confirmed the amber dot disappeared on EVERY release.** Successful retries therefore were not merely continuous retained microphone access. Ordinary capture release/reopen worked in this control. There are `recognizer created` lines but no recognition-start events.
 
-### Pending control: v0.5.4.9-stop-enabled-test, asset 126
+### Completed control: v0.5.4.9-stop-enabled-test, asset 126
 
-URL: `voice-test.html?mode=track-pause&staged=1&stopTrack=enabled`. Header must show `staged=true stopTrack=enabled`. Branch/build names match. Automated checks: 24 diagnostic + 6 production lifecycle tests pass. **No iPhone outcome yet.**
+URL: `voice-test.html?mode=track-pause&staged=1&stopTrack=enabled`. Header must show `staged=true stopTrack=enabled`. Branch/build names match. Automated checks: 24 diagnostic + 6 production lifecycle tests pass. **Three supplied iPhone runs all failed after full release/reopen despite leaving the track enabled at manual Stop.**
 
 Only manual Stop changes: do not disable the extra track; keep its real waveform and capture enabled through recognition `end`. Then the user explicitly releases it. Abort still disables the track. Existing errors, hidden-page cleanup, missing-end watchdog, and 30-second retained timeout remain. UI explicitly warns that microphone capture is still active after Stop. Staged navigation highlighting was corrected.
 
@@ -73,7 +79,19 @@ Device sequence:
 5. Without reloading, Open microphone and speak five seconds; then Start recognition and speak again.
 6. Copy log; stop/release remaining capture.
 
-Interpretation: healthy retry would implicate immediate track disabling as a contributor, not prove a universal fix. Silent microphone-only retry would show that removing track disabling is insufficient. Earlier `.5` release failures already caution against treating this as a guaranteed new solution; the purpose is a clean phase-instrumented control. Do not deploy a production workaround based solely on this pending test.
+#### Device outcomes and correction of an earlier interpretation
+
+| Run | Stop / end | Retained capture evidence | Release / reopen ready | Retry |
+|---|---|---|---|---|
+| A | 33.054 / 33.098; final result received | Nonzero at 34.692, then repeated RMS 0.000016 / peak 0.000057 from 35.695–47.745 | 47.933 / 53.394 | Five zero microphone-only reports before recognition starts at 58.550; remains zero |
+| B | 14.175 / 14.237; no final logged | Changing RMS 0.060054, 0.081458, 0.036077, 0.041527 at 15.292–18.305 | 18.377 / 22.980 | Three zero microphone-only reports before recognition at 26.152; remains zero |
+| C | 11.401 / 11.446; no final logged | Changing sound through 16.623; tiny values 18.631–22.647; strong sound returns 23.654–25.663, without restart | 26.222 / 27.864 | One zero microphone-only report before recognition at 29.365; remains zero |
+
+Run A: user said they kept speaking during the retained interval and confirmed Release cleared the amber dot. This initially prompted an overstrong interpretation that manual Stop had already broken ongoing capture. Run B contradicts any universal claim of that kind. In run C the user **explicitly confirmed intentionally pausing speech around 18–22 seconds and speaking again around 23 seconds**. The retained stream followed speech → silence → speech correctly. Repeated tiny RMS/peak values alone do not establish frozen samples or failure. Retract that inference; run A's particular quiet interval remains unexplained rather than overriding the clearer B/C controls.
+
+Supported conclusion: track disabling is NOT required for the failure. Capture can remain responsive after manual recognition Stop, but full release/reopen then produces silence before recognition starts. Waiting for end, getting a final transcript, and delaying release about 15 seconds were not sufficient in run A. Run C's short microphone-only interval is weaker than A/B for timing attribution. Do not generalise the observed 3/3 runs into a failure probability across all devices.
+
+Current next step is research, not another production change. See [recovery research](VOICE-RECOVERY-RESEARCH.md) for the bounded AudioSession candidate and [local WebKit report draft](WEBKIT-VOICE-BUG-DRAFT.md). Neither an upstream fix for this exact reproduction nor a privacy-compatible recovery is verified. The report has not been submitted.
 
 ## Historical record (interpret alongside current handoff)
 

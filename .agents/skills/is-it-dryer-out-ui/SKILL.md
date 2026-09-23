@@ -147,6 +147,8 @@ This prevents the installed app from showing stale UI without creating a cache r
 
 ## Verification
 
+For cleanup audits, distinguish requesting AudioContext closure from its promise settling and from the user observing microphone-indicator clearance. Gate capture reopening on successful tracked-resource cleanup; do not infer hardware release from JavaScript completion alone.
+
 Diagnostic controls that retain enabled capture after recognition Stop must explicitly tell the user the microphone is still active, provide release after end, and retain timeout/background cleanup. Do not label retained capture as microphone-off.
 
 When isolating capture from recognition startup, label microphone-only and recognition phases explicitly, reset measurement windows at the transition, and provide release/cancellation during asynchronous microphone preparation as well as after opening.
