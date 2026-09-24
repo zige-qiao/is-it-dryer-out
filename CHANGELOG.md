@@ -4,6 +4,13 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+### v0.5.5 branch candidate
+
+- Matched the Indoor readings microphone to the muted refresh-button style and moved all live waveform feedback into the voice dialog. The dialog now opens immediately when voice input is requested, including microphone preparation.
+- Added concise voice examples below the status box; they disappear when speech arrives or an error is shown. The live Hearing text and final review remain in their existing states.
+- Preserved the `.11` iPhone foreground-stream lifecycle and its unresolved post-release recovery risk. The `.13` release/reopen test failed on the affected iPhone, so this branch makes no capture-recovery change.
+- Matched the app diagnostic build name to the `v0.5.5` branch and synchronized app cache revision 130. No merge or release tag is included.
+
 - Live voice transcript now replaces Listening in the same status box instead of appearing in a second panel. Final review behaviour is unchanged; app assets revision 129.
 
 ### v0.5.4.11-foreground-voice

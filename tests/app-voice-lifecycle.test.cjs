@@ -75,13 +75,13 @@ test('iOS foreground sessions retain a stationary meter across completion and di
   assert.match(app, /releaseRetainedVoiceMeter\("page hidden"\)/);
 });
 
-test('production build identifies the foreground voice branch and synchronized cache', () => {
-  assert.match(app, /APP_BUILD_VERSION = "v0\.5\.4\.11-foreground-voice"/);
-  assert.match(index, /styles\.css\?v=129/);
-  assert.match(index, /app\.js\?v=129/);
-  assert.match(serviceWorker, /is-it-dryer-out-v129/);
-  assert.match(serviceWorker, /styles\.css\?v=129/);
-  assert.match(serviceWorker, /app\.js\?v=129/);
+test('production build identifies the v0.5.5 branch and synchronized cache', () => {
+  assert.match(app, /APP_BUILD_VERSION = "v0\.5\.5"/);
+  assert.match(index, /styles\.css\?v=130/);
+  assert.match(index, /app\.js\?v=130/);
+  assert.match(serviceWorker, /is-it-dryer-out-v130/);
+  assert.match(serviceWorker, /styles\.css\?v=130/);
+  assert.match(serviceWorker, /app\.js\?v=130/);
 });
 
 test('live hearing replaces listening in the status box until review', () => {
@@ -91,6 +91,18 @@ test('live hearing replaces listening in the status box until review', () => {
   const start = functionSource('startVoiceInput', 'stopVoiceInput');
   assert.match(start, /voiceStatus.textContent = `Hearing:/);
   assert.match(start, /voiceTranscriptPanel.hidden = true/);
+});
+
+test('voice examples stay below status and the live waveform stays in the dialog', () => {
+  const card = index.slice(index.indexOf('id="voiceInputButton"'), index.indexOf('id="voiceDialog"'));
+  const dialog = index.slice(index.indexOf('id="voiceDialog"'));
+  assert.doesNotMatch(card, /voice-waveform/);
+  assert.match(dialog, /id="voiceStatus"[^]*?id="voiceExamples"[^]*?id="voiceTranscriptPanel"/);
+  assert.match(dialog, /Try “21 degrees, 55 percent” or just “21 and 55”\./);
+  assert.match(dialog, /To change one reading, say “Humidity 60 percent”\./);
+  assert.match(dialog, /voice-waveform/);
+  assert.match(app, /if \(transcript\) elements\.voiceExamples\.hidden = true/);
+  assert.match(functionSource('showVoiceError', 'clearVoiceSessionTimers'), /voiceExamples\.hidden = true/);
 });
 
 test('retention leaves tracks enabled, cancels animation and schedules no timeout', () => {

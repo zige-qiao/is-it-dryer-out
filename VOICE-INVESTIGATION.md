@@ -4,7 +4,11 @@ This document records the investigation into repeated voice-input failures in iO
 
 **Status (2026-09-24): OPEN — releasing and reopening the microphone can silence both the waveform and transcription on the affected iPhone.** Retaining a stream is a verified limited mitigation, not a resolved privacy-compatible Stop/Abort lifecycle. Read the current handoff below before drawing conclusions from the historical sections. Earlier natural-completion and retained-stream successes remain valid observations, not proof of a platform fix.
 
-## Current handoff — through v0.5.4.13
+## Current handoff — through v0.5.5 branch candidate
+
+### v0.5.5 presentation change; recovery remains open
+
+The `v0.5.5` branch changes voice presentation on top of `main` asset 129: the Indoor readings microphone matches the refresh control, its click opens the dialog immediately during microphone preparation, and the live waveform appears only inside that dialog. Short examples below the status box explain both labelled readings and the supported “21 and 55” shorthand, then disappear when speech arrives or an error is shown. The app build label matches the branch and app assets move to revision 130. No Stop/Abort button, microphone-release policy, or Web Speech recovery mechanism changes. The local Codex browser preview showed a Web Speech `network` error; that environment is useful for checking the interface, not evidence about iPhone Safari recognition. iPhone verification of this branch is still needed after deployment. This branch is not merged or tagged.
 
 ### System recording stop and failed stream reopening
 
@@ -14,7 +18,7 @@ The `.12` fallback hid the waveform. The user did not agree to that UI change, s
 
 ### Product decision and .11 implementation
 
-User explicitly accepted persistent amber microphone indication and requested keeping capture throughout the foreground app session, including Apply and dialog close, with no new Stop/Abort/Release buttons or “Microphone ready for retry” copy. Build `v0.5.4.11-foreground-voice`, app asset 128, implements this iPhone policy. Retention no longer expires after 30 seconds; recognition's existing 30-second watchdog remains. Natural/manual completion and dialog cancellation detach the session from the enabled stream and cancel/reset its waveform; the next explicit attempt reuses that stream and restarts animation. Background/page exit releases capture. Invalid preparation still cleans up. This is an accepted UX/privacy trade-off, not a fix to Safari's underlying restart defect. Device validation of Apply/close/retry on this build remains pending.
+User explicitly accepted persistent amber microphone indication and requested keeping capture throughout the foreground app session, including Apply and dialog close, with no new Stop/Abort/Release buttons or “Microphone ready for retry” copy. Build `v0.5.4.11-foreground-voice` introduced this iPhone policy at app asset 128; the subsequent Hearing-copy change used asset 129. Retention no longer expires after 30 seconds; recognition's existing 30-second watchdog remains. Natural/manual completion and dialog cancellation detach the session from the enabled stream and cancel/reset its waveform; the next explicit attempt reuses that stream and restarts animation. Background/page exit releases capture. Invalid preparation still cleans up. This is an accepted UX/privacy trade-off, not a fix to Safari's underlying restart defect. The supplied `.11` log shows successful repeated recognition across dialog close and manual Stop, but Apply and background-release recovery were not isolated as successful controls.
 
 Latest .10 device evidence: natural end at 42.686, track ended 42.688, context close resolved 42.690 (1ms, tracksEnded=true). User reports amber never disappeared; capture reopened successfully after ~19.6 seconds. Manual Stop comparison: Stop 12.558, end 12.591, explicit release 20.679, tracks ended 20.681, context close resolved 20.689 (6ms); user confirms amber disappeared. Reopen ready 36.882; five microphone-only zero-level reports precede recognition start 42.320, then silence persists. Thus awaiting context closure did not recover manual-stop retries, and natural successes are not verified hardware-off/reopen cycles.
 
@@ -29,7 +33,7 @@ Cleanup-completion audit is prepared for publication as `v0.5.4.10-cleanup-audit
 - User-confirmed operating system: **iOS 27.0**, Safari 27.0. `osVersion=18.7` is parsed from the user agent, not the actual user-confirmed OS. Do not ask again or silently relabel the device as iOS 18.7. Mac comparison hardware is Apple M2.
 - Stop should finish promptly; Abort should cancel/discard. No unexpected moving waveform/capture after the user believes recording has stopped. Reload is not an acceptable production recovery mechanism. No new backend/transcription service.
 - The orange/amber indicator is a user observation of microphone use, not proof of stored audio. Track `live`, `audiostart`, and cleanup logs alone do not establish real samples or hardware release. Numeric probes store no audio files or transcripts. Browser Web Speech may be local or server-backed: this app does not enforce on-device recognition, so do not repeat the earlier blanket “entirely local” claim.
-- Production remains `.5` voice behaviour; `.6`–`.9` are diagnostic controls only. Public Pages currently deploys the diagnostic branch, not main. No merge to main is implied. Untracked `VOICE-RECOVERY-RESEARCH.md` is separate research, not part of these deployed changes.
+- The current `main` production lifecycle is `.11` asset 129; `.12` was reverted and `.13` remains an unsuccessful experiment. The `v0.5.5` branch changes presentation only and requires separate iPhone validation before any merge. Historical `.6`–`.10` diagnostic controls do not establish a microphone-release fix. `VOICE-RECOVERY-RESEARCH.md` is separate research, not part of this branch.
 
 ### Observations leading to the probe
 

@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=129" />
+    <link rel="stylesheet" href="styles.css?v=130" />
   </head>
   <body>
     <main class="app-shell">
@@ -72,19 +72,12 @@
         <section class="panel inputs-panel" aria-labelledby="indoor-heading">
           <div class="section-heading">
             <h2 id="indoor-heading">Indoor readings</h2>
-            <button class="voice-input-button" type="button" id="voiceInputButton" aria-label="Update indoor readings by voice" title="Update indoor readings by voice" hidden>
-              <svg class="voice-input-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <button class="voice-input-button weather-refresh-button" type="button" id="voiceInputButton" aria-label="Update indoor readings by voice" title="Update indoor readings by voice" hidden>
+              <svg class="voice-input-icon refresh-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
                 <path d="M12 19v3"></path>
               </svg>
-              <span class="voice-waveform voice-button-waveform" aria-hidden="true">
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-              </span>
             </button>
           </div>
 
@@ -357,6 +350,10 @@
           </button>
         </div>
         <p class="voice-status" id="voiceStatus" role="status">Ready to listen.</p>
+        <div class="voice-examples" id="voiceExamples">
+          <p>Try “21 degrees, 55 percent” or just “21 and 55”.</p>
+          <p>To change one reading, say “Humidity 60 percent”.</p>
+        </div>
         <div class="voice-transcript-panel" id="voiceTranscriptPanel" hidden>
           <p class="voice-transcript" id="voiceTranscript"></p>
         </div>
@@ -382,6 +379,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=129" type="module"></script>
+    <script src="app.js?v=130" type="module"></script>
   </body>
 </html>

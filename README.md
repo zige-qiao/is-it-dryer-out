@@ -1,14 +1,14 @@
 # Is it dryer out
 
-## Version 0.5.4
+## v0.5.5 branch candidate
 
-Version 0.5.4 moves ventilation settings into a shared dialog below the outlook, adds plain-language recommendation explanations, and makes weather-source and refresh status easier to inspect.
+This branch refines the voice-entry interface without changing the iPhone microphone-retention policy. The release is not merged or tagged yet.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
 ## Using the app
 
-During voice input, live “Hearing: …” text replaces “Listening…” in the same status box. The final transcript and review step appear after completion.
+The Indoor readings microphone now matches the dashboard refresh icon style. Tapping it opens the voice dialog immediately as recording begins. Only the dialog shows the live waveform. Below its single status box, examples suggest “21 degrees, 55 percent”, “21 and 55”, or “Humidity 60 percent”; they disappear when speech is heard or an error is shown. Live “Hearing: …” text replaces “Listening…” in that box, and the final transcript and review step appear after completion.
 
 - Set the indoor temperature and relative humidity.
 - In supported browsers, use the microphone button to enter one or both indoor readings by voice, then review the recognised values before applying them.
@@ -19,9 +19,9 @@ During voice input, live “Hearing: …” text replaces “Listening…” in 
 
 ## How it works
 
-Current iPhone voice policy (`v0.5.4.11-foreground-voice`, app asset 128): after the first user-requested voice attempt, keep the microphone stream enabled throughout the foreground session, including natural completion, manual Stop, Apply and dialog close. The amber indicator may remain on. Transcription ends separately; the waveform is reset and its animation cancelled between attempts. No new controls or readiness message are added. Backgrounding or leaving releases capture; restarting after that release is still an unresolved platform risk. No audio file is saved or uploaded by the meter; browser speech recognition may use an external service. This supersedes the older 30-second/dialog-bounded retention description below.
+Current iPhone voice policy (established in `v0.5.4.11-foreground-voice` and unchanged in this branch): after the first user-requested voice attempt, keep the microphone stream enabled throughout the foreground session, including natural completion, manual Stop, Apply and dialog close. The amber indicator may remain on. Transcription ends separately; the waveform is reset and its animation cancelled between attempts. No new Stop/Abort/Release controls or readiness message are added. Backgrounding or leaving releases capture; restarting after that release remains an unresolved platform risk. No audio file is saved or uploaded by the meter; browser speech recognition may use an external service.
 
-- Enter indoor temperature, relative humidity, target humidity, and minimum indoor temperature manually. Voice input can update indoor temperature and humidity in browsers that provide speech recognition and microphone access. On iPhone, the live waveform uses a standard microphone stream to keep the iOS audio session available. Natural completion releases it; manual stop retains it for an immediate retry with a fresh recogniser, for no longer than 30 seconds and only while the voice dialog remains open.
+- Enter indoor temperature, relative humidity, target humidity, and minimum indoor temperature manually. Voice input can update indoor temperature and humidity in browsers that provide speech recognition and microphone access. On iPhone, the dialog waveform uses a standard microphone stream to keep the iOS audio session available during recognition and between foreground attempts.
 - On every load, the app asks the browser for the current location. Use `Update` to request a fresh location check.
 - Location search accepts UK postcodes with or without spaces, regardless of letter case, and outward codes such as `M1`, `M33`, or `SW1A`.
 - If location permission is unavailable, the app uses the most recently stored location, or Sale, Greater Manchester as the initial fallback.
@@ -61,7 +61,7 @@ Open `voice-test.html?mode=reuse` to test reusing a recogniser, or `voice-test.h
 
 Add `?voice-debug=1` to the app URL to show the temporary voice diagnostics panel. It records microphone, audio-context, and speech-recognition lifecycle events without recording recognised speech content. Reproduce the issue, then use **Copy** to collect the log.
 
-On iOS, the live waveform stream is also an audio-session keep-alive. Earlier diagnostics removed that stream under the assumption that it competed with speech recognition; the first attempt then worked while immediate retries emitted `audiostart` without activating the physical microphone. A short microphone reset did not help, but keeping the normal stream open throughout recognition succeeded repeatedly. A later control showed that releasing it immediately after manual stop caused the remaining failure, while retaining and reusing the same stream supported two consecutive manual stops, a naturally completed retry, and a subsequent newly opened stream. The app therefore retains the local stream and waveform after manual stop, reuses them for a fresh recogniser, and releases them after natural completion, dialog close, apply, page hiding, failure, or a 30-second timeout.
+On iOS, the microphone stream driving the dialog waveform is also an audio-session keep-alive. Earlier diagnostics showed that a short microphone reset did not restore failed recognition, while overlap with a held stream supported repeated attempts. The later `.11` app run transcribed across ten sessions even after the iPhone's system recording-stop action muted the retained waveform track; a flat waveform therefore did not prove failed transcription. Releasing that muted stream and reopening it in the `.13` experiment produced zero measured levels and no speech results. This branch changes only voice presentation, not those capture or recovery decisions. See the investigation for the remaining uncertainty.
 
 The [iOS voice recognition investigation](VOICE-INVESTIGATION.md) contains the consolidated device-test record, event timings, regression history, verified natural-completion and manual-stop mitigations, and related WebKit reports. The supporting [video analysis](tests/ios_web_speech_microphone_video_analysis.md) documents the Safari and Chrome screen recording in detail.
 
