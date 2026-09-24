@@ -5,6 +5,7 @@ const { readFileSync } = require('node:fs');
 const app = readFileSync(require.resolve('../app.js'), 'utf8');
 const index = readFileSync(require.resolve('../index.html'), 'utf8');
 const serviceWorker = readFileSync(require.resolve('../service-worker.js'), 'utf8');
+const styles = readFileSync(require.resolve('../styles.css'), 'utf8');
 
 function functionSource(name, nextName) {
   const start = app.indexOf(`function ${name}`);
@@ -41,8 +42,31 @@ test('iOS matches the successful hold-test waveform and completion lifecycle', (
   assert.match(start, /recognition\.addEventListener\("speechend"[^]*?if \(IS_IOS\) return/);
 });
 
-test('the iOS fallback pulse is used only when no held stream is available', () => {
-  assert.match(app, /classList\.toggle\("is-meterless", IS_IOS && !session\.meter\?\.stream\)/);
+test('the iOS fallback pulse also replaces a waveform from a muted track', () => {
+  assert.match(app, /const meterless = IS_IOS && \(!session\.meter\?\.stream \|\| session\.meter\.stream\.getAudioTracks\(\)\[0\]\?\.muted\)/);
+  assert.match(styles, /\.voice-input-button\.is-listening\.is-meterless \.voice-button-waveform\s*\{\s*opacity: 0;/);
+});
+
+test('a muted retained iOS meter does not reopen capture before recognition', async () => {
+  const vm = require('node:vm');
+  let captureRequests = 0;
+  const events = [];
+  const track = { readyState: 'live', muted: true };
+  const meter = { stream: { getAudioTracks: () => [track] } };
+  const session = { id: 2, meter: null };
+  const context = {
+    IS_IOS: true,
+    retainedVoiceMeter: meter,
+    session,
+    navigator: { mediaDevices: { getUserMedia: async () => { captureRequests++; } } },
+    voiceDebugLog: (event) => events.push(event),
+  };
+  const meterSource = app.slice(app.indexOf('async function startVoiceMeter'), app.indexOf('function voiceErrorMessage'));
+  await vm.runInNewContext(`${meterSource} startVoiceMeter(session);`, context);
+  assert.equal(captureRequests, 0);
+  assert.equal(session.meter, null);
+  assert.equal(context.retainedVoiceMeter, meter);
+  assert.deepEqual(events, ['retained meter muted; recognition-only fallback']);
 });
 
 test('recognition stops before the held meter is released', () => {
@@ -75,13 +99,13 @@ test('iOS foreground sessions retain a stationary meter across completion and di
   assert.match(app, /releaseRetainedVoiceMeter\("page hidden"\)/);
 });
 
-test('production build identifies the foreground voice branch and synchronized cache', () => {
-  assert.match(app, /APP_BUILD_VERSION = "v0\.5\.4\.11-foreground-voice"/);
-  assert.match(index, /styles\.css\?v=129/);
-  assert.match(index, /app\.js\?v=129/);
-  assert.match(serviceWorker, /is-it-dryer-out-v129/);
-  assert.match(serviceWorker, /styles\.css\?v=129/);
-  assert.match(serviceWorker, /app\.js\?v=129/);
+test('production build identifies the muted-meter branch and synchronized cache', () => {
+  assert.match(app, /APP_BUILD_VERSION = "v0\.5\.4\.12-muted-meter-fallback"/);
+  assert.match(index, /styles\.css\?v=130/);
+  assert.match(index, /app\.js\?v=130/);
+  assert.match(serviceWorker, /is-it-dryer-out-v130/);
+  assert.match(serviceWorker, /styles\.css\?v=130/);
+  assert.match(serviceWorker, /app\.js\?v=130/);
 });
 
 test('live hearing replaces listening in the status box until review', () => {

@@ -31,7 +31,7 @@ const OPENING_SETUPS = {
 };
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 // Keep the build identity in the script so stale code identifies itself correctly.
-const APP_BUILD_VERSION = "v0.5.4.11-foreground-voice";
+const APP_BUILD_VERSION = "v0.5.4.12-muted-meter-fallback";
 const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
 const IS_IOS = /iP(?:hone|ad|od)/.test(navigator.userAgent)
   || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -403,6 +403,18 @@ function resetVoiceMeter() {
   });
 }
 
+function pauseMutedVoiceMeter(meter) {
+  if (!IS_IOS) return;
+  if (meter.frame !== null) cancelAnimationFrame(meter.frame);
+  meter.frame = null;
+  resetVoiceMeter();
+  const session = meter.session;
+  if (session && activeVoiceSession === session && session.isListening && !session.isStopping) {
+    elements.voiceInputButton.classList.add("is-meterless");
+    elements.voiceListenButton.classList.add("is-meterless");
+  }
+}
+
 function stopVoiceMeter(session) {
   const meter = session?.meter;
   if (!meter) return;
@@ -493,6 +505,12 @@ async function prepareVoiceAudioContext(session) {
 
 async function startVoiceMeter(session) {
   const retainedTrack = retainedVoiceMeter?.stream?.getAudioTracks()[0];
+  if (IS_IOS && retainedTrack?.readyState === "live" && retainedTrack.muted) {
+    // An iOS system-level recording stop can mute this track without ending it.
+    // Leave recognition alone; reopening capture here has not been verified safe.
+    voiceDebugLog("retained meter muted; recognition-only fallback", {}, session.id);
+    return;
+  }
   if (IS_IOS && retainedTrack?.readyState === "live") {
     const meter = retainedVoiceMeter;
     retainedVoiceMeter = null;
@@ -543,6 +561,12 @@ async function startVoiceMeter(session) {
   ["mute", "unmute", "ended"].forEach((name) => {
     track?.addEventListener(name, () => {
       voiceDebugLog(`track ${name}`, { state: track.readyState, muted: track.muted }, session.id);
+      if (name === "mute") pauseMutedVoiceMeter(meter);
+      if (name === "unmute" && meter.session === activeVoiceSession && meter.session?.isListening) {
+        elements.voiceInputButton.classList.remove("is-meterless");
+        elements.voiceListenButton.classList.remove("is-meterless");
+        meter.startDrawing?.();
+      }
     });
   });
   const context = await prepareVoiceAudioContext(session);
@@ -569,6 +593,10 @@ async function startVoiceMeter(session) {
   const draw = () => {
     const owner = meter.session;
     if (!meter.stream || !owner || owner.finished || owner.isStopping || activeVoiceSession !== owner) return;
+    if (IS_IOS && track?.muted) {
+      pauseMutedVoiceMeter(meter);
+      return;
+    }
     if (IS_IOS) analyser.getByteTimeDomainData(samples);
     else analyser.getFloatTimeDomainData(samples);
     let mean = 0;
@@ -792,8 +820,9 @@ function startVoiceInput() {
     elements.voiceListenButton.disabled = false;
     elements.voiceInputButton.classList.add("is-listening");
     elements.voiceListenButton.classList.add("is-listening");
-    elements.voiceInputButton.classList.toggle("is-meterless", IS_IOS && !session.meter?.stream);
-    elements.voiceListenButton.classList.toggle("is-meterless", IS_IOS && !session.meter?.stream);
+    const meterless = IS_IOS && (!session.meter?.stream || session.meter.stream.getAudioTracks()[0]?.muted);
+    elements.voiceInputButton.classList.toggle("is-meterless", meterless);
+    elements.voiceListenButton.classList.toggle("is-meterless", meterless);
     elements.voiceInputButton.setAttribute("aria-label", "Stop and review voice input");
     elements.voiceInputButton.title = "Stop and review";
     elements.voiceListenButton.setAttribute("aria-label", "Stop recording");

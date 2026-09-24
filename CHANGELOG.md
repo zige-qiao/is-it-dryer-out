@@ -4,7 +4,10 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
-- Live voice transcript now replaces Listening in the same status box instead of appearing in a second panel. Final review behaviour is unchanged; app assets revision 129.
+### v0.5.4.12-muted-meter-fallback
+
+- After iOS mutes a retained waveform track, stop drawing from it and use the existing meterless listening pulse on the next voice attempt. Keep speech recognition unchanged; do not reopen microphone capture automatically. The iPhone log showed repeated successful transcription after the meter track became muted.
+- Live voice transcript replaces Listening in the same status box instead of appearing in a second panel. Final review behaviour is unchanged. App assets revision 130.
 
 ### v0.5.4.11-foreground-voice
 
