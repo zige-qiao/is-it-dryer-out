@@ -1585,10 +1585,6 @@ input[type="range"] {
   opacity: 1;
 }
 
-.voice-input-button.is-listening.is-meterless .voice-button-waveform {
-  opacity: 0;
-}
-
 .voice-waveform span {
   width: 3px;
   height: 2px;
