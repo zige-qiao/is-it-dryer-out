@@ -127,6 +127,8 @@ Keep equivalent sections visually aligned and use the existing spacing scale con
 
 ## Weather And Persistence
 
+Current voice-policy override (v0.5.4.11): on iOS, after explicit user voice activation retain the enabled stream for the entire foreground session, including completion, manual Stop, Apply, dialog close and recognition errors. Reset/cancel waveform animation outside active attempts and restart it when reusing the meter. No retained idle timeout, new buttons, release warning or readiness copy. Release on hidden/pagehide and clean up invalid/unusable resources. The user accepts the persistent amber dot; background-release recovery remains unresolved. This replaces the older natural-end/dialog-close/30-second release policy described historically below.
+
 Outdoor data comes from Open-Meteo. Device coordinates may be sent to BigDataCloud only to obtain a nearby locality name. Preserve the current fallback to the stored location or Sale, Greater Manchester.
 
 UK location search accepts complete postcodes with or without spaces and case-insensitive outward codes such as `M1`, `M33`, and `SW1A`.

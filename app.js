@@ -31,7 +31,7 @@ const OPENING_SETUPS = {
 };
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 // Keep the build identity in the script so stale code identifies itself correctly.
-const APP_BUILD_VERSION = "v0.5.4.5-voice-diagnostics";
+const APP_BUILD_VERSION = "v0.5.4.11-foreground-voice";
 const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
 const IS_IOS = /iP(?:hone|ad|od)/.test(navigator.userAgent)
   || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -40,7 +40,6 @@ const VOICE_CLEANUP_TIMEOUT_MS = 3000;
 const VOICE_START_TIMEOUT_MS = 6000;
 const VOICE_MAX_DURATION_MS = 15000;
 const VOICE_IOS_MAX_DURATION_MS = 30000;
-const VOICE_IOS_RETAINED_METER_TIMEOUT_MS = 30000;
 const VOICE_METER_CALIBRATION_MS = 600;
 const VOICE_MIN_ACTIVITY_THRESHOLD = 0.018;
 const INPUT_UNCERTAINTY = {
@@ -451,13 +450,12 @@ function retainVoiceMeter(session) {
   meter.lastSessionId = session.id;
   session.meter = null;
   retainedVoiceMeter = meter;
-  meter.releaseTimer = setTimeout(() => {
-    if (retainedVoiceMeter !== meter) return;
-    releaseRetainedVoiceMeter("30-second timeout");
-  }, VOICE_IOS_RETAINED_METER_TIMEOUT_MS);
-  voiceDebugLog("meter retained after manual stop", {
+  meter.releaseTimer = null;
+  if (meter.frame !== null) cancelAnimationFrame(meter.frame);
+  meter.frame = null;
+  resetVoiceMeter();
+  voiceDebugLog("meter retained for foreground session", {
     track: track.readyState,
-    timeoutMs: VOICE_IOS_RETAINED_METER_TIMEOUT_MS,
   }, session.id);
   return true;
 }
@@ -508,6 +506,7 @@ async function startVoiceMeter(session) {
       context: meter.context?.state || "none",
     }, session.id);
     if (meter.context?.state === "suspended") await meter.context.resume();
+    if (activeVoiceSession === session && !session.finished && !document.hidden) meter.startDrawing?.();
     return;
   }
   if (retainedVoiceMeter) releaseRetainedVoiceMeter("stale track");
@@ -569,7 +568,7 @@ async function startVoiceMeter(session) {
   let displayedLevel = 0;
   const draw = () => {
     const owner = meter.session;
-    if (!meter.stream || (!owner && retainedVoiceMeter !== meter)) return;
+    if (!meter.stream || !owner || owner.finished || owner.isStopping || activeVoiceSession !== owner) return;
     if (IS_IOS) analyser.getByteTimeDomainData(samples);
     else analyser.getFloatTimeDomainData(samples);
     let mean = 0;
@@ -628,7 +627,11 @@ async function startVoiceMeter(session) {
     });
     meter.frame = requestAnimationFrame(draw);
   };
-  draw();
+  meter.startDrawing = () => {
+    displayedLevel = 0;
+    if (meter.frame === null) draw();
+  };
+  meter.startDrawing();
 }
 
 function voiceErrorMessage(error) {
@@ -663,13 +666,13 @@ function clearVoiceSessionTimers(session) {
   });
 }
 
-function finishVoiceListening(session, retainMeter = false) {
+function finishVoiceListening(session, retainMeter = true) {
   if (!session || session.finished) return;
   session.finished = true;
   clearVoiceSessionTimers(session);
   session.isListening = false;
   session.isStopping = false;
-  const meterRetained = retainMeter && IS_IOS && retainVoiceMeter(session);
+  const meterRetained = retainMeter && IS_IOS && !document.hidden && retainVoiceMeter(session);
   if (!meterRetained) stopVoiceMeter(session);
   if (activeVoiceSession === session) activeVoiceSession = null;
   elements.voiceStatus.classList.remove("is-listening");
@@ -689,7 +692,7 @@ function completeVoiceSession(session) {
   if (activeVoiceSession !== session || session.finished) return;
   if (session.latestTranscript) showVoiceResult(session.latestTranscript, true, session);
   else if (!session.hadError) showVoiceError("No speech detected. Try again.");
-  finishVoiceListening(session, session.manualStop && !session.cleanupTimedOut && !session.hadError);
+  finishVoiceListening(session);
   if (!session.dialogCancelled) showVoiceDialog();
 }
 
@@ -912,6 +915,9 @@ function stopVoiceInput(showDialogImmediately, session = activeVoiceSession, rea
   });
   session.isListening = false;
   session.isStopping = true;
+  if (session.meter?.frame != null) cancelAnimationFrame(session.meter.frame);
+  if (session.meter) session.meter.frame = null;
+  resetVoiceMeter();
   elements.voiceStatus.textContent = "Finishing...";
   elements.voiceStatus.classList.remove("is-listening");
   elements.voiceInputButton.classList.remove("is-listening");
@@ -964,7 +970,6 @@ function closeVoiceDialog() {
     }
     finishVoiceListening(session);
   }
-  releaseRetainedVoiceMeter("dialog closed");
   pendingVoiceChanges = null;
   elements.voiceDialog.close();
 }
@@ -2498,10 +2503,20 @@ document.addEventListener("visibilitychange", () => {
       } catch {
         // Continue cleanup if recognition was interrupted by the browser first.
       }
-      finishVoiceListening(session);
+      finishVoiceListening(session, false);
     }
     releaseRetainedVoiceMeter("page hidden");
     return;
   }
   if (!state.lastCheckedAt || minutesSince(state.lastCheckedAt) >= 15) fetchWeather();
+});
+
+window.addEventListener("pagehide", () => {
+  const session = activeVoiceSession;
+  if (session) {
+    session.dialogCancelled = true;
+    try { session.recognition.abort(); } catch { /* Navigation cleanup must continue. */ }
+    finishVoiceListening(session, false);
+  }
+  releaseRetainedVoiceMeter("page left");
 });

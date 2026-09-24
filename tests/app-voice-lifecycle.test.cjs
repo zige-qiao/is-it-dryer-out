@@ -54,7 +54,7 @@ test('recognition stops before the held meter is released', () => {
   assert.match(finish, /stopVoiceMeter\(session\)/);
 });
 
-test('manual iOS stops retain and reuse the same meter with bounded cleanup', () => {
+test('iOS foreground sessions retain a stationary meter across completion and dialog close', () => {
   const meter = functionSource('stopVoiceMeter', 'markVoiceActivity');
   const start = functionSource('startVoiceMeter', 'voiceErrorMessage');
   const finish = functionSource('finishVoiceListening', 'completeVoiceSession');
@@ -64,21 +64,46 @@ test('manual iOS stops retain and reuse the same meter with bounded cleanup', ()
 
   assert.match(meter, /function retainVoiceMeter/);
   assert.match(meter, /retainedVoiceMeter = meter/);
-  assert.match(meter, /VOICE_IOS_RETAINED_METER_TIMEOUT_MS/);
+  assert.doesNotMatch(meter, /VOICE_IOS_RETAINED_METER_TIMEOUT_MS/);
+  assert.match(meter, /cancelAnimationFrame\(meter.frame\)/);
   assert.match(start, /retained meter reused/);
   assert.match(start, /session\.meter = meter/);
-  assert.match(finish, /retainMeter && IS_IOS && retainVoiceMeter\(session\)/);
-  assert.match(complete, /session\.manualStop && !session\.cleanupTimedOut && !session\.hadError/);
+  assert.match(finish, /retainMeter && IS_IOS && !document.hidden && retainVoiceMeter\(session\)/);
+  assert.match(complete, /finishVoiceListening\(session\)/);
   assert.match(toggle, /stopVoiceInput\(!elements\.voiceDialog\.open, activeVoiceSession, "manual"\)/);
-  assert.match(close, /releaseRetainedVoiceMeter\("dialog closed"\)/);
+  assert.doesNotMatch(close, /releaseRetainedVoiceMeter/);
   assert.match(app, /releaseRetainedVoiceMeter\("page hidden"\)/);
 });
 
-test('production build identifies the v0.5.4.5 diagnostics branch', () => {
-  assert.match(app, /APP_BUILD_VERSION = "v0\.5\.4\.5-voice-diagnostics"/);
-  assert.match(index, /styles\.css\?v=122/);
-  assert.match(index, /app\.js\?v=122/);
-  assert.match(serviceWorker, /is-it-dryer-out-v122/);
-  assert.match(serviceWorker, /styles\.css\?v=122/);
-  assert.match(serviceWorker, /app\.js\?v=122/);
+test('production build identifies the foreground voice branch and synchronized cache', () => {
+  assert.match(app, /APP_BUILD_VERSION = "v0\.5\.4\.11-foreground-voice"/);
+  assert.match(index, /styles\.css\?v=128/);
+  assert.match(index, /app\.js\?v=128/);
+  assert.match(serviceWorker, /is-it-dryer-out-v128/);
+  assert.match(serviceWorker, /styles\.css\?v=128/);
+  assert.match(serviceWorker, /app\.js\?v=128/);
+});
+
+test('retention leaves tracks enabled, cancels animation and schedules no timeout', () => {
+  const vm = require('node:vm');
+  let cancelled = 0;
+  let reset = 0;
+  const track = { readyState: 'live', enabled: true, stop() { throw new Error('unexpected stop'); } };
+  const session = { id: 1, meter: { stream: { getAudioTracks: () => [track] }, frame: 7, releaseTimer: null } };
+  const context = { session, clearTimeout() {}, cancelAnimationFrame() { cancelled++; }, resetVoiceMeter() { reset++; }, voiceDebugLog() {} };
+  vm.runInNewContext(`let retainedVoiceMeter = null; ${functionSource('retainVoiceMeter', 'markVoiceActivity')} retainVoiceMeter(session);`, context);
+  assert.equal(session.meter, null);
+  assert.equal(track.enabled, true);
+  assert.equal(cancelled, 1);
+  assert.equal(reset, 1);
+});
+
+test('navigation releases capture and manual stop freezes waveform without stopping tracks', () => {
+  const stop = functionSource('stopVoiceInput', 'toggleVoiceListening');
+  assert.match(stop, /cancelAnimationFrame\(session.meter.frame\)/);
+  assert.match(stop, /resetVoiceMeter\(\)/);
+  assert.match(app, /window.addEventListener\("pagehide"/);
+  assert.match(app, /releaseRetainedVoiceMeter\("page left"\)/);
+  assert.match(app, /finishVoiceListening\(session, false\)/);
+  assert.doesNotMatch(index, /Microphone ready for retry|Release microphone/);
 });

@@ -17,6 +17,8 @@ A personal ventilation checker for estimating whether opening windows should red
 
 ## How it works
 
+Current iPhone voice policy (`v0.5.4.11-foreground-voice`, app asset 128): after the first user-requested voice attempt, keep the microphone stream enabled throughout the foreground session, including natural completion, manual Stop, Apply and dialog close. The amber indicator may remain on. Transcription ends separately; the waveform is reset and its animation cancelled between attempts. No new controls or readiness message are added. Backgrounding or leaving releases capture; restarting after that release is still an unresolved platform risk. No audio file is saved or uploaded by the meter; browser speech recognition may use an external service. This supersedes the older 30-second/dialog-bounded retention description below.
+
 - Enter indoor temperature, relative humidity, target humidity, and minimum indoor temperature manually. Voice input can update indoor temperature and humidity in browsers that provide speech recognition and microphone access. On iPhone, the live waveform uses a standard microphone stream to keep the iOS audio session available. Natural completion releases it; manual stop retains it for an immediate retry with a fresh recogniser, for no longer than 30 seconds and only while the voice dialog remains open.
 - On every load, the app asks the browser for the current location. Use `Update` to request a fresh location check.
 - Location search accepts UK postcodes with or without spaces, regardless of letter case, and outward codes such as `M1`, `M33`, or `SW1A`.

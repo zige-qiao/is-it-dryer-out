@@ -4,6 +4,12 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+### v0.5.4.11-foreground-voice
+
+- Adopted the user-approved iPhone foreground microphone retention trade-off: reuse the enabled stream across voice attempts, Apply and dialog close; cancel/reset waveform animation when not listening. Removed the retained-stream idle timeout, not the recognition duration limit.
+- Release capture on backgrounding and page exit. Added no Stop/Abort/Release buttons or readiness message. Recovery after background release remains unverified; underlying Safari issue is not resolved.
+- App log build matches the branch, with synchronized app cache revision 128. Diagnostic build remains .10 / revision 127.
+
 ### Diagnostic build v0.5.4.10-cleanup-audit
 
 - Added track-state and asynchronous AudioContext closure auditing, with retry gating until successful cleanup and a pending-close warning. Diagnostic asset revision 127; production code unchanged.

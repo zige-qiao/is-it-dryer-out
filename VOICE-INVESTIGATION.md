@@ -6,6 +6,12 @@ This document records the investigation into repeated voice-input failures in iO
 
 ## Current handoff — through v0.5.4.9
 
+### Product decision and .11 implementation
+
+User explicitly accepted persistent amber microphone indication and requested keeping capture throughout the foreground app session, including Apply and dialog close, with no new Stop/Abort/Release buttons or “Microphone ready for retry” copy. Build `v0.5.4.11-foreground-voice`, app asset 128, implements this iPhone policy. Retention no longer expires after 30 seconds; recognition's existing 30-second watchdog remains. Natural/manual completion and dialog cancellation detach the session from the enabled stream and cancel/reset its waveform; the next explicit attempt reuses that stream and restarts animation. Background/page exit releases capture. Invalid preparation still cleans up. This is an accepted UX/privacy trade-off, not a fix to Safari's underlying restart defect. Device validation of Apply/close/retry on this build remains pending.
+
+Latest .10 device evidence: natural end at 42.686, track ended 42.688, context close resolved 42.690 (1ms, tracksEnded=true). User reports amber never disappeared; capture reopened successfully after ~19.6 seconds. Manual Stop comparison: Stop 12.558, end 12.591, explicit release 20.679, tracks ended 20.681, context close resolved 20.689 (6ms); user confirms amber disappeared. Reopen ready 36.882; five microphone-only zero-level reports precede recognition start 42.320, then silence persists. Thus awaiting context closure did not recover manual-stop retries, and natural successes are not verified hardware-off/reopen cycles.
+
 ### Latest natural-end control and unfinished-release audit (24 September)
 
 The latest `.9` run completed three natural recognition attempts successfully, with logged stream release at 19.712, 43.801 and 54.256 seconds. The user explicitly reported **the amber dot never disappeared**, including the ~13.6-second interval before the second attempt. These are successful recognition retries, NOT verified hardware-off/reopen controls. Browser-level capture retention could explain the difference from manual-stop/full-release failures, but is not proven.
