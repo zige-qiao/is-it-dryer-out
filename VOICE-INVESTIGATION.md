@@ -2,9 +2,15 @@
 
 This document records the investigation into repeated voice-input failures in iOS browsers and the verified application-level mitigation. The underlying platform defect is not claimed to be fixed.
 
-**Status (2026-09-22): OPEN — full microphone release after manual recognition termination can leave subsequent capture silent.** Retaining a stream is a verified limited mitigation, not a resolved privacy-compatible Stop/Abort lifecycle. Read the current handoff below before drawing conclusions from the historical sections. Earlier natural-completion and retained-stream successes remain valid observations, not proof of a platform fix.
+**Status (2026-09-24): OPEN — releasing and reopening the microphone can silence both the waveform and transcription on the affected iPhone.** Retaining a stream is a verified limited mitigation, not a resolved privacy-compatible Stop/Abort lifecycle. Read the current handoff below before drawing conclusions from the historical sections. Earlier natural-completion and retained-stream successes remain valid observations, not proof of a platform fix.
 
-## Current handoff — through v0.5.4.9
+## Current handoff — through v0.5.4.13
+
+### System recording stop and failed stream reopening
+
+In production build `v0.5.4.11-foreground-voice` (asset 129), the iPhone system's **Stop Audio Recording** action muted the app's retained waveform track while it remained `live`. Sessions 4–10 then had a flat waveform but still produced speech results and final transcriptions. A stale `audio-capture: Source is muted` error did not prevent later sessions from transcribing. The system indicator turned on and off during those later recognition attempts. Thus a muted waveform stream did not imply that Web Speech had stopped working.
+
+The `.12` fallback hid the waveform. The user did not agree to that UI change, so commit `4803996` reverted it from `main`, restoring asset 129. The `.13` diagnostic branch tried releasing the muted track and opening a fresh stream on the next app microphone tap. In the supplied iPhone log, the new track reported `live`, `enabled=true`, `muted=false` and a `running` AudioContext, yet all level probes from 32.440s to 43.608s measured `0.0000` while the user spoke. Recognition produced no `speechstart` or results. Two more attempts reused that silent stream and again yielded neither waveform movement nor transcription. The reopening attempt therefore made both paths fail in this run; the log does not identify the precise WebKit or hardware stage. `.13` was removed from the public Pages source; `main` remains the working asset-129 build. Do not promote the release/reopen strategy as a fix.
 
 ### Product decision and .11 implementation
 
