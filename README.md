@@ -1,8 +1,8 @@
 # Is it dryer out
 
-## v0.5.5 branch candidate
+## Version 0.5.5
 
-This branch refines the voice-entry interface without changing the iPhone microphone-retention policy. The release is not merged or tagged yet.
+Version 0.5.5 refines the voice-entry interface without changing the iPhone microphone-retention policy.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
@@ -71,6 +71,7 @@ Created by Ziggy Qiao. The app links to its [GitHub repository](https://github.c
 
 ## Release history
 
+- `v0.5.5`: Refresh-style voice entry button, immediate voice dialog, dialog-only waveform, and concise spoken-reading examples; iPhone voice capture policy unchanged.
 - `v0.5.4`: Shared ventilation-settings dialog, calculation-specific recommendation explanations, clearer weather provenance, and refined responsive accessibility.
 - `v0.5.3.3`: Browser and WebKit identification plus bounded audio-interruption testing for voice diagnostics.
 - `v0.5.3.1`: Immediate recognition startup, isolated recording sessions, adaptive desktop silence detection, and an iOS microphone-conflict workaround.

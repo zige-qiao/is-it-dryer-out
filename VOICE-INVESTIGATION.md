@@ -4,11 +4,11 @@ This document records the investigation into repeated voice-input failures in iO
 
 **Status (2026-09-24): OPEN — releasing and reopening the microphone can silence both the waveform and transcription on the affected iPhone.** Retaining a stream is a verified limited mitigation, not a resolved privacy-compatible Stop/Abort lifecycle. Read the current handoff below before drawing conclusions from the historical sections. Earlier natural-completion and retained-stream successes remain valid observations, not proof of a platform fix.
 
-## Current handoff — through v0.5.5 branch candidate
+## Current handoff — through v0.5.5
 
 ### v0.5.5 presentation change; recovery remains open
 
-The `v0.5.5` branch changes voice presentation on top of `main` asset 129: the Indoor readings microphone matches the refresh control, its click opens the dialog immediately during microphone preparation, and the live waveform appears only inside that dialog. Short examples below the status box explain both labelled readings and the supported “21 and 55” shorthand, then disappear when speech arrives or an error is shown. The app build label matches the branch and app assets move to revision 130. No Stop/Abort button, microphone-release policy, or Web Speech recovery mechanism changes. The local Codex browser preview showed a Web Speech `network` error; that environment is useful for checking the interface, not evidence about iPhone Safari recognition. iPhone verification of this branch is still needed after deployment. This branch is not merged or tagged.
+Version `v0.5.5` changes voice presentation on top of the working `main` asset-129 baseline: the Indoor readings microphone matches the refresh control, its click opens the dialog immediately during microphone preparation, and the live waveform appears only inside that dialog. Short examples below the status box explain both labelled readings and the supported “21 and 55” shorthand, then disappear when speech arrives or an error is shown. The app build label matches the version and app assets move to revision 130. No Stop/Abort button, microphone-release policy, or Web Speech recovery mechanism changes. The local Codex browser preview showed a Web Speech `network` error; that environment is useful for checking the interface, not evidence about iPhone Safari recognition. iPhone verification of this version is still needed after deployment. No release tag was requested.
 
 ### System recording stop and failed stream reopening
 
@@ -33,7 +33,7 @@ Cleanup-completion audit is prepared for publication as `v0.5.4.10-cleanup-audit
 - User-confirmed operating system: **iOS 27.0**, Safari 27.0. `osVersion=18.7` is parsed from the user agent, not the actual user-confirmed OS. Do not ask again or silently relabel the device as iOS 18.7. Mac comparison hardware is Apple M2.
 - Stop should finish promptly; Abort should cancel/discard. No unexpected moving waveform/capture after the user believes recording has stopped. Reload is not an acceptable production recovery mechanism. No new backend/transcription service.
 - The orange/amber indicator is a user observation of microphone use, not proof of stored audio. Track `live`, `audiostart`, and cleanup logs alone do not establish real samples or hardware release. Numeric probes store no audio files or transcripts. Browser Web Speech may be local or server-backed: this app does not enforce on-device recognition, so do not repeat the earlier blanket “entirely local” claim.
-- The current `main` production lifecycle is `.11` asset 129; `.12` was reverted and `.13` remains an unsuccessful experiment. The `v0.5.5` branch changes presentation only and requires separate iPhone validation before any merge. Historical `.6`–`.10` diagnostic controls do not establish a microphone-release fix. `VOICE-RECOVERY-RESEARCH.md` is separate research, not part of this branch.
+- The current production voice lifecycle is the working `.11` foreground-held behaviour; `.12` was reverted and `.13` remains an unsuccessful experiment. `v0.5.5` changes presentation only and still requires separate iPhone validation. Historical `.6`–`.10` diagnostic controls do not establish a microphone-release fix. `VOICE-RECOVERY-RESEARCH.md` is separate research, not part of this version.
 
 ### Observations leading to the probe
 
