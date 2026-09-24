@@ -31,7 +31,7 @@ const OPENING_SETUPS = {
 };
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 // Keep the build identity in the script so stale code identifies itself correctly.
-const APP_BUILD_VERSION = "v0.5.4.11-foreground-voice";
+const APP_BUILD_VERSION = "v0.5.5";
 const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
 const IS_IOS = /iP(?:hone|ad|od)/.test(navigator.userAgent)
   || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -137,6 +137,7 @@ const elements = {
   voiceInputButton: document.querySelector("#voiceInputButton"),
   voiceDialog: document.querySelector("#voiceDialog"),
   voiceStatus: document.querySelector("#voiceStatus"),
+  voiceExamples: document.querySelector("#voiceExamples"),
   voiceTranscriptPanel: document.querySelector("#voiceTranscriptPanel"),
   voiceTranscript: document.querySelector("#voiceTranscript"),
   voiceChanges: document.querySelector("#voiceChanges"),
@@ -365,6 +366,7 @@ function voiceChangeRows(values) {
 
 function showVoiceResult(transcript, allowApply = true, session = activeVoiceSession) {
   if (session) session.hadResult = true;
+  elements.voiceExamples.hidden = true;
   const parsed = parseVoiceCommand(transcript);
   const rows = voiceChangeRows(parsed.values);
   pendingVoiceChanges = rows.length ? parsed.values : null;
@@ -648,6 +650,7 @@ function voiceErrorMessage(error) {
 
 function showVoiceError(message) {
   pendingVoiceChanges = null;
+  elements.voiceExamples.hidden = true;
   elements.voiceStatus.textContent = "";
   elements.voiceStatus.hidden = true;
   elements.voiceTranscript.textContent = message;
@@ -702,6 +705,7 @@ function showVoiceDialog() {
 
 function resetVoiceResult() {
   pendingVoiceChanges = null;
+  elements.voiceExamples.hidden = false;
   elements.voiceChanges.replaceChildren();
   elements.voiceChanges.classList.remove("has-single-change");
   elements.voiceTranscriptPanel.hidden = true;
@@ -752,6 +756,7 @@ function startVoiceInput() {
   elements.voiceStatus.textContent = "Starting microphone...";
   elements.voiceInputButton.disabled = true;
   elements.voiceListenButton.disabled = true;
+  showVoiceDialog();
   recognition.lang = document.documentElement.lang || navigator.language || "en-GB";
   recognition.continuous = !IS_IOS;
   recognition.interimResults = true;
@@ -812,6 +817,7 @@ function startVoiceInput() {
     session.finalTimer = null;
     const transcript = [...event.results].map((result) => result[0].transcript).join(" ").trim();
     session.latestTranscript = transcript;
+    if (transcript) elements.voiceExamples.hidden = true;
     elements.voiceStatus.textContent = `Hearing: “${transcript}”`;
     elements.voiceTranscriptPanel.hidden = true;
     const latestResult = event.results[event.results.length - 1];

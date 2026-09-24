@@ -289,8 +289,8 @@ h1 {
 
 .inputs-panel > .section-heading .voice-input-button {
   position: absolute;
-  top: 0.9rem;
-  right: 0.9rem;
+  top: 0.5rem;
+  right: 0.25rem;
 }
 
 .voice-input-button {
@@ -351,13 +351,13 @@ h1 {
   }
 }
 
-.voice-input-button.is-listening .voice-input-icon {
+.voice-dialog-input-button.is-listening .voice-input-icon {
   opacity: 0;
   transform: scale(0.75);
 }
 
-.voice-input-button:hover,
-.voice-input-button:focus-visible {
+.voice-dialog-input-button:hover,
+.voice-dialog-input-button:focus-visible {
   border-color: var(--open);
   outline: none;
   box-shadow: 0 0 0 3px rgba(16, 35, 31, 0.12);
@@ -869,6 +869,16 @@ input[type="range"] {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2.25;
+}
+
+.voice-input-button .refresh-icon {
+  width: 1rem;
+  height: 1rem;
+  stroke-width: 2.25;
+}
+
+.weather-refresh-button.voice-input-button::after {
+  content: none;
 }
 
 .weather-refresh-button:hover {
@@ -1624,6 +1634,21 @@ input[type="range"] {
   border-radius: 6px;
   padding: 12px;
   background: #f1f4f3;
+}
+
+.voice-examples {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.voice-examples p {
+  margin: 0;
+}
+
+.voice-examples p + p {
+  margin-top: 4px;
 }
 
 .voice-dialog-close {

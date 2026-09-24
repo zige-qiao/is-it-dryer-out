@@ -50,6 +50,7 @@ Do not document transient experiments, reverted tweaks, or implementation detail
 ## Information Hierarchy
 
 Voice listening uses one status box: replace Listening with live Hearing text and keep the separate transcript panel hidden until final review or an error.
+Keep the Indoor readings microphone visually matched to the muted refresh action. Open the voice dialog immediately when that microphone is activated; show the live waveform only inside the dialog. Place short example phrases below the status box while awaiting speech, then hide them when speech arrives or an error is shown.
 
 On mobile, keep this visual order:
 
@@ -137,7 +138,7 @@ UK location search accepts complete postcodes with or without spaces and case-in
 
 Indoor readings, plan settings, and the most recent location stay in browser storage. Do not add a backend or transmit additional user data without an explicit request.
 
-Voice input, when supported by the browser, updates indoor temperature and relative humidity only. Keep a review step before applying values and allow immediate manual stop. On desktop, start speech recognition without waiting for the optional adaptive microphone meter and retain one-second meter-based silence detection. On iOS, match the verified held-stream diagnostic lifecycle: open the standard microphone meter first, keep it alive throughout a fresh one-shot recognition session, use it only for the real waveform, and let WebKit end recognition after speech. Natural completion releases the stream. Manual stop ends Web Speech but retains the same local stream and waveform for fresh-recogniser retries; repeated manual stops keep retaining it until a natural completion. Release retained resources on dialog close, apply, page hiding, error or cleanup failure, and after a 30-second retained-state timeout. Treat the iOS stream as functional audio-session infrastructure rather than optional visual decoration: a stream released before recognition did not help, and releasing it immediately after manual stop caused the next attempt to fail, while continuous overlap supported repeated natural and manual-stop retries. If the meter is unavailable, allow recognition to continue with the meterless listening-outline pulse. Isolate each recognition session and ensure stale callbacks cannot stop a newer session. Do not infer a single unlabelled integer when it is valid for both temperature and humidity. Keep temporary on-device diagnostics behind an explicit query flag and avoid logging recognised speech content.
+Voice input, when supported by the browser, updates indoor temperature and relative humidity only. Keep a review step before applying values and allow immediate manual stop. On desktop, start speech recognition without waiting for the optional adaptive microphone meter and retain one-second meter-based silence detection. On iOS, prepare the standard microphone meter before starting a fresh one-shot recognition session, use the meter for the real dialog waveform, and let WebKit end recognition after speech. Keep that enabled stream throughout the foreground session, including manual Stop, natural completion, Apply, dialog close and recognition errors; stop the waveform animation between attempts without implying hardware capture has stopped. Release on hidden/pagehide and clean up invalid resources. The amber indicator may persist: this is an explicitly accepted trade-off, not a fix to the underlying WebKit issue. The `.13` release/reopen test made both the meter and transcription silent, so do not introduce it as recovery without new device evidence. If the meter is unavailable, allow recognition to continue with the meterless listening-outline pulse. Isolate each recognition session and ensure stale callbacks cannot stop a newer session. Do not infer a single unlabelled integer when it is valid for both temperature and humidity; two unlabelled values such as “21 and 55” can be inferred when their ranges distinguish them. Keep temporary on-device diagnostics behind an explicit query flag and avoid logging recognised speech content.
 
 ## Cache Updates
 
@@ -176,6 +177,7 @@ Do not claim visual verification if the live page was unavailable or stale.
 
 When the user requests a release:
 
+- For a user-specified version branch, use the exact requested branch name and make the app diagnostic build name match it; do not substitute the default `codex/` prefix.
 - Update both `README.md` and `CHANGELOG.md` with claims supported by the actual diff.
 - Use a patch version for refinements to an already published release; do not move an existing public tag without explicit confirmation.
 - Perform only the requested Git operations. Pushing a feature branch does not imply merging, tagging, or publishing a release.
