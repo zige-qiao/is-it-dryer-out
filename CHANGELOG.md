@@ -4,6 +4,8 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Live voice transcript now replaces Listening in the same status box instead of appearing in a second panel. Final review behaviour is unchanged; app assets revision 129.
+
 ### v0.5.4.11-foreground-voice
 
 - Adopted the user-approved iPhone foreground microphone retention trade-off: reuse the enabled stream across voice attempts, Apply and dialog close; cancel/reset waveform animation when not listening. Removed the retained-stream idle timeout, not the recognition duration limit.

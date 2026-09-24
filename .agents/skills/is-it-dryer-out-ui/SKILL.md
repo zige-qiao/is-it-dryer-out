@@ -49,6 +49,8 @@ Do not document transient experiments, reverted tweaks, or implementation detail
 
 ## Information Hierarchy
 
+Voice listening uses one status box: replace Listening with live Hearing text and keep the separate transcript panel hidden until final review or an error.
+
 On mobile, keep this visual order:
 
 1. Recommendation and forecast outlook.

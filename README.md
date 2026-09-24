@@ -8,6 +8,8 @@ A personal ventilation checker for estimating whether opening windows should red
 
 ## Using the app
 
+During voice input, live “Hearing: …” text replaces “Listening…” in the same status box. The final transcript and review step appear after completion.
+
 - Set the indoor temperature and relative humidity.
 - In supported browsers, use the microphone button to enter one or both indoor readings by voice, then review the recognised values before applying them.
 - Use the compact ventilation summary below the outlook to open **Ventilation settings**. Changes to minimum temperature, target humidity, room size, or opening setup save immediately and update the outlook without an Apply step. On mobile, minimum temperature and target humidity remain side by side.

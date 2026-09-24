@@ -369,7 +369,7 @@ function showVoiceResult(transcript, allowApply = true, session = activeVoiceSes
   const rows = voiceChangeRows(parsed.values);
   pendingVoiceChanges = rows.length ? parsed.values : null;
   elements.voiceTranscript.textContent = `Heard: “${transcript}”`;
-  elements.voiceTranscriptPanel.hidden = false;
+  elements.voiceTranscriptPanel.hidden = !allowApply;
   elements.voiceChanges.classList.toggle("has-single-change", rows.length === 1);
   elements.voiceChanges.replaceChildren(...rows.map(([label, value]) => {
     const row = document.createElement("div");
@@ -386,7 +386,7 @@ function showVoiceResult(transcript, allowApply = true, session = activeVoiceSes
     ? parsed.errors.length
       ? parsed.errors.join(" ")
       : rows.length ? "Review the changes before applying." : "Couldn't find a temperature or humidity reading."
-    : "Listening...";
+    : `Hearing: “${transcript}”`;
   elements.voiceApplyButton.disabled = !pendingVoiceChanges || parsed.errors.length > 0;
   elements.voiceApplyButton.hidden = elements.voiceApplyButton.disabled;
   if (allowApply) {
@@ -812,8 +812,8 @@ function startVoiceInput() {
     session.finalTimer = null;
     const transcript = [...event.results].map((result) => result[0].transcript).join(" ").trim();
     session.latestTranscript = transcript;
-    elements.voiceTranscript.textContent = `Hearing: “${transcript}”`;
-    elements.voiceTranscriptPanel.hidden = false;
+    elements.voiceStatus.textContent = `Hearing: “${transcript}”`;
+    elements.voiceTranscriptPanel.hidden = true;
     const latestResult = event.results[event.results.length - 1];
     if (latestResult.isFinal) {
       showVoiceResult(transcript, false, session);

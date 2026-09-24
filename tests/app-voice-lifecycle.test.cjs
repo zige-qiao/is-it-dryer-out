@@ -77,11 +77,20 @@ test('iOS foreground sessions retain a stationary meter across completion and di
 
 test('production build identifies the foreground voice branch and synchronized cache', () => {
   assert.match(app, /APP_BUILD_VERSION = "v0\.5\.4\.11-foreground-voice"/);
-  assert.match(index, /styles\.css\?v=128/);
-  assert.match(index, /app\.js\?v=128/);
-  assert.match(serviceWorker, /is-it-dryer-out-v128/);
-  assert.match(serviceWorker, /styles\.css\?v=128/);
-  assert.match(serviceWorker, /app\.js\?v=128/);
+  assert.match(index, /styles\.css\?v=129/);
+  assert.match(index, /app\.js\?v=129/);
+  assert.match(serviceWorker, /is-it-dryer-out-v129/);
+  assert.match(serviceWorker, /styles\.css\?v=129/);
+  assert.match(serviceWorker, /app\.js\?v=129/);
+});
+
+test('live hearing replaces listening in the status box until review', () => {
+  const result = functionSource('showVoiceResult', 'resetVoiceMeter');
+  assert.match(result, /voiceTranscriptPanel.hidden = !allowApply/);
+  assert.match(result, /: `Hearing:/);
+  const start = functionSource('startVoiceInput', 'stopVoiceInput');
+  assert.match(start, /voiceStatus.textContent = `Hearing:/);
+  assert.match(start, /voiceTranscriptPanel.hidden = true/);
 });
 
 test('retention leaves tracks enabled, cancels animation and schedules no timeout', () => {
