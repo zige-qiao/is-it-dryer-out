@@ -31,7 +31,7 @@ const OPENING_SETUPS = {
 };
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 // Keep the build identity in the script so stale code identifies itself correctly.
-const APP_BUILD_VERSION = "v0.5.4.11-foreground-voice";
+const APP_BUILD_VERSION = "v0.5.4.13-muted-meter-reopen-test";
 const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
 const IS_IOS = /iP(?:hone|ad|od)/.test(navigator.userAgent)
   || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -493,6 +493,15 @@ async function prepareVoiceAudioContext(session) {
 
 async function startVoiceMeter(session) {
   const retainedTrack = retainedVoiceMeter?.stream?.getAudioTracks()[0];
+  const reopeningMutedTrack = IS_IOS && retainedTrack?.readyState === "live" && retainedTrack.muted;
+  if (reopeningMutedTrack) {
+    voiceDebugLog("retained meter muted; reopening after voice request", {
+      track: retainedTrack.readyState,
+      enabled: retainedTrack.enabled,
+      muted: retainedTrack.muted,
+    }, session.id);
+    releaseRetainedVoiceMeter("muted before new voice request");
+  }
   if (IS_IOS && retainedTrack?.readyState === "live") {
     const meter = retainedVoiceMeter;
     retainedVoiceMeter = null;
@@ -518,6 +527,7 @@ async function startVoiceMeter(session) {
     releaseTimer: null,
     session,
     lastSessionId: session.id,
+    reopenedAfterMute: reopeningMutedTrack,
   };
   session.meter = meter;
   try {
@@ -562,6 +572,9 @@ async function startVoiceMeter(session) {
   const maximumHeights = IS_IOS ? [8, 14, 22, 14, 8] : [8, 12, 16, 12, 8];
   const calibrationLevels = [];
   const meterStartedAt = performance.now();
+  let probeStartedAt = meterStartedAt;
+  let probeFrames = 0;
+  let probeLevelMax = 0;
   let noiseFloor = 0.006;
   let activityThreshold = VOICE_MIN_ACTIVITY_THRESHOLD;
   let calibrationLogged = false;
@@ -580,6 +593,23 @@ async function startVoiceMeter(session) {
     if (IS_IOS) {
       const measuredLevel = Math.min(1, Math.sqrt(total / samples.length) / 24);
       targetLevel = measuredLevel;
+      if (meter.reopenedAfterMute && VOICE_DEBUG_ENABLED) {
+        probeFrames += 1;
+        probeLevelMax = Math.max(probeLevelMax, measuredLevel);
+        if (performance.now() - probeStartedAt >= 1000) {
+          voiceDebugLog("reopened meter probe", {
+            track: track?.readyState || "none",
+            enabled: track?.enabled ?? "unknown",
+            muted: track?.muted ?? "unknown",
+            context: context.state,
+            frames: probeFrames,
+            levelMax: probeLevelMax.toFixed(4),
+          }, owner.id);
+          probeStartedAt = performance.now();
+          probeFrames = 0;
+          probeLevelMax = 0;
+        }
+      }
     } else {
       const measuredLevel = Math.sqrt(total / samples.length);
       const elapsed = performance.now() - meterStartedAt;

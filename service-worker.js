@@ -1,9 +1,9 @@
-const CACHE_NAME = "is-it-dryer-out-v129";
+const CACHE_NAME = "is-it-dryer-out-v131";
 const APP_FILES = [
   "./",
   "index.html",
-  "styles.css?v=129",
-  "app.js?v=129",
+  "styles.css?v=131",
+  "app.js?v=131",
   "manifest.webmanifest",
   "favicon-v4.png",
 ];

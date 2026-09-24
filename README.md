@@ -10,6 +10,8 @@ A personal ventilation checker for estimating whether opening windows should red
 
 During voice input, live “Hearing: …” text replaces “Listening…” in the same status box. The final transcript and review step appear after completion.
 
+Diagnostic build `v0.5.4.13-muted-meter-reopen-test` (app asset 131) tests restoring the real iPhone waveform after the system's **Stop Audio Recording** action. With `?voice-debug=1`, make one successful voice attempt, tap the iPhone amber indicator and confirm Stop Audio Recording, then tap the app microphone again and speak for at least five seconds. Compare both the waveform and transcript; the log should show `retained meter muted; reopening after voice request`, a fresh `getUserMedia` request, and once-per-second `reopened meter probe` levels. Try one more voice attempt without reloading and copy the log. This experimental branch has not been merged into `main` or verified on an iPhone.
+
 - Set the indoor temperature and relative humidity.
 - In supported browsers, use the microphone button to enter one or both indoor readings by voice, then review the recognised values before applying them.
 - Use the compact ventilation summary below the outlook to open **Ventilation settings**. Changes to minimum temperature, target humidity, room size, or opening setup save immediately and update the outlook without an Apply step. On mobile, minimum temperature and target humidity remain side by side.

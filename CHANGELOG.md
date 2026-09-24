@@ -4,6 +4,10 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+### Diagnostic build v0.5.4.13-muted-meter-reopen-test
+
+- On the next explicit voice request after iOS mutes the retained meter track, release that muted track and request a fresh waveform stream. Log per-second audio levels from the reopened stream while leaving the visible waveform and speech-recognition flow in place. This is an iPhone test branch, not a proven recovery or a `main` change. App asset revision 131.
+
 - Live voice transcript now replaces Listening in the same status box instead of appearing in a second panel. Final review behaviour is unchanged; app assets revision 129.
 
 ### v0.5.4.11-foreground-voice

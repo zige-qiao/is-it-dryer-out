@@ -45,6 +45,38 @@ test('the iOS fallback pulse is used only when no held stream is available', () 
   assert.match(app, /classList\.toggle\("is-meterless", IS_IOS && !session\.meter\?\.stream\)/);
 });
 
+test('a system-muted retained meter is reopened only on the next voice request', async () => {
+  const vm = require('node:vm');
+  let releases = 0;
+  let captureRequests = 0;
+  const events = [];
+  const track = { readyState: 'live', enabled: true, muted: true };
+  const meter = { stream: { getAudioTracks: () => [track] } };
+  const session = { id: 2, meter: null };
+  const context = {
+    IS_IOS: true,
+    retainedVoiceMeter: meter,
+    session,
+    releaseRetainedVoiceMeter: () => {
+      releases += 1;
+      track.readyState = 'ended';
+      context.retainedVoiceMeter = null;
+    },
+    navigator: { mediaDevices: { getUserMedia: async () => {
+      captureRequests += 1;
+      throw { name: 'NotAllowedError' };
+    } } },
+    voiceDebugLog: (event) => events.push(event),
+  };
+  const meterSource = app.slice(app.indexOf('async function startVoiceMeter'), app.indexOf('function voiceErrorMessage'));
+  await vm.runInNewContext(`${meterSource} startVoiceMeter(session);`, context);
+  assert.equal(releases, 1);
+  assert.equal(captureRequests, 1);
+  assert.equal(session.meter, null);
+  assert.equal(context.retainedVoiceMeter, null);
+  assert.ok(events.includes('retained meter muted; reopening after voice request'));
+});
+
 test('recognition stops before the held meter is released', () => {
   const stop = functionSource('stopVoiceInput', 'toggleVoiceListening');
   const finish = functionSource('finishVoiceListening', 'completeVoiceSession');
@@ -75,13 +107,13 @@ test('iOS foreground sessions retain a stationary meter across completion and di
   assert.match(app, /releaseRetainedVoiceMeter\("page hidden"\)/);
 });
 
-test('production build identifies the foreground voice branch and synchronized cache', () => {
-  assert.match(app, /APP_BUILD_VERSION = "v0\.5\.4\.11-foreground-voice"/);
-  assert.match(index, /styles\.css\?v=129/);
-  assert.match(index, /app\.js\?v=129/);
-  assert.match(serviceWorker, /is-it-dryer-out-v129/);
-  assert.match(serviceWorker, /styles\.css\?v=129/);
-  assert.match(serviceWorker, /app\.js\?v=129/);
+test('diagnostic build identifies the muted-meter branch and synchronized cache', () => {
+  assert.match(app, /APP_BUILD_VERSION = "v0\.5\.4\.13-muted-meter-reopen-test"/);
+  assert.match(index, /styles\.css\?v=131/);
+  assert.match(index, /app\.js\?v=131/);
+  assert.match(serviceWorker, /is-it-dryer-out-v131/);
+  assert.match(serviceWorker, /styles\.css\?v=131/);
+  assert.match(serviceWorker, /app\.js\?v=131/);
 });
 
 test('live hearing replaces listening in the status box until review', () => {

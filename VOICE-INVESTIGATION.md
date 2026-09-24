@@ -4,7 +4,15 @@ This document records the investigation into repeated voice-input failures in iO
 
 **Status (2026-09-22): OPEN — full microphone release after manual recognition termination can leave subsequent capture silent.** Retaining a stream is a verified limited mitigation, not a resolved privacy-compatible Stop/Abort lifecycle. Read the current handoff below before drawing conclusions from the historical sections. Earlier natural-completion and retained-stream successes remain valid observations, not proof of a platform fix.
 
-## Current handoff — through v0.5.4.9
+## Current handoff — through v0.5.4.13
+
+### System-muted waveform and next-tap reopening test
+
+In production build `v0.5.4.11-foreground-voice` (asset 129), the user used the iPhone amber-indicator prompt to stop audio recording. The original waveform track logged `track mute state=live muted=true` at 27.856s, without an `ended` or later `unmute` event in the supplied log. Subsequent sessions 4–10 reused that track and had a flat waveform, yet each produced speech-recognition results and final transcription. The user's amber indicator turned on and off with those later recognition attempts. A stale `audio-capture: Source is muted` error after session 8 had `current=false`; sessions 9–10 still transcribed. The browser's speech-recognition path evidently remained usable while the app's separate meter path stopped receiving audio. This does not establish why WebKit separated their behaviour.
+
+The `v0.5.4.12-muted-meter-fallback` change hid the waveform when the retained track was muted. The user did not agree to removing the waveform; commit `4803996` reverted that change on `main`, restoring asset 129 and the earlier UI. Do not treat `.12` as an accepted production solution.
+
+Diagnostic branch `v0.5.4.13-muted-meter-reopen-test`, asset 131, tests a different recovery. The app still draws the real waveform. When the user explicitly starts another attempt and the retained track is both `live` and `muted`, it releases that track, requests a fresh `getUserMedia` stream, then starts recognition as usual. Privacy-safe once-per-second logs report the reopened stream's track/context state, animation-frame count and maximum measured audio level; transcripts and audio are not logged. The test asks whether the new stream restores both real waveform movement and repeated transcription. Earlier full-release experiments produced silent fresh streams, so success must be demonstrated on the affected iPhone before this can be considered for `main`. The app continues recognition if the meter request fails. iPhone outcome pending.
 
 ### Product decision and .11 implementation
 
