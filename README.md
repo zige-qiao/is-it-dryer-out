@@ -10,7 +10,7 @@ A personal ventilation checker for estimating whether opening windows should red
 
 During voice input, live “Hearing: …” text replaces “Listening…” in the same status box. The final transcript and review step appear after completion.
 
-Diagnostic build `v0.5.4.13-muted-meter-reopen-test` (app asset 131) tests restoring the real iPhone waveform after the system's **Stop Audio Recording** action. With `?voice-debug=1`, make one successful voice attempt, tap the iPhone amber indicator and confirm Stop Audio Recording, then tap the app microphone again and speak for at least five seconds. Compare both the waveform and transcript; the log should show `retained meter muted; reopening after voice request`, a fresh `getUserMedia` request, and once-per-second `reopened meter probe` levels. Try one more voice attempt without reloading and copy the log. This experimental branch has not been merged into `main` or verified on an iPhone.
+Diagnostic build `v0.5.4.13-muted-meter-reopen-test` (app asset 131) tested a fresh waveform stream after iOS muted the retained track. On the affected iPhone, the new stream reported live, enabled and unmuted but measured zero audio for more than 11 seconds while the user spoke; that attempt and two retries also produced no transcription. The test branch remains on GitHub for analysis, but Pages was returned to `main` and this reopening strategy should not be used as a recovery.
 
 - Set the indoor temperature and relative humidity.
 - In supported browsers, use the microphone button to enter one or both indoor readings by voice, then review the recognised values before applying them.
