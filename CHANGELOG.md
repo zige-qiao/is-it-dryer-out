@@ -2,6 +2,13 @@
 
 All notable changes to Is it dryer out are documented here.
 
+## v0.6.0 — Moisture Outlook - 2026-09-26
+
+- Replaced the moisture table with outdoor and indoor cards and a semantic-colour warmed-air RH comparison, including a compact three-column mobile layout.
+- Added an interactive 48-hour outdoor AH forecast with pointer and keyboard inspection, local midnight/noon labels, and extended gridlines.
+- Added a dynamic indoor reference, blue–amber–red uncertainty gradient, and an outlined label that avoids the curve automatically.
+- Extended the hourly weather request to 50 hours to cover the complete rolling forecast. Updated app cache revision to 131.
+
 ## v0.5.5 - 2026-09-24
 
 ### Voice interface

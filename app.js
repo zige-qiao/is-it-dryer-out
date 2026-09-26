@@ -31,7 +31,7 @@ const OPENING_SETUPS = {
 };
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 // Keep the build identity in the script so stale code identifies itself correctly.
-const APP_BUILD_VERSION = "v0.5.5";
+const APP_BUILD_VERSION = "v0.6.0";
 const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
 const IS_IOS = /iP(?:hone|ad|od)/.test(navigator.userAgent)
   || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -1889,6 +1889,7 @@ function renderWeatherDataDetails() {
 }
 
 function render() {
+  renderAhChart();
   elements.indoorTemp.value = state.indoorTemp;
   elements.indoorRh.value = state.indoorRh;
   elements.indoorTempInput.value = state.indoorTemp.toFixed(1);
@@ -1902,8 +1903,9 @@ function render() {
   const indoorDew = dewPoint(state.indoorTemp, state.indoorRh);
   const indoorAbsolute = absoluteHumidity(state.indoorTemp, state.indoorRh);
   elements.indoorDewPoint.textContent = formatTemp(indoorDew);
-  elements.indoorAbsoluteHumidity.textContent = formatMoisture(indoorAbsolute);
+  elements.indoorAbsoluteHumidity.textContent = indoorAbsolute.toFixed(1);
   elements.outdoorAbsoluteHumidity.classList.remove("lower", "higher", "near");
+  document.querySelector(".outdoor-card").classList.remove("lower", "higher", "near");
 
   if (state.outdoorTemp === null || state.outdoorRh === null) {
     elements.retryWeather.hidden = !state.weatherLoadFailed;
@@ -1944,12 +1946,14 @@ function render() {
   elements.outdoorTempValue.textContent = formatTemp(state.outdoorTemp);
   elements.outdoorRhValue.textContent = formatRh(state.outdoorRh);
   elements.outdoorDewPoint.textContent = formatTemp(outdoorDew);
-  elements.outdoorAbsoluteHumidity.textContent = formatMoisture(comparison.outdoor);
+  elements.outdoorAbsoluteHumidity.textContent = comparison.outdoor.toFixed(1);
   elements.warmedOutdoorRh.textContent = formatRh(displayedAdjustedRh);
   elements.adjustedAirNote.textContent = condensationRisk ? "Condensation risk" : "";
   elements.outdoorAbsoluteHumidity.classList.toggle("lower", comparison.status === "drier");
   elements.outdoorAbsoluteHumidity.classList.toggle("higher", comparison.status === "wetter");
   elements.outdoorAbsoluteHumidity.classList.toggle("near", comparison.status === "uncertain");
+
+  document.querySelector(".outdoor-card").classList.add(comparison.status === "drier" ? "lower" : comparison.status === "wetter" ? "higher" : "near");
 
   renderRecommendation(plan);
   renderRecommendationExplanation(plan, comparison, displayedAdjustedRh, condensationRisk);
@@ -1961,7 +1965,7 @@ function weatherUrlForLocation(location = state.location) {
     longitude: location.longitude.toFixed(4),
     current: "temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m",
     hourly: "temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m",
-    forecast_hours: "12",
+    forecast_hours: "50",
     timeformat: "unixtime",
     timezone: "auto",
   });
@@ -2526,3 +2530,128 @@ window.addEventListener("pagehide", () => {
   }
   releaseRetainedVoiceMeter("page left");
 });
+
+function renderAhChart() {
+  const chart = document.querySelector('#ahChart');
+  const reading = document.querySelector('#ahChartReading');
+  if (!chart || !reading) return;
+  const timeline = buildWeatherTimeline();
+  if (timeline.length < 2 || state.weatherRequestPending || state.weatherLoadFailed) {
+    chart.innerHTML = '';
+    chart.setAttribute('aria-disabled', 'true');
+    chart.removeAttribute('aria-valuetext');
+    chart.onpointerdown = chart.onpointermove = chart.onkeydown = null;
+    reading.textContent = state.weatherRequestPending ? 'Loading outdoor forecast…' : 'Outdoor forecast unavailable';
+    return;
+  }
+  chart.removeAttribute('aria-disabled');
+  const start = timeline[0].time.getTime();
+  const end = Math.min(start + 48 * 3600000, timeline.at(-1).time.getTime());
+  const points = timeline.filter(p => p.time.getTime() < end).map(p => ({
+    time: p.time.getTime(), value: absoluteHumidity(p.temp, p.rh),
+  }));
+  const last = weatherAtTime(timeline, new Date(end));
+  points.push({ time: end, value: absoluteHumidity(last.temp, last.rh) });
+  const indoor = absoluteHumidity(state.indoorTemp, state.indoorRh);
+  const low = Math.max(0, Math.floor(Math.min(indoor, ...points.map(p => p.value)) - 1));
+  const high = Math.ceil(Math.max(indoor, ...points.map(p => p.value)) + 1);
+  const x = time => 8 + (time - start) / (end - start) * 426;
+  const y = value => 130 - (value - low) / (high - low) * 116;
+  const margin = moistureMargin(state.indoorTemp, state.indoorRh, state.outdoorTemp, state.outdoorRh);
+  // Keep the full uncertainty range amber, with soft blends outside its boundaries.
+  const gradient = `<linearGradient id="ahSemantic" gradientUnits="userSpaceOnUse" x1="0" y1="${y(indoor + margin * 1.75)}" x2="0" y2="${y(indoor - margin * 1.75)}"><stop offset="0" stop-color="var(--closed)"/><stop offset="0.2142857143" stop-color="#d99800"/><stop offset="0.7857142857" stop-color="#d99800"/><stop offset="1" stop-color="var(--windows)"/></linearGradient>`;
+  const path = points.map((p, i) => `${i ? 'L' : 'M'}${x(p.time).toFixed(2)},${y(p.value).toFixed(2)}`).join(' ');
+  const ticks = [low, (low + high) / 2, high].map(value => `<path d="M8 ${y(value)}H434" class="ah-grid"/><text x="442" y="${y(value) + 4}">${value.toFixed(1)}</text>`).join('');
+  const dayFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: state.timezone, weekday: 'short' });
+  const clockFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: state.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  // Forecast timestamps retain local midnight/noon positions across timezone and DST changes.
+  const clockTicks = timeline.filter(p => p.time.getTime() > start && p.time.getTime() <= end)
+    .map(p => ({ time: p.time.getTime(), clock: clockFormatter.format(p.time) }))
+    .filter(p => p.clock === '00:00' || p.clock === '12:00');
+  const firstMidnight = clockTicks.find(p => p.clock === '00:00');
+  let days = !firstMidnight || x(firstMidnight.time) > 64
+    ? `<text x="8" y="181">${dayFormatter.format(start)}</text>` : '';
+  let hours = '<text x="8" y="155">Now</text>';
+  for (const tick of clockTicks) {
+    const px = x(tick.time);
+    const labelX = px + 6;
+    days += `<path d="M${px} 14V188" class="ah-day-line"/>`;
+    // Leave space around Now rather than crowding it with an imminent tick.
+    if (px >= 64 && labelX <= 410) hours += `<text x="${labelX}" y="155" text-anchor="start">${tick.clock.slice(0, 2)}</text>`;
+    if (tick.clock === '00:00' && labelX <= 400) {
+      days += `<text x="${labelX}" y="181" text-anchor="start">${dayFormatter.format(tick.time)}</text>`;
+    }
+  }
+  chart.innerHTML = `<defs>${gradient}<linearGradient id="ahFill" x1="0" y1="0" x2="0" y2="1"><stop stop-color="white" stop-opacity=".25"/><stop offset="1" stop-color="white" stop-opacity=".02"/></linearGradient><mask id="ahFade" maskUnits="userSpaceOnUse" x="0" y="0" width="480" height="170"><rect width="480" height="170" fill="url(#ahFill)"/></mask></defs>${ticks}${days}<path d="${path} L${x(end)} 130 L8 130Z" fill="url(#ahSemantic)" mask="url(#ahFade)"/><path d="${path}" class="ah-curve"/>${hours}<path d="M8 ${y(indoor)}H434" class="ah-indoor-line"/><text class="ah-indoor-label" x="12" y="${y(indoor) - 6}">Indoor ${indoor.toFixed(1)}</text><path id="ahCursor" class="ah-cursor"/><circle id="ahDot" r="4" class="ah-dot"/>`;
+  positionAhIndoorLabel(chart, points.map(p => ({ x: x(p.time), y: y(p.value) })), y(indoor));
+  let selected = 0;
+  const maxHours = (end - start) / 3600000;
+  chart.setAttribute('aria-valuemax', maxHours.toFixed(2));
+  function select(hours) {
+    selected = clamp(hours, 0, maxHours);
+    const time = start + selected * 3600000;
+    const next = points.findIndex(p => p.time >= time);
+    const b = points[Math.max(0, next)];
+    const a = points[Math.max(0, next - 1)];
+    const fraction = b.time === a.time ? 0 : (time - a.time) / (b.time - a.time);
+    const value = a.value + (b.value - a.value) * fraction;
+    const day = new Intl.DateTimeFormat('en-GB', { timeZone: state.timezone, weekday: 'short' }).format(time);
+    const label = `${selected === 0 ? 'Now' : day + ' ' + formatShortTime(new Date(time))} · ${value.toFixed(1)} g/m³`;
+    reading.textContent = label;
+    chart.setAttribute('aria-valuenow', selected.toFixed(2));
+    chart.setAttribute('aria-valuetext', label);
+    chart.querySelector('#ahCursor').setAttribute('d', `M${x(time)} 14V130`);
+    chart.querySelector('#ahDot').setAttribute('cx', x(time));
+    chart.querySelector('#ahDot').setAttribute('cy', y(value));
+  }
+  const inspect = event => {
+    const bounds = chart.getBoundingClientRect();
+    select(((event.clientX - bounds.left) / bounds.width * 480 - 8) / 426 * maxHours);
+  };
+  chart.onpointerdown = event => { chart.setPointerCapture(event.pointerId); inspect(event); };
+  chart.onpointermove = event => { if (chart.hasPointerCapture(event.pointerId) || event.pointerType === 'mouse') inspect(event); };
+  chart.onkeydown = event => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    select(event.key === 'Home' ? 0 : event.key === 'End' ? maxHours : selected + (event.key === 'ArrowRight' ? 1 : -1));
+  };
+  select(0);
+}
+
+function positionAhIndoorLabel(chart, curve, lineY) {
+  const label = chart.querySelector('.ah-indoor-label');
+  const box = label.getBBox();
+  const baselineOffset = Number(label.getAttribute('y')) - box.y;
+  const padding = 4; // Includes the white halo and a little space around the curve.
+  const candidates = [lineY - 6 - box.height, lineY + 6].map(top => {
+    top = clamp(top, 14 + padding, 130 - padding - box.height);
+    const bounds = { left: box.x - padding, right: box.x + box.width + padding,
+      top: top - padding, bottom: top + box.height + padding };
+    let overlap = 0;
+    // Measure curve length inside the padded label rectangle, including segments
+    // whose endpoints both lie outside it.
+    for (let i = 1; i < curve.length; i++) {
+      const a = curve[i - 1];
+      const b = curve[i];
+      let enter = 0;
+      let leave = 1;
+      for (const [origin, delta, min, max] of [
+        [a.x, b.x - a.x, bounds.left, bounds.right],
+        [a.y, b.y - a.y, bounds.top, bounds.bottom],
+      ]) {
+        if (delta === 0) {
+          if (origin < min || origin > max) leave = -1;
+        } else {
+          const t1 = (min - origin) / delta;
+          const t2 = (max - origin) / delta;
+          enter = Math.max(enter, Math.min(t1, t2));
+          leave = Math.min(leave, Math.max(t1, t2));
+        }
+      }
+      overlap += Math.max(0, leave - enter) * Math.hypot(b.x - a.x, b.y - a.y);
+    }
+    return { top, overlap };
+  });
+  const best = candidates[1].overlap < candidates[0].overlap ? candidates[1] : candidates[0];
+  label.setAttribute('y', best.top + baselineOffset);
+}

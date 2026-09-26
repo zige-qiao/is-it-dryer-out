@@ -1,12 +1,16 @@
 # Is it dryer out
 
-## Version 0.5.5
+## Version 0.6.0 — Moisture Outlook
 
-Version 0.5.5 refines the voice-entry interface without changing the iPhone microphone-retention policy.
+Version 0.6.0 adds an interactive 48-hour outdoor absolute-humidity forecast and a redesigned moisture dashboard.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
 ## Using the app
+
+The Moisture dashboard compares outdoor and indoor absolute humidity (g/m³), with the warmed-outdoor RH between the cards. The outdoor card and warmed-RH value use blue for drier air, amber for uncertain differences, and red for wetter air.
+
+Drag across the 48-hour outdoor AH chart, hover with a mouse, or use the arrow keys to inspect the forecast (Home/End jump to its ends). Values between hourly readings are interpolated. The dashed indoor line and blue–amber–red gradient update with your indoor readings; amber covers the current comparison uncertainty range with soft transitions outside it. The outlined indoor label automatically chooses the clearer side of its line. Midnight and noon ticks use the weather location’s time zone.
 
 The Indoor readings microphone now matches the dashboard refresh icon style. Tapping it opens the voice dialog immediately as recording begins. Only the dialog shows the live waveform. Below its single status box, examples suggest “21 degrees, 55 percent”, “21 and 55”, or “Humidity 60 percent”; they disappear when speech is heard or an error is shown. Live “Hearing: …” text replaces “Listening…” in that box, and the final transcript and review step appear after completion.
 
