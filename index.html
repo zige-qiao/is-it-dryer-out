@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=130" />
+    <link rel="stylesheet" href="styles.css?v=131" />
   </head>
   <body>
     <main class="app-shell">
@@ -156,41 +156,33 @@
             </div>
           </div>
 
-          <div class="data-table" role="table" aria-label="Indoor and outdoor readings">
-            <div class="data-row header" role="row">
-              <span role="columnheader"></span>
-              <span class="metric-heading" role="columnheader">Indoor</span>
-              <span class="outdoor-heading" role="columnheader">Outdoor</span>
-            </div>
-            <div class="data-row" role="row">
-              <span role="rowheader">Temperature</span>
-              <strong id="indoorTempValue">24.0C</strong>
-              <strong id="outdoorTempValue">--</strong>
-            </div>
-            <div class="data-row" role="row">
-              <span role="rowheader">Rel. humidity</span>
-              <strong id="indoorRhValue">58%</strong>
-              <strong id="outdoorRhValue">--</strong>
-            </div>
-            <div class="data-row" role="row">
-              <span role="rowheader">Dew point</span>
-              <strong id="indoorDewPoint">--</strong>
-              <strong id="outdoorDewPoint">--</strong>
-            </div>
-            <div class="data-row final-reading" role="row">
-              <span role="rowheader">Absolute humidity</span>
-              <strong id="indoorAbsoluteHumidity">--</strong>
-              <strong id="outdoorAbsoluteHumidity" class="comparison-value">--</strong>
-            </div>
-          </div>
-
-          <div class="warming-card">
-            <span class="warming-label">Outdoor air RH at indoor <strong id="warmingTemp">24.0C</strong></span>
-            <span class="adjusted-rh-reading">
-              <strong id="warmedOutdoorRh">--</strong>
+          <div class="moisture-comparison">
+            <section class="moisture-card outdoor-card" aria-labelledby="outdoor-card-heading">
+              <h3 id="outdoor-card-heading">Outdoor</h3>
+              <strong class="moisture-main" id="outdoorAbsoluteHumidity">--</strong>
+              <span class="moisture-unit">g/m³ absolute</span>
+              <dl><div><dt>Temp</dt><dd id="outdoorTempValue">--</dd></div><div><dt>RH</dt><dd id="outdoorRhValue">--</dd></div><div><dt>Dew point</dt><dd id="outdoorDewPoint">--</dd></div></dl>
+            </section>
+            <div class="air-transfer">
+              <span class="transfer-heading">Let in</span>
+              <div class="transfer-value"><span aria-hidden="true">→</span><strong id="warmedOutdoorRh">--</strong><span aria-hidden="true">→</span></div>
+              <span>RH once warmed<br>to <strong id="warmingTemp">24.0°C</strong></span>
               <small id="adjustedAirNote"></small>
-            </span>
+            </div>
+            <section class="moisture-card indoor-card" aria-labelledby="indoor-card-heading">
+              <h3 id="indoor-card-heading">Indoor</h3>
+              <strong class="moisture-main" id="indoorAbsoluteHumidity">--</strong>
+              <span class="moisture-unit">g/m³ absolute</span>
+              <dl><div><dt>Temp</dt><dd id="indoorTempValue">24.0°C</dd></div><div><dt>RH</dt><dd id="indoorRhValue">58%</dd></div><div><dt>Dew point</dt><dd id="indoorDewPoint">--</dd></div></dl>
+            </section>
           </div>
+          <section class="ah-outlook" aria-labelledby="ah-outlook-heading">
+            <div class="ah-outlook-heading">
+              <p class="ah-chart-reading" id="ahChartReading">Loading outdoor forecast…</p>
+              <h3 id="ah-outlook-heading">Outdoor AH · 48 h forecast</h3>
+            </div>
+            <svg id="ahChart" class="ah-chart" viewBox="0 0 480 190" role="slider" tabindex="0" aria-label="Outdoor absolute humidity forecast with current indoor reference; use arrow keys to inspect hourly values" aria-valuemin="0" aria-valuemax="48" aria-valuenow="0"></svg>
+          </section>
         </section>
 
         <section class="details-footnotes" aria-label="Recommendation and weather details">
@@ -216,7 +208,7 @@
             <p class="weather-source-details">
               <a href="https://open-meteo.com/en/docs" target="_blank" rel="noreferrer">Source documentation</a>
               <a
-                href="https://api.open-meteo.com/v1/forecast?latitude=53.4252&longitude=-2.3244&current=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&forecast_hours=12&timeformat=unixtime&timezone=auto"
+                href="https://api.open-meteo.com/v1/forecast?latitude=53.4252&longitude=-2.3244&current=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m&forecast_hours=50&timeformat=unixtime&timezone=auto"
                 id="liveWeatherRequest"
                 target="_blank"
                 rel="noreferrer"
@@ -379,6 +371,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=130" type="module"></script>
+    <script src="app.js?v=131" type="module"></script>
   </body>
 </html>

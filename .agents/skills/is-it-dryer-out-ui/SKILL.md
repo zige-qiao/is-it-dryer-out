@@ -98,8 +98,8 @@ Forecast tiles use `Uncertain` instead of `Wait` and `Little benefit` instead of
 - Keep checking and no-data states neutral dark so status colours remain reserved for actual ventilation verdicts. On failure, retain static outlook placeholders, use concise `NO DATA` messaging, and keep retry actions out of the verdict's vertical content flow.
 - Show `Last checked HH:MM` with a compact muted-grey refresh icon and a comfortable touch target. During refresh, use `Updating outdoor...`.
 - If weather loading fails, show a concise failure state and a visible retry button.
-- End the dashboard with `Outdoor air RH at indoor <temperature>` and the resulting RH on the right.
-- Do not add a divider below the final Absolute humidity row.
+- Use outdoor and indoor AH cards with warmed-outdoor RH between them. Match the outdoor card and warmed-RH value to the moisture comparison semantic colours.
+- Below a divider, show the interactive 48-hour outdoor AH chart. Keep the dynamic indoor reference, full uncertainty amber band with soft colour transitions, abbreviated midnight/noon labels and extended gridlines. Give the indoor label a white halo and choose above/below placement to minimise curve overlap.
 - Keep dashboard horizontal and bottom padding equal.
 
 ## Supporting Details

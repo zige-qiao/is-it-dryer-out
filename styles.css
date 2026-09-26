@@ -1807,3 +1807,61 @@ input[type="range"] {
   overflow-wrap: anywhere;
   font: 11px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
 }
+
+.ah-outlook { margin: .65rem 0 1rem; }
+.ah-outlook-heading { display: flex; align-items: baseline; justify-content: space-between; gap: .5rem; }
+.ah-outlook-heading h3 { margin: 0; font-size: .85rem; font-weight: 650; }
+.ah-outlook-heading > span { color: var(--muted); font-size: .7rem; white-space: nowrap; }
+.ah-chart-reading { margin: .5rem 0 .15rem; font-size: .8rem; font-variant-numeric: tabular-nums; min-height: 1.2em; }
+.ah-chart { display: block; width: 100%; height: auto; touch-action: pan-y; overflow: visible; border-radius: .25rem; }
+.ah-chart:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+.ah-chart text { fill: var(--muted); font-size: 18px; }
+.ah-grid { stroke: var(--line); stroke-width: 1; }
+.ah-day-line { stroke: var(--line); stroke-dasharray: 3 4; }
+.ah-curve { fill: none; stroke: url(#ahSemantic); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.ah-cursor { stroke: #426c86; stroke-width: 1; opacity: .6; }
+.ah-dot { fill: url(#ahSemantic); stroke: white; stroke-width: 2; }
+
+.dashboard-panel { container-type: inline-size; }
+.moisture-comparison { display: grid; grid-template-columns: minmax(0, 1fr) 5.5rem minmax(0, 1fr); gap: .65rem; align-items: stretch; }
+.moisture-card { min-width: 0; border: 1px solid var(--line); border-radius: .85rem; padding: .7rem; }
+.moisture-card h3 { margin: 0 0 1.1rem; color: var(--muted); font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; }
+.moisture-main { display: block; font-size: 2.15rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.moisture-unit { display: block; margin-top: .3rem; font-size: .75rem; color: var(--muted); }
+.moisture-card dl { margin: 1.1rem 0 0; font-size: .8rem; }
+.moisture-card dl div { display: flex; justify-content: space-between; gap: .35rem; margin-top: .45rem; }
+.moisture-card dt { color: var(--muted); }
+.moisture-card dd { margin: 0; font-weight: 700; white-space: nowrap; }
+.outdoor-card.lower { background: var(--windows-bg); color: var(--windows); border-color: color-mix(in srgb, var(--windows) 18%, transparent); }
+.outdoor-card.higher { background: var(--closed-bg); color: var(--closed); border-color: color-mix(in srgb, var(--closed) 18%, transparent); }
+.outdoor-card.near { background: var(--caution-bg); color: var(--caution); border-color: color-mix(in srgb, var(--caution) 18%, transparent); }
+.outdoor-card:is(.lower,.higher,.near) :is(h3,dt,.moisture-unit) { color: inherit; }
+.air-transfer { align-self: center; text-align: center; font-size: .73rem; color: var(--muted); }
+.transfer-heading { text-transform: uppercase; letter-spacing: .07em; font-weight: 700; }
+.transfer-value { display: flex; align-items: center; justify-content: center; gap: .3rem; margin: .65rem 0; font-size: 1.2rem; }
+.transfer-value strong { font-size: 1.65rem; color: var(--ink); }
+.outdoor-card.lower + .air-transfer .transfer-value strong { color: var(--windows); }
+.outdoor-card.higher + .air-transfer .transfer-value strong { color: var(--closed); }
+.outdoor-card.near + .air-transfer .transfer-value strong { color: var(--caution); }
+.air-transfer #warmingTemp { font-weight: 400; }
+.air-transfer small { display: block; color: var(--closed); }
+.ah-outlook { border-top: 1px solid var(--line); padding-top: 1.1rem; margin: 1.2rem 0 0; }
+.ah-outlook-heading { margin-bottom: 1rem; flex-wrap: wrap; }
+.ah-outlook-heading h3 { font-size: .8rem; font-weight: 400; color: var(--muted); margin-left: auto; }
+.ah-chart-reading { margin: 0; font-weight: 700; }
+.ah-indoor-line { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: .75; }
+.ah-indoor-label { paint-order: stroke fill; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
+@container (max-width: 370px) {
+  .moisture-comparison { grid-template-columns: minmax(0, 1fr) 6rem minmax(0, 1fr); gap: .35rem; }
+  .moisture-card { padding: .6rem; }
+  .moisture-card h3 { font-size: .72rem; letter-spacing: .06em; margin-bottom: .7rem; }
+  .moisture-main { font-size: 1.65rem; }
+  .moisture-unit { font-size: .7rem; }
+  .moisture-card dl { font-size: .75rem; margin-top: .8rem; }
+  .moisture-card dl div { flex-direction: column; gap: .1rem; }
+  .moisture-card dd { margin-left: 0; }
+  .air-transfer { font-size: .7rem; }
+  .transfer-value { gap: .1rem; font-size: .85rem; }
+  .transfer-value strong { font-size: 1.25rem; }
+  .ah-outlook-heading h3 { margin-left: 0; }
+}
