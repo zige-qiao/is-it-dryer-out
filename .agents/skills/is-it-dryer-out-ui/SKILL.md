@@ -49,30 +49,18 @@ Do not document transient experiments, reverted tweaks, or implementation detail
 
 ## Information Hierarchy
 
-Voice listening uses one status box: replace Listening with live Hearing text and keep the separate transcript panel hidden until final review or an error.
-Keep the Indoor readings microphone visually matched to the muted refresh action. Open the voice dialog immediately when that microphone is activated; show the live waveform only inside the dialog. Place short example phrases below the status box while awaiting speech, then hide them when speech arrives or an error is shown.
+Show the recommendation and outdoor chart first, then its ventilation summary, moisture comparison cards, supporting accordions and footer. On wide screens keep the recommendation and chart on the left and moisture comparison/supporting details on the right.
 
-On mobile, keep this visual order:
+Indoor editing opens from Edit on the Indoor card. Keep temperature and humidity rulers, typed values, last-set time and voice entry in the same sheet. Values save immediately; Done closes the sheet. Speak opens voice review within that sheet; Back to manual returns to the rulers. Keep one Listening/Hearing status box and reveal the final transcript and Apply only for review. Retain the waveform inside the voice panel.
 
-1. Recommendation and forecast outlook.
-2. Indoor readings.
-3. Moisture dashboard.
-4. Supporting details and project credit.
-
-On wide screens, use equal-width columns. Put the recommendation and Indoor readings in the left column. Put the Moisture dashboard followed by supporting details in the right column.
-
-Keep the shared ventilation-plan summary directly below the forecast tiles as the outlook footer. The whole summary row opens the `Ventilation settings` dialog and remains available during weather loading and errors. Show the current minimum temperature, target humidity, room size, and opening setup; keep the text-to-chevron gap compact, and allow the two content groups to wrap naturally without shrinking the text. Keep forecast tiles read-only because one shared plan applies to every outlook hour.
-
-Keep all plan controls in the dialog and update saved settings, the summary, and forecasts immediately without an Apply button. Provide a top-right close button, Escape-to-close, visible focus states, and return focus to the summary trigger when the dialog closes. Keep Room size and Opening setup stacked. Custom room dimensions remain three columns inside Room size; custom airflow remains within Opening setup.
+The whole ventilation summary opens Ventilation settings. Keep paired minimum-temperature and target-humidity controls, stacked room/opening options and immediate persistence without an Apply step.
 
 ## Responsive Controls
 
-- Keep Temperature and Relative humidity in two columns on mobile and desktop.
-- Keep Minimum indoor temp and Target indoor humidity in two columns on mobile and desktop, with Minimum indoor temp on the left.
-- Use unified minus/value/plus fields for all four paired controls.
-- On narrow screens, use 36px-wide minus/plus buttons while retaining 44px height.
-- Keep values and units inside the central field and prevent digits from clipping.
-- Keep sliders the same width as their associated steppers.
+- Keep indoor rulers stacked, with visible tick alignment, typed entry and keyboard adjustment. Clamp and snap supported values without floating-point drift.
+- Preserve horizontal ruler gestures without hijacking vertical scrolling. Respect reduced motion and cancel momentum on interruption, close or backgrounding.
+- Keep minimum temperature and target humidity paired, with unified minus/value/plus fields and matching sliders.
+- Sheets support Done, Escape and mobile drag-to-dismiss. Preserve scroll position, visible focus and opener focus on dismissal; adapt to the visible viewport when the keyboard opens.
 
 ## Recommendation Language
 
@@ -87,28 +75,26 @@ For `OPEN IF NEEDED`, use:
 - Primary: `No clear drying benefit.`
 - Secondary: `Open briefly for fresh air; humidity may not fall.`
 
-Forecast tiles use `Uncertain` instead of `Wait` and `Little benefit` instead of `Too small`. Do not introduce `Slow drying` unless the product logic and tile timing semantics are reconsidered together. Preserve the established closed-window wording unless the user explicitly asks to change it.
+When displaying forecast outcomes, use `Uncertain` instead of `Wait` and `Little benefit` instead of `Too small`. Do not introduce `Slow drying` unless the product logic and tile timing semantics are reconsidered together. Preserve the established closed-window wording unless the user explicitly asks to change it.
 
 ## Forecast And Dashboard
 
-- Keep forecast tiles inside the recommendation card.
-- Show time, outcome or duration, outdoor temperature, outdoor RH, and the forecast-specific estimated airflow, for example `21.1°C · 60% RH` followed by `~1.6 ACH`.
-- Keep tile accessibility labels explicit about temperature, relative humidity, and estimated air changes per hour.
-- While weather is loading, preserve the outlook height with quiet skeleton tiles that are hidden from assistive technology and respect reduced-motion preferences.
-- Keep checking and no-data states neutral dark so status colours remain reserved for actual ventilation verdicts. On failure, retain static outlook placeholders, use concise `NO DATA` messaging, and keep retry actions out of the verdict's vertical content flow.
-- Show `Last checked HH:MM` with a compact muted-grey refresh icon and a comfortable touch target. During refresh, use `Updating outdoor...`.
-- If weather loading fails, show a concise failure state and a visible retry button.
-- Use outdoor and indoor AH cards with warmed-outdoor RH between them. Match the outdoor card and warmed-RH value to the moisture comparison semantic colours.
-- Below a divider, show the interactive 48-hour outdoor AH chart. Keep the dynamic indoor reference, full uncertainty amber band with soft colour transitions, abbreviated midnight/noon labels and extended gridlines. Give the indoor label a white halo and choose above/below placement to minimise curve overlap.
+- Keep the outdoor outlook inside the recommendation, with 24 h / 48 h controls, an AH line, indoor reference and estimated ACH bars. Derive both views' scales from the same 48-hour forecast and stop at available coverage.
+- Preserve pointer and keyboard inspection, local-time labels and a readable indoor reference label that avoids the curve.
+- Use the full moisture uncertainty range for amber and retain soft semantic-colour transitions.
+- Keep loading and failure states clear; avoid displaying stale outdoor results as current. Preserve retry and weather refresh actions.
+- Keep Last checked with its muted refresh icon near the location. Refresh page belongs in the footer.
+- Compare outdoor and indoor AH cards with warmed-outdoor RH between them. Match the outdoor card and warmed-RH value to moisture semantics.
 - Keep dashboard horizontal and bottom padding equal.
 
 ## Supporting Details
 
-Keep three unframed accordions below the dashboard in this order:
+Keep four unframed accordions below the dashboard in this order:
 
 1. `Why this recommendation?`, expanded by default, with a short plain-language explanation derived from the current calculation and state.
-2. `How estimates work`, collapsed by default, with concise limitations and definitions supported by the implementation.
-3. `Weather data`, collapsed by default, with provider, request location, last successful update, freshness state, and source links when available.
+2. `Glossary`, collapsed by default, defining AH, RH, DP, ACH, Let in and room volume.
+3. `How estimates work`, collapsed by default, with concise limitations and definitions supported by the implementation.
+4. `Weather data`, collapsed by default, with provider, request location, last successful update, freshness state, and source links when available.
 
 Preserve each accordion's open or closed state during live updates; apply defaults only on initialisation. Never leave an old recommendation or location explanation visible while new weather data is loading. Use full-width clickable headings, consistent chevrons, correct expanded-state semantics, visible keyboard focus, subtle dividers, and natural mobile wrapping.
 
@@ -120,7 +106,7 @@ Keep Open-Meteo attribution and the `Source documentation` and `View weather dat
 - Avoid decorative drop shadows.
 - Use black and white for ordinary control accents; reserve status colors for recommendation meaning.
 - Keep verdict styling aligned without allowing borders or outlines to change card dimensions.
-- Present the coloured verdict above a neutral forecast outlook with a 12px overlap. The outlook keeps side and bottom borders, square top corners, rounded bottom corners, and enough top padding to separate its tiles from the verdict edge.
+- Keep the recommendation and chart visually integrated, with a restrained neutral ventilation-summary footer.
 - Keep the recommendation's top padding compact while adding the device safe-area inset. Keep the location button un-underlined and explicitly reset its native appearance for consistent rendering across browsers.
 - Keep cards restrained, with the existing small radius and border treatment.
 - Use familiar icons for icon-only actions and provide accessible names and tooltips.
@@ -130,7 +116,7 @@ Keep equivalent sections visually aligned and use the existing spacing scale con
 
 ## Weather And Persistence
 
-Current voice-policy override (v0.5.4.11): on iOS, after explicit user voice activation retain the enabled stream for the entire foreground session, including completion, manual Stop, Apply, dialog close and recognition errors. Reset/cancel waveform animation outside active attempts and restart it when reusing the meter. No retained idle timeout, new buttons, release warning or readiness copy. Release on hidden/pagehide and clean up invalid/unusable resources. The user accepts the persistent amber dot; background-release recovery remains unresolved. The .12 UI change that hid a muted waveform was rejected and reverted. The .13 iPhone test found that releasing the system-muted track and opening a fresh stream yielded zero audio levels and stopped transcription, so do not use that strategy as a recovery without new evidence. This replaces the older natural-end/dialog-close/30-second release policy described historically below.
+Current voice-policy override (v0.5.4.11): on iOS, after explicit user voice activation retain the enabled stream for the entire foreground session, including completion, manual Stop, Apply, dialog close and recognition errors. Reset/cancel waveform animation outside active attempts and restart it when reusing the meter. No retained idle timeout, new buttons, release warning or readiness copy. Release on hidden/pagehide and clean up invalid/unusable resources. The user accepts the persistent amber dot; background-release recovery remains unresolved. The .12 UI change that hid a muted waveform was rejected and reverted. The .13 iPhone test found that releasing the system-muted track and opening a fresh stream yielded zero audio levels and stopped transcription, so do not use that strategy as a recovery without new evidence. Earlier natural-end/dialog-close/30-second release policies are historical; see VOICE-INVESTIGATION.md.
 
 Outdoor data comes from Open-Meteo. Device coordinates may be sent to BigDataCloud only to obtain a nearby locality name. Preserve the current fallback to the stored location or Sale, Greater Manchester.
 

@@ -2,6 +2,14 @@
 
 All notable changes to Is it dryer out are documented here.
 
+## Unreleased — complete-layout-redesign
+
+- Moved the outdoor chart into the recommendation, with 24/48-hour views, estimated airflow bars and shared forecast scales; replaced the former forecast-tile layout.
+- Moved indoor editing into a sheet with draggable rulers, typed values, last-set time and integrated voice review.
+- Updated sheet dismissal, scroll-position preservation and visible-viewport handling; added a glossary and page-refresh action.
+- Consolidated voice research and the unsubmitted WebKit report under `docs/voice/`, with the investigation as the current evidence index.
+- Prepared branch build `complete-layout-redesign` with app cache revision 132. This is development work; no new numbered release is declared.
+
 ## v0.6.0 — Moisture Outlook - 2026-09-26
 
 - Replaced the moisture table with outdoor and indoor cards and a semantic-colour warmed-air RH comparison, including a compact three-column mobile layout.

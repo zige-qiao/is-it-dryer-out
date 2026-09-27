@@ -1,25 +1,22 @@
 # Is it dryer out
 
-## Version 0.6.0 — Moisture Outlook
+## Development — complete-layout-redesign
 
-Version 0.6.0 adds an interactive 48-hour outdoor absolute-humidity forecast and a redesigned moisture dashboard.
+This branch adds the redesigned recommendation and outdoor outlook, an Indoor readings sheet, and revised modal interactions. The latest published release remains v0.6.0 — Moisture Outlook.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
 ## Using the app
 
-The Moisture dashboard compares outdoor and indoor absolute humidity (g/m³), with the warmed-outdoor RH between the cards. The outdoor card and warmed-RH value use blue for drier air, amber for uncertain differences, and red for wetter air.
+- Read the recommendation and its outdoor outlook. Switch between **24 h** and **48 h**; the line shows outdoor absolute humidity against your indoor reference, and bars show estimated airflow in ACH. Drag, hover, or use arrow keys to inspect values; Home/End select the endpoints. Both views use the same 48-hour data for their scales.
+- Compare outdoor and indoor AH in the moisture cards. **Let in** shows outdoor RH once warmed to your indoor temperature. Colours indicate drier, uncertain, or wetter conditions.
+- Select **Edit** on the Indoor card. Drag the temperature and humidity rulers, use arrow keys, or tap a number to type. Values save immediately; **Done** closes the sheet. A last-set time appears after readings are updated.
+- In supported browsers, select **Speak** inside Indoor readings. Live Hearing text replaces Listening in the status box. Review the recognised values and select **Apply**, or return **Back to manual**.
+- Open the ventilation summary below the chart to change minimum temperature, target humidity, room size, or opening setup. Changes save immediately; **Done** closes the settings.
+- Select the refresh icon beside **Last checked** for fresh weather. **Refresh page** in the footer reloads the page.
+- Open **Why this recommendation?**, **Glossary**, **How estimates work**, or **Weather data** for explanations, definitions and source details.
 
-Drag across the 48-hour outdoor AH chart, hover with a mouse, or use the arrow keys to inspect the forecast (Home/End jump to its ends). Values between hourly readings are interpolated. The dashed indoor line and blue–amber–red gradient update with your indoor readings; amber covers the current comparison uncertainty range with soft transitions outside it. The outlined indoor label automatically chooses the clearer side of its line. Midnight and noon ticks use the weather location’s time zone.
-
-The Indoor readings microphone now matches the dashboard refresh icon style. Tapping it opens the voice dialog immediately as recording begins. Only the dialog shows the live waveform. Below its single status box, examples suggest “21 degrees, 55 percent”, “21 and 55”, or “Humidity 60 percent”; they disappear when speech is heard or an error is shown. Live “Hearing: …” text replaces “Listening…” in that box, and the final transcript and review step appear after completion.
-
-- Set the indoor temperature and relative humidity.
-- In supported browsers, use the microphone button to enter one or both indoor readings by voice, then review the recognised values before applying them.
-- Use the compact ventilation summary below the outlook to open **Ventilation settings**. Changes to minimum temperature, target humidity, room size, or opening setup save immediately and update the outlook without an Apply step. On mobile, minimum temperature and target humidity remain side by side.
-- Read the recommendation and its forecast tiles. Each tile shows the expected opening result, outdoor temperature, outdoor relative humidity, and estimated air changes per hour for that start time.
-- Use the refresh icon beside **Last checked** to request current weather again.
-- Open **Why this recommendation?** for the calculation-specific explanation, **How estimates work** for modelling limitations, and **Weather data** for the provider, request location, update status, and source links.
+Sheets support Escape and mobile drag-to-dismiss, preserve the page's scroll position, and follow the visible viewport when the keyboard opens.
 
 ## How it works
 
@@ -45,7 +42,7 @@ Current iPhone voice policy (established in `v0.5.4.11-foreground-voice` and unc
 
 Choose a room-size preset or enter custom room dimensions. Then select an opening setup or enter a custom airflow estimate. Room volume, opening setup, forecast wind and the indoor-outdoor temperature difference are used to estimate air changes per hour.
 
-The duration is a rough planning estimate, not a measurement. Real airflow depends on the building, window geometry, doors, wind direction and pressure differences. The forecast tiles assume the current indoor readings remain unchanged until each displayed start time.
+The duration is a rough planning estimate, not a measurement. Real airflow depends on the building, window geometry, doors, wind direction and pressure differences. Forecast estimates assume the current indoor readings remain unchanged until each displayed start time.
 
 ## Storage and offline use
 
@@ -53,21 +50,15 @@ Indoor readings, plan settings, and the most recent location are stored only in 
 
 ## Voice diagnostics
 
-Build `v0.5.4.10-cleanup-audit` (diagnostic asset 127, `cleanupAudit=close-v1`) logs stopped track states and audio-context close requests, completion or failure. Reopening is blocked until closure succeeds; a five-second warning reports pending closure without bypassing it. Use the staged stop-enabled test to compare natural completion with manual Stop followed by Release. Report the amber indicator separately: closed JavaScript resources do not prove system microphone use has ended. Production voice behaviour is unchanged.
+The [voice investigation](VOICE-INVESTIGATION.md) is the canonical record for current policy, device evidence and unresolved recovery failures. It links to archived research, the unsubmitted WebKit report draft and supporting video analysis.
 
-The `v0.5.4.9-stop-enabled-test` control (revision 126) is at `voice-test.html?mode=track-pause&staged=1&stopTrack=enabled`. It changes only manual Stop: the waveform track stays enabled through recognition end, until explicit Release microphone, the 30-second retained timeout, or existing cleanup. Open microphone, speak, start recognition, manually Stop while speaking, wait for end, release, then reopen without reloading. Compare microphone-only levels. Abort still disables the track. This is a diagnostic control, not a production fix.
+The standalone diagnostic page remains build `v0.5.4.10-cleanup-audit`, asset 127. Use `voice-test.html?mode=track-pause&staged=1&stopTrack=enabled` for the microphone-only / recognition / release control. Cleanup logs distinguish stopped tracks from AudioContext closure; successful JavaScript cleanup does not prove that the microphone indicator cleared. Older build descriptions in the investigation are historical, not the expected build at today's hosted URL.
 
-For the two-stage control, open `voice-test.html?mode=track-pause&staged=1` (build `v0.5.4.8-staged-mic-test`, asset revision 125). Tap **Open microphone**, speak for five seconds, then **Start recognition** and speak again. Stop or Abort, release the microphone, and repeat without reloading. Logs label `microphone-only`, `recognition`, and `retained` phases. Release is available during microphone preparation and the microphone-only phase; that phase has a 30-second safety timeout. This isolates whether silence precedes recognition startup. Production app behaviour is unchanged.
+Add `?voice-debug=1` to the app URL for temporary lifecycle logging and **Copy**. These logs contain no recognised speech content. The foreground microphone retention policy above remains a mitigation; reopening after release is unresolved.
 
-The `v0.5.4.7-audio-path-probe` diagnostic build adds independent numeric audio measurements to held-stream modes, without changing the production app. Open `voice-test.html?mode=track-pause` and confirm `assetRevision=124 audioProbe=levels-v1` (these fields appear separately in the header). Establish a working baseline, then test Stop or Abort, Release microphone, and Start again. Speak for five seconds and copy the log before stopping. Once-per-second `audio probe` entries report track/context state, successful analyser-read counts, waveform-frame counts, and maximum RMS/peak levels. Reads count JavaScript analyser calls, not proof of fresh hardware samples; a running context with zero levels supports but does not prove an upstream capture failure. The probe stores no audio or speech content and stops when its stream is released.
+## Development checks
 
-Open `voice-test.html?mode=reuse` to test reusing a recogniser, or `voice-test.html?mode=fresh` to create a new one for each attempt. Run three recordings per mode without reloading between attempts, copy the log, then switch modes (which reloads the page). Use `voice-test.html?mode=interrupt` to mark an external audio interruption while recognition is active. That mode does not stop recognition just because this page is hidden; iOS may still suspend it, and the attempt is limited to 30 seconds. Use `voice-test.html?mode=prime` to repeat the completed microphone-reset experiment: on the tested iPhone, its normal microphone stream opened and released successfully but did not restore speech recognition. Use `voice-test.html?mode=hold` to keep that stream alive throughout each recognition attempt and display its live microphone level. Use `voice-test.html?mode=hold-persist` for the manual-stop control: stop the first attempt manually, then start a second attempt and let it finish naturally. That mode retains and reuses the same live microphone stream between those attempts. Logs include browser, available OS and WebKit versions, microphone-stream lifecycle, visibility, and recognition events, never speech content. Build identification also remains in the app's normal diagnostic logs after Clear.
-
-Add `?voice-debug=1` to the app URL to show the temporary voice diagnostics panel. It records microphone, audio-context, and speech-recognition lifecycle events without recording recognised speech content. Reproduce the issue, then use **Copy** to collect the log.
-
-On iOS, the microphone stream driving the dialog waveform is also an audio-session keep-alive. Earlier diagnostics showed that a short microphone reset did not restore failed recognition, while overlap with a held stream supported repeated attempts. The later `.11` app run transcribed across ten sessions even after the iPhone's system recording-stop action muted the retained waveform track; a flat waveform therefore did not prove failed transcription. Releasing that muted stream and reopening it in the `.13` experiment produced zero measured levels and no speech results. This branch changes only voice presentation, not those capture or recovery decisions. See the investigation for the remaining uncertainty.
-
-The [iOS voice recognition investigation](VOICE-INVESTIGATION.md) contains the consolidated device-test record, event timings, regression history, verified natural-completion and manual-stop mitigations, and related WebKit reports. The supporting [video analysis](tests/ios_web_speech_microphone_video_analysis.md) documents the Safari and Chrome screen recording in detail.
+No dependency installation is required. With a recent Node.js, run `node --check app.js`, `node --check service-worker.js`, and `node --test tests/*.test.cjs`. In restricted environments that cannot spawn test workers, use `node --test --test-isolation=none tests/*.test.cjs`. Run `git diff --check` before pushing. Automated checks do not replace browser and iPhone verification.
 
 ## Project information
 
