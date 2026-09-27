@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta
       name="description"
       content="A personal ventilation checker for comparing indoor and outdoor moisture."
@@ -27,6 +27,17 @@
                 </svg>
                 <span id="locationName">Sale, Greater Manchester</span>
               </button>
+            <div class="weather-refresh-row">
+              <p class="last-checked" id="weatherStatus">Not checked yet</p>
+              <button class="weather-refresh-button" type="button" id="refreshWeather" aria-label="Refresh outdoor weather" title="Refresh outdoor weather">
+                <svg class="refresh-icon" aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M21 12a9 9 0 0 1-15.2 6.5L3 16" />
+                  <path d="M3 21v-5h5" />
+                  <path d="M3 12A9 9 0 0 1 18.2 5.5L21 8" />
+                  <path d="M21 3v5h-5" />
+                </svg>
+              </button>
+            </div>
               <button
                 class="verdict-retry-button"
                 id="retryWeather"
@@ -48,14 +59,19 @@
               <span id="decisionPrimary">Getting local conditions...</span>
               <span id="decisionSecondary"></span>
             </p>
+            <section class="ah-outlook" aria-label="Outdoor outlook">
+              <div class="ah-outlook-heading">
+                <p class="ah-chart-reading" id="ahChartReading">Loading outdoor forecast…</p>
+                <div class="chart-range" role="group" aria-label="Forecast range">
+                  <button type="button" data-chart-hours="24" aria-pressed="true">24 h</button>
+                  <button type="button" data-chart-hours="48" aria-pressed="false">48 h</button>
+                </div>
+              </div>
+              <svg id="ahChart" class="ah-chart" viewBox="0 0 480 240" role="slider" tabindex="0" aria-label="Outdoor absolute humidity and estimated airflow with indoor reference; use arrow keys to inspect hourly values" aria-valuemin="0" aria-valuemax="24" aria-valuenow="0"></svg>
+            </section>
           </div>
           <div class="forecast-panel" aria-label="Opening outlook">
-            <div
-              class="forecast-strip"
-              id="forecastStrip"
-              role="list"
-              aria-label="Forecast outlook. Swipe horizontally for later times."
-            ></div>
+
             <button class="plan-summary-trigger" id="planSummaryButton" type="button" aria-haspopup="dialog" aria-controls="planDialog">
               <span class="plan-summary-copy">
                 <span class="plan-summary-group plan-summary-primary" id="planSummaryText"></span>
@@ -69,120 +85,32 @@
           </div>
         </section>
 
-        <section class="panel inputs-panel" aria-labelledby="indoor-heading">
-          <div class="section-heading">
-            <h2 id="indoor-heading">Indoor readings</h2>
-            <button class="voice-input-button weather-refresh-button" type="button" id="voiceInputButton" aria-label="Update indoor readings by voice" title="Update indoor readings by voice" hidden>
-              <svg class="voice-input-icon refresh-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                <path d="M12 19v3"></path>
-              </svg>
-            </button>
-          </div>
 
-          <div class="control">
-            <div class="control-heading">
-              <label for="indoorTemp">Temperature</label>
-              <div class="reading-stepper">
-                <button class="step-button" type="button" data-step-target="indoorTemp" data-step-direction="-1" aria-label="Decrease indoor temperature">&minus;</button>
-                <label class="reading-field" for="indoorTempInput">
-                  <input
-                    id="indoorTempInput"
-                    type="number"
-                    min="10"
-                    max="32"
-                    step="0.1"
-                    value="24"
-                    inputmode="decimal"
-                    aria-label="Indoor temperature"
-                  />
-                  <span aria-hidden="true">&deg;C</span>
-                </label>
-                <button class="step-button" type="button" data-step-target="indoorTemp" data-step-direction="1" aria-label="Increase indoor temperature">+</button>
-              </div>
-            </div>
-            <input
-              id="indoorTemp"
-              type="range"
-              min="10"
-              max="32"
-              step="0.1"
-              value="24"
-            />
-          </div>
-
-          <div class="control">
-            <div class="control-heading">
-              <label for="indoorRh">Relative humidity</label>
-              <div class="reading-stepper">
-                <button class="step-button" type="button" data-step-target="indoorRh" data-step-direction="-1" aria-label="Decrease indoor relative humidity">&minus;</button>
-                <label class="reading-field" for="indoorRhInput">
-                  <input
-                    id="indoorRhInput"
-                    type="number"
-                    min="20"
-                    max="90"
-                    step="1"
-                    value="58"
-                    inputmode="numeric"
-                    aria-label="Indoor relative humidity"
-                  />
-                  <span aria-hidden="true">%</span>
-                </label>
-                <button class="step-button" type="button" data-step-target="indoorRh" data-step-direction="1" aria-label="Increase indoor relative humidity">+</button>
-              </div>
-            </div>
-            <input id="indoorRh" type="range" min="20" max="90" step="1" value="58" />
-          </div>
-
-        </section>
       </div>
 
       <div class="layout-column right-column">
-        <section class="panel dashboard-panel" aria-labelledby="numbers-heading">
-          <div class="section-heading dashboard-heading">
-            <h2 id="numbers-heading">Moisture dashboard</h2>
-            <div class="weather-refresh-row">
-              <p class="last-checked" id="weatherStatus">Not checked yet</p>
-              <button class="weather-refresh-button" type="button" id="refreshWeather" aria-label="Refresh outdoor weather" title="Refresh outdoor weather">
-                <svg class="refresh-icon" aria-hidden="true" viewBox="0 0 24 24">
-                  <path d="M21 12a9 9 0 0 1-15.2 6.5L3 16" />
-                  <path d="M3 21v-5h5" />
-                  <path d="M3 12A9 9 0 0 1 18.2 5.5L21 8" />
-                  <path d="M21 3v5h-5" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
+        <section class="panel dashboard-panel" aria-label="Moisture comparison">
           <div class="moisture-comparison">
             <section class="moisture-card outdoor-card" aria-labelledby="outdoor-card-heading">
               <h3 id="outdoor-card-heading">Outdoor</h3>
               <strong class="moisture-main" id="outdoorAbsoluteHumidity">--</strong>
               <span class="moisture-unit">g/m³ absolute</span>
-              <dl><div><dt>Temp</dt><dd id="outdoorTempValue">--</dd></div><div><dt>RH</dt><dd id="outdoorRhValue">--</dd></div><div><dt>Dew point</dt><dd id="outdoorDewPoint">--</dd></div></dl>
+              <dl><div><dt>Temp</dt><dd id="outdoorTempValue">--</dd></div><div><dt>RH</dt><dd id="outdoorRhValue">--</dd></div><div><dt>DP</dt><dd id="outdoorDewPoint">--</dd></div></dl>
             </section>
             <div class="air-transfer">
               <span class="transfer-heading">Let in</span>
-              <div class="transfer-value"><span aria-hidden="true">→</span><strong id="warmedOutdoorRh">--</strong><span aria-hidden="true">→</span></div>
+              <div class="transfer-value"><strong id="warmedOutdoorRh">--</strong></div>
               <span>RH once warmed<br>to <strong id="warmingTemp">24.0°C</strong></span>
               <small id="adjustedAirNote"></small>
             </div>
             <section class="moisture-card indoor-card" aria-labelledby="indoor-card-heading">
-              <h3 id="indoor-card-heading">Indoor</h3>
+              <div class="indoor-card-heading"><h3 id="indoor-card-heading">Indoor</h3><button type="button" id="editIndoorButton" aria-haspopup="dialog" aria-controls="indoorDialog" aria-expanded="false"><span>Edit</span></button></div>
               <strong class="moisture-main" id="indoorAbsoluteHumidity">--</strong>
               <span class="moisture-unit">g/m³ absolute</span>
-              <dl><div><dt>Temp</dt><dd id="indoorTempValue">24.0°C</dd></div><div><dt>RH</dt><dd id="indoorRhValue">58%</dd></div><div><dt>Dew point</dt><dd id="indoorDewPoint">--</dd></div></dl>
+              <dl><div><dt>Temp</dt><dd id="indoorTempValue">24.0°C</dd></div><div><dt>RH</dt><dd id="indoorRhValue">58%</dd></div><div><dt>DP</dt><dd id="indoorDewPoint">--</dd></div></dl>
             </section>
           </div>
-          <section class="ah-outlook" aria-labelledby="ah-outlook-heading">
-            <div class="ah-outlook-heading">
-              <p class="ah-chart-reading" id="ahChartReading">Loading outdoor forecast…</p>
-              <h3 id="ah-outlook-heading">Outdoor AH · 48 h forecast</h3>
-            </div>
-            <svg id="ahChart" class="ah-chart" viewBox="0 0 480 190" role="slider" tabindex="0" aria-label="Outdoor absolute humidity forecast with current indoor reference; use arrow keys to inspect hourly values" aria-valuemin="0" aria-valuemax="48" aria-valuenow="0"></svg>
-          </section>
+
         </section>
 
         <section class="details-footnotes" aria-label="Recommendation and weather details">
@@ -191,11 +119,22 @@
             <p id="explanationText">Checking outdoor weather for Sale, Greater Manchester. The recommendation will appear when current data arrives.</p>
           </details>
 
+          <details class="dashboard-explainer glossary-explainer">
+            <summary>Glossary</summary>
+            <p><strong>AH — Absolute humidity:</strong> The amount of water vapour in the air, measured in grams per cubic metre (g/m³). Lower outdoor AH means outdoor air contains less moisture per cubic metre than indoor air.</p>
+            <p><strong>RH — Relative humidity:</strong> How close air is to saturation at its current temperature, shown as a percentage. Warming air lowers its RH without removing water vapour.</p>
+            <p><strong>DP — Dew point:</strong> The temperature at which air becomes saturated when cooled. Condensation can form on surfaces at or below this temperature.</p>
+            <p><strong>ACH — Air changes per hour:</strong> The hourly volume of incoming air divided by the room volume. For example, 2 ACH means airflow equivalent to twice the room’s volume each hour; it does not mean all the original air is replaced.</p>
+            <p><strong>Let in:</strong> The estimated RH of outdoor air once it reaches your current indoor temperature.</p>
+            <p><strong>m³ — Cubic metres:</strong> A measure of room volume: length × width × height in metres.</p>
+          </details>
+
           <details class="dashboard-explainer forecast-explainer">
             <summary>How estimates work</summary>
             <ul>
               <li>Timing is approximate and depends on room volume, opening setup, forecast wind, and the indoor-outdoor temperature difference.</li>
               <li>Future outlooks use the current indoor readings; they do not predict how the room will change before that hour.</li>
+              <li>The line shows outdoor absolute humidity against the indoor dashed reference. Bars show estimated airflow.</li>
               <li>ACH means air changes per hour: an estimated ventilation rate, not a measured airflow.</li>
               <li>Real results vary with airflow, room layout, and indoor moisture sources.</li>
             </ul>
@@ -216,24 +155,90 @@
             </p>
           </details>
 
-          <p class="project-credit">
-            By Ziggy Qiao <span aria-hidden="true">&middot;</span>
-            <a href="https://github.com/zige-qiao/is-it-dryer-out" target="_blank" rel="noreferrer">GitHub</a>
-          </p>
+          <div class="project-credit-row">
+            <p class="project-credit">
+              By Ziggy Qiao <span aria-hidden="true">&middot;</span>
+              <a href="https://github.com/zige-qiao/is-it-dryer-out" target="_blank" rel="noreferrer">GitHub</a>
+            </p>
+            <button class="page-refresh-button" id="pageRefreshButton" type="button">Refresh page</button>
+          </div>
         </section>
       </div>
     </main>
 
-    <dialog class="plan-dialog" id="planDialog" aria-labelledby="planDialogTitle">
+<dialog class="indoor-dialog" id="indoorDialog" aria-labelledby="indoor-heading">
+<div class="sheet-handle" aria-hidden="true"><span></span></div>
+<section class="inputs-panel" aria-labelledby="indoor-heading">
+  <div class="section-heading">
+    <div class="indoor-title"><h2 id="indoor-heading" tabindex="-1">Indoor readings</h2><p id="indoorLastSet" hidden></p></div>
+    <button class="indoor-speak-button" type="button" id="voiceInputButton" aria-label="Update indoor readings by voice" hidden>
+      <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></svg><span>Speak</span>
+    </button>
+  </div>
+  <div class="control ruler-control">
+    <label for="indoorTemp">Temperature</label>
+    <label class="reading-field ruler-value" for="indoorTempInput">
+      <input id="indoorTempInput" type="number" min="10" max="32" step="0.1" value="24" inputmode="decimal" aria-label="Indoor temperature" /><span aria-hidden="true">°C</span>
+    </label>
+    <div class="reading-ruler" data-ruler="indoorTemp">
+      <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
+      <input id="indoorTemp" type="range" min="10" max="32" step="0.1" value="24" aria-describedby="rulerHelp" />
+    </div>
+  </div>
+  <div class="control ruler-control">
+    <label for="indoorRh">Relative humidity</label>
+    <label class="reading-field ruler-value" for="indoorRhInput">
+      <input id="indoorRhInput" type="number" min="20" max="90" step="1" value="58" inputmode="numeric" aria-label="Indoor relative humidity" /><span aria-hidden="true">%</span>
+    </label>
+    <div class="reading-ruler" data-ruler="indoorRh">
+      <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
+      <input id="indoorRh" type="range" min="20" max="90" step="1" value="58" aria-describedby="rulerHelp" />
+    </div>
+  </div>
+  <p id="rulerHelp" class="ruler-help">Drag the ruler or use arrow keys to adjust. Tap the number to type.</p>
+</section>
+<section class="voice-panel" id="voiceDialog" aria-label="Update by voice" hidden>
+      <div class="voice-dialog-content">
+
+        <p class="voice-status" id="voiceStatus" role="status">Ready to listen.</p>
+        <div class="voice-examples" id="voiceExamples">
+          <p>Try “21 degrees, 55 percent” or just “21 and 55”.</p>
+          <p>To change one reading, say “Humidity 60 percent”.</p>
+        </div>
+        <div class="voice-transcript-panel" id="voiceTranscriptPanel" hidden>
+          <p class="voice-transcript" id="voiceTranscript"></p>
+        </div>
+        <dl class="voice-changes" id="voiceChanges"></dl>
+        <p class="voice-update-note" id="voiceUpdateNote" hidden>Will update the current indoor readings.</p>
+        <div class="voice-dialog-actions">
+<button class="secondary-button sheet-secondary" type="button" id="voiceDialogCloseButton">Back to manual</button>
+          <button class="voice-input-button voice-dialog-input-button" type="button" id="voiceListenButton" aria-label="Record again" title="Record again">
+            <svg class="voice-input-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <path d="M12 19v3"></path>
+            </svg>
+            <span class="voice-waveform voice-button-waveform" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
+          </button>
+          <button class="voice-apply-button sheet-primary" type="button" id="voiceApplyButton" disabled hidden>Apply</button>
+        </div>
+      </div>
+    </section>
+<button class="indoor-done sheet-primary" id="indoorDoneButton" type="button">Done</button>
+</dialog>
+
+<dialog class="plan-dialog" id="planDialog" aria-labelledby="planDialogTitle">
+<div class="sheet-handle" aria-hidden="true"><span></span></div>
       <div class="plan-dialog-content">
         <div class="plan-dialog-heading">
-          <h2 id="planDialogTitle">Ventilation settings</h2>
-          <button class="plan-dialog-close" type="button" id="planDialogCloseButton" aria-label="Close ventilation settings" title="Close ventilation settings" autofocus>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M18 6 6 18"></path>
-              <path d="m6 6 12 12"></path>
-            </svg>
-          </button>
+          <h2 id="planDialogTitle" tabindex="-1" autofocus>Ventilation settings</h2>
+
         </div>
 
         <div class="plan-controls" role="group" aria-label="Ventilation settings">
@@ -305,68 +310,29 @@
           </label>
           <p class="air-change-estimate" id="planConfidence">Estimate</p>
         </div>
+<button class="indoor-done sheet-primary" id="planDoneButton" type="button">Done</button>
       </div>
     </dialog>
 
-    <dialog class="location-dialog" id="locationDialog" aria-labelledby="locationDialogTitle">
+<dialog class="location-dialog" id="locationDialog" aria-labelledby="locationDialogTitle">
+<div class="sheet-handle" aria-hidden="true"><span></span></div>
       <div class="location-dialog-content">
-        <h2 id="locationDialogTitle">Update location</h2>
+        <h2 id="locationDialogTitle" tabindex="-1" autofocus>Update location</h2>
         <p>Use your current location or search by town or postcode.</p>
         <form class="location-search-form" id="locationSearchForm">
           <label for="locationSearchInput">Town or postcode</label>
           <div class="location-search-row">
             <input id="locationSearchInput" type="search" autocomplete="postal-code" />
-            <button class="secondary-button" type="submit" id="locationSearchButton">Search</button>
+            <button class="secondary-button sheet-secondary" type="submit" id="locationSearchButton">Search</button>
           </div>
         </form>
         <div class="location-search-results" id="locationSearchResults" aria-live="polite"></div>
         <p class="location-dialog-status" id="locationDialogStatus" role="status"></p>
         <div class="location-dialog-actions">
-          <button class="secondary-button" type="button" id="locationDialogClose">Cancel</button>
-          <button class="location-update-button" type="button" id="locationUpdateButton" autofocus>
+
+          <button class="location-update-button sheet-primary" type="button" id="locationUpdateButton">
             Use current location
           </button>
-        </div>
-      </div>
-    </dialog>
-
-    <dialog class="voice-dialog" id="voiceDialog" aria-labelledby="voiceDialogTitle">
-      <div class="voice-dialog-content">
-        <div class="voice-dialog-heading">
-          <h2 id="voiceDialogTitle">Update by voice</h2>
-          <button class="voice-dialog-close" type="button" id="voiceDialogCloseButton" aria-label="Close voice input" title="Close">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M18 6 6 18"></path>
-              <path d="m6 6 12 12"></path>
-            </svg>
-          </button>
-        </div>
-        <p class="voice-status" id="voiceStatus" role="status">Ready to listen.</p>
-        <div class="voice-examples" id="voiceExamples">
-          <p>Try “21 degrees, 55 percent” or just “21 and 55”.</p>
-          <p>To change one reading, say “Humidity 60 percent”.</p>
-        </div>
-        <div class="voice-transcript-panel" id="voiceTranscriptPanel" hidden>
-          <p class="voice-transcript" id="voiceTranscript"></p>
-        </div>
-        <dl class="voice-changes" id="voiceChanges"></dl>
-        <p class="voice-update-note" id="voiceUpdateNote" hidden>Will update the current indoor readings.</p>
-        <div class="voice-dialog-actions">
-          <button class="voice-input-button voice-dialog-input-button" type="button" id="voiceListenButton" aria-label="Record again" title="Record again">
-            <svg class="voice-input-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-              <path d="M12 19v3"></path>
-            </svg>
-            <span class="voice-waveform voice-button-waveform" aria-hidden="true">
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
-            </span>
-          </button>
-          <button class="voice-apply-button" type="button" id="voiceApplyButton" disabled hidden>Apply</button>
         </div>
       </div>
     </dialog>

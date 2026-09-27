@@ -70,7 +70,7 @@ test('iOS foreground sessions retain a stationary meter across completion and di
   assert.match(start, /session\.meter = meter/);
   assert.match(finish, /retainMeter && IS_IOS && !document.hidden && retainVoiceMeter\(session\)/);
   assert.match(complete, /finishVoiceListening\(session\)/);
-  assert.match(toggle, /stopVoiceInput\(!elements\.voiceDialog\.open, activeVoiceSession, "manual"\)/);
+  assert.match(toggle, /stopVoiceInput\(elements\.voiceDialog\.hidden, activeVoiceSession, "manual"\)/);
   assert.doesNotMatch(close, /releaseRetainedVoiceMeter/);
   assert.match(app, /releaseRetainedVoiceMeter\("page hidden"\)/);
 });

@@ -85,7 +85,7 @@ select {
   flex-direction: column;
   gap: 0.65rem;
   padding: calc(0.9rem + env(safe-area-inset-top)) 1rem 1.35rem;
-  border-radius: 0.8rem;
+  border-radius: 20px;
   background: var(--ink);
   color: #f9fffc;
 }
@@ -154,13 +154,6 @@ select {
   cursor: pointer;
 }
 
-.verdict-retry-button:hover,
-.verdict-retry-button:focus-visible {
-  background: rgba(255, 255, 255, 0.12);
-  outline: 2px solid #ffffff;
-  outline-offset: 2px;
-}
-
 .verdict-retry-button:disabled {
   cursor: wait;
   opacity: 0.7;
@@ -173,16 +166,6 @@ select {
   white-space: nowrap;
 }
 
-.location-button:hover,
-.location-button:focus-visible {
-  color: #ffffff;
-  outline: none;
-}
-
-.location-button:focus-visible {
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
-}
-
 .secondary-button {
   min-height: 2.35rem;
   border: 1px solid var(--line);
@@ -193,13 +176,6 @@ select {
   cursor: pointer;
   font-size: 0.86rem;
   font-weight: 800;
-}
-
-.secondary-button:hover,
-.secondary-button:focus-visible {
-  border-color: var(--open);
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(16, 35, 31, 0.12);
 }
 
 .secondary-button:disabled {
@@ -356,13 +332,6 @@ h1 {
   transform: scale(0.75);
 }
 
-.voice-dialog-input-button:hover,
-.voice-dialog-input-button:focus-visible {
-  border-color: var(--open);
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(16, 35, 31, 0.12);
-}
-
 .control,
 .mini-control,
 .speed-control {
@@ -455,28 +424,6 @@ h1 {
   user-select: none;
 }
 
-.step-button:hover,
-.step-button:focus-visible {
-  border-color: var(--open);
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(16, 35, 31, 0.12);
-}
-
-.step-button:active {
-  background: var(--open-bg);
-}
-
-.reading-field:focus-within,
-.setting-field:focus-within {
-  border-color: var(--open);
-  box-shadow: 0 0 0 3px rgba(16, 35, 31, 0.12);
-}
-
-.reading-field input:focus-visible,
-.setting-field input:focus-visible {
-  outline: none;
-}
-
 
 .forecast-panel {
   position: relative;
@@ -485,7 +432,7 @@ h1 {
   margin-top: -0.75rem;
   border: 1px solid var(--line);
   border-top: 0;
-  border-radius: 0 0 0.8rem 0.8rem;
+  border-radius: 0 0 20px 20px;
   padding: 2rem 1rem 0;
   background: #ffffff;
   color: var(--ink);
@@ -512,14 +459,7 @@ h1 {
   text-align: left;
 }
 
-.plan-summary-trigger:hover {
-  background: #f7f8f7;
-}
 
-.plan-summary-trigger:focus-visible {
-  outline: 2px solid var(--open);
-  outline-offset: -2px;
-}
 
 .plan-summary-copy {
   min-width: 0;
@@ -593,15 +533,6 @@ h1 {
   padding: 0 0.4rem;
 }
 
-.plan-stepper .setting-field:focus-within {
-  border-color: var(--open);
-  box-shadow: 0 0 0 3px rgba(16, 35, 31, 0.12);
-}
-
-.plan-stepper .setting-field input:focus-visible {
-  box-shadow: none;
-}
-
 .setting-label,
 .speed-control span {
   display: flex;
@@ -623,12 +554,6 @@ h1 {
   background: #ffffff;
   color: var(--ink);
   font-weight: 800;
-}
-
-.speed-control select:focus-visible {
-  border-color: var(--open);
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(16, 35, 31, 0.12);
 }
 
 .forecast-strip {
@@ -881,15 +806,6 @@ input[type="range"] {
   content: none;
 }
 
-.weather-refresh-button:hover {
-  background: #e8e6e2;
-}
-
-.weather-refresh-button:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
-}
-
 .weather-refresh-button:disabled {
   cursor: wait;
   opacity: 0.55;
@@ -962,16 +878,6 @@ input[type="range"] {
   display: none;
 }
 
-.dashboard-explainer summary:hover {
-  color: var(--ink);
-}
-
-.dashboard-explainer summary:focus-visible {
-  border-radius: 0.2rem;
-  outline: 2px solid var(--open);
-  outline-offset: 2px;
-}
-
 .dashboard-explainer summary::after {
   content: "";
   width: 0.5rem;
@@ -1028,32 +934,6 @@ input[type="range"] {
 }
 
 @media (min-width: 48rem) {
-  .app-shell {
-    width: min(100%, 58rem);
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
-    gap: 1rem;
-    padding: 2rem;
-    padding-bottom: calc(2rem + env(safe-area-inset-bottom));
-  }
-
-  .layout-column {
-    display: grid;
-    gap: 1rem;
-  }
-
-  .right-column {
-    gap: 0;
-  }
-
-  .recommendation,
-  .inputs-panel,
-  .dashboard-panel,
-  .details-footnotes {
-    order: initial;
-  }
-
   .recommendation h1 {
     margin-top: 0.5rem;
   }
@@ -1084,9 +964,6 @@ input[type="range"] {
     width: 100%;
   }
 
-  .panel {
-    margin-top: 0;
-  }
 }
 
 @media (max-width: 30rem) {
@@ -1195,13 +1072,6 @@ input[type="range"] {
   font-weight: 800;
 }
 
-.select-control select:focus-visible,
-.dimension-field input:focus-visible {
-  border-color: var(--open);
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(16, 35, 31, 0.12);
-}
-
 .custom-fields {
   grid-column: 1 / -1;
   display: grid;
@@ -1270,27 +1140,28 @@ input[type="range"] {
 }
 
 .plan-dialog {
-  width: min(28rem, calc(100vw - 2rem));
-  max-height: calc(100vh - 2rem);
-  max-height: calc(100dvh - 2rem);
+  width: min(100%, 34rem);
+  max-width: 100%;
+  max-height: 90vh;
+  max-height: 90dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
-  margin: auto;
+  margin: auto auto 0;
   border: 1px solid var(--line);
-  border-radius: 0.5rem;
+  border-radius: 1.5rem 1.5rem 0 0;
   padding: 0;
   background: var(--panel);
   color: var(--ink);
 }
 
 .plan-dialog::backdrop {
-  background: rgba(16, 35, 31, 0.42);
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .plan-dialog-content {
   display: grid;
   gap: 1rem;
-  padding: 1.25rem;
+  padding: 1.25rem 1.25rem calc(1rem + env(safe-area-inset-bottom));
 }
 
 .plan-dialog-heading {
@@ -1303,36 +1174,6 @@ input[type="range"] {
 .plan-dialog h2 {
   margin: 0;
   font-size: 1.2rem;
-}
-
-.plan-dialog-close {
-  width: 2.75rem;
-  height: 2.75rem;
-  display: inline-grid;
-  flex: 0 0 2.75rem;
-  place-items: center;
-  border: 0;
-  border-radius: 50%;
-  padding: 0;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.plan-dialog-close:hover,
-.plan-dialog-close:focus-visible {
-  background: #f1f4f3;
-  outline: none;
-  box-shadow: 0 0 0 2px var(--open);
-}
-
-.plan-dialog-close svg {
-  width: 1.25rem;
-  height: 1.25rem;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-width: 2;
 }
 
 @media (max-width: 23rem) {
@@ -1385,23 +1226,27 @@ input[type="range"] {
 }
 
 .location-dialog {
-  width: min(24rem, calc(100vw - 2rem));
-  margin: auto;
+  width: min(100%, 34rem);
+  max-width: 100%;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: auto auto 0;
   border: 1px solid var(--line);
-  border-radius: 0.5rem;
+  border-radius: 1.5rem 1.5rem 0 0;
   padding: 0;
   background: var(--panel);
   color: var(--ink);
 }
 
 .location-dialog::backdrop {
-  background: rgba(16, 35, 31, 0.42);
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .location-dialog-content {
   display: grid;
   gap: 0.75rem;
-  padding: 1.25rem;
+  padding: 1.25rem 1.25rem calc(1rem + env(safe-area-inset-bottom));
 }
 
 .location-dialog h2 {
@@ -1444,12 +1289,6 @@ input[type="range"] {
   color: var(--ink);
 }
 
-.location-search-row input:focus-visible {
-  border-color: var(--open);
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(16, 35, 31, 0.12);
-}
-
 .location-search-results {
   display: grid;
   max-height: 15rem;
@@ -1470,13 +1309,6 @@ input[type="range"] {
   text-align: left;
 }
 
-.location-result-button:hover,
-.location-result-button:focus-visible {
-  border-color: var(--open);
-  outline: none;
-  background: var(--open-bg);
-}
-
 .location-worldwide-button {
   justify-self: start;
   min-height: 2.75rem;
@@ -1487,13 +1319,6 @@ input[type="range"] {
   cursor: pointer;
   font-size: 0.86rem;
   font-weight: 800;
-}
-
-.location-worldwide-button:hover,
-.location-worldwide-button:focus-visible {
-  outline: none;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
 }
 
 .location-worldwide-button:disabled {
@@ -1522,13 +1347,6 @@ input[type="range"] {
   cursor: pointer;
   font-size: 0.86rem;
   font-weight: 800;
-}
-
-.location-update-button:hover,
-.location-update-button:focus-visible {
-  background: #000000;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(16, 35, 31, 0.18);
 }
 
 .location-update-button:disabled {
@@ -1674,12 +1492,6 @@ input[type="range"] {
   stroke-width: 2;
 }
 
-.voice-dialog-close:hover,
-.voice-dialog-close:focus-visible {
-  background: #f1f4f3;
-  outline: none;
-}
-
 .voice-transcript-panel {
   display: block;
   margin-top: 12px;
@@ -1814,7 +1626,6 @@ input[type="range"] {
 .ah-outlook-heading > span { color: var(--muted); font-size: .7rem; white-space: nowrap; }
 .ah-chart-reading { margin: .5rem 0 .15rem; font-size: .8rem; font-variant-numeric: tabular-nums; min-height: 1.2em; }
 .ah-chart { display: block; width: 100%; height: auto; touch-action: pan-y; overflow: visible; border-radius: .25rem; }
-.ah-chart:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 .ah-chart text { fill: var(--muted); font-size: 18px; }
 .ah-grid { stroke: var(--line); stroke-width: 1; }
 .ah-day-line { stroke: var(--line); stroke-dasharray: 3 4; }
@@ -1822,7 +1633,7 @@ input[type="range"] {
 .ah-cursor { stroke: #426c86; stroke-width: 1; opacity: .6; }
 .ah-dot { fill: url(#ahSemantic); stroke: white; stroke-width: 2; }
 
-.dashboard-panel { container-type: inline-size; }
+.dashboard-panel { container-type: inline-size; border-radius: 18px; }
 .moisture-comparison { display: grid; grid-template-columns: minmax(0, 1fr) 5.5rem minmax(0, 1fr); gap: .65rem; align-items: stretch; }
 .moisture-card { min-width: 0; border: 1px solid var(--line); border-radius: .85rem; padding: .7rem; }
 .moisture-card h3 { margin: 0 0 1.1rem; color: var(--muted); font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; }
@@ -1850,18 +1661,395 @@ input[type="range"] {
 .ah-outlook-heading h3 { font-size: .8rem; font-weight: 400; color: var(--muted); margin-left: auto; }
 .ah-chart-reading { margin: 0; font-weight: 700; }
 .ah-indoor-line { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; opacity: .75; }
-.ah-indoor-label { paint-order: stroke fill; stroke: #fff; stroke-width: 4px; stroke-linejoin: round; }
+.ah-indoor-label { stroke: none; }
 @container (max-width: 370px) {
-  .moisture-comparison { grid-template-columns: minmax(0, 1fr) 6rem minmax(0, 1fr); gap: .35rem; }
-  .moisture-card { padding: .6rem; }
+  .moisture-comparison { grid-template-columns: minmax(0, 1fr) 4.5rem minmax(0, 1fr); gap: .35rem; }
+  .moisture-card { padding: .45rem; }
   .moisture-card h3 { font-size: .72rem; letter-spacing: .06em; margin-bottom: .7rem; }
   .moisture-main { font-size: 1.65rem; }
   .moisture-unit { font-size: .7rem; }
   .moisture-card dl { font-size: .75rem; margin-top: .8rem; }
-  .moisture-card dl div { flex-direction: column; gap: .1rem; }
+  .moisture-card dl div { flex-direction: row; gap: .2rem; white-space: nowrap; }
   .moisture-card dd { margin-left: 0; }
   .air-transfer { font-size: .7rem; }
   .transfer-value { gap: .1rem; font-size: .85rem; }
   .transfer-value strong { font-size: 1.25rem; }
   .ah-outlook-heading h3 { margin-left: 0; }
+}
+
+/* Forecast-first layout and indoor reading sheet. */
+.forecast-panel .ah-outlook { border: 0; margin: 0; padding: 0; min-width: 0; }
+.forecast-panel { gap: .6rem; }
+.ah-outlook-heading { align-items: center; flex-wrap: nowrap; margin-bottom: .65rem; }
+.ah-outlook-heading h2 { margin: 0; font-size: .9rem; font-weight: 650; }
+.chart-range { display: flex; flex-shrink: 0; padding: 3px; border-radius: .65rem; background: #eeece8; }
+.chart-range button { border: 0; background: transparent; color: var(--muted); min-height: 38px; min-width: 44px; padding: .35rem .5rem; border-radius: .45rem; font-size: .8rem; cursor: pointer; }
+.chart-range button[aria-pressed="true"] { background: white; color: var(--ink); font-weight: 700; }
+.ah-chart-reading { font-size: .85rem; min-height: 2.6em; line-height: 1.3; }
+.chart-axis-titles { display: flex; justify-content: space-between; gap: .5rem; color: var(--muted); font-size: .7rem; margin-top: .2rem; }
+.ah-chart { overflow: hidden; min-height: 150px; }
+.ah-chart[aria-disabled="true"] { background: #f6f7f6; }
+.ah-chart .chart-scale { font-size: 15px; }
+.ah-chart .airflow-label { font-size: 14px; fill: #526361; }
+.ah-cursor { stroke: #343a38; opacity: .8; }
+.ah-dot { fill: #343a38; }
+.airflow-bar { fill: #cedbdc; }
+.location-row { gap: .4rem; align-items: baseline; }
+.location-row .weather-refresh-row { flex-shrink: 0; gap: .1rem; margin-block: 0; }
+.location-row .last-checked { font-size: .7rem; color: inherit; margin: 0; }
+.location-row .weather-refresh-button { color: inherit; }
+.indoor-card-heading { display: flex; align-items: center; justify-content: space-between; gap: .15rem; margin-bottom: .7rem; }
+.indoor-card-heading h3 { margin: 0; }
+#editIndoorButton { border: 0; border-radius: .5rem; color: #343a38; background: #eef0ef; min-height: 44px; min-width: 44px; padding: .25rem; font-size: .75rem; cursor: pointer; }
+
+.indoor-card-heading { margin-top: -.4rem; margin-bottom: .3rem; }
+.moisture-card h3 { min-height: 24px; }
+.indoor-card-heading h3 { min-height: 0; }
+.indoor-dialog { width: min(100%, 34rem); max-width: 100%; max-height: 90dvh; margin: auto auto 0; padding: 1.25rem 1.25rem calc(1rem + env(safe-area-inset-bottom)); border: 1px solid var(--line); border-radius: 1.5rem 1.5rem 0 0; background: white; color: var(--ink); overflow-y: auto; }
+.indoor-dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
+.indoor-dialog .inputs-panel { padding: 0; margin: 0; border: 0; background: none; }
+.indoor-dialog .inputs-panel > .section-heading { min-height: 44px; }
+.indoor-dialog .inputs-panel > .section-heading .voice-input-button { top: 0; right: 0; }
+.indoor-dialog .control-heading { flex-direction: column; align-items: stretch; gap: .5rem; }
+.indoor-dialog .reading-stepper { width: 100%; }
+.indoor-dialog .reading-field input { width: 100%; }
+.indoor-dialog .reading-field { min-width: 0; }
+.indoor-done { width: 100%; margin-top: 1.25rem; border: 0; border-radius: .75rem; min-height: 48px; background: #202725; color: white; font-weight: 650; cursor: pointer; }
+.plan-dialog .indoor-done { margin-top: 0; }
+@container (max-width: 370px) {
+  .indoor-card-heading { flex-wrap: wrap; gap: 0; margin-top: -.35rem; margin-bottom: .4rem; }
+  .indoor-card-heading h3 { margin: 0; font-size: .68rem; }
+  #editIndoorButton { min-width: 32px; padding-inline: .1rem; font-size: .68rem; }
+  .moisture-card h3 { letter-spacing: .03em; }
+}
+@media (min-width: 48rem) {
+  .indoor-dialog, .plan-dialog, .location-dialog { width: calc(31rem - 1.7rem - 24px); margin: auto; border-radius: 1.5rem; }
+}
+
+.moisture-card.outdoor-card > h3 { display: flex; align-items: center; height: 44px; margin: -.35rem 0 .4rem; }
+.indoor-card-heading { min-height: 44px; margin: -.35rem 0 .4rem; flex-wrap: nowrap; }
+.indoor-card-heading h3 { margin: 0; }
+#editIndoorButton { min-width: 44px; min-height: 44px; }
+
+@container (max-width: 300px) {
+  .moisture-comparison { grid-template-columns: minmax(0, 1fr) 4rem minmax(0, 1fr); gap: .25rem; }
+  .moisture-card { padding: .35rem; }
+}
+
+/* Compact neutral controls; their hit areas remain 44px tall. */
+.ah-outlook-heading { margin-bottom: .45rem; gap: .5rem; }
+.ah-outlook-heading .ah-chart-reading { min-height: 0; flex: 1; min-width: 0; margin: 0; font-size: .85rem; line-height: 1.35; }
+.chart-range { position: relative; isolation: isolate; padding: 0 3px; height: 44px; border-radius: 0; background: transparent; }
+.chart-range::before { content: ''; position: absolute; z-index: -1; inset: 5px 0; background: #eeece8; border-radius: .65rem; }
+.chart-range button { position: relative; isolation: isolate; min-height: 44px; height: 44px; min-width: 44px; padding: 0 .45rem; background: transparent; font-size: .8125rem; color: #66706c; }
+.chart-range button[aria-pressed="true"] { background: transparent; color: #202725; font-weight: 650; }
+.chart-range button[aria-pressed="true"]::before { content: ''; position: absolute; z-index: -1; inset: 8px 0; border-radius: .45rem; background: #fff; }
+#editIndoorButton { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0; min-width: 44px; min-height: 44px; border-radius: .5rem; background: transparent; font-size: .75rem; color: #343a38; }
+#editIndoorButton span { display: block; padding: .2rem .5rem; border-radius: 999px; background: #eef0ef; line-height: 1.2; font-weight: 650; }
+.ah-chart text { font-size: calc(13px * var(--chart-text-scale, 1)); }
+.ah-chart .chart-scale { font-size: calc(11px * var(--chart-text-scale, 1)); }
+.ah-chart .airflow-label { font-size: calc(11px * var(--chart-text-scale, 1)); fill: #235681; }
+.airflow-bar { fill: #d5e5f5; }
+
+/* Reference proportions, with the indoor Edit action covering the whole card. */
+.forecast-panel { padding-top: 1.65rem; }
+.ah-outlook-heading { margin-bottom: 0; }
+.ah-chart .chart-time-label { font-size: calc(11px * var(--chart-text-scale, 1)); }
+.moisture-comparison { grid-template-columns: minmax(0, 1fr) 62px minmax(0, 1fr); gap: 6px; }
+.moisture-card { border-radius: 14px; padding: 12px; }
+.moisture-card.outdoor-card > h3, .indoor-card-heading { height: 22px; min-height: 22px; margin: 0 0 4px; }
+.moisture-card h3, .indoor-card-heading h3 { font-size: 11px; letter-spacing: .06em; margin: 0; }
+.moisture-card.outdoor-card > h3 { margin-bottom: 4px; }
+.indoor-card { position: relative; cursor: pointer; }
+#editIndoorButton { position: static; min-width: 0; min-height: 0; height: auto; font-size: 11px; }
+#editIndoorButton span { padding: 2px 8px; }
+#editIndoorButton::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+
+.chart-range { padding-inline: 2px; }
+.chart-range::before { inset-block: 9px; border-radius: 8px; background: #eceae5; }
+.chart-range button { font-size: 12px; font-weight: 600; padding-inline: 8px; }
+.chart-range button[aria-pressed="true"]::before { inset-block: 11px; border-radius: 6px; }
+@container (max-width: 300px) {
+  .moisture-card { padding: 8px; }
+}
+
+.ah-chart:not([aria-disabled="true"]) { min-height: 0; }
+
+/* A single coloured surface joins the current verdict and its outdoor outlook. */
+.verdict-panel { padding-inline: 20px; --chart-wet: #ff8a7a; --chart-near: #ffc34d; }
+.verdict-panel .ah-outlook { border-top: 1px solid #ffffff40; margin: 0; padding: 6px 0 0; }
+.verdict-panel .ah-chart-reading { color: #fff; }
+.verdict-panel .chart-range::before { background: #ffffff29; }
+.verdict-panel .chart-range button { color: #fff; }
+.verdict-panel .chart-range button[aria-pressed="true"] { color: #343a38; }
+.verdict-panel .ah-chart text { fill: #ffffffd9; }
+.verdict-panel .ah-chart .airflow-label { fill: #fff; }
+.verdict-panel .airflow-bar { fill: #ffffff38; }
+.verdict-panel .ah-grid { stroke: #ffffff16; }
+.verdict-panel .ah-day-line { stroke: #ffffff4d; }
+.verdict-panel .ah-indoor-line { stroke: #fff; opacity: .7; }
+.verdict-panel .ah-indoor-label { fill: #fff; }
+.verdict-panel .ah-cursor { stroke: #fff; opacity: .65; }
+.verdict-panel .ah-dot { fill: #fff; stroke: #233d4e; }
+.verdict-panel .ah-chart[aria-disabled="true"] { background: #ffffff0a; }
+.forecast-panel { padding: 12px 20px 0; }
+.forecast-panel .plan-summary-trigger { border-top: 0; }
+
+.verdict-panel .location-icon { display: none; }
+.verdict-panel .ah-chart { overflow: visible; }
+
+.ah-curve { vector-effect: non-scaling-stroke; stroke-width: 2.5px; }
+
+.ah-dot { vector-effect: non-scaling-stroke; stroke-width: 2px; }
+.ah-indoor-line { vector-effect: non-scaling-stroke; stroke-dasharray: 6 4; }
+
+/* Consistent vertical rhythm without stacked default margins. */
+.verdict-panel { gap: 12px; padding-bottom: 16px; }
+.verdict-panel .location-row { margin-bottom: -8px; }
+.verdict-panel #decisionLabel { margin-top: 0; }
+.forecast-panel .plan-summary-trigger { min-height: 52px; padding-block: 14px; }
+
+/* Voice is an alternate view within the indoor sheet. */
+.indoor-dialog.voice-mode .inputs-panel > .control,
+.indoor-dialog.voice-mode #voiceInputButton,
+.indoor-dialog.voice-mode #indoorDoneButton { display: none; }
+.voice-panel[hidden] { display: none; }
+.voice-panel .voice-dialog-content { padding: 0; }
+.voice-panel .voice-dialog-actions { flex-wrap: wrap; }
+.voice-panel #voiceDialogCloseButton { margin-right: auto; }
+.voice-panel .voice-apply-button { background: #202725; border-color: #202725; }
+
+/* Shared sheet controls and mobile drag affordance. */
+.sheet-handle { display: none; }
+:is(.indoor-dialog, .plan-dialog, .location-dialog) .sheet-primary,
+:is(.indoor-dialog, .location-dialog) .sheet-secondary {
+  min-height: 48px; border-radius: 12px; padding: 10px 16px;
+  font: inherit; font-weight: 650; line-height: 1.25; cursor: pointer;
+}
+:is(.indoor-dialog, .plan-dialog, .location-dialog) .sheet-primary {
+  border: 1px solid #202725; background: #202725; color: #fff;
+}
+:is(.indoor-dialog, .location-dialog) .sheet-secondary {
+  border: 1px solid var(--line); background: transparent; color: var(--ink);
+}
+.location-dialog-actions .sheet-primary { width: 100%; }
+
+@media (max-width: 47.999rem) {
+  .sheet-handle { display: flex; align-items: center; justify-content: center; height: 36px; flex-shrink: 0; }
+  .sheet-handle span { width: 40px; height: 5px; border-radius: 999px; background: #d5d4cf; }
+  .sheet-drag-surface { touch-action: none; }
+  .sheet-dragging { user-select: none; }
+  .indoor-dialog { padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+  .indoor-dialog > .sheet-handle { margin: -1.25rem -1.25rem 0; }
+  .plan-dialog-content, .location-dialog-content { padding-top: 0; padding-bottom: calc(24px + env(safe-area-inset-bottom)); }
+}
+
+@media (max-width: 47.999rem) and (prefers-reduced-motion: no-preference) {
+  :is(.indoor-dialog, .plan-dialog, .location-dialog) { transition: transform 160ms ease-out; }
+  :is(.indoor-dialog, .plan-dialog, .location-dialog).sheet-dragging { transition: none; }
+}
+
+.project-credit-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-top: .8rem; }
+.project-credit-row .project-credit { margin: 0; }
+.page-refresh-button {
+  min-height: 32px; border: 1px solid var(--line); border-radius: 999px;
+  padding: 4px 10px; background: #eef0ef; color: #343a38;
+  font: inherit; font-size: .75rem; font-weight: 650; cursor: pointer;
+}
+
+/* Interaction states: visual boundaries are independent of touch targets. */
+:root { --interaction-ring: #343a38; --interaction-hover: #e8ecea; --interaction-pressed: #dde3df; }
+.verdict-panel { --interaction-ring: #fff; --interaction-hover: #ffffff1a; --interaction-pressed: #ffffff2e; }
+:where(button, a, input, select, summary, .ah-chart) { -webkit-tap-highlight-color: transparent; }
+:where(button, a, input, select, summary, .ah-chart):focus-visible {
+  outline: 2px solid var(--interaction-ring); outline-offset: -2px; box-shadow: none;
+}
+a { border-radius: 2px; }
+.plan-summary-trigger, .dashboard-explainer summary { border-radius: 8px; }
+:is(#indoor-heading, #planDialogTitle, #locationDialogTitle):focus { outline: none; }
+dialog:focus { outline: none; }
+
+/* One focus boundary for each compound field. */
+.reading-field:focus-within, .setting-field:focus-within, .dimension-field:focus-within {
+  outline: 2px solid var(--interaction-ring); outline-offset: -2px; box-shadow: none;
+}
+.reading-field input:focus-visible, .setting-field input:focus-visible, .dimension-field input:focus-visible { outline: none; box-shadow: none; }
+.location-search-results { padding: 4px; margin: -4px; }
+
+/* Compact visual focus shapes preserve the larger clickable boxes. */
+.location-button span { padding: 4px 6px; margin: -4px -6px; border-radius: 8px; }
+.location-button:focus-visible { outline: none; }
+.location-button:focus-visible span { outline: 2px solid var(--interaction-ring); outline-offset: -2px; }
+.weather-refresh-button, .verdict-retry-button { position: relative; isolation: isolate; }
+.weather-refresh-button::before, .verdict-retry-button::before {
+  content: ''; position: absolute; z-index: -1; width: calc(1rem + 12px); height: calc(1rem + 12px);
+  top: 50%; left: 50%; transform: translate(-50%, -50%); border-radius: 8px; pointer-events: none;
+}
+.weather-refresh-button:focus-visible, .verdict-retry-button:focus-visible { outline: none; }
+.weather-refresh-button:focus-visible::before, .verdict-retry-button:focus-visible::before {
+  outline: 2px solid var(--interaction-ring); outline-offset: -2px;
+}
+.chart-range button::before { content: ''; position: absolute; z-index: -1; inset: 11px 0; border-radius: 6px; }
+.chart-range button:focus-visible { outline: none; }
+.chart-range button:focus-visible::before { outline: 2px solid var(--interaction-ring); outline-offset: -2px; }
+#editIndoorButton:focus-visible { outline: none; }
+.indoor-card:has(#editIndoorButton:focus-visible) { outline: 2px solid var(--interaction-ring); outline-offset: -2px; }
+
+/* Keep native range behaviour, with focus on the thumb rather than its track. */
+input[type="range"] { accent-color: #343a38; }
+input[type="range"]:focus-visible { outline: none; }
+input[type="range"]:focus-visible::-webkit-slider-thumb { border-radius: 50%; outline: 2px solid #fff; outline-offset: -2px; }
+input[type="range"]:focus-visible::-moz-range-thumb { border-radius: 50%; outline: 2px solid #fff; outline-offset: -2px; }
+
+@media (hover: hover) {
+
+
+  .location-button:hover:not(:disabled) { color: #fff; }
+  .location-button:hover:not(:disabled) span, .weather-refresh-button:hover:not(:disabled)::before, .verdict-retry-button:hover:not(:disabled)::before { background: var(--interaction-hover); }
+  .chart-range button:hover:not(:disabled):not([aria-pressed="true"])::before { background: var(--interaction-hover); }
+  .chart-range button[aria-pressed="true"]:hover:not(:disabled)::before { background: #e8ecea; }
+  .indoor-card:has(#editIndoorButton:not(:disabled)):hover { box-shadow: inset 0 0 0 1px #343a38; }
+  .indoor-card:has(#editIndoorButton:focus-visible) { outline: 2px solid var(--interaction-ring); outline-offset: -2px; }
+  .plan-summary-trigger:hover:not(:disabled) .plan-summary-group, .dashboard-explainer summary:hover { color: var(--ink); }
+  .plan-summary-trigger:hover:not(:disabled) .plan-summary-chevron, .dashboard-explainer summary:hover::after { border-color: var(--ink); }
+  a:hover, .location-worldwide-button:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 2px; }
+  .sheet-handle:hover span { background: #a5aaa7; }
+  input[type="range"]:hover:not(:disabled)::-webkit-slider-thumb { filter: brightness(.8); }
+  input[type="range"]:hover:not(:disabled)::-moz-range-thumb { filter: brightness(.8); }
+}
+
+
+.location-button:active:not(:disabled) span, .weather-refresh-button:active:not(:disabled)::before, .verdict-retry-button:active:not(:disabled)::before { background: var(--interaction-pressed); }
+.chart-range button:active:not(:disabled):not([aria-pressed="true"])::before { background: var(--interaction-pressed); }
+.chart-range button[aria-pressed="true"]:active:not(:disabled)::before { background: #dde3df; }
+.indoor-card:has(#editIndoorButton:active:not(:disabled)) { background: #e8ecea; }
+.plan-summary-trigger:active:not(:disabled) .plan-summary-group, .dashboard-explainer summary:active { color: #343a38; }
+.sheet-dragging .sheet-handle span { background: #737b77; }
+input[type="range"]:active:not(:disabled)::-webkit-slider-thumb { filter: brightness(.65); }
+input[type="range"]:active:not(:disabled)::-moz-range-thumb { filter: brightness(.65); }
+@media (prefers-reduced-motion: no-preference) {
+  button, a, summary, .location-button span, .sheet-handle span,
+  .chart-range button::before, .weather-refresh-button::before, .verdict-retry-button::before {
+    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+  }
+}
+
+/* Focus colour follows the visible control, not the surrounding panel. */
+.sheet-primary { --interaction-ring: #fff; }
+.chart-range button[aria-pressed="true"] { --interaction-ring: #343a38; }
+.voice-dialog-input-button { color: #343a38; }
+
+/* System outlines survive forced colours; keep the same inset geometry. */
+@media (forced-colors: active) {
+  :root, .verdict-panel, .sheet-primary, .chart-range button[aria-pressed="true"] {
+    --interaction-ring: ButtonText;
+  }
+  .sheet-primary:focus-visible { outline-color: Highlight; }
+  input[type="range"]:focus-visible::-webkit-slider-thumb { outline-color: Highlight; }
+  input[type="range"]:focus-visible::-moz-range-thumb { outline-color: Highlight; }
+  .chart-range button[aria-pressed="true"]::before { border: 1px solid ButtonText; }
+  .indoor-card:has(#editIndoorButton:not(:disabled)):hover { outline: 1px solid ButtonText; outline-offset: -1px; }
+  .indoor-card:has(#editIndoorButton:focus-visible) { outline: 2px solid ButtonText; outline-offset: -2px; }
+}
+
+/* Indoor ruler entry: one continuous scale and one directly editable value. */
+.indoor-dialog .inputs-panel { display: flex; flex-direction: column; gap: 20px; }
+.indoor-dialog .section-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0; padding-right:0; }
+.indoor-title { min-width:0; }
+.indoor-title h2 { margin:0; }
+#indoorLastSet { margin:2px 0 0; color:var(--muted); font-size:13px; }
+.indoor-speak-button { display:inline-flex; align-items:center; justify-content:center; gap:6px; flex-shrink:0; min-height:44px; border:0; border-radius:999px; padding:0 14px; background:#eeece8; color:#343a38; font:inherit; font-size:14px; font-weight:650; cursor:pointer; }
+.indoor-speak-button[hidden] { display:none; }
+.indoor-dialog .ruler-control { display:flex; flex-direction:column; align-items:center; gap:8px; }
+.ruler-control > label:first-child { color:var(--muted); font-size:13px; }
+.indoor-dialog .ruler-value { display:flex; align-items:baseline; gap:2px; width:auto; min-height:44px; border:0; border-bottom:2px dotted #c2c5c9; border-radius:4px 4px 0 0; padding:0 2px 2px; background:transparent; }
+.indoor-dialog .ruler-value input { width:4ch; min-height:44px; font-size:34px; line-height:1; font-weight:700; text-align:right; }
+.indoor-dialog .ruler-value input#indoorRhInput { width:2.1ch; }
+.ruler-value > span { color:var(--muted); font-size:18px; font-weight:500; }
+.reading-ruler { position:relative; isolation:isolate; width:100%; height:56px; border:1px solid var(--line); border-radius:10px; background:#fff; overflow:hidden; cursor:ew-resize; touch-action:pan-y; user-select:none; }
+.ruler-ticks { position:absolute; inset:0; pointer-events:none; }
+.ruler-tick { position:absolute; bottom:0; width:1px; height:14px; background:#c2c5c9; transform:translateX(-50%); }
+.ruler-tick-major { height:24px; background:#737b77; }
+.ruler-tick-major > span { position:absolute; bottom:28px; left:0; transform:translateX(-50%); color:var(--muted); font-size:11px; }
+.reading-ruler::after { content:''; position:absolute; inset:0; background:linear-gradient(90deg,#fff,transparent 30%,transparent 70%,#fff); pointer-events:none; }
+.ruler-marker { position:absolute; z-index:1; left:50%; top:0; bottom:0; width:3px; transform:translateX(-50%); background:#343a38; border-radius:2px; pointer-events:none; }
+.reading-ruler input[type="range"] { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; pointer-events:none; }
+.reading-ruler:has(input:focus-visible) { outline:2px solid #343a38; outline-offset:-2px; }
+.ruler-help { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+
+
+@media (forced-colors:active) {
+  .ruler-tick,.ruler-marker { background:CanvasText; }
+  .reading-ruler::after { display:none; }
+  .reading-ruler:has(input:focus-visible) { outline-color:Highlight; }
+}
+
+
+/* Shared button families: geometry stays local; colours and states stay together. */
+:root {
+  --button-ink: #343a38;
+  --button-light: #fff;
+  --button-light-hover: #e8ecea;
+  --button-light-pressed: #dde3df;
+  --button-pill: #eef0ef;
+  --button-pill-hover: #dde3df;
+  --button-pill-pressed: #ced6d1;
+  --button-primary: #202725;
+  --button-primary-hover: #343a38;
+  --button-primary-pressed: #111714;
+}
+:is(.indoor-speak-button, .page-refresh-button, .step-button, .secondary-button, .location-result-button, .voice-dialog-input-button, .indoor-dialog .sheet-secondary, .location-dialog .sheet-secondary, .indoor-dialog .sheet-primary, .plan-dialog .sheet-primary, .location-dialog .sheet-primary, .voice-debug-actions button) {
+  --button-bg: var(--button-light);
+  --button-hover: var(--button-light-hover);
+  --button-pressed: var(--button-light-pressed);
+  --button-text: var(--button-ink);
+  background: var(--button-bg);
+  color: var(--button-text);
+}
+:is(.indoor-dialog .indoor-speak-button, .project-credit-row .page-refresh-button) {
+  --button-bg: var(--button-pill);
+  --button-hover: var(--button-pill-hover);
+  --button-pressed: var(--button-pill-pressed);
+}
+:is(.indoor-dialog, .plan-dialog, .location-dialog) .sheet-primary {
+  --button-bg: var(--button-primary);
+  --button-hover: var(--button-primary-hover);
+  --button-pressed: var(--button-primary-pressed);
+  --button-text: #fff;
+}
+.voice-debug-panel .voice-debug-actions button {
+  --button-bg: transparent;
+  --button-hover: #ffffff1a;
+  --button-pressed: #ffffff2e;
+  --button-text: #fff;
+  --interaction-ring: #fff;
+}
+.indoor-speak-button span { color:inherit; font:inherit; }
+@media (hover:hover) {
+  :is(.indoor-speak-button, .page-refresh-button, .step-button, .secondary-button, .location-result-button, .voice-dialog-input-button, .indoor-dialog .sheet-secondary, .location-dialog .sheet-secondary, .indoor-dialog .sheet-primary, .plan-dialog .sheet-primary, .location-dialog .sheet-primary, .voice-debug-actions button):hover:not(:disabled) { background:var(--button-hover); }
+}
+:is(.indoor-speak-button, .page-refresh-button, .step-button, .secondary-button, .location-result-button, .voice-dialog-input-button, .indoor-dialog .sheet-secondary, .location-dialog .sheet-secondary, .indoor-dialog .sheet-primary, .plan-dialog .sheet-primary, .location-dialog .sheet-primary, .voice-debug-actions button):active:not(:disabled) { background:var(--button-pressed); }
+@media (forced-colors:active) {
+  .voice-debug-actions button { --interaction-ring: ButtonText; }
+}
+
+/* Keep sheet scrolling from chaining into the locked document. */
+.indoor-dialog { overscroll-behavior: contain; }
+
+
+/* Anchor mobile sheets to the visible viewport after fixing the page body. */
+@media (max-width: 47.999rem) {
+  :is(.indoor-dialog, .plan-dialog, .location-dialog) {
+    position: fixed;
+    top: auto;
+    bottom: calc(100% - var(--sheet-visible-bottom, 100dvh));
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    max-height: calc(var(--sheet-visible-height, 100dvh) * .9);
+  }
+  :is(.indoor-dialog, .plan-dialog, .location-dialog)::backdrop {
+    position: fixed;
+    inset: -100vmax;
+  }
 }
