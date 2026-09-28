@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
 function extract(name,next){return app.slice(app.indexOf('function '+name+'('),next?app.indexOf('function '+next+'('):undefined);}
 const ctx=vm.createContext({});
-vm.runInContext(extract('rulerValueFromDrag','renderIndoorRulers'),ctx);
+vm.runInContext(extract('rulerValueFromDrag','renderReadingRulers'),ctx);
 test('ruler drag snaps in both directions without floating-point drift',()=>{
  assert.equal(ctx.rulerValueFromDrag(24,8,10,32,.1,8),23.9);
  assert.equal(ctx.rulerValueFromDrag(24,-80,10,32,.1,8),25);
@@ -35,10 +35,10 @@ test('old readings retain values without inventing a last-set timestamp',()=>{
 test('pointer gestures ignore taps and vertical scrolling, and stop after cancellation',()=>{
  const events={},dialogEvents={}; let captured=false,changes=0;
  const input={value:24,min:10,max:32,step:.1,focus(){},dispatchEvent(){changes++;}};
- const ruler={querySelector:()=>input,classList:{add(){},remove(){}},addEventListener:(name,fn)=>events[name]=fn,setPointerCapture(){captured=true},hasPointerCapture(){return captured},releasePointerCapture(){captured=false}};
+ const ruler={dataset:{tickSpacing:8},closest:()=>({addEventListener:(name,fn)=>dialogEvents[name]=fn}),querySelector:()=>input,classList:{add(){},remove(){}},addEventListener:(name,fn)=>events[name]=fn,setPointerCapture(){captured=true},hasPointerCapture(){return captured},releasePointerCapture(){captured=false}};
  const field={addEventListener(){}};
- const context=vm.createContext({window:{matchMedia:()=>({matches:false,addEventListener(){}})},document:{addEventListener(){},querySelectorAll:()=>[ruler],querySelector:()=>({addEventListener:(name,fn)=>dialogEvents[name]=fn})},elements:{indoorTempInput:field,indoorRhInput:field},ResizeObserver:class{observe(){}},renderIndoorRulers(){},Event:class{},rulerValueFromDrag:ctx.rulerValueFromDrag});
- vm.runInContext(extract('bindIndoorRulers'),context);context.bindIndoorRulers();
+ const context=vm.createContext({window:{matchMedia:()=>({matches:false,addEventListener(){}})},document:{addEventListener(){},querySelectorAll:()=>[ruler],querySelector:()=>({addEventListener:(name,fn)=>dialogEvents[name]=fn})},elements:{indoorTempInput:field,indoorRhInput:field,minTempInput:field,targetRhInput:field},ResizeObserver:class{observe(){}},renderReadingRulers(){},Event:class{},rulerValueFromDrag:ctx.rulerValueFromDrag});
+ vm.runInContext(extract('bindReadingRulers'),context);context.bindReadingRulers();
  const point=(x,y)=>({isPrimary:true,button:0,pointerId:1,clientX:x,clientY:y});
  events.pointerdown(point(100,100));events.pointerup(point(100,100));assert.equal(changes,0);
  events.pointerdown(point(100,100));events.pointermove(point(101,120));assert.equal(changes,0);
@@ -47,15 +47,15 @@ test('pointer gestures ignore taps and vertical scrolling, and stop after cancel
  events.pointerdown(point(100,100));dialogEvents.close();events.pointermove(point(180,100));assert.equal(changes,1);
 });
 
-function momentumFixture({reduced=false,value=24,step=.1,min=10,max=32}={}) {
+function momentumFixture({reduced=false,value=24,step=.1,min=10,max=32,spacing=step<1?8:14}={}) {
  const events={},dialogEvents={},pageEvents={},motionEvents={};let captured=false,time=0,id=0;
  const frames=new Map(); const motion={matches:reduced,addEventListener:(n,fn)=>motionEvents[n]=fn};
  const input={value,min,max,step,focus(){},dispatchEvent(){}};
- const ruler={querySelector:()=>input,classList:{add(){},remove(){}},addEventListener:(n,fn)=>events[n]=fn,setPointerCapture(){captured=true},hasPointerCapture:()=>captured,releasePointerCapture(){captured=false;events.lostpointercapture();}};
+ const ruler={dataset:{tickSpacing:spacing},closest:()=>({addEventListener:(name,fn)=>dialogEvents[name]=fn}),querySelector:()=>input,classList:{add(){},remove(){}},addEventListener:(n,fn)=>events[n]=fn,setPointerCapture(){captured=true},hasPointerCapture:()=>captured,releasePointerCapture(){captured=false;events.lostpointercapture();}};
  const doc={hidden:false,querySelectorAll:()=>[ruler],querySelector:()=>({addEventListener:(n,fn)=>dialogEvents[n]=fn}),addEventListener:(n,fn)=>pageEvents[n]=fn};
  const field={addEventListener(){}};
- const context=vm.createContext({document:doc,window:{matchMedia:()=>motion},performance:{now:()=>time},requestAnimationFrame:fn=>{frames.set(++id,fn);return id},cancelAnimationFrame:id=>frames.delete(id),elements:{indoorTempInput:field,indoorRhInput:field},ResizeObserver:class{observe(){}},renderIndoorRulers(){},Event:class{},rulerValueFromDrag:ctx.rulerValueFromDrag});
- vm.runInContext(extract('bindIndoorRulers'),context);context.bindIndoorRulers();
+ const context=vm.createContext({document:doc,window:{matchMedia:()=>motion},performance:{now:()=>time},requestAnimationFrame:fn=>{frames.set(++id,fn);return id},cancelAnimationFrame:id=>frames.delete(id),elements:{indoorTempInput:field,indoorRhInput:field,minTempInput:field,targetRhInput:field},ResizeObserver:class{observe(){}},renderReadingRulers(){},Event:class{},rulerValueFromDrag:ctx.rulerValueFromDrag});
+ vm.runInContext(extract('bindReadingRulers'),context);context.bindReadingRulers();
  const event=(x,t,y=100)=>({isPrimary:true,button:0,pointerId:1,clientX:x,clientY:y,timeStamp:t});
  return {input,events,dialogEvents,pageEvents,motionEvents,motion,doc,frames,event,
  flick(dx=40,release=45){events.pointerdown(event(100,0));events.pointermove(event(100+dx,40));events.pointerup(event(100+dx,release));},
@@ -84,4 +84,29 @@ test('new touch, keyboard, close, hidden page and reduced-motion change stop mom
  for(const stop of [f=>f.events.pointerdown(f.event(110,60)),f=>f.dialogEvents.pointerdown(),f=>f.dialogEvents.keydown(),f=>f.dialogEvents.close(),f=>{f.doc.hidden=true;f.pageEvents.visibilitychange()},f=>{f.motion.matches=true;f.motionEvents.change()}]) {
   const f=momentumFixture();f.flick();assert.equal(f.frames.size,1);stop(f);const value=f.input.value;f.advance(450);assert.equal(f.frames.size,0);assert.equal(f.input.value,value);
  }
+});
+
+test('ventilation rulers honour their spacing, whole-degree steps and owning dialog close',()=>{
+ const f=momentumFixture({value:21,step:1,min:16,max:26,spacing:40});
+ f.flick(40); assert.equal(f.input.value,20);
+ assert.equal(f.frames.size,1); f.dialogEvents.close(); f.advance(450);
+ assert.equal(f.input.value,20); assert.equal(f.frames.size,0);
+ const humidity=momentumFixture({value:55,step:1,min:40,max:65,spacing:10});
+ humidity.flick(-10); assert.equal(humidity.input.value,56);
+ humidity.advance(450); assert.ok(humidity.input.value<=65);
+});
+
+test('ventilation major ticks use explicit intervals and announce the correct units',()=>{
+ const rulers=[['minTemp',18,16,26,1,40,1,'degrees Celsius'],['targetRh',55,40,65,1,10,5,'percent']].map(([key,value,min,max,step,spacing,interval,unit])=>{
+  const ticks={innerHTML:''}, input={min,max,step,setAttribute(n,v){this[n]=v;}};
+  return {dataset:{ruler:key,tickSpacing:spacing,majorInterval:interval,unit},clientWidth:124,ticks,input,querySelector:s=>s==='input'?input:ticks};
+ });
+ const context=vm.createContext({state:{minTemp:18,targetRh:55},document:{querySelectorAll:()=>rulers,querySelector:()=>({})}});
+ vm.runInContext(extract('renderReadingRulers','bindReadingRulers'),context);context.renderReadingRulers();
+ assert.match(rulers[0].ticks.innerHTML, /<span>17<\/span>/);
+ assert.match(rulers[0].ticks.innerHTML, /<span>19<\/span>/);
+ assert.match(rulers[1].ticks.innerHTML, /<span>50<\/span>/);
+ assert.match(rulers[1].ticks.innerHTML, /<span>60<\/span>/);
+ assert.equal(rulers[0].input['aria-valuetext'],'18 degrees Celsius');
+ assert.equal(rulers[1].input['aria-valuetext'],'55 percent');
 });

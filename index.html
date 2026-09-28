@@ -38,21 +38,6 @@
                 </svg>
               </button>
             </div>
-              <button
-                class="verdict-retry-button"
-                id="retryWeather"
-                type="button"
-                aria-label="Retry outdoor weather"
-                title="Retry outdoor weather"
-                hidden
-              >
-                <svg class="refresh-icon" aria-hidden="true" viewBox="0 0 24 24">
-                  <path d="M21 12a9 9 0 0 1-15.2 6.5L3 16" />
-                  <path d="M3 21v-5h5" />
-                  <path d="M3 12A9 9 0 0 1 18.2 5.5L21 8" />
-                  <path d="M21 3v5h-5" />
-                </svg>
-              </button>
             </div>
             <h1 id="decisionLabel">Checking</h1>
             <p id="decisionSummary">
@@ -171,16 +156,19 @@
 <section class="inputs-panel" aria-labelledby="indoor-heading">
   <div class="section-heading">
     <div class="indoor-title"><h2 id="indoor-heading" tabindex="-1">Indoor readings</h2><p id="indoorLastSet" hidden></p></div>
+    <div class="sheet-heading-actions">
     <button class="indoor-speak-button" type="button" id="voiceInputButton" aria-label="Update indoor readings by voice" hidden>
       <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></svg><span>Speak</span>
     </button>
+    <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close indoor readings" title="Close">&times;</button>
+    </div>
   </div>
   <div class="control ruler-control">
     <label for="indoorTemp">Temperature</label>
     <label class="reading-field ruler-value" for="indoorTempInput">
       <input id="indoorTempInput" type="number" min="10" max="32" step="0.1" value="24" inputmode="decimal" aria-label="Indoor temperature" /><span aria-hidden="true">°C</span>
     </label>
-    <div class="reading-ruler" data-ruler="indoorTemp">
+    <div class="reading-ruler" data-ruler="indoorTemp" data-major-interval="1" data-tick-spacing="8" data-unit="degrees Celsius">
       <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
       <input id="indoorTemp" type="range" min="10" max="32" step="0.1" value="24" aria-describedby="rulerHelp" />
     </div>
@@ -190,7 +178,7 @@
     <label class="reading-field ruler-value" for="indoorRhInput">
       <input id="indoorRhInput" type="number" min="20" max="90" step="1" value="58" inputmode="numeric" aria-label="Indoor relative humidity" /><span aria-hidden="true">%</span>
     </label>
-    <div class="reading-ruler" data-ruler="indoorRh">
+    <div class="reading-ruler" data-ruler="indoorRh" data-major-interval="5" data-tick-spacing="14" data-unit="percent">
       <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
       <input id="indoorRh" type="range" min="20" max="90" step="1" value="58" aria-describedby="rulerHelp" />
     </div>
@@ -238,45 +226,44 @@
       <div class="plan-dialog-content">
         <div class="plan-dialog-heading">
           <h2 id="planDialogTitle" tabindex="-1" autofocus>Ventilation settings</h2>
-
+          <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close ventilation settings" title="Close">&times;</button>
         </div>
 
         <div class="plan-controls" role="group" aria-label="Ventilation settings">
-          <div class="mini-control">
-            <label class="setting-label" for="minTemp">Minimum indoor temp</label>
-            <div class="reading-stepper plan-stepper">
-              <button class="step-button" type="button" data-step-target="minTemp" data-step-direction="-1" aria-label="Decrease minimum indoor temperature">&minus;</button>
-              <label class="setting-field" for="minTempInput">
-                <input id="minTempInput" type="number" min="16" max="26" step="0.5" value="21" inputmode="decimal" aria-label="Minimum indoor temperature" />
+          <div class="ruler-control">
+            <label for="minTemp">Min indoor temp</label>
+              <label class="reading-field ruler-value" for="minTempInput">
+                <input id="minTempInput" type="number" min="16" max="26" step="1" value="21" inputmode="numeric" aria-label="Minimum indoor temperature" />
                 <span aria-hidden="true">&deg;C</span>
               </label>
-              <button class="step-button" type="button" data-step-target="minTemp" data-step-direction="1" aria-label="Increase minimum indoor temperature">+</button>
+            <div class="reading-ruler" data-ruler="minTemp" data-major-interval="1" data-tick-spacing="40" data-unit="degrees Celsius">
+              <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
+              <input id="minTemp" type="range" min="16" max="26" step="1" value="21" aria-describedby="planRulerHelp" />
             </div>
-            <input id="minTemp" type="range" min="16" max="26" step="0.5" value="21" />
           </div>
 
-          <div class="mini-control">
-            <label class="setting-label" for="targetRh">Target indoor humidity</label>
-            <div class="reading-stepper plan-stepper">
-              <button class="step-button" type="button" data-step-target="targetRh" data-step-direction="-1" aria-label="Decrease target indoor humidity">&minus;</button>
-              <label class="setting-field" for="targetRhInput">
+          <div class="ruler-control">
+            <label for="targetRh">Target humidity</label>
+              <label class="reading-field ruler-value" for="targetRhInput">
                 <input id="targetRhInput" type="number" min="40" max="65" step="1" value="55" inputmode="numeric" aria-label="Target indoor humidity" />
                 <span aria-hidden="true">%</span>
               </label>
-              <button class="step-button" type="button" data-step-target="targetRh" data-step-direction="1" aria-label="Increase target indoor humidity">+</button>
+            <div class="reading-ruler" data-ruler="targetRh" data-major-interval="5" data-tick-spacing="10" data-unit="percent">
+              <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
+              <input id="targetRh" type="range" min="40" max="65" step="1" value="55" aria-describedby="planRulerHelp" />
             </div>
-            <input id="targetRh" type="range" min="40" max="65" step="1" value="55" />
           </div>
+          <p id="planRulerHelp" class="ruler-help">Drag the ruler or use arrow keys to adjust. Tap the number to type.</p>
 
-          <label class="select-control room-size-control">
-            <span>Room size</span>
-            <select id="roomPreset">
-              <option value="small">Small · 30 m3</option>
-              <option value="medium" selected>Medium · 50 m3</option>
-              <option value="large">Large · 80 m3</option>
-              <option value="custom">Custom</option>
-            </select>
-          </label>
+          <fieldset class="plan-choice-group room-size-control" id="roomPreset">
+            <legend>Room size</legend>
+            <div class="room-options">
+              <label class="plan-option"><input type="radio" name="roomPreset" value="small" /><span>Small<small>30 m³</small></span></label>
+              <label class="plan-option"><input type="radio" name="roomPreset" value="medium" checked /><span>Medium<small>50 m³</small></span></label>
+              <label class="plan-option"><input type="radio" name="roomPreset" value="large" /><span>Large<small>80 m³</small></span></label>
+              <label class="plan-option"><input type="radio" name="roomPreset" value="custom" /><span>Custom<small id="customRoomVolume">50 m³</small></span></label>
+            </div>
+          </fieldset>
 
           <div class="custom-fields" id="customRoomFields" hidden>
             <label>
@@ -291,24 +278,26 @@
               <span>Height</span>
               <span class="dimension-field"><input id="roomHeight" type="number" min="1.8" max="5" step="0.1" value="2.5" inputmode="decimal" /><span>m</span></span>
             </label>
-            <p>Calculated volume <strong id="roomVolume">50 m3</strong></p>
+            <p>Volume <strong id="roomVolume">50 m³</strong></p>
           </div>
 
-          <label class="select-control">
-            <span>Opening setup</span>
-            <select id="openingSetup">
-              <option value="slightly">Window slightly open</option>
-              <option value="single" selected>One window fully open</option>
-              <option value="cross">Cross-ventilation</option>
-              <option value="custom">Custom airflow</option>
-            </select>
-          </label>
+          <fieldset class="plan-choice-group" id="openingSetup" aria-labelledby="openingLabel">
+            <div class="opening-heading">
+              <span id="openingLabel">Opening</span>
+              <p class="air-change-estimate" id="planConfidence" aria-live="polite">Estimate</p>
+            </div>
+            <div class="opening-options">
+              <label class="plan-option"><input type="radio" name="openingSetup" value="slightly" /><span>Window slightly open</span></label>
+              <label class="plan-option"><input type="radio" name="openingSetup" value="single" checked /><span>One window fully open</span></label>
+              <label class="plan-option"><input type="radio" name="openingSetup" value="cross" /><span>Cross-ventilation</span></label>
+              <label class="plan-option"><input type="radio" name="openingSetup" value="custom" /><span>Custom airflow</span></label>
+            </div>
+          </fieldset>
 
           <label class="custom-flow-field" id="customFlowField" hidden>
-            <span>Estimated airflow</span>
-            <span class="dimension-field"><input id="customAirflow" type="number" min="10" max="500" step="5" value="80" inputmode="numeric" /><span>m3/h</span></span>
+            <span>Airflow<small>From a fan spec or measurement</small></span>
+            <span class="dimension-field"><input id="customAirflow" type="number" min="10" max="500" step="5" value="80" inputmode="numeric" aria-label="Custom airflow in cubic metres per hour" /><span>m³/h</span></span>
           </label>
-          <p class="air-change-estimate" id="planConfidence">Estimate</p>
         </div>
 <button class="indoor-done sheet-primary" id="planDoneButton" type="button">Done</button>
       </div>
@@ -317,22 +306,30 @@
 <dialog class="location-dialog" id="locationDialog" aria-labelledby="locationDialogTitle">
 <div class="sheet-handle" aria-hidden="true"><span></span></div>
       <div class="location-dialog-content">
-        <h2 id="locationDialogTitle" tabindex="-1" autofocus>Update location</h2>
-        <p>Use your current location or search by town or postcode.</p>
+        <div class="location-dialog-heading">
+          <h2 id="locationDialogTitle" tabindex="-1" autofocus>Location</h2>
+          <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close location" title="Close">&times;</button>
+        </div>
+        <p class="location-current">Now showing <strong id="locationCurrentName"></strong></p>
         <form class="location-search-form" id="locationSearchForm">
-          <label for="locationSearchInput">Town or postcode</label>
+          <label class="visually-hidden" for="locationSearchInput">Search town or postcode</label>
           <div class="location-search-row">
-            <input id="locationSearchInput" type="search" autocomplete="postal-code" />
-            <button class="secondary-button sheet-secondary" type="submit" id="locationSearchButton">Search</button>
+            <input id="locationSearchInput" type="search" autocomplete="off" enterkeyhint="search" placeholder="Search town or postcode" />
+            <button class="location-clear-button" id="locationClearButton" type="button" aria-label="Clear search" title="Clear search" hidden>&times;</button>
           </div>
         </form>
-        <div class="location-search-results" id="locationSearchResults" aria-live="polite"></div>
+        <div class="location-sheet-body">
         <p class="location-dialog-status" id="locationDialogStatus" role="status"></p>
-        <div class="location-dialog-actions">
-
-          <button class="location-update-button sheet-primary" type="button" id="locationUpdateButton">
+        <div class="location-search-results" id="locationSearchResults" hidden></div>
+        <div class="location-idle" id="locationIdle">
+          <button class="location-update-button sheet-primary" type="button" id="locationUpdateButton" aria-live="polite" aria-atomic="true">
             Use current location
           </button>
+          <section class="location-recents" id="locationRecents" aria-labelledby="locationRecentsTitle" hidden>
+            <h3 id="locationRecentsTitle">Recent</h3>
+            <div id="locationRecentList"></div>
+          </section>
+        </div>
         </div>
       </div>
     </dialog>

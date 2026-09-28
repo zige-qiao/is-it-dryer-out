@@ -14,6 +14,14 @@ const LOCATION_LABEL_OVERRIDES = new Map([
 const STORAGE_KEY = "dew-indoor-readings";
 const PLAN_STORAGE_KEY = "is-it-dryer-out-plan";
 const LOCATION_STORAGE_KEY = "is-it-dryer-out-location";
+const LOCATION_HISTORY_STORAGE_KEY = "is-it-dryer-out-location-history";
+let recentLocations = [];
+let locationSearchTimer;
+let locationSearchRequestId = 0;
+let locationAttemptId = 0;
+let locationFinding = false;
+let locationStatus = "";
+let locationRetry = false;
 const LOCATION_REQUESTED_STORAGE_KEY = "is-it-dryer-out-location-requested";
 const DEFAULT_TIMEZONE = "Europe/London";
 const DEFAULT_PRESSURE_HPA = 1013.25;
@@ -87,7 +95,6 @@ const elements = {
   decisionLabel: document.querySelector("#decisionLabel"),
   decisionPrimary: document.querySelector("#decisionPrimary"),
   decisionSecondary: document.querySelector("#decisionSecondary"),
-  retryWeather: document.querySelector("#retryWeather"),
   weatherStatus: document.querySelector("#weatherStatus"),
   indoorTemp: document.querySelector("#indoorTemp"),
   indoorRh: document.querySelector("#indoorRh"),
@@ -136,7 +143,11 @@ const elements = {
   locationUpdateButton: document.querySelector("#locationUpdateButton"),
   locationSearchForm: document.querySelector("#locationSearchForm"),
   locationSearchInput: document.querySelector("#locationSearchInput"),
-  locationSearchButton: document.querySelector("#locationSearchButton"),
+  locationClearButton: document.querySelector("#locationClearButton"),
+  locationCurrentName: document.querySelector("#locationCurrentName"),
+  locationIdle: document.querySelector("#locationIdle"),
+  locationRecents: document.querySelector("#locationRecents"),
+  locationRecentList: document.querySelector("#locationRecentList"),
   locationSearchResults: document.querySelector("#locationSearchResults"),
   voiceInputButton: document.querySelector("#voiceInputButton"),
   voiceDialog: document.querySelector("#voiceDialog"),
@@ -1220,7 +1231,7 @@ function loadPlanSettings() {
   try {
     const parsed = JSON.parse(saved);
     state.targetRh = numberInRange(parsed.targetRh, 40, 65, state.targetRh);
-    state.minTemp = numberInRange(parsed.minTemp, 16, 26, state.minTemp);
+    state.minTemp = Math.round(numberInRange(parsed.minTemp, 16, 26, state.minTemp));
     if (ROOM_PRESETS[parsed.roomPreset] || parsed.roomPreset === "custom") {
       state.roomPreset = parsed.roomPreset;
     }
@@ -1538,16 +1549,16 @@ function formatVentilationSummary() {
 function renderPlanControls() {
   elements.targetRh.value = state.targetRh;
   elements.minTemp.value = state.minTemp;
-  elements.targetRhInput.value = Math.round(state.targetRh);
-  elements.minTempInput.value = state.minTemp.toFixed(1).replace(".0", "");
-  elements.roomPreset.value = state.roomPreset;
-  elements.roomLength.value = state.roomLength;
-  elements.roomWidth.value = state.roomWidth;
-  elements.roomHeight.value = state.roomHeight;
-  elements.roomVolume.textContent = `${roomVolume().toFixed(1).replace(".0", "")} m3`;
+  if (document.activeElement !== elements.targetRhInput) elements.targetRhInput.value = Math.round(state.targetRh);
+  if (document.activeElement !== elements.minTempInput) elements.minTempInput.value = state.minTemp.toFixed(1).replace(".0", "");
+  elements.roomPreset.querySelectorAll('input').forEach(input => { input.checked = input.value === state.roomPreset; });
+  for (const key of ['roomLength', 'roomWidth', 'roomHeight', 'customAirflow']) {
+    if (document.activeElement !== elements[key]) elements[key].value = state[key];
+  }
+  elements.roomVolume.textContent = `${roomVolume().toFixed(1).replace(".0", "")} m³`;
+  document.querySelector('#customRoomVolume').textContent = `${(state.roomLength * state.roomWidth * state.roomHeight).toFixed(1).replace('.0', '')} m³`;
   elements.customRoomFields.hidden = state.roomPreset !== "custom";
-  elements.openingSetup.value = state.openingSetup;
-  elements.customAirflow.value = state.customAirflow;
+  elements.openingSetup.querySelectorAll('input').forEach(input => { input.checked = input.value === state.openingSetup; });
   elements.customFlowField.hidden = state.openingSetup !== "custom";
   elements.planSummaryText.textContent = formatPlanSummary();
   elements.planSummaryVentilationText.textContent = formatVentilationSummary();
@@ -1556,14 +1567,14 @@ function renderPlanControls() {
 function renderPlan() {
   renderPlanControls();
   const timeline = buildWeatherTimeline();
-  if (!timeline.length) {
+  if (!timeline.length || state.weatherRequestPending || state.weatherLoadFailed) {
     elements.planConfidence.textContent = state.weatherLoadFailed ? "Outdoor data unavailable" : "Waiting for outdoor data...";
     return null;
   }
   const current = timeline[0];
   const plan = estimateOpeningWindowPlan(current, timeline);
   if (plan.status === "good") plan.dryAirHorizon = projectedDryAirHorizon(current, timeline);
-  elements.planConfidence.textContent = 'About ' + effectiveAirExchange(current, state.indoorTemp).airChangesPerHour.toFixed(1) + ' air changes/hr right now';
+  elements.planConfidence.textContent = 'Est. ' + effectiveAirExchange(current, state.indoorTemp).airChangesPerHour.toFixed(1) + ' air changes/hr';
   return plan;
 }
 
@@ -1766,25 +1777,13 @@ function planLimitingExplanation(plan, comparison) {
 }
 
 function renderRecommendationExplanation(plan, comparison, adjustedRh, condensationRisk) {
-  if (state.outdoorTemp === null || state.outdoorRh === null) {
+  if (state.weatherRequestPending || state.weatherLoadFailed || state.outdoorTemp === null || state.outdoorRh === null) {
     const locationName = state.location.name || "the selected location";
     elements.explanationText.textContent = state.weatherLoadFailed
-      ? `Outdoor weather is unavailable for ${locationName}. No successful weather data is available, so a recommendation cannot be made.`
+      ? `Outdoor weather is unavailable for ${locationName}. A recommendation cannot be made until current data is available.`
       : `Checking outdoor weather for ${locationName}. The recommendation will appear when current data arrives.`;
     return;
   }
-
-  const freshness = state.weatherRequestPending && state.lastSuccessfulUpdateAt
-    ? `A refresh is in progress; this recommendation uses the last successful update from ${formatWeatherTimestamp(
-        state.lastSuccessfulUpdateAt,
-      )}.`
-    : state.weatherLoadFailed && state.lastSuccessfulUpdateAt
-      ? `The latest refresh failed at ${formatWeatherTimestamp(
-          state.lastCheckedAt,
-        )}; this recommendation uses the last successful update from ${formatWeatherTimestamp(
-          state.lastSuccessfulUpdateAt,
-        )}.`
-      : "";
 
   const percentDifference = (Math.abs(comparison.difference) / comparison.indoor) * 100;
   const relationship = comparison.status === "drier"
@@ -1805,7 +1804,7 @@ function renderRecommendationExplanation(plan, comparison, adjustedRh, condensat
   const adjustedHumidity = condensationRisk
     ? "If warmed to your room's current temperature, outdoor air would be at 100% RH"
     : `If warmed to your room's current temperature, it would be about ${formatRh(adjustedRh)} RH`;
-  const sentences = [freshness, relationship].filter(Boolean);
+  const sentences = [relationship];
   const limitingExplanation = planLimitingExplanation(plan, comparison);
   sentences.push(plan.status === "minimal-impact"
     ? `${adjustedHumidity}. ${limitingExplanation}`
@@ -1820,14 +1819,14 @@ function renderWeatherDataDetails() {
   const lastSuccess = state.lastSuccessfulUpdateAt;
   if (state.weatherRequestPending) {
     elements.weatherDataStatus.textContent = lastSuccess
-      ? `Weather refresh in progress. Showing the last successful update from ${formatWeatherTimestamp(lastSuccess)}.`
+      ? `Weather refresh in progress. Last successful update: ${formatWeatherTimestamp(lastSuccess)}.`
       : "Weather update in progress. No successful update is available yet.";
   } else if (state.weatherLoadFailed) {
     const failedAt = state.lastCheckedAt
       ? `Latest refresh failed at ${formatWeatherTimestamp(state.lastCheckedAt)}.`
       : "The latest weather refresh failed.";
     elements.weatherDataStatus.textContent = lastSuccess
-      ? `${failedAt} Showing the last successful update from ${formatWeatherTimestamp(lastSuccess)}.`
+      ? `${failedAt} Last successful update: ${formatWeatherTimestamp(lastSuccess)}.`
       : `${failedAt} No successful weather data is available.`;
   } else {
     elements.weatherDataStatus.textContent = lastSuccess
@@ -1842,7 +1841,7 @@ function render() {
   elements.indoorRh.value = state.indoorRh;
   if (document.activeElement !== elements.indoorTempInput) elements.indoorTempInput.value = state.indoorTemp.toFixed(1);
   if (document.activeElement !== elements.indoorRhInput) elements.indoorRhInput.value = Math.round(state.indoorRh);
-  renderIndoorRulers();
+  renderReadingRulers();
   elements.indoorTempValue.textContent = formatTemp(state.indoorTemp);
   elements.indoorRhValue.textContent = formatRh(state.indoorRh);
   elements.warmingTemp.textContent = formatTemp(state.indoorTemp);
@@ -1856,12 +1855,17 @@ function render() {
   elements.outdoorAbsoluteHumidity.classList.remove("lower", "higher", "near");
   document.querySelector(".outdoor-card").classList.remove("lower", "higher", "near");
 
-  if (state.outdoorTemp === null || state.outdoorRh === null) {
-    elements.retryWeather.hidden = !state.weatherLoadFailed;
+  const unavailable = state.weatherRequestPending || state.weatherLoadFailed || state.outdoorTemp === null || state.outdoorRh === null;
+  elements.recommendation.dataset.weatherState = unavailable ? (state.weatherLoadFailed ? 'failed' : 'loading') : 'ready';
+  elements.dashboardPanel.classList.toggle('weather-unavailable', unavailable);
+  const refreshLabel = state.weatherLoadFailed ? 'Retry outdoor weather' : 'Refresh outdoor weather';
+  elements.refreshWeather.setAttribute('aria-label', refreshLabel);
+  elements.refreshWeather.title = refreshLabel;
+  if (unavailable) {
     elements.recommendation.classList.remove("open", "windows", "closed", "caution");
     elements.decisionLabel.textContent = state.weatherLoadFailed
       ? "NO DATA"
-      : "CHECKING";
+      : "Checking";
     setDecisionSummary(
       state.weatherLoadFailed ? "Outdoor weather is currently unavailable." : "Getting local conditions...",
       state.weatherLoadFailed ? "Check your connection and try again." : "",
@@ -1875,8 +1879,6 @@ function render() {
     elements.adjustedAirNote.textContent = "";
     return;
   }
-
-  elements.retryWeather.hidden = true;
 
   const outdoorDew = Number.isFinite(state.outdoorDewPoint)
     ? state.outdoorDewPoint
@@ -2092,22 +2094,122 @@ function isUkPostcodeQuery(query) {
   return Boolean(normalizeUkPostcode(query) || normalizeUkOutcode(query));
 }
 
+function validHistoryLocation(location) {
+  return location && typeof location.name === "string" && location.name.trim() &&
+    Number.isFinite(location.latitude) && Math.abs(location.latitude) <= 90 &&
+    Number.isFinite(location.longitude) && Math.abs(location.longitude) <= 180;
+}
+
+function sameLocation(a, b) {
+  return a.latitude === b.latitude && a.longitude === b.longitude;
+}
+
+function saveLocationHistory() {
+  try { localStorage.setItem(LOCATION_HISTORY_STORAGE_KEY, JSON.stringify(recentLocations)); } catch {}
+}
+
+function loadLocationHistory(hasSavedLocation) {
+  let stored;
+  try { stored = localStorage.getItem(LOCATION_HISTORY_STORAGE_KEY); } catch {}
+  if (stored == null) {
+    recentLocations = hasSavedLocation ? [{ ...state.location }] : [];
+    saveLocationHistory();
+    return;
+  }
+  try {
+    const parsed = JSON.parse(stored);
+    recentLocations = Array.isArray(parsed) ? parsed.filter(validHistoryLocation)
+      .filter((location, index, all) => all.findIndex(other => sameLocation(location, other)) === index).slice(0, 3) : [];
+  } catch { recentLocations = []; }
+}
+
+function rememberLocation(location) {
+  recentLocations = [{ ...location }, ...recentLocations.filter(other => !sameLocation(location, other))].slice(0, 3);
+  saveLocationHistory();
+}
+
+async function selectLocation(location) {
+  locationAttemptId += 1;
+  locationFinding = false;
+  locationStatus = "";
+  locationRetry = false;
+  rememberLocation(location);
+  setLocation(location, "search");
+  closeLocationDialog();
+  await fetchWeather();
+}
+
+function renderRecentLocations() {
+  elements.locationRecentList.replaceChildren();
+  elements.locationRecents.hidden = recentLocations.length === 0;
+  recentLocations.forEach((location, index) => {
+    const row = document.createElement("div");
+    row.className = "location-recent-row";
+    const select = document.createElement("button");
+    select.type = "button";
+    select.className = "location-recent-select";
+    const name = document.createElement("span");
+    name.textContent = location.name;
+    select.append(name);
+    if (sameLocation(location, state.location)) {
+      select.setAttribute("aria-current", "location");
+    }
+    select.addEventListener("click", () => selectLocation(location));
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "location-remove-button";
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", `Remove ${location.name} from recent places`);
+    remove.title = "Remove from recent places";
+    remove.addEventListener("click", () => {
+      recentLocations.splice(index, 1);
+      saveLocationHistory();
+      renderRecentLocations();
+      const buttons = elements.locationRecentList.querySelectorAll(".location-remove-button");
+      const next = buttons[Math.min(index, buttons.length - 1)];
+      // The location action is disabled while locating, so search is the fallback then.
+      (next || (locationFinding ? elements.locationSearchInput : elements.locationUpdateButton)).focus();
+    });
+    row.append(select, remove);
+    elements.locationRecentList.append(row);
+  });
+}
+
+function renderLocationIdle() {
+  const typing = elements.locationSearchInput.value.trim().length > 0;
+  elements.locationIdle.hidden = typing;
+  elements.locationSearchResults.hidden = !typing;
+  elements.locationClearButton.hidden = elements.locationSearchInput.value.length === 0;
+  elements.locationCurrentName.textContent = state.location.name;
+  elements.locationUpdateButton.disabled = locationFinding;
+  elements.locationUpdateButton.textContent = locationFinding ? "Finding your location…" : locationRetry ? "Try again" : "Use current location";
+  if (!typing) {
+    elements.locationDialogStatus.textContent = locationStatus;
+    renderRecentLocations();
+  }
+}
+
+function cancelLocationSearch() {
+  clearTimeout(locationSearchTimer);
+  locationSearchRequestId += 1;
+}
+
+function handleLocationInput() {
+  cancelLocationSearch();
+  elements.locationSearchResults.replaceChildren();
+  renderLocationIdle();
+  const query = elements.locationSearchInput.value.trim();
+  if (!query) return;
+  elements.locationDialogStatus.textContent = query.length < 2 ? "Enter at least two characters." : "Searching…";
+  if (query.length >= 2) locationSearchTimer = setTimeout(() => runLocationSearch(query), 300);
+}
+
 function addWorldwideSearchButton(query) {
   const button = document.createElement("button");
   button.className = "location-worldwide-button";
   button.type = "button";
   button.textContent = "Search worldwide";
-  button.addEventListener("click", async () => {
-    button.disabled = true;
-    elements.locationDialogStatus.textContent = "Searching worldwide...";
-    try {
-      const results = await searchLocations(query, true);
-      elements.locationDialogStatus.textContent = "";
-      renderLocationResults(results, query, true);
-    } catch {
-      elements.locationDialogStatus.textContent = "Worldwide search is unavailable. Try again.";
-    }
-  });
+  button.addEventListener("click", () => runLocationSearch(query, true));
   elements.locationSearchResults.append(button);
 }
 
@@ -2125,25 +2227,23 @@ function renderLocationResults(results, query, worldwide = false) {
     return;
   }
 
-  elements.retryWeather.hidden = true;
-
   results.forEach((result) => {
     const button = document.createElement("button");
     button.className = "location-result-button";
     button.type = "button";
-    button.textContent = formatSearchLocation(result);
-    button.addEventListener("click", async () => {
-      setLocation(
-        {
-          name: formatSearchLocation(result),
-          latitude: result.latitude,
-          longitude: result.longitude,
-        },
-        "search",
-      );
-      closeLocationDialog();
-      await fetchWeather();
-    });
+    const label = formatSearchLocation(result);
+    const [primary, ...secondary] = label.split(", ");
+    const name = document.createElement("strong");
+    name.textContent = primary;
+    button.append(name);
+    if (secondary.length) {
+      const region = document.createElement("span");
+      region.textContent = secondary.join(", ");
+      button.append(region);
+    }
+    button.addEventListener("click", () => selectLocation({
+      name: label, latitude: result.latitude, longitude: result.longitude,
+    }));
     elements.locationSearchResults.append(button);
   });
 
@@ -2152,24 +2252,33 @@ function renderLocationResults(results, query, worldwide = false) {
 
 async function handleLocationSearch(event) {
   event.preventDefault();
+  clearTimeout(locationSearchTimer);
   const query = elements.locationSearchInput.value.trim();
   if (query.length < 2) {
-    elements.locationDialogStatus.textContent = "Enter at least two characters.";
+    handleLocationInput();
     return;
   }
+  await runLocationSearch(query);
+}
 
-  elements.locationSearchButton.disabled = true;
+async function runLocationSearch(query, worldwide = false) {
+  const requestId = ++locationSearchRequestId;
   elements.locationSearchResults.replaceChildren();
-  elements.locationDialogStatus.textContent = "Searching...";
-
+  elements.locationDialogStatus.textContent = worldwide ? "Searching worldwide…" : "Searching…";
   try {
-    const results = await searchLocations(query);
-    elements.locationDialogStatus.textContent = "";
-    renderLocationResults(results, query);
+    const results = await searchLocations(query, worldwide);
+    if (requestId !== locationSearchRequestId || !elements.locationDialog.open) return;
+    elements.locationDialogStatus.textContent = results.length ? `${results.length} ${results.length === 1 ? "place" : "places"} found.` : "";
+    renderLocationResults(results, query, worldwide);
   } catch {
+    if (requestId !== locationSearchRequestId || !elements.locationDialog.open) return;
     elements.locationDialogStatus.textContent = "Location search is unavailable. Try again.";
-  } finally {
-    elements.locationSearchButton.disabled = false;
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "location-result-button";
+    retry.textContent = "Try again";
+    retry.addEventListener("click", () => runLocationSearch(query, worldwide));
+    elements.locationSearchResults.append(retry);
   }
 }
 
@@ -2188,18 +2297,22 @@ function getBrowserLocation() {
 }
 
 async function useCurrentLocation() {
-  elements.locationUpdateButton.disabled = true;
-  elements.locationUpdateButton.textContent = "Locating...";
-  elements.locationDialogStatus.textContent = "Requesting your current location...";
+  const attemptId = ++locationAttemptId;
+  locationFinding = true;
+  locationRetry = false;
+  locationStatus = "";
+  renderLocationIdle();
 
   try {
     const position = await getBrowserLocation();
+    if (attemptId !== locationAttemptId) return;
     let locationName = "Nearby location";
     try {
       locationName = await reverseGeocodeLocation(position.coords.latitude, position.coords.longitude);
     } catch {
       // Weather can still be fetched when the locality lookup is unavailable.
     }
+    if (attemptId !== locationAttemptId) return;
     setLocation(
       {
         name: locationName,
@@ -2208,21 +2321,35 @@ async function useCurrentLocation() {
       },
       "current",
     );
+    rememberLocation(state.location);
     closeLocationDialog();
     await fetchWeather();
-  } catch {
-    elements.locationDialogStatus.textContent = "Location access was unavailable. Check permission and try again.";
+  } catch (error) {
+    if (attemptId !== locationAttemptId) return;
+    locationStatus = error.code === 1
+      ? "Location permission is blocked. Allow location in your browser or device settings, or search by town or postcode."
+      : error.code === 3
+        ? "Finding your location took too long. Try again or search by town or postcode."
+        : "Couldn't find your location. Try again or search by town or postcode.";
+    locationRetry = true;
+    locationFinding = false;
+    renderLocationIdle();
     if (!state.lastCheckedAt) await fetchWeather();
   } finally {
-    elements.locationUpdateButton.disabled = false;
-    elements.locationUpdateButton.textContent = "Use current location";
+    if (attemptId === locationAttemptId) {
+      locationFinding = false;
+      renderLocationIdle();
+    }
   }
 }
 
 function openLocationDialog() {
-  elements.locationDialogStatus.textContent = "";
+  cancelLocationSearch();
+  locationStatus = "";
+  locationRetry = false;
   elements.locationSearchInput.value = "";
   elements.locationSearchResults.replaceChildren();
+  renderLocationIdle();
   dialogScrollLock.open(elements.locationDialog);
   document.querySelector("#locationDialogTitle").focus({ preventScroll: true });
 }
@@ -2238,7 +2365,14 @@ function closePlanDialog() {
 }
 
 function closeLocationDialog() {
+  cancelLocationWork();
   if (elements.locationDialog.open) elements.locationDialog.close();
+}
+
+function cancelLocationWork() {
+  cancelLocationSearch();
+  locationAttemptId += 1;
+  locationFinding = false;
 }
 
 async function initializeLocation(hasSavedLocation) {
@@ -2255,11 +2389,10 @@ async function fetchWeather() {
   const requestLocation = { ...state.location };
   state.weatherRequestPending = true;
   state.weatherLoadFailed = false;
-  elements.weatherStatus.textContent = "Updating outdoor...";
+  elements.weatherStatus.textContent = "Updating…";
   elements.recommendation.setAttribute("aria-busy", "true");
   elements.dashboardPanel.setAttribute("aria-busy", "true");
   elements.refreshWeather.disabled = true;
-  elements.retryWeather.disabled = true;
   render();
 
   try {
@@ -2300,7 +2433,6 @@ async function fetchWeather() {
     elements.recommendation.removeAttribute("aria-busy");
     elements.dashboardPanel.removeAttribute("aria-busy");
     elements.refreshWeather.disabled = false;
-    elements.retryWeather.disabled = false;
     render();
   }
 }
@@ -2310,7 +2442,7 @@ function bindTypedValue(input, stateKey, min, max, save) {
   const applyValue = () => {
     const value = input.valueAsNumber;
     if (!Number.isFinite(value) || value < min || value > max) return false;
-    state[stateKey] = stateKey === "indoorTemp" || stateKey === "indoorRh"
+    state[stateKey] = ["indoorTemp", "indoorRh", "minTemp", "targetRh"].includes(stateKey)
       ? rulerValueFromDrag(value, 0, min, max, Number(input.step), 1) : value;
     input.value = stateKey === "indoorTemp" ? state[stateKey].toFixed(1) : state[stateKey];
     save();
@@ -2327,7 +2459,7 @@ function bindSteppers() {
     indoorTemp: { min: 10, max: 32, step: 0.1, save: saveIndoorReadings },
     indoorRh: { min: 20, max: 90, step: 1, save: saveIndoorReadings },
     targetRh: { min: 40, max: 65, step: 1, save: savePlanSettings },
-    minTemp: { min: 16, max: 26, step: 0.5, save: savePlanSettings },
+    minTemp: { min: 16, max: 26, step: 1, save: savePlanSettings },
   };
 
   document.querySelectorAll(".step-button").forEach((button) => {
@@ -2434,7 +2566,7 @@ function bindEvents() {
   bindTypedValue(elements.indoorTempInput, "indoorTemp", 10, 32, saveIndoorReadings);
   bindTypedValue(elements.indoorRhInput, "indoorRh", 20, 90, saveIndoorReadings);
   bindSteppers();
-  bindIndoorRulers();
+  bindReadingRulers();
   bindTypedValue(elements.targetRhInput, "targetRh", 40, 65, savePlanSettings);
   bindTypedValue(elements.minTempInput, "minTemp", 16, 26, savePlanSettings);
 
@@ -2467,11 +2599,26 @@ function bindEvents() {
 
   elements.refreshWeather.addEventListener("click", fetchWeather);
   document.querySelector("#pageRefreshButton").addEventListener("click", () => window.location.reload());
-  elements.retryWeather.addEventListener("click", fetchWeather);
   elements.locationButton.addEventListener("click", openLocationDialog);
-  elements.locationDialog.addEventListener("close", () => elements.locationButton.focus({ preventScroll: true }));
+  elements.locationDialog.addEventListener("close", () => {
+    cancelLocationWork();
+    elements.locationButton.focus({ preventScroll: true });
+  });
   elements.locationUpdateButton.addEventListener("click", useCurrentLocation);
   elements.locationSearchForm.addEventListener("submit", handleLocationSearch);
+  elements.locationSearchInput.addEventListener("input", handleLocationInput);
+  elements.locationClearButton.addEventListener("click", () => {
+    elements.locationSearchInput.value = "";
+    handleLocationInput();
+    elements.locationSearchInput.focus();
+  });
+  document.querySelectorAll("[data-close-dialog]").forEach(button => {
+    button.addEventListener("click", () => {
+      const dialog = button.closest("dialog");
+      if (dialog === elements.locationDialog) closeLocationDialog();
+      else dialog.close();
+    });
+  });
   elements.planSummaryButton.addEventListener("click", openPlanDialog);
   elements.planDoneButton.addEventListener("click", closePlanDialog);
   elements.planDialog.addEventListener("close", () => {
@@ -2495,6 +2642,7 @@ loadIndoorReadings();
 loadPlanSettings();
 initializeVoiceDebugPanel();
 const hasSavedLocation = loadLocation();
+loadLocationHistory(hasSavedLocation);
 updateLocationUi();
 bindEvents();
 render();
@@ -2555,25 +2703,43 @@ function renderAhChart() {
   const chartWidth = chart.getBoundingClientRect().width;
   const textScale = chartWidth > 0 ? 480 / chartWidth : 1;
   chart.style.setProperty('--chart-text-scale', String(textScale));
-  document.querySelectorAll('[data-chart-hours]').forEach(button => button.setAttribute('aria-pressed', String(Number(button.dataset.chartHours) === state.chartHours)));
+  const left = 0, right = 480, top = 8, bottom = 158;
+  // Share geometry across loading, failure and live data, including label rows.
+  const hourY = bottom + 16 * textScale;
+  const dayY = hourY + 18 * textScale;
+  const labelBottom = dayY + 7 * textScale;
+  chart.setAttribute('viewBox', '0 0 480 ' + labelBottom);
   const timeline = buildWeatherTimeline();
   const unavailable = timeline.length < 2 || state.weatherRequestPending || state.weatherLoadFailed;
+  document.querySelectorAll('[data-chart-hours]').forEach(button => {
+    button.setAttribute('aria-pressed', String(Number(button.dataset.chartHours) === state.chartHours));
+    button.disabled = unavailable;
+  });
+  chart.dataset.weatherState = unavailable ? (state.weatherLoadFailed ? 'failed' : 'loading') : 'ready';
   if (unavailable) {
-    chart.innerHTML = '';
+    const indoor = absoluteHumidity(state.indoorTemp, state.indoorRh);
+    // These shapes are placeholders, not a scale or estimates of outdoor weather.
+    const heights = [22, 25, 25, 28, 27, 26, 25, 22, 21, 20, 21, 22];
+    const bars = heights.map((height, i) => `<rect class="ah-skeleton-bar" x="${i * 40 + 1.5}" y="${bottom - height}" width="37" height="${height}" rx="2"/>`).join('');
+    const grid = [150, 270, 390].map(x => `<path class="ah-day-line" d="M${x} ${top}V${labelBottom}"/>`).join('');
+    const placeholders = [4, 154, 274, 394].map((x, i) => `<rect class="ah-skeleton-label" x="${x}" y="${hourY - 7 * textScale}" width="${(i === 0 ? 30 : 19) * textScale}" height="${9 * textScale}" rx="${4.5 * textScale}"/>` + (i === 0 || i === 3 ? `<rect class="ah-skeleton-label" x="${x}" y="${dayY - 7 * textScale}" width="${28 * textScale}" height="${9 * textScale}" rx="${4.5 * textScale}"/>` : '')).join('');
+    const shimmer = state.weatherLoadFailed ? '' : `<defs><linearGradient id="ahSkeletonShimmer"><stop stop-color="white" stop-opacity="0"/><stop offset=".5" stop-color="white" stop-opacity=".055"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient><clipPath id="ahSkeletonClip"><rect width="480" height="${labelBottom}" rx="5"/></clipPath></defs><g clip-path="url(#ahSkeletonClip)" aria-hidden="true"><g transform="skewX(-18)"><rect class="ah-skeleton-shimmer" x="-280" width="280" height="${labelBottom}" fill="url(#ahSkeletonShimmer)"/></g></g>`;
+    chart.innerHTML = `<g class="ah-skeleton" aria-hidden="true">${grid}<path class="ah-grid" d="M0 ${bottom}H480 M0 124H480"/>${bars}${placeholders}<path class="ah-indoor-line" d="M0 76H480"/><text class="ah-indoor-label" x="4" y="70">Indoor ${indoor.toFixed(1)} g/m³</text></g>${shimmer}`;
+    chart.setAttribute('role', 'img');
+    chart.setAttribute('tabindex', '-1');
+    chart.setAttribute('aria-label', `${state.weatherLoadFailed ? 'Outdoor forecast unavailable' : 'Loading outdoor forecast'}. Indoor ${indoor.toFixed(1)} g/m³. Chart shapes are placeholders.`);
     chart.setAttribute('aria-disabled', 'true');
-    chart.removeAttribute('aria-valuetext');
+    ['aria-valuetext', 'aria-valuemin', 'aria-valuemax', 'aria-valuenow'].forEach(name => chart.removeAttribute(name));
     chart.onpointerdown = chart.onpointermove = chart.onkeydown = null;
     reading.textContent = state.weatherLoadFailed ? 'Outdoor forecast unavailable' : 'Loading outdoor forecast…';
     return;
   }
   chart.removeAttribute('aria-disabled');
+  chart.setAttribute('role', 'slider');
+  chart.setAttribute('tabindex', '0');
+  chart.setAttribute('aria-valuemin', '0');
+  chart.setAttribute('aria-label', 'Outdoor absolute humidity and estimated airflow with indoor reference; use arrow keys to inspect hourly values');
   const { start, end, points, indoor, low, high, achHigh } = buildAhOutlook(timeline, state.chartHours);
-  const left = 0, right = 480, top = 8, bottom = 158;
-  // Keep the label rows and their padding in screen pixels, just like their type size.
-  const hourY = bottom + 16 * textScale;
-  const dayY = hourY + 18 * textScale;
-  const labelBottom = dayY + 7 * textScale;
-  chart.setAttribute('viewBox', '0 0 480 ' + labelBottom);
   const x = time => left + (time - start) / (end - start) * (right - left);
   const y = value => bottom - (value - low) / (high - low) * (bottom - top);
   const airflowBandHeight = (bottom - top) / 3;
@@ -2692,7 +2858,7 @@ function positionAhIndoorLabel(chart, curve, lineY, plotTop = 14, plotBottom = 1
 }
 
 function enableSheetDrag(dialog) {
-  const header = dialog.querySelector('.section-heading, .plan-dialog-heading, #locationDialogTitle');
+  const header = dialog.querySelector('.section-heading, .plan-dialog-heading, .location-dialog-heading');
   const handle = dialog.querySelector('.sheet-handle');
   let gesture = null;
   const reset = () => {
@@ -2703,9 +2869,9 @@ function enableSheetDrag(dialog) {
   [handle, header].filter(Boolean).forEach(surface => {
     surface.classList.add('sheet-drag-surface');
     surface.addEventListener('pointerdown', event => {
-      if (!window.matchMedia('(max-width: 47.999rem)').matches || !event.isPrimary || event.button !== 0 ||
+      if (!window.matchMedia('(max-width: 39.999rem)').matches || !event.isPrimary || event.button !== 0 ||
           event.target.closest('button, input, select, a')) return;
-      gesture = { id: event.pointerId, y: event.clientY, started: performance.now(), distance: 0 };
+      gesture = { id: event.pointerId, y: event.clientY, distance: 0 };
       surface.setPointerCapture(event.pointerId);
     });
     surface.addEventListener('pointermove', event => {
@@ -2716,8 +2882,7 @@ function enableSheetDrag(dialog) {
     });
     surface.addEventListener('pointerup', event => {
       if (!gesture || gesture.id !== event.pointerId) return;
-      const { distance, started } = gesture;
-      const dismiss = distance >= 80 || (distance >= 30 && distance / Math.max(1, performance.now() - started) > 0.5);
+      const dismiss = Math.max(0, event.clientY - gesture.y) >= 120;
       reset();
       if (surface.hasPointerCapture(event.pointerId)) surface.releasePointerCapture(event.pointerId);
       if (dismiss) dialog.close();
@@ -2733,12 +2898,12 @@ function rulerValueFromDrag(start, distance, min, max, step, spacing) {
   return Number(Math.min(max, Math.max(min, Math.round((start - distance / spacing * step) / step) * step)).toFixed(step < 1 ? 1 : 0));
 }
 
-function renderIndoorRulers() {
+function renderReadingRulers() {
   document.querySelectorAll('[data-ruler]').forEach(ruler => {
     const input = ruler.querySelector('input');
     const value = state[ruler.dataset.ruler];
-    const step = Number(input.step), spacing = step < 1 ? 8 : 14;
-    const majorEvery = step < 1 ? 10 : 5;
+    const step = Number(input.step), spacing = Number(ruler.dataset.tickSpacing);
+    const majorEvery = Math.round(Number(ruler.dataset.majorInterval) / step);
     const centre = value / step;
     const radius = Math.ceil((ruler.clientWidth || 440) / (2 * spacing)) + 1;
     let ticks = '';
@@ -2749,7 +2914,7 @@ function renderIndoorRulers() {
       ticks += '<span class="ruler-tick' + (major ? ' ruler-tick-major' : '') + '" style="left:calc(50% + ' + ((tick - centre) * spacing).toFixed(2) + 'px)">' + (major && Math.abs((tick - centre) * spacing) > 16 ? '<span>' + number + '</span>' : '') + '</span>';
     }
     ruler.querySelector('.ruler-ticks').innerHTML = ticks;
-    input.setAttribute('aria-valuetext', input.id === 'indoorTemp' ? value.toFixed(1) + ' degrees Celsius' : Math.round(value) + ' percent');
+    input.setAttribute('aria-valuetext', value + ' ' + ruler.dataset.unit);
   });
   const lastSet = document.querySelector('#indoorLastSet');
   lastSet.hidden = !state.indoorLastSet;
@@ -2760,12 +2925,12 @@ function renderIndoorRulers() {
   }
 }
 
-function bindIndoorRulers() {
-  const dialog = document.querySelector('#indoorDialog');
+function bindReadingRulers() {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
   document.querySelectorAll('[data-ruler]').forEach(ruler => {
+    const dialog = ruler.closest('dialog');
     const input = ruler.querySelector('input');
-    const step = Number(input.step), spacing = step < 1 ? 8 : 14;
+    const step = Number(input.step), spacing = Number(ruler.dataset.tickSpacing);
     let gesture = null, frame = null;
     const stopCoast = () => {
       if (frame !== null) cancelAnimationFrame(frame);
@@ -2834,9 +2999,9 @@ function bindIndoorRulers() {
     dialog.addEventListener('keydown', stopCoast);
     document.addEventListener('visibilitychange', () => { if (document.hidden) reset(); });
     reducedMotion.addEventListener('change', () => { if (reducedMotion.matches) reset(); });
-    new ResizeObserver(renderIndoorRulers).observe(ruler);
+    new ResizeObserver(renderReadingRulers).observe(ruler);
   });
-  [elements.indoorTempInput,elements.indoorRhInput].forEach(input => {
+  [elements.indoorTempInput,elements.indoorRhInput,elements.minTempInput,elements.targetRhInput].forEach(input => {
     input.addEventListener('focus', () => input.select());
     input.addEventListener('keydown', event => {
       if (event.key === 'Enter') { event.preventDefault(); input.blur(); }

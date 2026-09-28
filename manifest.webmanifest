@@ -4,7 +4,7 @@
   "description": "Compare indoor and outdoor moisture before opening windows.",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#edf4f1",
+  "background_color": "#f2f0ed",
   "theme_color": "#10231f",
   "icons": [
     {
