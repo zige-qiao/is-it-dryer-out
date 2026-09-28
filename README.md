@@ -1,16 +1,16 @@
 # Is it dryer out
 
-## v0.7.0 — Layout and design system
+## v0.7.1 — Forecast and reading refinements
 
-This release brings the recommendation, forecast chart, settings, and reading controls into one consistent layout and warm-neutral design system. Weather and moisture colours retain their separate meanings.
+This update opens Indoor readings when the app loads, starts the outlook at 48 hours, and refines the verdict and chart colours. The selected chart dot and g/m³ reading follow the line colour.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
 ## Using the app
 
-- Read the recommendation and its outdoor outlook. Switch between **24 h** and **48 h**; the line shows outdoor absolute humidity against your indoor reference, and bars show estimated airflow in ACH. Drag, hover, or use arrow keys to inspect values; Home/End select the endpoints. Both views use the same 48-hour data for their scales.
+- Read the recommendation and its outdoor outlook, which starts at **48 h**. Switch between **24 h** and **48 h**; the line shows outdoor absolute humidity against your indoor reference, and bars show estimated airflow in ACH. Drag, hover, or use arrow keys to inspect values; Home/End select the endpoints. Both views use the same 48-hour data for their scales.
 - Compare outdoor and indoor AH in the moisture cards. **Let in** shows outdoor RH once warmed to your indoor temperature. Colours indicate drier, uncertain, or wetter conditions.
-- Select **Edit** on the Indoor card. Drag the temperature and humidity rulers, use arrow keys, or tap a number to type. Values save immediately; **Done** closes the sheet. A last-set time appears after readings are updated.
+- The Indoor readings sheet opens when the app loads so you can enter the current readings. Open it again with **Edit** on the Indoor card. Drag the temperature and humidity rulers, use arrow keys, or tap a number to type. Values save immediately; **Done** closes the sheet. A last-set time appears after readings are updated.
 - In supported browsers, select **Speak** inside Indoor readings. Live Hearing text replaces Listening in the status box. Review the recognised values and select **Apply**, or return **Back to manual**.
 - Open the ventilation summary below the chart to change minimum temperature, target humidity, room size, or opening setup. Room and opening choices use single-selection groups; Custom reveals room dimensions or airflow. Changes save immediately; **Done** closes the settings.
 - Select the location name to search for a town or postcode, use the device location, or choose a recent place. The mobile location sheet has a visible **Close** button.
@@ -69,6 +69,7 @@ Created by Ziggy Qiao. The app links to its [GitHub repository](https://github.c
 
 ## Release history
 
+- `v0.7.1`: Default 48-hour outlook and Indoor readings sheet on load; faster chart loading sweep; refined verdict and AH chart colours with matching inspection dot and moisture reading; app shell cache revision 134.
 - `v0.7.0`: Integrated recommendation and 24/48-hour outlook, indoor and ventilation sheets with ruler and custom controls, location and modal refinements, warm-neutral design system, and release cache revision 133.
 - `v0.6.0`: Moisture comparison cards and interactive 48-hour AH outlook.
 - `v0.5.5`: Refresh-style voice entry button, immediate voice dialog, dialog-only waveform, and concise spoken-reading examples; iPhone voice capture policy unchanged.

@@ -39,7 +39,7 @@ const OPENING_SETUPS = {
 };
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 // Keep the build identity in the script so stale code identifies itself correctly.
-const APP_BUILD_VERSION = "v0.7.0";
+const APP_BUILD_VERSION = "v0.7.1";
 const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
 const IS_IOS = /iP(?:hone|ad|od)/.test(navigator.userAgent)
   || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -77,7 +77,7 @@ const state = {
   outdoorPressure: DEFAULT_PRESSURE_HPA,
   outdoorWind: 0,
   forecast: [],
-  chartHours: 24,
+  chartHours: 48,
   chartSelection: 0,
   updatedAt: null,
   lastCheckedAt: null,
@@ -2646,6 +2646,7 @@ loadLocationHistory(hasSavedLocation);
 updateLocationUi();
 bindEvents();
 render();
+document.querySelector('#editIndoorButton').click();
 initializeLocation(hasSavedLocation);
 setInterval(fetchWeather, WEATHER_REFRESH_INTERVAL_MS);
 
@@ -2776,6 +2777,10 @@ function renderAhChart() {
     if (state.chartHours === 24 && width > 23 && bottom-ay(ach) > 16 * textScale) bars += '<text class="airflow-label" text-anchor="middle" x="'+(bx+width/2)+'" y="'+(ay(ach)+13*textScale)+'">'+ach.toFixed(1)+'</text>';
   }
   chart.innerHTML = '<defs>'+gradient+excessClip+'<clipPath id="outlookPlot"><rect x="'+left+'" y="'+top+'" width="'+(right-left)+'" height="'+(bottom-top)+'"/></clipPath></defs>'+ticks+days+'<g clip-path="url(#outlookPlot)"><path d="'+path+' L'+x(end)+' '+y(indoor)+' L'+left+' '+y(indoor)+'Z" class="ah-excess-fill" clip-path="url(#ahExcessClip)" fill="url(#ahSemantic)" opacity=".09"/>'+bars+'<path d="'+path+'" class="ah-curve"/></g>'+hours+'<path d="M'+left+' '+y(indoor)+'H'+right+'" class="ah-indoor-line"/><text class="ah-indoor-label" x="'+(left+4)+'" y="'+(y(indoor)-6)+'">Indoor '+indoor.toFixed(1)+' g/m³</text><path id="ahCursor" class="ah-cursor"/><circle id="ahDot" r="'+(6 * textScale)+'" class="ah-dot"/>';
+  reading.innerHTML = '<span class="ah-reading-time"></span> · <span class="ah-reading-moisture"></span> · <span class="ah-reading-airflow"></span>';
+  const readingTime = reading.querySelector('.ah-reading-time');
+  const readingMoisture = reading.querySelector('.ah-reading-moisture');
+  const readingAirflow = reading.querySelector('.ah-reading-airflow');
   positionAhIndoorLabel(chart, points.map(p => ({ x:x(p.time), y:y(p.value) })), y(indoor), top, bottom);
   let selected = 0;
   const maxHours = (end-start)/3600000;
@@ -2787,8 +2792,10 @@ function renderAhChart() {
     const weather = weatherAtTime(timeline,new Date(time));
     const value = absoluteHumidity(weather.temp,weather.rh);
     const ach = effectiveAirExchange(weather,state.indoorTemp).airChangesPerHour;
-    const label = (selected === 0 ? 'Now' : dayFormatter.format(time)+' '+formatShortTime(new Date(time)))+' · '+value.toFixed(1)+' g/m³ · '+ach.toFixed(1)+' ACH';
-    reading.textContent = label;
+    const timeLabel = selected === 0 ? 'Now' : dayFormatter.format(time)+' '+formatShortTime(new Date(time));
+    const moistureLabel = value.toFixed(1)+' g/m³';
+    const airflowLabel = ach.toFixed(1)+' ACH';
+    const label = timeLabel+' · '+moistureLabel+' · '+airflowLabel;
     chart.setAttribute('aria-valuenow',selected.toFixed(2));
     chart.setAttribute('aria-valuetext',label);
     chart.querySelector('#ahCursor').setAttribute('d','M'+x(time)+' '+top+'V'+bottom);
@@ -2797,7 +2804,17 @@ function renderAhChart() {
     const next = Math.max(1,points.findIndex(p=>p.time>=time));
     const b=points[next], a=points[next-1];
     const fraction=b.time===a.time ? 0 : (time-a.time)/(b.time-a.time);
-    chart.querySelector('#ahDot').setAttribute('cy',y(a.value+(b.value-a.value)*fraction));
+    const curveValue = a.value+(b.value-a.value)*fraction;
+    chart.querySelector('#ahDot').setAttribute('cy',y(curveValue));
+    const colorPosition = clamp((indoor+margin*1.75-curveValue)/(margin*3.5),0,1);
+    const nearStart = 0.2142857143, nearEnd = 0.7857142857;
+    readingTime.textContent = timeLabel;
+    readingMoisture.textContent = moistureLabel;
+    readingAirflow.textContent = airflowLabel;
+    readingMoisture.style.color = colorPosition < nearStart
+      ? `color-mix(in srgb, var(--chart-wet) ${(1-colorPosition/nearStart)*100}%, var(--chart-near))`
+      : colorPosition <= nearEnd ? 'var(--chart-near)'
+      : `color-mix(in srgb, var(--chart-near) ${(1-(colorPosition-nearEnd)/(1-nearEnd))*100}%, white)`;
   }
   const inspect = event => {
     const bounds=chart.getBoundingClientRect();

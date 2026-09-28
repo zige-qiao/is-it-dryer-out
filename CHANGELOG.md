@@ -2,6 +2,13 @@
 
 All notable changes to Is it dryer out are documented here.
 
+## v0.7.1 — Forecast and reading refinements - 2026-09-28
+
+- Open Indoor readings on every full app load so current measurements can be entered, and default the outdoor outlook to 48 hours.
+- Shorten the chart skeleton sweep from 2.4 to 1.6 seconds.
+- Updated the four verdict gradients and the AH chart's amber/coral colours. The selected dot and g/m³ reading now match the curve at the inspected point.
+- Set the app build identity to `v0.7.1` and synchronized the app shell cache at revision 134.
+
 ## v0.7.0 — Layout and design system - 2026-09-28
 
 - Integrated the outdoor AH chart with the recommendation, with 24/48-hour views, estimated airflow bars, keyboard and pointer inspection, and shared forecast scales.

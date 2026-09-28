@@ -1,14 +1,14 @@
 # Is it dryer out — design system
 
-**Version:** 1.0 · **Updated:** 28 September 2026 · **Status:** implemented in the v0.7.0 app source
+**Version:** 1.0 · **Updated:** 28 September 2026 · **Status:** prepared for v0.7.1 on `minor-adjustments`
 
-This is a reusable specification for the app. The warm-grey palette and component states are implemented in the v0.7.0 source. Typography/radius normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
+This is a reusable specification for the app. The warm-grey controls and component states were implemented in v0.7.0; the revised verdict and AH chart colours are prepared for v0.7.1. Typography/radius normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
 
 Open [the visual review board](design-system.html) for colour and state specimens. This document records the rules; the board illustrates them.
 
 ### Decision ledger
 
-Your feedback set the warm-neutral direction, retained the AH chart's separate white/amber/coral palette, and specified the Opening border and fill change. The number-field clipping, primary-focus and angled CHECKING loading treatments are reflected in the local app. Other weather semantic colours remain as inventoried.
+Your feedback set the warm-neutral direction, kept the AH chart's separate white/amber/coral roles, and specified the Opening border and fill change. The verdict gradients and chart amber/coral values were updated on 28 September 2026. The number-field clipping, primary-focus and angled CHECKING loading treatments are reflected in the local app. Other weather semantic colours remain as inventoried.
 
 The 27 September instruction to apply this system authorised the displayed warm token values and visible state treatments. The local app now includes the related missing hover tokens, a 44px Refresh page target, visible mobile Location Close and a matching installed-app launch background. Typography/radius normalisation and new inline invalid-input feedback remain separate follow-ups.
 
@@ -95,7 +95,7 @@ Calculated from the implemented opaque sRGB values using relative luminance:
 
 Use at least 4.5:1 for normal text. Where a boundary or graphic is necessary to identify a control/state, check at least 3:1 against adjacent colours. Decorative dividers need not carry that job. These are pair checks, not a compliance certificate. Sources: [W3C text contrast](https://www.w3.org/TR/wcag/#contrast-minimum) and [W3C non-text contrast](https://www.w3.org/WAI/WCAG22/understanding/non-text-contrast.html).
 
-### Semantic colours — current implementation, preserve
+### Semantic colours — current implementation
 
 There are three independent decisions: **plan outcome**, **current moisture comparison**, and **forecast moisture difference**. Never apply one colour state globally. A green TARGET MET recommendation may coexist with a blue Outdoor card; a red temperature-limited recommendation may also coexist with blue, drier outdoor air. Both are valid.
 
@@ -107,10 +107,10 @@ All gradients run at 145 degrees. These apply to the whole verdict panel, includ
 
 | Meaning / actual state | Current colour | Exact condition and displayed intent |
 |---|---|---|
-| Target satisfied (`open`) | `#0A654D` → `#0E8560` | `target-met`: **TARGET MET**, at or near the target, no ventilation needed now. Green is active, not unused. |
-| Useful ventilation (`windows`) | `#14558C` → `#1976B8` | `good` and `slow`; also `forecast-limit`, `settling`, `too-cold` or `condensation` with a truthy `minutes ?? limitMinutes`. Normally **OPEN WINDOWS**, with duration/limit text. |
-| Unsafe or adverse now (`closed`) | `#7E2B21` → `#B84832` | `below-minimum`, `wetter`, and `too-cold`/`condensation` without useful time. **KEEP CLOSED**. |
-| Uncertain / no useful window (`caution`) | `#735600` → `#9D7900` | Remaining plan outcomes, including uncertainty and forecast/settling outcomes without time. Usually **OPEN IF NEEDED**. |
+| Target satisfied (`open`) | `#025446` → `#137738` | `target-met`: **TARGET MET**, at or near the target, no ventilation needed now. Green is active, not unused. |
+| Useful ventilation (`windows`) | `#214487` → `#056B97` | `good` and `slow`; also `forecast-limit`, `settling`, `too-cold` or `condensation` with a truthy `minutes ?? limitMinutes`. Normally **OPEN WINDOWS**, with duration/limit text. |
+| Unsafe or adverse now (`closed`) | `#7B242E` → `#9E441D` | `below-minimum`, `wetter`, and `too-cold`/`condensation` without useful time. **KEEP CLOSED**. |
+| Uncertain / no useful window (`caution`) | `#633F03` → `#756202` | Remaining plan outcomes, including uncertainty and forecast/settling outcomes without time. Usually **OPEN IF NEEDED**. |
 | No current outdoor data (no tone class) | Solid `#10231F` | **Checking** while pending; **NO DATA** on failure. All previous verdict tone classes are removed. |
 
 Panel base text is `#F9FFFC`; primary explanation and chart reading are `#FFFFFF`; secondary explanation is white at 78%; location metadata is white at 74%. These light-on-colour roles are separate from warm-grey text on white sheets. Keep white focus rings and translucent control feedback on the coloured panel.
@@ -135,18 +135,19 @@ Existing tokens for these roles are `--windows/--windows-bg`, `--closed/--closed
 
 #### C. Chart curve and supporting layers
 
-**Confirmed direction, 27 September 2026:** retain the current AH line palette as its own distinct semantic colour family. The user considers the current treatment suitable. Preserve its separation from both the recommendation backgrounds and comparison-card foreground colours; the warm-neutral implementation does not recolour the curve. This is approval of the existing palette, not a claim that every contrast pairing has been formally validated.
+The AH line remains its own semantic colour family, separate from both the recommendation backgrounds and comparison-card foreground colours. Its amber and coral stops were lightened with the verdict palette update on 28 September 2026. This is not a claim that every contrast pairing has been formally validated.
 
 | Element | Effective colour / opacity | Meaning |
 |---|---|---|
-| Wetter end of forecast AH curve | `#FF8A7A` (`--chart-wet`) | Outdoor AH above indoor by more than the uncertainty interval. |
-| Full uncertainty interval | `#FFC34D` (`--chart-near`) | At/near indoor AH within ± the calculated moisture margin. |
+| Wetter end of forecast AH curve | `#FFB3A8` (`--chart-wet`) | Outdoor AH above indoor by more than the uncertainty interval. |
+| Full uncertainty interval | `#FFD27A` (`--chart-near`) | At/near indoor AH within ± the calculated moisture margin. |
 | Drier end of forecast AH curve | `#FFFFFF` | Reliably lower outdoor AH. |
 | Indoor reference line / label | White at 70% / white | Dashed comparison reference, not a forecast series. |
 | Airflow bars / values | `#FFFFFF38` (about 22%) / white | Estimated ACH; bars do not encode wet/dry categories. |
 | Time/axis text | `#FFFFFFD9` (about 85%) | Supporting annotations. |
 | Grid / day separators | `#FFFFFF16` (about 9%) / `#FFFFFF4D` (about 30%) | Structure only. |
-| Inspection cursor / point | White at 65% / white with `#233D4E` outline | Selected forecast time, not a semantic category. |
+| Inspection cursor / point | White at 65% / curve colour with `#233D4E` outline | Selected forecast time; the point follows the curve gradient. |
+| Selected moisture reading | Curve colour at the selected point | The g/m³ value follows the line; time and ACH stay white. |
 | Chart top divider | `#FFFFFF40` (about 25%) | Separation within the same coloured surface. |
 
 The curve gradient is **vertical in data coordinates**, not a left-to-right time gradient. It spans indoor AH + 1.75 × margin to indoor AH − 1.75 × margin. Amber stops at 21.4286% and 78.5714% preserve the whole ±margin interval; red and white blend outside it. Keep the full interval amber. A slightly drier forecast value can still be amber if within uncertainty.
@@ -170,7 +171,7 @@ The review board includes an illustrative full chart, with the forecast curve, i
 | Voice waveform | `#111A17` at 72% opacity | Current activity indicator; activity is not success. |
 | Location pending/error messages | Muted `#5D6F69`; status fill currently references unset `--button-hover` | Current errors are communicated in text. Correct the neutral token gap; do not silently invent semantic red/green states. |
 
-**Loading motion:** `CHECKING` has a diagonal light sweep (110° gradient, 2.4-second pass), and the chart skeleton's faint sweep is tilted about 18°. Both animate only while loading. The label remains steady text for assistive technology; the moving highlight is decorative. Failure has no sweep. Reduced motion shows a static white `CHECKING` label and no shimmer.
+**Loading motion:** `CHECKING` has a diagonal light sweep (110° gradient, 2.4-second pass), and the chart skeleton's faint sweep is tilted about 18° with a 1.6-second pass. Both animate only while loading. The label remains steady text for assistive technology; the moving highlight is decorative. Failure has no sweep. Reduced motion shows a static white `CHECKING` label and no shimmer.
 
 #### E. Legacy styles, not active system components
 
@@ -307,7 +308,7 @@ These close documentation gaps. Proposed behaviour remains subject to review; no
 
 ### Verification still outstanding
 
-The existence of a rule is not proof of its implementation. Before calling the system complete, verify real iOS keyboard behaviour, zoom/reflow, forced colours, reduced motion, screen-reader announcements, every semantic background/line pairing, and loading/error/empty/disabled states. The chart palette is retained by user direction; formal contrast checks across all four gradients remain an explicit verification task, not a reason to silently recolour it.
+The existence of a rule is not proof of its implementation. Before calling the system complete, verify real iOS keyboard behaviour, zoom/reflow, forced colours, reduced motion, screen-reader announcements, every semantic background/line pairing, and loading/error/empty/disabled states. Formal contrast checks across all four gradients remain an explicit verification task.
 
 ## 10. Acceptance checklist for implementation
 
@@ -328,6 +329,8 @@ The existence of a rule is not proof of its implementation. Before calling the s
 
 ## Revision log
 
+- 1.0 v0.7.1 preparation, 28 September 2026: updated the release status and 48-hour default specimens; retained the current palette and earlier audit history.
+- 1.0 local palette update, 28 September 2026: matched all four verdict gradients and the chart's amber/coral stops to the current preview. The selected dot and g/m³ reading follow the curve colour.
 - 1.0 release preparation, 28 September 2026: aligned this system with the v0.7.0 app source and retained the pre-implementation captures as historical evidence.
 - 1.0 local implementation, 27 September 2026: applied warm neutral roles and states to the app, retained weather and AH semantics, added the angled loading sweeps and related control usability fixes. Updated the board to distinguish current specimens from historical evidence. No release or cache-version change.
 - 0.9 draft, 27 September 2026: separated user-directed design choices from the remaining palette sign-off and clarified that implementation is a later step with recommended default scope. Preview/spec only; app unchanged.
