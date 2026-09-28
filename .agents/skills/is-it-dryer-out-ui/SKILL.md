@@ -51,7 +51,7 @@ Do not document transient experiments, reverted tweaks, or implementation detail
 
 Show the recommendation and integrated outdoor chart first, then its ventilation summary, moisture comparison cards, supporting accordions and footer. Keep the app in its centred, single-column shell on wide screens.
 
-Indoor editing opens from Edit on the Indoor card. Keep temperature and humidity rulers, typed values, last-set time and voice entry in the same sheet. Values save immediately; Done closes the sheet. Speak opens voice review within that sheet; Back to manual returns to the rulers. Keep one Listening/Hearing status box and reveal the final transcript and Apply only for review. Retain the waveform inside the voice panel.
+Indoor editing opens on every full app load and from Edit on the Indoor card. Keep temperature and humidity rulers, typed values, last-set time and voice entry in the same sheet. Values save immediately; Done closes the sheet. Speak opens voice review within that sheet; Back to manual returns to the rulers. Keep one Listening/Hearing status box and reveal the final transcript and Apply only for review. Retain the waveform inside the voice panel.
 
 The whole ventilation summary opens Ventilation settings. Keep paired minimum-temperature and target-humidity rulers, room-size segments, the two-column opening grid, custom dimensions/airflow panels and immediate persistence without an Apply step.
 
@@ -83,8 +83,8 @@ When displaying forecast outcomes, use `Uncertain` instead of `Wait` and `Little
 
 ## Forecast And Dashboard
 
-- Keep the outdoor outlook inside the recommendation, with 24 h / 48 h controls, an AH line, indoor reference and estimated ACH bars. Derive both views' scales from the same 48-hour forecast and stop at available coverage.
-- Preserve pointer and keyboard inspection, local-time labels and a readable indoor reference label that avoids the curve.
+- Keep the outdoor outlook inside the recommendation, defaulting to 48 h with 24 h / 48 h controls, an AH line, indoor reference and estimated ACH bars. Derive both views' scales from the same 48-hour forecast and stop at available coverage.
+- Preserve pointer and keyboard inspection, local-time labels and a readable indoor reference label that avoids the curve. The selected dot and g/m³ reading follow the curve colour at the inspected point.
 - Use the full moisture uncertainty range for amber and retain soft semantic-colour transitions.
 - Keep loading and failure states clear; avoid displaying stale outdoor results as current. Preserve retry and weather refresh actions. The CHECKING label and chart skeleton use angled sweeps only while loading; reduced motion and failure are static.
 - Keep Last checked with its muted refresh icon near the location. Refresh page belongs in the footer.

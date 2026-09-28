@@ -109,19 +109,19 @@ select {
 }
 
 .recommendation.open .verdict-panel {
-  background: linear-gradient(145deg, #0a654d, #0e8560);
+  background: linear-gradient(145deg, #025446, #137738);
 }
 
 .recommendation.windows .verdict-panel {
-  background: linear-gradient(145deg, #14558c, #1976b8);
+  background: linear-gradient(145deg, #214487, #056b97);
 }
 
 .recommendation.closed .verdict-panel {
-  background: linear-gradient(145deg, #7e2b21, #b84832);
+  background: linear-gradient(145deg, #7b242e, #9e441d);
 }
 
 .recommendation.caution .verdict-panel {
-  background: linear-gradient(145deg, #735600, #9d7900);
+  background: linear-gradient(145deg, #633f03, #756202);
 }
 
 .location-row,
@@ -1802,7 +1802,7 @@ input[type="range"] {
 .ah-chart { min-height: 0; }
 
 /* A single coloured surface joins the current verdict and its outdoor outlook. */
-.verdict-panel { padding-inline: 20px; --chart-wet: #ff8a7a; --chart-near: #ffc34d; }
+.verdict-panel { padding-inline: 20px; --chart-wet: #ffb3a8; --chart-near: #ffd27a; }
 .verdict-panel .ah-outlook { border-top: 1px solid #ffffff40; margin: 0; padding: 6px 0 0; }
 .verdict-panel .ah-chart-reading { color: #fff; }
 .verdict-panel .chart-range::before { background: #ffffff29; }
@@ -1816,14 +1816,14 @@ input[type="range"] {
 .verdict-panel .ah-indoor-line { stroke: #fff; opacity: .7; }
 .verdict-panel .ah-indoor-label { fill: #fff; }
 .verdict-panel .ah-cursor { stroke: #fff; opacity: .65; }
-.verdict-panel .ah-dot { fill: #fff; stroke: #233d4e; }
+.verdict-panel .ah-dot { fill: url(#ahSemantic); stroke: #233d4e; }
 .verdict-panel .ah-chart[aria-disabled="true"] { background: transparent; }
 .ah-skeleton-bar { fill: #ffffff0d; }
 .ah-skeleton-label { fill: #ffffff1a; }
 .verdict-panel .ah-skeleton .ah-day-line { stroke: #ffffff1a; }
 .verdict-panel .ah-skeleton .ah-indoor-line { opacity: .35; }
 .verdict-panel .ah-skeleton .ah-indoor-label { fill: #ffffffa6; }
-.ah-skeleton-shimmer { animation: ah-skeleton-sweep 2.4s linear infinite; pointer-events: none; }
+.ah-skeleton-shimmer { animation: ah-skeleton-sweep 1.6s linear infinite; pointer-events: none; }
 @keyframes ah-skeleton-sweep {
   from { transform: translateX(0); }
   to { transform: translateX(720px); }
