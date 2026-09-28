@@ -13,9 +13,33 @@
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
     <link rel="stylesheet" href="styles.css?v=134" />
+    <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
+    <div class="pull-refresh" id="pullRefresh" aria-hidden="true"><span class="pull-refresh-spinner"></span><span id="pullRefreshText">Pull to update weather</span></div>
     <main class="app-shell">
+      <section class="indoor-summary" aria-labelledby="indoorSummaryHeading">
+        <div class="indoor-summary-content">
+          <div class="indoor-summary-meta">
+            <p id="indoorSummaryHeading">Indoor</p>
+            <span id="indoorSummaryLastSet" hidden></span>
+          </div>
+          <p class="indoor-summary-values">
+            <span class="indoor-summary-reading"><strong id="indoorSummaryTemp">24.0</strong><span class="indoor-summary-unit">°C</span></span>
+            <span class="indoor-summary-divider" aria-hidden="true"></span>
+            <span class="indoor-summary-reading"><strong id="indoorSummaryRh">58</strong><span class="indoor-summary-unit">% RH</span></span>
+          </p>
+        </div>
+        <div class="indoor-summary-actions">
+          <button class="indoor-summary-voice" type="button" id="indoorSummaryVoice" aria-label="Update indoor readings by voice" aria-haspopup="dialog" aria-controls="indoorDialog" aria-expanded="false" title="Update indoor readings by voice" hidden>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+          </button>
+          <button class="indoor-summary-edit" type="button" id="indoorSummaryEdit" aria-haspopup="dialog" aria-controls="indoorDialog" aria-expanded="false">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>
+            <span>Edit</span>
+          </button>
+        </div>
+      </section>
       <div class="layout-column left-column">
         <section class="recommendation" aria-live="polite">
           <div class="verdict-panel">
@@ -145,11 +169,28 @@
               By Ziggy Qiao <span aria-hidden="true">&middot;</span>
               <a href="https://github.com/zige-qiao/is-it-dryer-out" target="_blank" rel="noreferrer">GitHub</a>
             </p>
-            <button class="page-refresh-button" id="pageRefreshButton" type="button">Refresh page</button>
+            <div class="footer-actions">
+              <button class="settings-button" id="settingsButton" type="button" aria-label="Settings" aria-haspopup="dialog" aria-controls="settingsDialog" aria-expanded="false" title="Settings">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.4 2h3.2l.5 2.1a8.2 8.2 0 0 1 1.8.8l1.9-1.1 2.3 2.3L19 8a8.2 8.2 0 0 1 .8 1.8l2.2.6v3.2l-2.2.5a8.2 8.2 0 0 1-.8 1.8l1.1 1.9-2.3 2.3-1.9-1.1a8.2 8.2 0 0 1-1.8.8l-.5 2.2h-3.2l-.5-2.2a8.2 8.2 0 0 1-1.8-.8l-1.9 1.1-2.3-2.3L5 15.9a8.2 8.2 0 0 1-.8-1.8L2 13.6v-3.2l2.2-.6A8.2 8.2 0 0 1 5 8L3.9 6.1l2.3-2.3 1.9 1.1a8.2 8.2 0 0 1 1.8-.8L10.4 2Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+              <button class="page-refresh-button" id="pageRefreshButton" type="button">Refresh page</button>
+            </div>
           </div>
         </section>
       </div>
     </main>
+
+<dialog class="settings-dialog" id="settingsDialog" aria-labelledby="settingsDialogTitle">
+  <div class="sheet-handle" aria-hidden="true"><span></span></div>
+  <div class="settings-dialog-content">
+    <div class="settings-dialog-heading">
+      <h2 id="settingsDialogTitle" tabindex="-1" autofocus>Settings</h2>
+      <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close settings" title="Close">&times;</button>
+    </div>
+    <label class="settings-toggle"><span>Show Indoor summary</span><input id="showIndoorSummary" type="checkbox" role="switch" /><span class="settings-switch" aria-hidden="true"></span></label>
+    <label class="settings-toggle"><span>Open Indoor readings on launch</span><input id="openIndoorOnLaunch" type="checkbox" role="switch" checked /><span class="settings-switch" aria-hidden="true"></span></label>
+  </div>
+</dialog>
 
 <dialog class="indoor-dialog" id="indoorDialog" aria-labelledby="indoor-heading">
 <div class="sheet-handle" aria-hidden="true"><span></span></div>

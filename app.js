@@ -13,6 +13,7 @@ const LOCATION_LABEL_OVERRIDES = new Map([
 ]);
 const STORAGE_KEY = "dew-indoor-readings";
 const PLAN_STORAGE_KEY = "is-it-dryer-out-plan";
+const UI_PREFERENCES_STORAGE_KEY = "is-it-dryer-out-ui-preferences";
 const LOCATION_STORAGE_KEY = "is-it-dryer-out-location";
 const LOCATION_HISTORY_STORAGE_KEY = "is-it-dryer-out-location-history";
 let recentLocations = [];
@@ -58,6 +59,7 @@ const INPUT_UNCERTAINTY = {
 };
 
 let dialogScrollLock;
+const uiPreferences = { showIndoorSummary: false, openIndoorOnLaunch: true };
 
 const state = {
   indoorLastSet: null,
@@ -102,6 +104,15 @@ const elements = {
   indoorRhInput: document.querySelector("#indoorRhInput"),
   indoorTempValue: document.querySelector("#indoorTempValue"),
   indoorRhValue: document.querySelector("#indoorRhValue"),
+  indoorSummaryTemp: document.querySelector("#indoorSummaryTemp"),
+  indoorSummaryRh: document.querySelector("#indoorSummaryRh"),
+  settingsButton: document.querySelector("#settingsButton"),
+  settingsDialog: document.querySelector("#settingsDialog"),
+  settingsDialogTitle: document.querySelector("#settingsDialogTitle"),
+  showIndoorSummary: document.querySelector("#showIndoorSummary"),
+  openIndoorOnLaunch: document.querySelector("#openIndoorOnLaunch"),
+  pullRefresh: document.querySelector("#pullRefresh"),
+  pullRefreshText: document.querySelector("#pullRefreshText"),
   outdoorTempValue: document.querySelector("#outdoorTempValue"),
   outdoorRhValue: document.querySelector("#outdoorRhValue"),
   indoorDewPoint: document.querySelector("#indoorDewPoint"),
@@ -1249,6 +1260,26 @@ function loadPlanSettings() {
   }
 }
 
+function loadUiPreferences() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(UI_PREFERENCES_STORAGE_KEY));
+    if (typeof saved?.showIndoorSummary === 'boolean') uiPreferences.showIndoorSummary = saved.showIndoorSummary;
+    if (typeof saved?.openIndoorOnLaunch === 'boolean') uiPreferences.openIndoorOnLaunch = saved.openIndoorOnLaunch;
+  } catch { /* Keep the defaults if browser storage is unavailable or invalid. */ }
+  applyUiPreferences();
+}
+
+function applyUiPreferences() {
+  document.documentElement.dataset.showIndoorSummary = String(uiPreferences.showIndoorSummary);
+  elements.showIndoorSummary.checked = uiPreferences.showIndoorSummary;
+  elements.openIndoorOnLaunch.checked = uiPreferences.openIndoorOnLaunch;
+}
+
+function saveUiPreferences() {
+  try { localStorage.setItem(UI_PREFERENCES_STORAGE_KEY, JSON.stringify(uiPreferences)); }
+  catch { /* The switches still work for this page session. */ }
+}
+
 
 function buildForecast(data) {
   const times = data.hourly?.time ?? [];
@@ -1844,6 +1875,8 @@ function render() {
   renderReadingRulers();
   elements.indoorTempValue.textContent = formatTemp(state.indoorTemp);
   elements.indoorRhValue.textContent = formatRh(state.indoorRh);
+  elements.indoorSummaryTemp.textContent = state.indoorTemp.toFixed(1);
+  elements.indoorSummaryRh.textContent = String(Math.round(state.indoorRh));
   elements.warmingTemp.textContent = formatTemp(state.indoorTemp);
 
   const plan = renderPlan();
@@ -2437,6 +2470,69 @@ async function fetchWeather() {
   }
 }
 
+function bindPullToRefresh() {
+  const threshold = 84;
+  let start = null;
+  let distance = 0;
+  let active = false;
+  let resultTimer = null;
+  const clearPull = () => {
+    start = null;
+    distance = 0;
+    active = false;
+    document.body.classList.remove('pull-active');
+    document.body.style.removeProperty('--pull-distance');
+  };
+  const clearResult = () => {
+    if (resultTimer) clearTimeout(resultTimer);
+    resultTimer = null;
+    document.body.classList.remove('pull-result');
+  };
+  document.addEventListener('touchstart', event => {
+    if (event.touches.length !== 1 || window.scrollY > 0 || state.weatherRequestPending ||
+        document.querySelector('dialog[open]') ||
+        event.target.closest('button, a, input, select, textarea, summary, .ah-chart, .reading-ruler')) return;
+    const touch = event.touches[0];
+    start = { x: touch.clientX, y: touch.clientY };
+    distance = 0;
+    active = false;
+  }, { passive: true });
+  document.addEventListener('touchmove', event => {
+    if (!start || event.touches.length !== 1) { clearPull(); return; }
+    const touch = event.touches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (window.scrollY > 0 || dy < -8 || Math.abs(dx) > Math.max(12, dy * 0.7)) { clearPull(); return; }
+    if (dy <= 0) return;
+    event.preventDefault();
+    if (dy < 12) return;
+    active = true;
+    distance = dy;
+    document.body.classList.add('pull-active');
+    document.body.style.setProperty('--pull-distance', Math.min(84, dy * 0.65) + 'px');
+    elements.pullRefreshText.textContent = dy >= threshold ? 'Release to update weather' : 'Pull to update weather';
+  }, { passive: false });
+  document.addEventListener('touchend', async () => {
+    const refresh = active && distance >= threshold && !state.weatherRequestPending;
+    clearPull();
+    if (!refresh) return;
+    clearResult();
+    document.body.classList.add('pull-refreshing');
+    elements.pullRefreshText.textContent = 'Updating weather…';
+    try {
+      await fetchWeather();
+      elements.pullRefreshText.textContent = state.weatherLoadFailed ? 'Weather update failed' : 'Weather updated';
+    } finally {
+      document.body.classList.remove('pull-refreshing');
+      if (document.hidden) return;
+      document.body.classList.add('pull-result');
+      resultTimer = setTimeout(clearResult, 1400);
+    }
+  }, { passive: true });
+  document.addEventListener('touchcancel', clearPull, { passive: true });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { clearPull(); clearResult(); } });
+}
+
 
 function bindTypedValue(input, stateKey, min, max, save) {
   const applyValue = () => {
@@ -2515,8 +2611,12 @@ function bindEvents() {
   chartResizeObserver.observe(document.querySelector('#ahChart'));
   const indoorDialog = document.querySelector('#indoorDialog');
   const editIndoor = document.querySelector('#editIndoorButton');
+  const summaryEdit = document.querySelector('#indoorSummaryEdit');
+  const summaryVoice = document.querySelector('#indoorSummaryVoice');
+  const indoorOpeners = [editIndoor, summaryEdit, summaryVoice];
+  let indoorDialogOpener = null;
   dialogScrollLock = createDialogScrollLock();
-  [indoorDialog, elements.planDialog, elements.locationDialog].forEach(dialog => {
+  [indoorDialog, elements.planDialog, elements.locationDialog, elements.settingsDialog].forEach(dialog => {
     dialog.addEventListener('close', dialogScrollLock.release);
     enableSheetDrag(dialog);
     let startedOutside = false;
@@ -2537,17 +2637,44 @@ function bindEvents() {
     });
     dialog.addEventListener('close', () => { startedOutside = false; });
   });
-  editIndoor.addEventListener('click', () => {
-    editIndoor.setAttribute('aria-expanded', 'true');
+  const openIndoorEditor = opener => {
+    indoorDialogOpener = opener;
+    opener?.setAttribute('aria-expanded', 'true');
     dialogScrollLock.open(indoorDialog);
     document.querySelector('#indoor-heading').focus({ preventScroll: true });
-  });
+  };
+  editIndoor.addEventListener('click', () => openIndoorEditor(editIndoor));
+  summaryEdit.addEventListener('click', () => openIndoorEditor(summaryEdit));
   document.querySelector('#indoorDoneButton').addEventListener('click', () => indoorDialog.close());
   indoorDialog.addEventListener('close', () => {
     if (!elements.voiceDialog.hidden) closeVoiceDialog();
-    editIndoor.setAttribute('aria-expanded', 'false');
-    editIndoor.focus({ preventScroll: true });
+    indoorOpeners.forEach(opener => opener.setAttribute('aria-expanded', 'false'));
+    (indoorDialogOpener || elements.locationButton).focus({ preventScroll: true });
+    indoorDialogOpener = null;
   });
+  elements.settingsButton.addEventListener('click', () => {
+    elements.settingsButton.setAttribute('aria-expanded', 'true');
+    dialogScrollLock.open(elements.settingsDialog);
+    elements.settingsDialogTitle.focus({ preventScroll: true });
+  });
+  elements.settingsDialog.addEventListener('close', () => {
+    elements.settingsButton.setAttribute('aria-expanded', 'false');
+    elements.settingsButton.focus({ preventScroll: true });
+  });
+  elements.showIndoorSummary.addEventListener('change', () => {
+    uiPreferences.showIndoorSummary = elements.showIndoorSummary.checked;
+    applyUiPreferences();
+    saveUiPreferences();
+  });
+  elements.openIndoorOnLaunch.addEventListener('change', () => {
+    uiPreferences.openIndoorOnLaunch = elements.openIndoorOnLaunch.checked;
+    saveUiPreferences();
+  });
+  if (uiPreferences.openIndoorOnLaunch) {
+    requestAnimationFrame(() => {
+      if (!document.querySelector('dialog[open]')) openIndoorEditor(null);
+    });
+  }
   document.querySelectorAll('[data-chart-hours]').forEach(button => button.addEventListener('click', () => {
     state.chartHours = Number(button.dataset.chartHours);
     state.chartSelection = Math.min(state.chartSelection, state.chartHours);
@@ -2626,6 +2753,12 @@ function bindEvents() {
   });
   if (SpeechRecognition) {
     elements.voiceInputButton.hidden = false;
+    summaryVoice.hidden = false;
+    summaryVoice.addEventListener('click', () => {
+      indoorDialogOpener = summaryVoice;
+      summaryVoice.setAttribute('aria-expanded', 'true');
+      startVoiceInput();
+    });
     elements.voiceInputButton.addEventListener("click", toggleVoiceListening);
     elements.voiceListenButton.addEventListener("click", toggleVoiceListening);
     elements.voiceDialogCloseButton.addEventListener("click", closeVoiceDialog);
@@ -2640,15 +2773,17 @@ if ("serviceWorker" in navigator) {
 
 loadIndoorReadings();
 loadPlanSettings();
+loadUiPreferences();
 initializeVoiceDebugPanel();
 const hasSavedLocation = loadLocation();
 loadLocationHistory(hasSavedLocation);
 updateLocationUi();
 bindEvents();
+bindPullToRefresh();
 render();
-document.querySelector('#editIndoorButton').click();
 initializeLocation(hasSavedLocation);
 setInterval(fetchWeather, WEATHER_REFRESH_INTERVAL_MS);
+setInterval(updateIndoorLastSetLabels, 60_000);
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") {
@@ -2666,6 +2801,7 @@ document.addEventListener("visibilitychange", () => {
     releaseRetainedVoiceMeter("page hidden");
     return;
   }
+  updateIndoorLastSetLabels();
   if (!state.lastCheckedAt || minutesSince(state.lastCheckedAt) >= 15) fetchWeather();
 });
 
@@ -2875,7 +3011,7 @@ function positionAhIndoorLabel(chart, curve, lineY, plotTop = 14, plotBottom = 1
 }
 
 function enableSheetDrag(dialog) {
-  const header = dialog.querySelector('.section-heading, .plan-dialog-heading, .location-dialog-heading');
+  const header = dialog.querySelector('.section-heading, .plan-dialog-heading, .location-dialog-heading, .settings-dialog-heading');
   const handle = dialog.querySelector('.sheet-handle');
   let gesture = null;
   const reset = () => {
@@ -2933,13 +3069,25 @@ function renderReadingRulers() {
     ruler.querySelector('.ruler-ticks').innerHTML = ticks;
     input.setAttribute('aria-valuetext', value + ' ' + ruler.dataset.unit);
   });
+  updateIndoorLastSetLabels();
+}
+
+function updateIndoorLastSetLabels() {
   const lastSet = document.querySelector('#indoorLastSet');
+  const summaryLastSet = document.querySelector('#indoorSummaryLastSet');
   lastSet.hidden = !state.indoorLastSet;
-  if (state.indoorLastSet) {
-    const date = new Date(state.indoorLastSet);
-    const today = date.toDateString() === new Date().toDateString();
-    lastSet.textContent = 'Last set ' + date.toLocaleString(undefined, { ...(today ? {} : {day:'numeric',month:'short'}), hour:'2-digit',minute:'2-digit',hour12:false });
-  }
+  summaryLastSet.hidden = !state.indoorLastSet;
+  if (!state.indoorLastSet) return;
+
+  const minutes = Math.max(0, Math.floor((Date.now() - state.indoorLastSet) / 60_000));
+  const elapsed = minutes === 0 ? 'Just now'
+    : minutes < 60 ? `${minutes}m ago`
+    : `${Math.floor(minutes / 60)}h ${minutes % 60}m ago`;
+  lastSet.textContent = elapsed;
+  summaryLastSet.textContent = `· ${elapsed}`;
+  const absoluteTime = new Date(state.indoorLastSet).toLocaleString();
+  lastSet.title = absoluteTime;
+  summaryLastSet.title = absoluteTime;
 }
 
 function bindReadingRulers() {
