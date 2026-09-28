@@ -1,0 +1,341 @@
+# Is it dryer out — design system
+
+**Version:** 1.0 · **Updated:** 28 September 2026 · **Status:** implemented in the v0.7.0 app source
+
+This is a reusable specification for the app. The warm-grey palette and component states are implemented in the v0.7.0 source. Typography/radius normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
+
+Open [the visual review board](design-system.html) for colour and state specimens. This document records the rules; the board illustrates them.
+
+### Decision ledger
+
+Your feedback set the warm-neutral direction, retained the AH chart's separate white/amber/coral palette, and specified the Opening border and fill change. The number-field clipping, primary-focus and angled CHECKING loading treatments are reflected in the local app. Other weather semantic colours remain as inventoried.
+
+The 27 September instruction to apply this system authorised the displayed warm token values and visible state treatments. The local app now includes the related missing hover tokens, a 44px Refresh page target, visible mobile Location Close and a matching installed-app launch background. Typography/radius normalisation and new inline invalid-input feedback remain separate follow-ups.
+
+## 1. Purpose and principles
+
+- Help someone decide whether opening windows reduces indoor moisture, and for approximately how long.
+- Put the recommendation first, then the evidence and settings that explain it.
+- Use warm neutrals for controls and structure. Reserve semantic colours for weather and moisture meaning.
+- Use white surfaces, clear type, restrained borders, and no decorative shadows.
+- Separate selected, pressed, focused, disabled, and loading states. Each conveys a different fact.
+- Preserve familiar native interactions: labelled inputs, keyboard controls, radio groups, buttons, and disclosures.
+- Make the system repeatable through named roles, not colour names or one-off selectors.
+
+## 2. Pre-implementation review evidence and findings
+
+This section preserves the baseline audit and its captures. Present-tense observations in the tables below describe the app **before** the warm palette pass. The local implementation status is recorded in sections 3 and 8.
+
+Source review: `index.html`, `styles.css`, `app.js`, `manifest.webmanifest`, and the repository UI skill. Browser inspection: the local app at `http://127.0.0.1:8766/`. No readings, location, or plan selections were changed for this review.
+
+| Step | Surface | Health and evidence |
+|---|---|---|
+| 1 | Ventilation settings | Clear hierarchy and native radio semantics. Selected Opening and selected Room size currently use different visual signals; no dedicated pressed state for the option tiles. [Capture](design-system-evidence/01-ventilation.png). The blue highlight on the word Opening is browser text selection, not a component colour. |
+| 2 | Dashboard, chart, details and footer | Recommendation and chart are integrated; supporting controls contain mixed warm and green-grey neutrals. Refresh page is 32px high. [Capture](design-system-evidence/02-dashboard.png). |
+| 3 | Indoor reading sheet | Typed fields and rulers share a clear pattern. Speak is a separate pill family; neutral values and tick styles remain hard-coded. [Capture](design-system-evidence/03-indoor.png). |
+| 4 | Location picker | Search and recent-place hierarchy are clear. Recent-row and remove-button hover rules reference an unset variable. Mobile dismissal has no explicit visible Close button. [Capture](design-system-evidence/04-location.png). |
+| 5 | Desktop dashboard | Current shell remains a centred single column, measured at 496 CSS px in a 1280px viewport. [Capture](design-system-evidence/05-desktop.png). |
+
+### Baseline findings and proposed resolutions
+
+| Priority | Finding | Proposed resolution |
+|---|---|---|
+| High | `--button-hover` is unset on location recent rows, remove/clear buttons and sheet close buttons. The location status container also uses it without a shared default. | Give every control family complete state tokens; use a surface token for status containers. Include pressed and disabled states. |
+| High | Pale borders alone do little to advertise editable values. The previously suggested `#D8D2CA` is only 1.50:1 against white. | Keep that colour for decorative dividers; introduce `#8D857B` for boundaries necessary to identify an input or control. |
+| High | Edit's entire card is clickable through a stretched pseudo-element. Moving feedback only to the tiny pill would hide this larger interaction. | Retain whole-card activation and card-level focus/press feedback; make the pill follow the same state colours. Do not shrink the hit area as a colour cleanup. |
+| Medium | Refresh page has a 32px target while most other controls have 44–48px targets. | Keep its compact appearance inside a minimum 44px hit area. |
+| Medium | Opening and Room size have selection and hover styling but no explicit pressed styling. | Use the state matrix below; preserve the selected border during hover and press. |
+| Medium | Font sizes range across many near-duplicates; some labels and details are 11px, and dimension inputs inherit small text. | Adopt named type roles; use 16px for typed form values and 12px as the default smallest metadata. Retain 11px only for chart axes. |
+| Medium | Minor ticks and labels fade toward ruler edges. | Fade decorative ticks; keep meaningful numeric labels legible. Verify limits and narrow paired rulers. |
+| Medium | Three sheets have different DOM/layout histories, and mobile close buttons are hidden. | Share sheet geometry and dismissal conventions. Show a visible Close action in Location, where there is no Done footer; keep auto-close on selection. |
+| Medium | Installed-app launch background is `#EDF4F1`, while the app page is `#F2F0ED`. | Align the manifest launch background with the page when this design system is implemented. Review browser chrome separately. |
+| Maintenance | CSS has repeated overrides; the UI skill still describes paired steppers and a two-column desktop layout that the current code does not use. | Consolidate active component rules after visual approval, then align documentation to actual behaviour during the release documentation pass. |
+
+### Review limits
+
+The listed screens were inspected and captured in this run. Custom panels, voice states, weather loading/failure, alternate verdicts, search-result/error states, reduced motion and forced colours were reviewed in source, not exercised live in this audit. No microphone or device-location permission was requested. Earlier implementation tests are not evidence of a full accessibility audit. Actual iOS keyboard behaviour, screen readers, 200% zoom, all semantic colour pairs, and physical touch devices need the acceptance checks in section 10.
+
+## 3. Colour foundations — implemented locally
+
+### Neutral role tokens
+
+| Token | Value | Purpose |
+|---|---|---|
+| `--surface-page` | `#F2F0ED` | Page and installed-app launch background; retain current page colour. |
+| `--surface-panel` | `#FFFFFF` | Sheets, cards, input interiors and selected segmented tabs. |
+| `--surface-control` | `#F0EEEB` | Light action buttons, segmented tracks and quiet status containers. |
+| `--surface-hover` | `#E6E2DD` | Hover on light controls. |
+| `--surface-pressed` | `#D9D3CC` | Temporary pointer/touch press. |
+| `--surface-selected` | `#F0EEEB` | Light selected Opening fill; the thicker dark border carries selection. |
+| `--border-subtle` | `#D8D2CA` | Dividers and decorative panel boundaries. |
+| `--border-control` | `#8D857B` | Input boundaries and other essential control edges. |
+| `--ink-main` | `#403C37` | Ordinary text, icons, selected borders, major ruler marker and light-surface focus rings. |
+| `--ink-muted` | `#706A63` | Labels, units, secondary text and meaningful tick labels. |
+| `--ink-inverse` | `#FFFFFF` | Primary-button and recommendation text. |
+| `--surface-primary` | `#202725` | Existing dark primary button, retained. |
+| `--surface-primary-hover` | `#343A38` | Existing primary hover, retained. |
+| `--surface-primary-pressed` | `#111714` | Existing primary press, retained. |
+| `--overlay-scrim` | `rgb(0 0 0 / 40%)` | Existing modal backdrop. |
+
+Primary colours are a deliberate retained exception to the warm-neutral conversion. Do not globally replace every dark or green-grey literal: some belong to weather semantics, chart data, or the primary-button family.
+
+### Contrast checks
+
+Calculated from the implemented opaque sRGB values using relative luminance:
+
+| Foreground / background | Ratio |
+|---|---:|
+| Main ink / control surface | 9.45:1 |
+| Muted ink / white | 5.34:1 |
+| Muted ink / page background | 4.70:1 |
+| Control border / white | 3.64:1 |
+| Control border / control surface | 3.14:1 |
+| Subtle border / white | 1.50:1 |
+| White / dark primary | 15.24:1 |
+
+Use at least 4.5:1 for normal text. Where a boundary or graphic is necessary to identify a control/state, check at least 3:1 against adjacent colours. Decorative dividers need not carry that job. These are pair checks, not a compliance certificate. Sources: [W3C text contrast](https://www.w3.org/TR/wcag/#contrast-minimum) and [W3C non-text contrast](https://www.w3.org/WAI/WCAG22/understanding/non-text-contrast.html).
+
+### Semantic colours — current implementation, preserve
+
+There are three independent decisions: **plan outcome**, **current moisture comparison**, and **forecast moisture difference**. Never apply one colour state globally. A green TARGET MET recommendation may coexist with a blue Outdoor card; a red temperature-limited recommendation may also coexist with blue, drier outdoor air. Both are valid.
+
+The following inventory is source-verified in `planTone()`, `renderRecommendation()`, `compareMoisture()`, `render()`, `renderAhChart()` and the final effective CSS rules. Alternate outcomes are source-verified, not newly exercised with live weather. The review board shows illustrative specimens, not captured alternate app states.
+
+#### A. Recommendation and integrated chart surface
+
+All gradients run at 145 degrees. These apply to the whole verdict panel, including its chart; the ventilation-summary footer remains neutral.
+
+| Meaning / actual state | Current colour | Exact condition and displayed intent |
+|---|---|---|
+| Target satisfied (`open`) | `#0A654D` → `#0E8560` | `target-met`: **TARGET MET**, at or near the target, no ventilation needed now. Green is active, not unused. |
+| Useful ventilation (`windows`) | `#14558C` → `#1976B8` | `good` and `slow`; also `forecast-limit`, `settling`, `too-cold` or `condensation` with a truthy `minutes ?? limitMinutes`. Normally **OPEN WINDOWS**, with duration/limit text. |
+| Unsafe or adverse now (`closed`) | `#7E2B21` → `#B84832` | `below-minimum`, `wetter`, and `too-cold`/`condensation` without useful time. **KEEP CLOSED**. |
+| Uncertain / no useful window (`caution`) | `#735600` → `#9D7900` | Remaining plan outcomes, including uncertainty and forecast/settling outcomes without time. Usually **OPEN IF NEEDED**. |
+| No current outdoor data (no tone class) | Solid `#10231F` | **Checking** while pending; **NO DATA** on failure. All previous verdict tone classes are removed. |
+
+Panel base text is `#F9FFFC`; primary explanation and chart reading are `#FFFFFF`; secondary explanation is white at 78%; location metadata is white at 74%. These light-on-colour roles are separate from warm-grey text on white sheets. Keep white focus rings and translucent control feedback on the coloured panel.
+
+Suggested semantic aliases for later implementation: `--verdict-target-start/end`, `--verdict-ventilate-start/end`, `--verdict-closed-start/end`, `--verdict-caution-start/end`, and `--verdict-unavailable`. Values stay as above. In particular, do not alias the no-data background to warm `--ink-main` and unintentionally recolour the whole unavailable panel.
+
+#### B. Outdoor card and “Let in” humidity
+
+These reflect absolute humidity, independently of the plan verdict. Let `difference = indoor AH − outdoor AH`; compare it with the existing calculated uncertainty margin.
+
+| Comparison / class | Foreground | Card fill | Condition |
+|---|---|---|---|
+| Drier (`lower`) | `#1769AA` | `#E2F1FB` | Difference exceeds the positive margin. |
+| Wetter (`higher`) | `#A23B2A` | `#FFE8DF` | Difference is below the negative margin. |
+| Uncertain (`near`) | `#8A6700` | `#FFF3C4` | Difference lies within or on the margin. |
+
+The card border is its foreground colour mixed at **18% with transparent**. The Outdoor heading, AH value/unit and temperature/RH/dew-point details inherit that foreground. The adjacent **Let in percentage** uses the same foreground, without a tinted background; its label and explanatory text remain neutral. The Indoor card remains neutral.
+
+**Condensation risk** beneath Let in uses `#A23B2A` independently when calculated warmed RH is at least 100%; the visible percentage is capped at 100%. Never hide this risk by colouring it from the uncertainty state.
+
+Existing tokens for these roles are `--windows/--windows-bg`, `--closed/--closed-bg` and `--caution/--caution-bg`. Future aliases may be `--moisture-drier-*`, `--moisture-wetter-*`, `--moisture-uncertain-*`, plus `--risk-text`; preserve their independent selection logic.
+
+#### C. Chart curve and supporting layers
+
+**Confirmed direction, 27 September 2026:** retain the current AH line palette as its own distinct semantic colour family. The user considers the current treatment suitable. Preserve its separation from both the recommendation backgrounds and comparison-card foreground colours; the warm-neutral implementation does not recolour the curve. This is approval of the existing palette, not a claim that every contrast pairing has been formally validated.
+
+| Element | Effective colour / opacity | Meaning |
+|---|---|---|
+| Wetter end of forecast AH curve | `#FF8A7A` (`--chart-wet`) | Outdoor AH above indoor by more than the uncertainty interval. |
+| Full uncertainty interval | `#FFC34D` (`--chart-near`) | At/near indoor AH within ± the calculated moisture margin. |
+| Drier end of forecast AH curve | `#FFFFFF` | Reliably lower outdoor AH. |
+| Indoor reference line / label | White at 70% / white | Dashed comparison reference, not a forecast series. |
+| Airflow bars / values | `#FFFFFF38` (about 22%) / white | Estimated ACH; bars do not encode wet/dry categories. |
+| Time/axis text | `#FFFFFFD9` (about 85%) | Supporting annotations. |
+| Grid / day separators | `#FFFFFF16` (about 9%) / `#FFFFFF4D` (about 30%) | Structure only. |
+| Inspection cursor / point | White at 65% / white with `#233D4E` outline | Selected forecast time, not a semantic category. |
+| Chart top divider | `#FFFFFF40` (about 25%) | Separation within the same coloured surface. |
+
+The curve gradient is **vertical in data coordinates**, not a left-to-right time gradient. It spans indoor AH + 1.75 × margin to indoor AH − 1.75 × margin. Amber stops at 21.4286% and 78.5714% preserve the whole ±margin interval; red and white blend outside it. Keep the full interval amber. A slightly drier forecast value can still be amber if within uncertainty.
+
+The chart uses brighter colours than the pale comparison cards because it sits on the dark recommendation surface. Do not substitute `#1769AA`, `#8A6700` or `#A23B2A` for these chart strokes. Contrast against each verdict gradient still needs rendering checks; this document does not claim all semantic combinations pass.
+
+The review board includes an illustrative full chart, with the forecast curve, indoor reference, airflow bars and values, local-time labels, grid and day separators, and inspection cursor shown together. It also shows the current loading skeleton. The values in the specimen are examples, not a live forecast or an extra chart legend.
+
+#### D. Loading, unavailable data and feedback
+
+| Place / state | Colour | Rule |
+|---|---|---|
+| Failed weather timestamp/status | `#FFAB99` | Readable error accent on the dark no-data panel; distinct from moisture-risk red. |
+| Outdoor values and Let in unavailable | `#899493` | Neutral unavailable values, displayed as `--`; previous comparison classes are removed. |
+| Skeleton bars / labels / day separators | `#FFFFFF0D` (about 5%) / `#FFFFFF1A` (about 10%) / `#FFFFFF1A` | Placeholders only; never data or a verdict. |
+| Skeleton indoor reference / label | White at 35% / `#FFFFFFA6` (about 65%) | The retained actual indoor reference is subdued. |
+| Shimmer | White peak opacity 5.5% | Loading only; absent after failure and disabled for reduced motion. |
+| Loading secondary-line placeholder | `#FFFFFF1A` | Neutral content placeholder. |
+| Disabled chart-range controls | Control at 45% opacity | Disabled interaction, not an uncertainty colour. |
+| Voice listening/transcript panels | `#F1F4F3` with muted text `#5D6F69` | Current neutral feedback; no dedicated red error or green success variant. Proposed warm surface can replace these neutrals. |
+| Voice waveform | `#111A17` at 72% opacity | Current activity indicator; activity is not success. |
+| Location pending/error messages | Muted `#5D6F69`; status fill currently references unset `--button-hover` | Current errors are communicated in text. Correct the neutral token gap; do not silently invent semantic red/green states. |
+
+**Loading motion:** `CHECKING` has a diagonal light sweep (110° gradient, 2.4-second pass), and the chart skeleton's faint sweep is tilted about 18°. Both animate only while loading. The label remains steady text for assistive technology; the moving highlight is decorative. Failure has no sweep. Reduced motion shows a static white `CHECKING` label and no shimmer.
+
+#### E. Legacy styles, not active system components
+
+`forecast-pill.tone-*` rules remain in CSS but the current HTML/renderer does not create forecast pills. Their legacy fills are green `#DFF8ED`, blue `#E2F1FB`, amber `#FFF3C4`, red `#FFE8DF`; border colours are respectively `rgba(8,127,91,.28)`, `rgba(23,105,170,.28)`, `rgba(138,103,0,.28)` and `rgba(162,59,42,.25)`. `--status-open: #087F5B` and its pale-green fill belong to this older family. Do not confuse those legacy pale-green pills with the **active green TARGET MET gradient**.
+
+Likewise, `.comparison-value` pill treatments and earlier stand-alone chart colours are superseded/not used by the present dashboard. `--open: #111A17` is a near-black control/waveform colour despite its name, not the green target-met semantic colour. Keep an explicit migration map instead of treating every token named “open” as success.
+
+#### Semantic system rules
+
+- Preserve each surface's independent state calculation and visible wording; never use colour as the only explanation.
+- Keep semantic roles separate from action roles: green does not mean a selected button, red does not mean every disabled control, and amber does not mean loading.
+- Verify green, blue, red, amber, loading and failure recommendation surfaces; then all three Outdoor/Let in states and the independent condensation warning.
+- Check mixed valid combinations, including green target-met + blue drier comparison and red temperature limit + blue drier comparison.
+- Keep the 24/48-hour control's own selected/focus states legible on every verdict background.
+
+## 4. Typography — proposed normalisation
+
+Keep the existing font stack: Inter if available locally, then system UI, Segoe UI and sans-serif. No new font download is needed. Values below are CSS px equivalents at a 16px root; encode reusable type tokens in rem.
+
+| Role | Size / line height | Weight | Use |
+|---|---|---|---|
+| Reading | 34 / 1.1 | 700 | Editable indoor and ventilation readings. |
+| Verdict | 32 / 1.1; 24 on narrow screens | 700 | Main recommendation; allow wrapping. |
+| Metric | 28 / 1.1 | 700 | Moisture card values; 24 for narrower cards. |
+| Sheet title | 20 / 1.25 | 700 | All sheet headings. |
+| Body / typed form value | 16 / 1.5 | 400; 700 for values | Prose and standard form inputs. |
+| Control / section label | 14 / 1.4 | 400; 650 for actions/headings | Buttons, option names and section labels. |
+| Metadata | 12 / 1.4 | 400 | Units, timestamps, subtitles. |
+| Chart annotation | 11 / 1.3 | 400 | Deliberate compact-chart exception. |
+
+Use tabular numerals for changing readings, estimates and timestamps. Keep units visually secondary but semantically included in labels. Use sentence case; uppercase is reserved for the main verdict and short card/category labels. Keep explanatory copy out of primary controls.
+
+## 5. Geometry, layout and motion
+
+### Shared scale
+
+- Spacing: 4, 8, 12, 16, 20, 24, 32px. Two-pixel icon/tick alignment is an allowed optical adjustment.
+- Control radius: 10px for fields and option tiles; 12px for main action buttons and custom panels; 8px for compact icon feedback; pill radius for short secondary actions.
+- Surface radius: 16px for ordinary cards, 20px for the recommendation shell, 24px for sheets. This normalises current 14/18px card variants and is a proposal, not current geometry.
+- Borders: 1px ordinary, including unselected Opening options; 2px for selected options. Compensate padding by 1px when the border grows so selection never shifts dimensions or content. Focus: a 2px ring separate from selection; inset on light controls and fields, outside dark primary buttons with a 2px gap.
+- Targets: at least 44 × 44px; primary actions at least 48px high. Compact visual pills may sit within a larger hit area. Room options retain 58px minimum height; Opening tiles retain 64px.
+- No decorative shadows. A selection edge or focus ring is an interaction signal, not elevation.
+
+### Responsive rules
+
+- Preserve the current centred single-column app shell, maximum 31rem (496px). The old two-column instruction is not current implementation and is not proposed here.
+- Keep 20px internal panel/sheet padding; use 16px at 320px widths if needed. Use 16px section spacing and 8px between related controls.
+- Sheets become centred dialogs from 40rem (640px); mobile uses bottom sheets. Preserve the existing visible-viewport/keyboard adjustment and 90% maximum-height behaviour.
+- Indoor rulers stay stacked. Ventilation rulers stay paired. Room choices stay in four columns; Opening choices in two. Wrap labels and allow height to grow.
+- At severe text enlargement, allow choice grids and dimensions to stack rather than clip. This is an accessibility fallback, not a default mobile redesign.
+- Three room dimensions share one panel; show calculated volume on a full-width row. Custom airflow may wrap its value below the label.
+- Keep content scrolling inside sheets, prevent background scroll, preserve scroll position on close, and return focus to the opener.
+- Control transitions: 120ms; sheet/disclosure transitions: 160ms. Reduced motion removes cosmetic transitions and ruler momentum. Keep physical gesture response immediate.
+
+## 6. Component contracts and state matrix
+
+### State rules
+
+| Family | Rest | Hover | Pressed | Selected / focused |
+|---|---|---|---|---|
+| Light action: Speak, Refresh page, secondary actions | Control surface + main ink | Hover surface | Pressed surface | 2px main-ink focus ring. |
+| Ghost/icon action: close, clear, remove, recent rows | Transparent + main/muted ink | Hover surface | Pressed surface | Same focus ring; accessible name required. |
+| Primary: Done, Apply, Use current location | Retained dark primary + white | Retained primary hover | Retained primary pressed | On white sheets, a 2px main-ink outer focus ring with a 2px clear gap. On dark semantic panels, use a white outer ring with the same gap. |
+| Room size segment | Transparent on control-surface track | Hover surface | Pressed surface | White selected surface, 2px main-ink border and 700-weight name; independent focus ring. |
+| Opening tile | White + 1px control border | Hover surface | Pressed surface | Light `#F0EEEB` fill, 2px main-ink border and 700-weight name. |
+| Editable value | White + control border | Keep stable | Native editing | Main-ink ring around value and unit together. |
+| Chart range | Translucent white track on semantic panel | White 10% overlay | White 18% overlay | White selected tab; main ink, warm hover/press; light or dark ring follows the visible surface. |
+
+Precedence: disabled blocks hover and press; pressed overrides hover fill; selected border and weight persist; keyboard focus overlays all enabled states. Use native `disabled`, checked radio state and `aria-pressed` where appropriate. Do not implement a toggle by changing colours alone.
+
+Disabled controls use 45% opacity on the complete control, no hover/press animation, and a default cursor. Loading additionally exposes busy/status text; a disabled appearance alone does not explain an in-progress operation. Do not hide a focused action without moving focus deliberately.
+
+### Specific behaviours
+
+- **Edit / Indoor card:** retain the current whole-card action. Warm the card's subtle interaction tint and the Edit pill together. Outline the card for keyboard focus, avoid a second Tab stop, and keep the pill label visible. This corrects the earlier suggestion to show feedback only on the pill.
+- **Rulers:** fixed centre marker, labelled major ticks, native range semantics and direct numeric entry. Horizontal adjustment yields to vertical scrolling. Cancel momentum on new interaction, close or backgrounding. Show number + unit as one field.
+- **Ranges:** indoor temperature 10–32°C in 0.1°C steps; indoor humidity 20–90% in 1% steps; minimum indoor temperature 16–26°C in 1°C steps; target humidity 40–65% in 1% steps. Min-temperature and target fields stay the same width. Saved fractional minimum temperatures round to whole degrees.
+- **Room size:** 30 / 50 / 80 m³ and Custom. Custom reveals dimensions and calculated volume; keep values when switching away. Room-size options are a single native radio group.
+- **Opening:** slightly open / one window / cross-ventilation / custom airflow. Show `Est. … air changes/hr` beside or below the heading. Custom airflow reveals one labelled input. Current weather adjustments remain part of the calculation, including custom airflow.
+- **Persistence:** manual readings and ventilation changes save immediately. Done closes the sheet; it is not an Apply or Save step. Voice uses an explicit review and Apply step.
+- **Location:** search, recent places, remove action, current-location action, pending/error/retry and empty-results states share the same tokens. Selecting a place closes the sheet. Removing a recent place must remain a separate 44px action. Propose a visible Close action on mobile Location.
+- **Voice:** retain the existing recording lifecycle. Use neutral status/transcript panels; distinguish Ready, Listening/Hearing, review, error and unavailable through wording and controls. A moving waveform represents available audio levels, not proof of transcription. Styling must not alter microphone permissions, retained streams or iOS recovery policy.
+- **Accordions:** full-width 48px headings, one chevron convention, subtle dividers, no card frame. Preserve open states through updates. Default only the recommendation explanation open.
+- **Links:** distinguish inline links with underlining; standalone named source links may use weight plus underline on interaction. Keep browser destinations explicit.
+- **Icons:** reuse the existing simple line icons, currentColor, consistent 2px strokes where applicable, normally 16–20px inside a 44px target. Hide decorative icons from assistive technology; name icon-only buttons.
+
+## 7. Data and content states
+
+| State | Required communication |
+|---|---|
+| Loading outdoor data | Clear checking message, non-data placeholders, disabled chart inspection, indoor readings retained. |
+| Outdoor request failed | Explicit unavailable message and retry; never show old outdoor results as current. |
+| Ready | Local-time labels, timestamp, forecast horizon and inspectable chart values. |
+| Uncertain / little benefit | Text explanation and existing amber semantics; avoid inventing a precise duration. |
+| Saved / changed manual value | Updated number, estimate and summary; no extra success toast or save step. |
+| Invalid numeric input | Retain the last valid value under existing behaviour. If recovery is revised later, add inline text; never use colour alone. |
+| Search empty / no match / error | Distinct messages; keep search editable and recovery available. |
+| Voice unsupported / error | Manual entry remains usable; review before applying recognised values. |
+
+Maintain existing main verdicts: TARGET MET, OPEN WINDOWS, KEEP CLOSED, OPEN IF NEEDED, plus Checking and NO DATA for unavailable weather. Keep uncertainty language, estimate qualifiers, local times and unit notation consistent: °C, %, m³, m³/h, air changes/hr. Explain ACH in the glossary rather than adding technical copy to every control.
+
+## 8. Implementation map and remaining work
+
+1. The main stylesheet now defines the warm role tokens and maps the existing `--bg`, `--panel`, `--ink`, `--muted`, `--line` and button-family variables to them. Essential input boundaries use the stronger control-border role.
+2. Neutral actions, options, fields/rulers, location/voice surfaces and footer interactions use those roles. Recommendation and AH chart semantic colours remain separate.
+3. The manifest launch colour matches the page. The primary action focus ring, Opening selection and loading sweeps are implemented.
+4. Future work: consolidate any obsolete component rules after checking remaining users. Treat typography/geometry normalisation and inline numeric validation as separate reviews.
+5. A requested push or release remains the trigger for repository release documentation and cache-version work.
+
+## 9. Maintaining the system
+
+- The implemented neutral palette and state rules are approved for the local app. Product CSS and behaviour remain authoritative for the running build.
+- Keep proposals marked as such and record approved changes in the revision log. Do not promote unaccepted alternatives to rules.
+- New components select a family and role tokens first. Any new token must have a use case that an existing token cannot express.
+- Add exceptions to the relevant section with a reason, not as an unexplained late stylesheet override.
+- Update the spec and visual specimens together when a rule changes; record screenshots only after the implementation is verified.
+- Keep semantic weather colours, voice lifecycle policies and model calculations out of neutral-theme refactors.
+- Git and cache-version work is handled during release preparation, separate from design-system iteration.
+
+### Remaining contracts added in the completeness review
+
+These close documentation gaps. Proposed behaviour remains subject to review; no new app behaviour is approved by recording it here.
+
+| Area | Current implementation | Recorded rule / remaining decision |
+|---|---|---|
+| Number precision | `formatTemp()` always produces one decimal; minimum-temperature summary strips `.0`. RH rounds to an integer; AH and estimated ACH use one decimal. | Use one decimal for measured/projected temperature and AH; whole degrees for the minimum-temperature setting wherever mentioned; whole RH; one-decimal estimated ACH. Strip unnecessary `.0` from room volume/airflow. Formatting must not change the underlying calculation. Normalising the minimum-temperature wording is proposed. |
+| Units, durations and missing values | UI uses °C, %, m³, m³/h and g/m³; an unused `formatMoisture()` helper still contains `g/m3`. Durations use min and hr; missing data uses `--`. | Keep units attached to their number across wrapping. Standardise display units as above, use `--` only for unavailable values, never for zero. Keep `Est.`/`About`/`Up to` qualifiers. Do not treat the unused helper as a visible bug. |
+| Time and locale | Forecast/weather times use en-GB, 24-hour format and location timezone. Indoor last-set uses device locale/time. | Document that distinction: forecast times are local to the selected location; indoor edits are local to the device. Test long place names and day/date rollover. No translated interface or alternative unit system is implied by this system. |
+| Invalid / empty inputs | On committed change, blank, nonnumeric or out-of-range input silently returns to the last valid value. Reading fields snap to their increment. There is no shared inline validation component or `aria-invalid` treatment. | Preserve current behaviour until reviewed. Recommended follow-up: explain rejected values with inline text linked to the field; specify when it appears/clears and how it is announced. An error border alone is insufficient. This interaction needs approval and a specimen before implementation. |
+| Focus and modal dismissal | Native dialogs focus the heading on entry and return to the opener. Escape, outside-start-and-end clicks and mobile sheet drag dismiss. Location has an explicit mobile Close action. | Treat entry focus, Tab containment, dismissal and return focus as part of the sheet contract. No background interaction while open. Never interpret dismissal as cancelling already-persisted manual edits. |
+| Live announcements | Entire recommendation and estimate use polite live regions; voice/location statuses also announce updates. | Test for repeated or competing announcements while dragging, searching or refreshing. Announce meaningful settled changes; do not announce every decorative animation frame. Any throttling change needs interaction testing rather than a CSS fix. |
+| Theme and browser chrome | `color-scheme: light`; page and manifest launch `#F2F0ED`; HTML/manifest theme colour `#10231F`. | This is a light-theme system. Dark browser chrome is retained. Forced colours are an accessibility override, not a designed dark theme. App icon/favicon identity remains outside the neutral recolour. |
+| Token handoff and visual regression | The app's role tokens live in `styles.css`; the standalone board still embeds illustrative styles. Its screenshots are historical pre-implementation evidence. | Keep board values aligned with the app tokens whenever roles change. A shared token source for the standalone board remains future maintenance work. Record reference views for each state family and compare them when changing tokens. |
+
+### Verification still outstanding
+
+The existence of a rule is not proof of its implementation. Before calling the system complete, verify real iOS keyboard behaviour, zoom/reflow, forced colours, reduced motion, screen-reader announcements, every semantic background/line pairing, and loading/error/empty/disabled states. The chart palette is retained by user direction; formal contrast checks across all four gradients remain an explicit verification task, not a reason to silently recolour it.
+
+## 10. Acceptance checklist for implementation
+
+- [ ] 320, 390, 640 and 1280px widths; 200% text/zoom; no clipped labels or horizontal scrolling.
+- [ ] Whole sheet reachable with mobile keyboard open; Done/Close reachable; focus returns and page scroll is restored.
+- [ ] Every family shows rest, hover, pressed, keyboard focus, disabled, selected where applicable, and loading/error where applicable.
+- [ ] Hover never erases selection; press never shifts geometry; hidden radios have visible keyboard focus on their label tiles.
+- [ ] Normal text contrast checked at actual surfaces; essential borders/markers checked; pale decorative borders never serve as the only necessary cue.
+- [ ] All actions have a minimum 44px target or a documented exception; no overlapping targets.
+- [ ] Ruler drag, keyboard, typed values, limits, labels and cancellation checked in both sheets.
+- [ ] Presets and custom panels checked in every combination; values survive switching, close/reopen and reload.
+- [ ] Dashboard loading, failure, retry, all verdicts and 24/48h states checked without presenting stale data as current.
+- [ ] Location idle/search/results/empty/error/retry and recent-removal checked.
+- [ ] Voice Ready/Listening/review/error/unavailable checked on supported devices without changing lifecycle policy.
+- [ ] Reduced motion, forced colours, screen-reader names and radio/disclosure semantics checked.
+- [ ] Relevant JavaScript tests and syntax checks pass if logic changes; visual checks for styling-only changes.
+- [ ] Documentation and specimens match the approved implementation before any requested release.
+
+## Revision log
+
+- 1.0 release preparation, 28 September 2026: aligned this system with the v0.7.0 app source and retained the pre-implementation captures as historical evidence.
+- 1.0 local implementation, 27 September 2026: applied warm neutral roles and states to the app, retained weather and AH semantics, added the angled loading sweeps and related control usability fixes. Updated the board to distinguish current specimens from historical evidence. No release or cache-version change.
+- 0.9 draft, 27 September 2026: separated user-directed design choices from the remaining palette sign-off and clarified that implementation is a later step with recommended default scope. Preview/spec only; app unchanged.
+- 0.8 draft, 27 September 2026: proposed an angled sweep for CHECKING and the chart skeleton in the loading specimen, with static reduced-motion and failure states. Preview/spec only; app unchanged.
+- 0.7 draft, 27 September 2026: added visual specimens for all current AH chart layers and the loading skeleton, alongside their colour roles. Preview/spec only; app unchanged.
+- 0.6 draft, 27 September 2026: replaced the primary button specimen's white inset focus line with a distinct dark outer ring and clear gap on white sheets. Preview/spec only; app unchanged.
+- 0.5 draft, 27 September 2026: widened the numeric text area inside the preview's fixed 88px editable fields to prevent digit clipping. Preview only; app unchanged.
+- 0.4 draft, 27 September 2026: Opening options use 1px unselected borders and 2px selected borders, with lighter #F0EEEB selected fill and stable geometry. Preview/spec only; app unchanged.
+- 0.3 draft, 27 September 2026: added precision/unit/time conventions, invalid-input and announcement gaps, complete modal focus contract, light-theme/browser-chrome boundaries, and the shared-token/visual-regression handoff. App unchanged.
+- 0.2 draft, 27 September 2026: added the complete semantic-role inventory, active green TARGET MET, independent verdict/comparison/curve mapping, condensation and unavailable-data accents, chart overlays, feedback panels, legacy-only rules and semantic visual specimens. Corrected the incomplete verdict list. App unchanged.
+- 0.1 draft, 27 September 2026: current-app audit; proposed warm neutrals, full state matrix, reusable component/geometry rules, contrast checks and implementation acceptance checklist. No application styling changed.

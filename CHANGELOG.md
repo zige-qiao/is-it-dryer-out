@@ -2,6 +2,15 @@
 
 All notable changes to Is it dryer out are documented here.
 
+## v0.7.0 — Layout and design system - 2026-09-28
+
+- Integrated the outdoor AH chart with the recommendation, with 24/48-hour views, estimated airflow bars, keyboard and pointer inspection, and shared forecast scales.
+- Moved indoor editing into a sheet with stacked draggable rulers, typed values, last-set time and integrated voice review. Added paired rulers, room-size presets, custom dimensions, opening choices and custom airflow to Ventilation settings.
+- Refined sheet dismissal, scroll-position preservation and visible-viewport handling; added a visible mobile Location Close action, recent-place management, a glossary and a page-refresh action.
+- Applied the warm-neutral design system to light controls, borders and interaction states while retaining the distinct recommendation, comparison-card and AH-line semantic colours. Added an angled CHECKING and skeleton sweep with reduced-motion support.
+- Added the written design system and visual specimens; consolidated voice research and the unsubmitted WebKit report under `docs/voice/`, with the investigation as the current evidence index.
+- Set the app build identity to `v0.7.0` and synchronized the app shell cache at revision 133.
+
 ## v0.6.0 — Moisture Outlook - 2026-09-26
 
 - Replaced the moisture table with outdoor and indoor cards and a semantic-colour warmed-air RH comparison, including a compact three-column mobile layout.

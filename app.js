@@ -14,6 +14,14 @@ const LOCATION_LABEL_OVERRIDES = new Map([
 const STORAGE_KEY = "dew-indoor-readings";
 const PLAN_STORAGE_KEY = "is-it-dryer-out-plan";
 const LOCATION_STORAGE_KEY = "is-it-dryer-out-location";
+const LOCATION_HISTORY_STORAGE_KEY = "is-it-dryer-out-location-history";
+let recentLocations = [];
+let locationSearchTimer;
+let locationSearchRequestId = 0;
+let locationAttemptId = 0;
+let locationFinding = false;
+let locationStatus = "";
+let locationRetry = false;
 const LOCATION_REQUESTED_STORAGE_KEY = "is-it-dryer-out-location-requested";
 const DEFAULT_TIMEZONE = "Europe/London";
 const DEFAULT_PRESSURE_HPA = 1013.25;
@@ -31,7 +39,7 @@ const OPENING_SETUPS = {
 };
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 // Keep the build identity in the script so stale code identifies itself correctly.
-const APP_BUILD_VERSION = "v0.6.0";
+const APP_BUILD_VERSION = "v0.7.0";
 const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
 const IS_IOS = /iP(?:hone|ad|od)/.test(navigator.userAgent)
   || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -49,7 +57,10 @@ const INPUT_UNCERTAINTY = {
   outdoorRh: 3,
 };
 
+let dialogScrollLock;
+
 const state = {
+  indoorLastSet: null,
   indoorTemp: 24,
   indoorRh: 58,
   targetRh: 55,
@@ -66,6 +77,8 @@ const state = {
   outdoorPressure: DEFAULT_PRESSURE_HPA,
   outdoorWind: 0,
   forecast: [],
+  chartHours: 24,
+  chartSelection: 0,
   updatedAt: null,
   lastCheckedAt: null,
   lastSuccessfulUpdateAt: null,
@@ -82,7 +95,6 @@ const elements = {
   decisionLabel: document.querySelector("#decisionLabel"),
   decisionPrimary: document.querySelector("#decisionPrimary"),
   decisionSecondary: document.querySelector("#decisionSecondary"),
-  retryWeather: document.querySelector("#retryWeather"),
   weatherStatus: document.querySelector("#weatherStatus"),
   indoorTemp: document.querySelector("#indoorTemp"),
   indoorRh: document.querySelector("#indoorRh"),
@@ -120,19 +132,22 @@ const elements = {
   planSummaryText: document.querySelector("#planSummaryText"),
   planSummaryVentilationText: document.querySelector("#planSummaryVentilationText"),
   planDialog: document.querySelector("#planDialog"),
-  planDialogCloseButton: document.querySelector("#planDialogCloseButton"),
-  forecastStrip: document.querySelector("#forecastStrip"),
+  planDoneButton: document.querySelector("#planDoneButton"),
+  planDialogTitle: document.querySelector("#planDialogTitle"),
   locationName: document.querySelector("#locationName"),
   sourceLocationName: document.querySelector("#sourceLocationName"),
   liveWeatherRequest: document.querySelector("#liveWeatherRequest"),
   locationButton: document.querySelector("#locationButton"),
   locationDialog: document.querySelector("#locationDialog"),
-  locationDialogClose: document.querySelector("#locationDialogClose"),
   locationDialogStatus: document.querySelector("#locationDialogStatus"),
   locationUpdateButton: document.querySelector("#locationUpdateButton"),
   locationSearchForm: document.querySelector("#locationSearchForm"),
   locationSearchInput: document.querySelector("#locationSearchInput"),
-  locationSearchButton: document.querySelector("#locationSearchButton"),
+  locationClearButton: document.querySelector("#locationClearButton"),
+  locationCurrentName: document.querySelector("#locationCurrentName"),
+  locationIdle: document.querySelector("#locationIdle"),
+  locationRecents: document.querySelector("#locationRecents"),
+  locationRecentList: document.querySelector("#locationRecentList"),
   locationSearchResults: document.querySelector("#locationSearchResults"),
   voiceInputButton: document.querySelector("#voiceInputButton"),
   voiceDialog: document.querySelector("#voiceDialog"),
@@ -700,7 +715,12 @@ function completeVoiceSession(session) {
 }
 
 function showVoiceDialog() {
-  if (!elements.voiceDialog.open) elements.voiceDialog.showModal();
+  const indoorDialog = document.querySelector('#indoorDialog');
+  const entering = elements.voiceDialog.hidden;
+  if (!indoorDialog.open) dialogScrollLock.open(indoorDialog);
+  indoorDialog.classList.add('voice-mode');
+  elements.voiceDialog.hidden = false;
+  if (entering) document.querySelector('#indoor-heading').focus({ preventScroll: true });
 }
 
 function resetVoiceResult() {
@@ -958,7 +978,7 @@ function stopVoiceInput(showDialogImmediately, session = activeVoiceSession, rea
 
 function toggleVoiceListening() {
   if (activeVoiceSession?.isListening) {
-    stopVoiceInput(!elements.voiceDialog.open, activeVoiceSession, "manual");
+    stopVoiceInput(elements.voiceDialog.hidden, activeVoiceSession, "manual");
     return;
   }
   if (!activeVoiceSession) startVoiceInput();
@@ -977,7 +997,10 @@ function closeVoiceDialog() {
     finishVoiceListening(session);
   }
   pendingVoiceChanges = null;
-  elements.voiceDialog.close();
+  elements.voiceDialog.hidden = true;
+  const indoorDialog = document.querySelector('#indoorDialog');
+  indoorDialog.classList.remove('voice-mode');
+  if (indoorDialog.open) elements.voiceInputButton.focus({ preventScroll: true });
 }
 
 function applyVoiceChanges() {
@@ -1166,9 +1189,10 @@ function forecastHasBecomeLessDry(startWeather, weather) {
 }
 
 function saveIndoorReadings() {
+  state.indoorLastSet = Date.now();
   localStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify({ indoorTemp: state.indoorTemp, indoorRh: state.indoorRh }),
+    JSON.stringify({ indoorTemp: state.indoorTemp, indoorRh: state.indoorRh, indoorLastSet: state.indoorLastSet }),
   );
 }
 
@@ -1195,6 +1219,7 @@ function loadIndoorReadings() {
     const parsed = JSON.parse(saved);
     state.indoorTemp = numberInRange(parsed.indoorTemp, 10, 32, state.indoorTemp);
     state.indoorRh = numberInRange(parsed.indoorRh, 20, 90, state.indoorRh);
+    state.indoorLastSet = Number.isFinite(parsed.indoorLastSet) && parsed.indoorLastSet > 0 && parsed.indoorLastSet <= Date.now() ? parsed.indoorLastSet : null;
   } catch {
     localStorage.removeItem(STORAGE_KEY);
   }
@@ -1206,7 +1231,7 @@ function loadPlanSettings() {
   try {
     const parsed = JSON.parse(saved);
     state.targetRh = numberInRange(parsed.targetRh, 40, 65, state.targetRh);
-    state.minTemp = numberInRange(parsed.minTemp, 16, 26, state.minTemp);
+    state.minTemp = Math.round(numberInRange(parsed.minTemp, 16, 26, state.minTemp));
     if (ROOM_PRESETS[parsed.roomPreset] || parsed.roomPreset === "custom") {
       state.roomPreset = parsed.roomPreset;
     }
@@ -1524,16 +1549,16 @@ function formatVentilationSummary() {
 function renderPlanControls() {
   elements.targetRh.value = state.targetRh;
   elements.minTemp.value = state.minTemp;
-  elements.targetRhInput.value = Math.round(state.targetRh);
-  elements.minTempInput.value = state.minTemp.toFixed(1).replace(".0", "");
-  elements.roomPreset.value = state.roomPreset;
-  elements.roomLength.value = state.roomLength;
-  elements.roomWidth.value = state.roomWidth;
-  elements.roomHeight.value = state.roomHeight;
-  elements.roomVolume.textContent = `${roomVolume().toFixed(1).replace(".0", "")} m3`;
+  if (document.activeElement !== elements.targetRhInput) elements.targetRhInput.value = Math.round(state.targetRh);
+  if (document.activeElement !== elements.minTempInput) elements.minTempInput.value = state.minTemp.toFixed(1).replace(".0", "");
+  elements.roomPreset.querySelectorAll('input').forEach(input => { input.checked = input.value === state.roomPreset; });
+  for (const key of ['roomLength', 'roomWidth', 'roomHeight', 'customAirflow']) {
+    if (document.activeElement !== elements[key]) elements[key].value = state[key];
+  }
+  elements.roomVolume.textContent = `${roomVolume().toFixed(1).replace(".0", "")} m³`;
+  document.querySelector('#customRoomVolume').textContent = `${(state.roomLength * state.roomWidth * state.roomHeight).toFixed(1).replace('.0', '')} m³`;
   elements.customRoomFields.hidden = state.roomPreset !== "custom";
-  elements.openingSetup.value = state.openingSetup;
-  elements.customAirflow.value = state.customAirflow;
+  elements.openingSetup.querySelectorAll('input').forEach(input => { input.checked = input.value === state.openingSetup; });
   elements.customFlowField.hidden = state.openingSetup !== "custom";
   elements.planSummaryText.textContent = formatPlanSummary();
   elements.planSummaryVentilationText.textContent = formatVentilationSummary();
@@ -1541,82 +1566,16 @@ function renderPlanControls() {
 
 function renderPlan() {
   renderPlanControls();
-  elements.forecastStrip.innerHTML = "";
-
   const timeline = buildWeatherTimeline();
-  if (!timeline.length) {
-    for (let index = 0; index < 3; index += 1) {
-      const placeholder = document.createElement("div");
-      placeholder.className = `forecast-pill forecast-placeholder${state.weatherLoadFailed ? " is-static" : ""}`;
-      placeholder.setAttribute("aria-hidden", "true");
-      placeholder.innerHTML = "<span></span><strong></strong><small></small><small></small>";
-      elements.forecastStrip.append(placeholder);
-    }
-    elements.planConfidence.textContent = state.weatherLoadFailed
-      ? "Outdoor data unavailable"
-      : "Waiting for outdoor data...";
+  if (!timeline.length || state.weatherRequestPending || state.weatherLoadFailed) {
+    elements.planConfidence.textContent = state.weatherLoadFailed ? "Outdoor data unavailable" : "Waiting for outdoor data...";
     return null;
   }
-
   const current = timeline[0];
-  const currentPlan = estimateOpeningWindowPlan(current, timeline);
-  if (currentPlan.status === "good") {
-    currentPlan.dryAirHorizon = projectedDryAirHorizon(current, timeline);
-  }
-  const exchange = effectiveAirExchange(current, state.indoorTemp);
-  elements.planConfidence.textContent = `About ${exchange.airChangesPerHour.toFixed(1)} air changes/hr`;
-
-  const forecastStarts = [
-    current,
-    ...state.forecast.filter((item) => item.time > current.time),
-  ].slice(0, 8);
-  const labels = {
-    "target-met": "No need",
-    "below-minimum": "Below min",
-    wetter: "Avoid",
-    uncertain: "Uncertain",
-    "too-cold": "Temp limit",
-    condensation: "Condensation",
-    "forecast-limit": "Forecast change",
-    settling: "Benefit fades",
-    slow: "3 hr+",
-    "minimal-impact": "Little benefit",
-  };
-
-  forecastStarts.forEach((item, index) => {
-    const plan = estimateOpeningWindowPlan(item, timeline);
-    const exchange = effectiveAirExchange(item, state.indoorTemp);
-    const pill = document.createElement("div");
-    pill.setAttribute("role", "listitem");
-    pill.className = `forecast-pill ${plan.status} tone-${planTone(plan)}`;
-    const valueLabel = (() => {
-      if (plan.status === "good") return formatDuration(plan.minutes);
-      if (["forecast-limit", "settling", "too-cold", "condensation"].includes(plan.status)) {
-        const limit = plan.minutes ?? plan.limitMinutes;
-        return limit ? `≤ ${formatDuration(limit)}` : labels[plan.status];
-      }
-      return labels[plan.status];
-    })();
-    const timeLabel = index === 0 ? "Now" : formatShortTime(item.time);
-    pill.setAttribute(
-      "aria-label",
-      `${timeLabel}: ${valueLabel}, outdoor temperature ${formatTemp(item.temp)}, relative humidity ${formatRh(item.rh)}, estimated ${exchange.airChangesPerHour.toFixed(1)} air changes per hour`,
-    );
-
-    const time = document.createElement("span");
-    time.textContent = timeLabel;
-    const value = document.createElement("strong");
-    value.textContent = valueLabel;
-    const temp = document.createElement("small");
-    temp.textContent = `${formatTemp(item.temp)} · ${formatRh(item.rh)} RH`;
-    const airflow = document.createElement("small");
-    airflow.className = "forecast-ach";
-    airflow.textContent = `~${exchange.airChangesPerHour.toFixed(1)} ACH`;
-    pill.append(time, value, temp, airflow);
-    elements.forecastStrip.append(pill);
-  });
-
-  return currentPlan;
+  const plan = estimateOpeningWindowPlan(current, timeline);
+  if (plan.status === "good") plan.dryAirHorizon = projectedDryAirHorizon(current, timeline);
+  elements.planConfidence.textContent = 'Est. ' + effectiveAirExchange(current, state.indoorTemp).airChangesPerHour.toFixed(1) + ' air changes/hr';
+  return plan;
 }
 
 function setDecisionLine(element, text, emphasizedDuration, emphasizeWhole) {
@@ -1818,25 +1777,13 @@ function planLimitingExplanation(plan, comparison) {
 }
 
 function renderRecommendationExplanation(plan, comparison, adjustedRh, condensationRisk) {
-  if (state.outdoorTemp === null || state.outdoorRh === null) {
+  if (state.weatherRequestPending || state.weatherLoadFailed || state.outdoorTemp === null || state.outdoorRh === null) {
     const locationName = state.location.name || "the selected location";
     elements.explanationText.textContent = state.weatherLoadFailed
-      ? `Outdoor weather is unavailable for ${locationName}. No successful weather data is available, so a recommendation cannot be made.`
+      ? `Outdoor weather is unavailable for ${locationName}. A recommendation cannot be made until current data is available.`
       : `Checking outdoor weather for ${locationName}. The recommendation will appear when current data arrives.`;
     return;
   }
-
-  const freshness = state.weatherRequestPending && state.lastSuccessfulUpdateAt
-    ? `A refresh is in progress; this recommendation uses the last successful update from ${formatWeatherTimestamp(
-        state.lastSuccessfulUpdateAt,
-      )}.`
-    : state.weatherLoadFailed && state.lastSuccessfulUpdateAt
-      ? `The latest refresh failed at ${formatWeatherTimestamp(
-          state.lastCheckedAt,
-        )}; this recommendation uses the last successful update from ${formatWeatherTimestamp(
-          state.lastSuccessfulUpdateAt,
-        )}.`
-      : "";
 
   const percentDifference = (Math.abs(comparison.difference) / comparison.indoor) * 100;
   const relationship = comparison.status === "drier"
@@ -1857,7 +1804,7 @@ function renderRecommendationExplanation(plan, comparison, adjustedRh, condensat
   const adjustedHumidity = condensationRisk
     ? "If warmed to your room's current temperature, outdoor air would be at 100% RH"
     : `If warmed to your room's current temperature, it would be about ${formatRh(adjustedRh)} RH`;
-  const sentences = [freshness, relationship].filter(Boolean);
+  const sentences = [relationship];
   const limitingExplanation = planLimitingExplanation(plan, comparison);
   sentences.push(plan.status === "minimal-impact"
     ? `${adjustedHumidity}. ${limitingExplanation}`
@@ -1872,14 +1819,14 @@ function renderWeatherDataDetails() {
   const lastSuccess = state.lastSuccessfulUpdateAt;
   if (state.weatherRequestPending) {
     elements.weatherDataStatus.textContent = lastSuccess
-      ? `Weather refresh in progress. Showing the last successful update from ${formatWeatherTimestamp(lastSuccess)}.`
+      ? `Weather refresh in progress. Last successful update: ${formatWeatherTimestamp(lastSuccess)}.`
       : "Weather update in progress. No successful update is available yet.";
   } else if (state.weatherLoadFailed) {
     const failedAt = state.lastCheckedAt
       ? `Latest refresh failed at ${formatWeatherTimestamp(state.lastCheckedAt)}.`
       : "The latest weather refresh failed.";
     elements.weatherDataStatus.textContent = lastSuccess
-      ? `${failedAt} Showing the last successful update from ${formatWeatherTimestamp(lastSuccess)}.`
+      ? `${failedAt} Last successful update: ${formatWeatherTimestamp(lastSuccess)}.`
       : `${failedAt} No successful weather data is available.`;
   } else {
     elements.weatherDataStatus.textContent = lastSuccess
@@ -1892,8 +1839,9 @@ function render() {
   renderAhChart();
   elements.indoorTemp.value = state.indoorTemp;
   elements.indoorRh.value = state.indoorRh;
-  elements.indoorTempInput.value = state.indoorTemp.toFixed(1);
-  elements.indoorRhInput.value = Math.round(state.indoorRh);
+  if (document.activeElement !== elements.indoorTempInput) elements.indoorTempInput.value = state.indoorTemp.toFixed(1);
+  if (document.activeElement !== elements.indoorRhInput) elements.indoorRhInput.value = Math.round(state.indoorRh);
+  renderReadingRulers();
   elements.indoorTempValue.textContent = formatTemp(state.indoorTemp);
   elements.indoorRhValue.textContent = formatRh(state.indoorRh);
   elements.warmingTemp.textContent = formatTemp(state.indoorTemp);
@@ -1907,12 +1855,17 @@ function render() {
   elements.outdoorAbsoluteHumidity.classList.remove("lower", "higher", "near");
   document.querySelector(".outdoor-card").classList.remove("lower", "higher", "near");
 
-  if (state.outdoorTemp === null || state.outdoorRh === null) {
-    elements.retryWeather.hidden = !state.weatherLoadFailed;
+  const unavailable = state.weatherRequestPending || state.weatherLoadFailed || state.outdoorTemp === null || state.outdoorRh === null;
+  elements.recommendation.dataset.weatherState = unavailable ? (state.weatherLoadFailed ? 'failed' : 'loading') : 'ready';
+  elements.dashboardPanel.classList.toggle('weather-unavailable', unavailable);
+  const refreshLabel = state.weatherLoadFailed ? 'Retry outdoor weather' : 'Refresh outdoor weather';
+  elements.refreshWeather.setAttribute('aria-label', refreshLabel);
+  elements.refreshWeather.title = refreshLabel;
+  if (unavailable) {
     elements.recommendation.classList.remove("open", "windows", "closed", "caution");
     elements.decisionLabel.textContent = state.weatherLoadFailed
       ? "NO DATA"
-      : "CHECKING";
+      : "Checking";
     setDecisionSummary(
       state.weatherLoadFailed ? "Outdoor weather is currently unavailable." : "Getting local conditions...",
       state.weatherLoadFailed ? "Check your connection and try again." : "",
@@ -1926,8 +1879,6 @@ function render() {
     elements.adjustedAirNote.textContent = "";
     return;
   }
-
-  elements.retryWeather.hidden = true;
 
   const outdoorDew = Number.isFinite(state.outdoorDewPoint)
     ? state.outdoorDewPoint
@@ -2143,22 +2094,122 @@ function isUkPostcodeQuery(query) {
   return Boolean(normalizeUkPostcode(query) || normalizeUkOutcode(query));
 }
 
+function validHistoryLocation(location) {
+  return location && typeof location.name === "string" && location.name.trim() &&
+    Number.isFinite(location.latitude) && Math.abs(location.latitude) <= 90 &&
+    Number.isFinite(location.longitude) && Math.abs(location.longitude) <= 180;
+}
+
+function sameLocation(a, b) {
+  return a.latitude === b.latitude && a.longitude === b.longitude;
+}
+
+function saveLocationHistory() {
+  try { localStorage.setItem(LOCATION_HISTORY_STORAGE_KEY, JSON.stringify(recentLocations)); } catch {}
+}
+
+function loadLocationHistory(hasSavedLocation) {
+  let stored;
+  try { stored = localStorage.getItem(LOCATION_HISTORY_STORAGE_KEY); } catch {}
+  if (stored == null) {
+    recentLocations = hasSavedLocation ? [{ ...state.location }] : [];
+    saveLocationHistory();
+    return;
+  }
+  try {
+    const parsed = JSON.parse(stored);
+    recentLocations = Array.isArray(parsed) ? parsed.filter(validHistoryLocation)
+      .filter((location, index, all) => all.findIndex(other => sameLocation(location, other)) === index).slice(0, 3) : [];
+  } catch { recentLocations = []; }
+}
+
+function rememberLocation(location) {
+  recentLocations = [{ ...location }, ...recentLocations.filter(other => !sameLocation(location, other))].slice(0, 3);
+  saveLocationHistory();
+}
+
+async function selectLocation(location) {
+  locationAttemptId += 1;
+  locationFinding = false;
+  locationStatus = "";
+  locationRetry = false;
+  rememberLocation(location);
+  setLocation(location, "search");
+  closeLocationDialog();
+  await fetchWeather();
+}
+
+function renderRecentLocations() {
+  elements.locationRecentList.replaceChildren();
+  elements.locationRecents.hidden = recentLocations.length === 0;
+  recentLocations.forEach((location, index) => {
+    const row = document.createElement("div");
+    row.className = "location-recent-row";
+    const select = document.createElement("button");
+    select.type = "button";
+    select.className = "location-recent-select";
+    const name = document.createElement("span");
+    name.textContent = location.name;
+    select.append(name);
+    if (sameLocation(location, state.location)) {
+      select.setAttribute("aria-current", "location");
+    }
+    select.addEventListener("click", () => selectLocation(location));
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "location-remove-button";
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", `Remove ${location.name} from recent places`);
+    remove.title = "Remove from recent places";
+    remove.addEventListener("click", () => {
+      recentLocations.splice(index, 1);
+      saveLocationHistory();
+      renderRecentLocations();
+      const buttons = elements.locationRecentList.querySelectorAll(".location-remove-button");
+      const next = buttons[Math.min(index, buttons.length - 1)];
+      // The location action is disabled while locating, so search is the fallback then.
+      (next || (locationFinding ? elements.locationSearchInput : elements.locationUpdateButton)).focus();
+    });
+    row.append(select, remove);
+    elements.locationRecentList.append(row);
+  });
+}
+
+function renderLocationIdle() {
+  const typing = elements.locationSearchInput.value.trim().length > 0;
+  elements.locationIdle.hidden = typing;
+  elements.locationSearchResults.hidden = !typing;
+  elements.locationClearButton.hidden = elements.locationSearchInput.value.length === 0;
+  elements.locationCurrentName.textContent = state.location.name;
+  elements.locationUpdateButton.disabled = locationFinding;
+  elements.locationUpdateButton.textContent = locationFinding ? "Finding your location…" : locationRetry ? "Try again" : "Use current location";
+  if (!typing) {
+    elements.locationDialogStatus.textContent = locationStatus;
+    renderRecentLocations();
+  }
+}
+
+function cancelLocationSearch() {
+  clearTimeout(locationSearchTimer);
+  locationSearchRequestId += 1;
+}
+
+function handleLocationInput() {
+  cancelLocationSearch();
+  elements.locationSearchResults.replaceChildren();
+  renderLocationIdle();
+  const query = elements.locationSearchInput.value.trim();
+  if (!query) return;
+  elements.locationDialogStatus.textContent = query.length < 2 ? "Enter at least two characters." : "Searching…";
+  if (query.length >= 2) locationSearchTimer = setTimeout(() => runLocationSearch(query), 300);
+}
+
 function addWorldwideSearchButton(query) {
   const button = document.createElement("button");
   button.className = "location-worldwide-button";
   button.type = "button";
   button.textContent = "Search worldwide";
-  button.addEventListener("click", async () => {
-    button.disabled = true;
-    elements.locationDialogStatus.textContent = "Searching worldwide...";
-    try {
-      const results = await searchLocations(query, true);
-      elements.locationDialogStatus.textContent = "";
-      renderLocationResults(results, query, true);
-    } catch {
-      elements.locationDialogStatus.textContent = "Worldwide search is unavailable. Try again.";
-    }
-  });
+  button.addEventListener("click", () => runLocationSearch(query, true));
   elements.locationSearchResults.append(button);
 }
 
@@ -2176,25 +2227,23 @@ function renderLocationResults(results, query, worldwide = false) {
     return;
   }
 
-  elements.retryWeather.hidden = true;
-
   results.forEach((result) => {
     const button = document.createElement("button");
     button.className = "location-result-button";
     button.type = "button";
-    button.textContent = formatSearchLocation(result);
-    button.addEventListener("click", async () => {
-      setLocation(
-        {
-          name: formatSearchLocation(result),
-          latitude: result.latitude,
-          longitude: result.longitude,
-        },
-        "search",
-      );
-      closeLocationDialog();
-      await fetchWeather();
-    });
+    const label = formatSearchLocation(result);
+    const [primary, ...secondary] = label.split(", ");
+    const name = document.createElement("strong");
+    name.textContent = primary;
+    button.append(name);
+    if (secondary.length) {
+      const region = document.createElement("span");
+      region.textContent = secondary.join(", ");
+      button.append(region);
+    }
+    button.addEventListener("click", () => selectLocation({
+      name: label, latitude: result.latitude, longitude: result.longitude,
+    }));
     elements.locationSearchResults.append(button);
   });
 
@@ -2203,24 +2252,33 @@ function renderLocationResults(results, query, worldwide = false) {
 
 async function handleLocationSearch(event) {
   event.preventDefault();
+  clearTimeout(locationSearchTimer);
   const query = elements.locationSearchInput.value.trim();
   if (query.length < 2) {
-    elements.locationDialogStatus.textContent = "Enter at least two characters.";
+    handleLocationInput();
     return;
   }
+  await runLocationSearch(query);
+}
 
-  elements.locationSearchButton.disabled = true;
+async function runLocationSearch(query, worldwide = false) {
+  const requestId = ++locationSearchRequestId;
   elements.locationSearchResults.replaceChildren();
-  elements.locationDialogStatus.textContent = "Searching...";
-
+  elements.locationDialogStatus.textContent = worldwide ? "Searching worldwide…" : "Searching…";
   try {
-    const results = await searchLocations(query);
-    elements.locationDialogStatus.textContent = "";
-    renderLocationResults(results, query);
+    const results = await searchLocations(query, worldwide);
+    if (requestId !== locationSearchRequestId || !elements.locationDialog.open) return;
+    elements.locationDialogStatus.textContent = results.length ? `${results.length} ${results.length === 1 ? "place" : "places"} found.` : "";
+    renderLocationResults(results, query, worldwide);
   } catch {
+    if (requestId !== locationSearchRequestId || !elements.locationDialog.open) return;
     elements.locationDialogStatus.textContent = "Location search is unavailable. Try again.";
-  } finally {
-    elements.locationSearchButton.disabled = false;
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "location-result-button";
+    retry.textContent = "Try again";
+    retry.addEventListener("click", () => runLocationSearch(query, worldwide));
+    elements.locationSearchResults.append(retry);
   }
 }
 
@@ -2239,18 +2297,22 @@ function getBrowserLocation() {
 }
 
 async function useCurrentLocation() {
-  elements.locationUpdateButton.disabled = true;
-  elements.locationUpdateButton.textContent = "Locating...";
-  elements.locationDialogStatus.textContent = "Requesting your current location...";
+  const attemptId = ++locationAttemptId;
+  locationFinding = true;
+  locationRetry = false;
+  locationStatus = "";
+  renderLocationIdle();
 
   try {
     const position = await getBrowserLocation();
+    if (attemptId !== locationAttemptId) return;
     let locationName = "Nearby location";
     try {
       locationName = await reverseGeocodeLocation(position.coords.latitude, position.coords.longitude);
     } catch {
       // Weather can still be fetched when the locality lookup is unavailable.
     }
+    if (attemptId !== locationAttemptId) return;
     setLocation(
       {
         name: locationName,
@@ -2259,28 +2321,43 @@ async function useCurrentLocation() {
       },
       "current",
     );
+    rememberLocation(state.location);
     closeLocationDialog();
     await fetchWeather();
-  } catch {
-    elements.locationDialogStatus.textContent = "Location access was unavailable. Check permission and try again.";
+  } catch (error) {
+    if (attemptId !== locationAttemptId) return;
+    locationStatus = error.code === 1
+      ? "Location permission is blocked. Allow location in your browser or device settings, or search by town or postcode."
+      : error.code === 3
+        ? "Finding your location took too long. Try again or search by town or postcode."
+        : "Couldn't find your location. Try again or search by town or postcode.";
+    locationRetry = true;
+    locationFinding = false;
+    renderLocationIdle();
     if (!state.lastCheckedAt) await fetchWeather();
   } finally {
-    elements.locationUpdateButton.disabled = false;
-    elements.locationUpdateButton.textContent = "Use current location";
+    if (attemptId === locationAttemptId) {
+      locationFinding = false;
+      renderLocationIdle();
+    }
   }
 }
 
 function openLocationDialog() {
-  elements.locationDialogStatus.textContent = "";
+  cancelLocationSearch();
+  locationStatus = "";
+  locationRetry = false;
   elements.locationSearchInput.value = "";
   elements.locationSearchResults.replaceChildren();
-  elements.locationDialog.showModal();
+  renderLocationIdle();
+  dialogScrollLock.open(elements.locationDialog);
+  document.querySelector("#locationDialogTitle").focus({ preventScroll: true });
 }
 
 function openPlanDialog() {
   if (elements.planDialog.open) return;
-  elements.planDialog.showModal();
-  elements.planDialogCloseButton.focus();
+  dialogScrollLock.open(elements.planDialog);
+  elements.planDialogTitle.focus({ preventScroll: true });
 }
 
 function closePlanDialog() {
@@ -2288,7 +2365,14 @@ function closePlanDialog() {
 }
 
 function closeLocationDialog() {
+  cancelLocationWork();
   if (elements.locationDialog.open) elements.locationDialog.close();
+}
+
+function cancelLocationWork() {
+  cancelLocationSearch();
+  locationAttemptId += 1;
+  locationFinding = false;
 }
 
 async function initializeLocation(hasSavedLocation) {
@@ -2305,11 +2389,10 @@ async function fetchWeather() {
   const requestLocation = { ...state.location };
   state.weatherRequestPending = true;
   state.weatherLoadFailed = false;
-  elements.weatherStatus.textContent = "Updating outdoor...";
+  elements.weatherStatus.textContent = "Updating…";
   elements.recommendation.setAttribute("aria-busy", "true");
   elements.dashboardPanel.setAttribute("aria-busy", "true");
   elements.refreshWeather.disabled = true;
-  elements.retryWeather.disabled = true;
   render();
 
   try {
@@ -2338,7 +2421,7 @@ async function fetchWeather() {
     state.weatherLoadFailed = false;
     if (typeof data.timezone === "string" && data.timezone) state.timezone = data.timezone;
 
-    elements.weatherStatus.textContent = `Last checked ${formatShortTime(state.lastCheckedAt)}`;
+    elements.weatherStatus.textContent = `Checked ${formatShortTime(state.lastCheckedAt)}`;
   } catch {
     if (requestId !== activeWeatherRequestId) return;
     state.lastCheckedAt = new Date();
@@ -2350,7 +2433,6 @@ async function fetchWeather() {
     elements.recommendation.removeAttribute("aria-busy");
     elements.dashboardPanel.removeAttribute("aria-busy");
     elements.refreshWeather.disabled = false;
-    elements.retryWeather.disabled = false;
     render();
   }
 }
@@ -2360,13 +2442,15 @@ function bindTypedValue(input, stateKey, min, max, save) {
   const applyValue = () => {
     const value = input.valueAsNumber;
     if (!Number.isFinite(value) || value < min || value > max) return false;
-    state[stateKey] = value;
+    state[stateKey] = ["indoorTemp", "indoorRh", "minTemp", "targetRh"].includes(stateKey)
+      ? rulerValueFromDrag(value, 0, min, max, Number(input.step), 1) : value;
+    input.value = stateKey === "indoorTemp" ? state[stateKey].toFixed(1) : state[stateKey];
     save();
     render();
     return true;
   };
   input.addEventListener("change", () => {
-    if (!applyValue()) render();
+    if (!applyValue()) { input.value = stateKey === "indoorTemp" ? state[stateKey].toFixed(1) : state[stateKey]; render(); }
   });
 }
 
@@ -2375,7 +2459,7 @@ function bindSteppers() {
     indoorTemp: { min: 10, max: 32, step: 0.1, save: saveIndoorReadings },
     indoorRh: { min: 20, max: 90, step: 1, save: saveIndoorReadings },
     targetRh: { min: 40, max: 65, step: 1, save: savePlanSettings },
-    minTemp: { min: 16, max: 26, step: 0.5, save: savePlanSettings },
+    minTemp: { min: 16, max: 26, step: 1, save: savePlanSettings },
   };
 
   document.querySelectorAll(".step-button").forEach((button) => {
@@ -2421,6 +2505,54 @@ function bindSteppers() {
 }
 
 function bindEvents() {
+  let lastChartWidth = 0;
+  const chartResizeObserver = new ResizeObserver(entries => {
+    const width = entries[0].contentRect.width;
+    if (Math.abs(width - lastChartWidth) < .5) return;
+    lastChartWidth = width;
+    renderAhChart();
+  });
+  chartResizeObserver.observe(document.querySelector('#ahChart'));
+  const indoorDialog = document.querySelector('#indoorDialog');
+  const editIndoor = document.querySelector('#editIndoorButton');
+  dialogScrollLock = createDialogScrollLock();
+  [indoorDialog, elements.planDialog, elements.locationDialog].forEach(dialog => {
+    dialog.addEventListener('close', dialogScrollLock.release);
+    enableSheetDrag(dialog);
+    let startedOutside = false;
+    const isOutside = event => {
+      const bounds = dialog.getBoundingClientRect();
+      return event.target === dialog && (
+        event.clientX < bounds.left || event.clientX > bounds.right ||
+        event.clientY < bounds.top || event.clientY > bounds.bottom
+      );
+    };
+    dialog.addEventListener('pointerdown', event => {
+      startedOutside = isOutside(event);
+    });
+    dialog.addEventListener('pointercancel', () => { startedOutside = false; });
+    dialog.addEventListener('click', event => {
+      if (startedOutside && isOutside(event)) dialog.close();
+      startedOutside = false;
+    });
+    dialog.addEventListener('close', () => { startedOutside = false; });
+  });
+  editIndoor.addEventListener('click', () => {
+    editIndoor.setAttribute('aria-expanded', 'true');
+    dialogScrollLock.open(indoorDialog);
+    document.querySelector('#indoor-heading').focus({ preventScroll: true });
+  });
+  document.querySelector('#indoorDoneButton').addEventListener('click', () => indoorDialog.close());
+  indoorDialog.addEventListener('close', () => {
+    if (!elements.voiceDialog.hidden) closeVoiceDialog();
+    editIndoor.setAttribute('aria-expanded', 'false');
+    editIndoor.focus({ preventScroll: true });
+  });
+  document.querySelectorAll('[data-chart-hours]').forEach(button => button.addEventListener('click', () => {
+    state.chartHours = Number(button.dataset.chartHours);
+    state.chartSelection = Math.min(state.chartSelection, state.chartHours);
+    renderAhChart();
+  }));
   elements.indoorTemp.addEventListener("input", (event) => {
     state.indoorTemp = Number(event.target.value);
     saveIndoorReadings();
@@ -2434,6 +2566,7 @@ function bindEvents() {
   bindTypedValue(elements.indoorTempInput, "indoorTemp", 10, 32, saveIndoorReadings);
   bindTypedValue(elements.indoorRhInput, "indoorRh", 20, 90, saveIndoorReadings);
   bindSteppers();
+  bindReadingRulers();
   bindTypedValue(elements.targetRhInput, "targetRh", 40, 65, savePlanSettings);
   bindTypedValue(elements.minTempInput, "minTemp", 16, 26, savePlanSettings);
 
@@ -2465,13 +2598,29 @@ function bindEvents() {
   bindTypedValue(elements.customAirflow, "customAirflow", 10, 500, savePlanSettings);
 
   elements.refreshWeather.addEventListener("click", fetchWeather);
-  elements.retryWeather.addEventListener("click", fetchWeather);
+  document.querySelector("#pageRefreshButton").addEventListener("click", () => window.location.reload());
   elements.locationButton.addEventListener("click", openLocationDialog);
-  elements.locationDialogClose.addEventListener("click", closeLocationDialog);
+  elements.locationDialog.addEventListener("close", () => {
+    cancelLocationWork();
+    elements.locationButton.focus({ preventScroll: true });
+  });
   elements.locationUpdateButton.addEventListener("click", useCurrentLocation);
   elements.locationSearchForm.addEventListener("submit", handleLocationSearch);
+  elements.locationSearchInput.addEventListener("input", handleLocationInput);
+  elements.locationClearButton.addEventListener("click", () => {
+    elements.locationSearchInput.value = "";
+    handleLocationInput();
+    elements.locationSearchInput.focus();
+  });
+  document.querySelectorAll("[data-close-dialog]").forEach(button => {
+    button.addEventListener("click", () => {
+      const dialog = button.closest("dialog");
+      if (dialog === elements.locationDialog) closeLocationDialog();
+      else dialog.close();
+    });
+  });
   elements.planSummaryButton.addEventListener("click", openPlanDialog);
-  elements.planDialogCloseButton.addEventListener("click", closePlanDialog);
+  elements.planDoneButton.addEventListener("click", closePlanDialog);
   elements.planDialog.addEventListener("close", () => {
     elements.planSummaryButton.focus({ preventScroll: true });
   });
@@ -2481,10 +2630,7 @@ function bindEvents() {
     elements.voiceListenButton.addEventListener("click", toggleVoiceListening);
     elements.voiceDialogCloseButton.addEventListener("click", closeVoiceDialog);
     elements.voiceApplyButton.addEventListener("click", applyVoiceChanges);
-    elements.voiceDialog.addEventListener("cancel", (event) => {
-      event.preventDefault();
-      closeVoiceDialog();
-    });
+
   }
 }
 
@@ -2496,6 +2642,7 @@ loadIndoorReadings();
 loadPlanSettings();
 initializeVoiceDebugPanel();
 const hasSavedLocation = loadLocation();
+loadLocationHistory(hasSavedLocation);
 updateLocationUi();
 bindEvents();
 render();
@@ -2531,101 +2678,151 @@ window.addEventListener("pagehide", () => {
   releaseRetainedVoiceMeter("page left");
 });
 
+// Both views derive their scales from the same 48-hour forecast.
+function buildAhOutlook(timeline, hours) {
+  const start = timeline[0].time.getTime();
+  const fullEnd = Math.min(start + 48 * 3600000, timeline.at(-1).time.getTime());
+  const end = Math.min(start + hours * 3600000, fullEnd);
+  const sample = weather => ({ time: weather.time.getTime(), value: absoluteHumidity(weather.temp, weather.rh), ach: effectiveAirExchange(weather, state.indoorTemp).airChangesPerHour });
+  const full = timeline.filter(p => p.time.getTime() < fullEnd).map(sample);
+  full.push(sample(weatherAtTime(timeline, new Date(fullEnd))));
+  const points = full.filter(p => p.time < end);
+  points.push(sample(weatherAtTime(timeline, new Date(end))));
+  const indoor = absoluteHumidity(state.indoorTemp, state.indoorRh);
+  const low = Math.max(0, Math.floor(Math.min(indoor, ...full.map(p => p.value)) - 1));
+  const high = Math.ceil(Math.max(indoor, ...full.map(p => p.value)) + 1);
+  const achHigh = Math.max(3, Math.ceil(Math.max(...full.map(p => p.ach)) * 1.1));
+  return { start, end, points, indoor, low, high, achHigh };
+}
+
 function renderAhChart() {
   const chart = document.querySelector('#ahChart');
   const reading = document.querySelector('#ahChartReading');
   if (!chart || !reading) return;
+  // SVG text scales with the viewBox; cancel that scale to retain CSS-pixel type sizes.
+  const chartWidth = chart.getBoundingClientRect().width;
+  const textScale = chartWidth > 0 ? 480 / chartWidth : 1;
+  chart.style.setProperty('--chart-text-scale', String(textScale));
+  const left = 0, right = 480, top = 8, bottom = 158;
+  // Share geometry across loading, failure and live data, including label rows.
+  const hourY = bottom + 16 * textScale;
+  const dayY = hourY + 18 * textScale;
+  const labelBottom = dayY + 7 * textScale;
+  chart.setAttribute('viewBox', '0 0 480 ' + labelBottom);
   const timeline = buildWeatherTimeline();
-  if (timeline.length < 2 || state.weatherRequestPending || state.weatherLoadFailed) {
-    chart.innerHTML = '';
+  const unavailable = timeline.length < 2 || state.weatherRequestPending || state.weatherLoadFailed;
+  document.querySelectorAll('[data-chart-hours]').forEach(button => {
+    button.setAttribute('aria-pressed', String(Number(button.dataset.chartHours) === state.chartHours));
+    button.disabled = unavailable;
+  });
+  chart.dataset.weatherState = unavailable ? (state.weatherLoadFailed ? 'failed' : 'loading') : 'ready';
+  if (unavailable) {
+    const indoor = absoluteHumidity(state.indoorTemp, state.indoorRh);
+    // These shapes are placeholders, not a scale or estimates of outdoor weather.
+    const heights = [22, 25, 25, 28, 27, 26, 25, 22, 21, 20, 21, 22];
+    const bars = heights.map((height, i) => `<rect class="ah-skeleton-bar" x="${i * 40 + 1.5}" y="${bottom - height}" width="37" height="${height}" rx="2"/>`).join('');
+    const grid = [150, 270, 390].map(x => `<path class="ah-day-line" d="M${x} ${top}V${labelBottom}"/>`).join('');
+    const placeholders = [4, 154, 274, 394].map((x, i) => `<rect class="ah-skeleton-label" x="${x}" y="${hourY - 7 * textScale}" width="${(i === 0 ? 30 : 19) * textScale}" height="${9 * textScale}" rx="${4.5 * textScale}"/>` + (i === 0 || i === 3 ? `<rect class="ah-skeleton-label" x="${x}" y="${dayY - 7 * textScale}" width="${28 * textScale}" height="${9 * textScale}" rx="${4.5 * textScale}"/>` : '')).join('');
+    const shimmer = state.weatherLoadFailed ? '' : `<defs><linearGradient id="ahSkeletonShimmer"><stop stop-color="white" stop-opacity="0"/><stop offset=".5" stop-color="white" stop-opacity=".055"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient><clipPath id="ahSkeletonClip"><rect width="480" height="${labelBottom}" rx="5"/></clipPath></defs><g clip-path="url(#ahSkeletonClip)" aria-hidden="true"><g transform="skewX(-18)"><rect class="ah-skeleton-shimmer" x="-280" width="280" height="${labelBottom}" fill="url(#ahSkeletonShimmer)"/></g></g>`;
+    chart.innerHTML = `<g class="ah-skeleton" aria-hidden="true">${grid}<path class="ah-grid" d="M0 ${bottom}H480 M0 124H480"/>${bars}${placeholders}<path class="ah-indoor-line" d="M0 76H480"/><text class="ah-indoor-label" x="4" y="70">Indoor ${indoor.toFixed(1)} g/m³</text></g>${shimmer}`;
+    chart.setAttribute('role', 'img');
+    chart.setAttribute('tabindex', '-1');
+    chart.setAttribute('aria-label', `${state.weatherLoadFailed ? 'Outdoor forecast unavailable' : 'Loading outdoor forecast'}. Indoor ${indoor.toFixed(1)} g/m³. Chart shapes are placeholders.`);
     chart.setAttribute('aria-disabled', 'true');
-    chart.removeAttribute('aria-valuetext');
+    ['aria-valuetext', 'aria-valuemin', 'aria-valuemax', 'aria-valuenow'].forEach(name => chart.removeAttribute(name));
     chart.onpointerdown = chart.onpointermove = chart.onkeydown = null;
-    reading.textContent = state.weatherRequestPending ? 'Loading outdoor forecast…' : 'Outdoor forecast unavailable';
+    reading.textContent = state.weatherLoadFailed ? 'Outdoor forecast unavailable' : 'Loading outdoor forecast…';
     return;
   }
   chart.removeAttribute('aria-disabled');
-  const start = timeline[0].time.getTime();
-  const end = Math.min(start + 48 * 3600000, timeline.at(-1).time.getTime());
-  const points = timeline.filter(p => p.time.getTime() < end).map(p => ({
-    time: p.time.getTime(), value: absoluteHumidity(p.temp, p.rh),
-  }));
-  const last = weatherAtTime(timeline, new Date(end));
-  points.push({ time: end, value: absoluteHumidity(last.temp, last.rh) });
-  const indoor = absoluteHumidity(state.indoorTemp, state.indoorRh);
-  const low = Math.max(0, Math.floor(Math.min(indoor, ...points.map(p => p.value)) - 1));
-  const high = Math.ceil(Math.max(indoor, ...points.map(p => p.value)) + 1);
-  const x = time => 8 + (time - start) / (end - start) * 426;
-  const y = value => 130 - (value - low) / (high - low) * 116;
+  chart.setAttribute('role', 'slider');
+  chart.setAttribute('tabindex', '0');
+  chart.setAttribute('aria-valuemin', '0');
+  chart.setAttribute('aria-label', 'Outdoor absolute humidity and estimated airflow with indoor reference; use arrow keys to inspect hourly values');
+  const { start, end, points, indoor, low, high, achHigh } = buildAhOutlook(timeline, state.chartHours);
+  const x = time => left + (time - start) / (end - start) * (right - left);
+  const y = value => bottom - (value - low) / (high - low) * (bottom - top);
+  const airflowBandHeight = (bottom - top) / 3;
+  const ay = ach => bottom - ach / achHigh * airflowBandHeight;
   const margin = moistureMargin(state.indoorTemp, state.indoorRh, state.outdoorTemp, state.outdoorRh);
-  // Keep the full uncertainty range amber, with soft blends outside its boundaries.
-  const gradient = `<linearGradient id="ahSemantic" gradientUnits="userSpaceOnUse" x1="0" y1="${y(indoor + margin * 1.75)}" x2="0" y2="${y(indoor - margin * 1.75)}"><stop offset="0" stop-color="var(--closed)"/><stop offset="0.2142857143" stop-color="#d99800"/><stop offset="0.7857142857" stop-color="#d99800"/><stop offset="1" stop-color="var(--windows)"/></linearGradient>`;
-  const path = points.map((p, i) => `${i ? 'L' : 'M'}${x(p.time).toFixed(2)},${y(p.value).toFixed(2)}`).join(' ');
-  const ticks = [low, (low + high) / 2, high].map(value => `<path d="M8 ${y(value)}H434" class="ah-grid"/><text x="442" y="${y(value) + 4}">${value.toFixed(1)}</text>`).join('');
+  const gradient = '<linearGradient id="ahSemantic" gradientUnits="userSpaceOnUse" x1="0" y1="'+y(indoor + margin * 1.75)+'" x2="0" y2="'+y(indoor - margin * 1.75)+'"><stop offset="0" stop-color="var(--chart-wet)"/><stop offset="0.2142857143" stop-color="var(--chart-near)"/><stop offset="0.7857142857" stop-color="var(--chart-near)"/><stop offset="1" stop-color="white"/></linearGradient>';
+  const excessClip = '<clipPath id="ahExcessClip"><rect x="'+left+'" y="'+top+'" width="'+(right-left)+'" height="'+Math.max(0,y(indoor)-top)+'"/></clipPath>';
+  const path = points.map((p,i) => (i ? 'L' : 'M')+x(p.time).toFixed(2)+','+y(p.value).toFixed(2)).join(' ');
+  const ticks = '<path d="M'+left+' '+bottom+'H'+right+'" class="ah-grid"/>';
   const dayFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: state.timezone, weekday: 'short' });
   const clockFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: state.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-  // Forecast timestamps retain local midnight/noon positions across timezone and DST changes.
+  const step = state.chartHours === 24 ? 6 : 12;
   const clockTicks = timeline.filter(p => p.time.getTime() > start && p.time.getTime() <= end)
     .map(p => ({ time: p.time.getTime(), clock: clockFormatter.format(p.time) }))
-    .filter(p => p.clock === '00:00' || p.clock === '12:00');
+    .filter(p => p.clock.endsWith(':00') && Number(p.clock.slice(0,2)) % step === 0);
   const firstMidnight = clockTicks.find(p => p.clock === '00:00');
-  let days = !firstMidnight || x(firstMidnight.time) > 64
-    ? `<text x="8" y="181">${dayFormatter.format(start)}</text>` : '';
-  let hours = '<text x="8" y="155">Now</text>';
+  let days = !firstMidnight || x(firstMidnight.time) > left+50 ? '<text class="chart-time-label" x="'+left+'" y="'+dayY+'">'+dayFormatter.format(start)+'</text>' : '';
+  let hours = '<text class="chart-time-label" x="'+left+'" y="'+hourY+'">Now</text>';
   for (const tick of clockTicks) {
     const px = x(tick.time);
-    const labelX = px + 6;
-    days += `<path d="M${px} 14V188" class="ah-day-line"/>`;
-    // Leave space around Now rather than crowding it with an imminent tick.
-    if (px >= 64 && labelX <= 410) hours += `<text x="${labelX}" y="155" text-anchor="start">${tick.clock.slice(0, 2)}</text>`;
-    if (tick.clock === '00:00' && labelX <= 400) {
-      days += `<text x="${labelX}" y="181" text-anchor="start">${dayFormatter.format(tick.time)}</text>`;
-    }
+    const labelX = Math.min(px+6, right-34);
+    days += '<path d="M'+px+' '+top+'V'+labelBottom+'" class="ah-day-line"/>';
+    if (px >= left+50) hours += '<text class="chart-time-label" x="'+labelX+'" y="'+hourY+'">'+tick.clock.slice(0,2)+'</text>';
+    if (tick.clock === '00:00') days += '<text class="chart-time-label" x="'+labelX+'" y="'+dayY+'">'+dayFormatter.format(tick.time)+'</text>';
   }
-  chart.innerHTML = `<defs>${gradient}<linearGradient id="ahFill" x1="0" y1="0" x2="0" y2="1"><stop stop-color="white" stop-opacity=".25"/><stop offset="1" stop-color="white" stop-opacity=".02"/></linearGradient><mask id="ahFade" maskUnits="userSpaceOnUse" x="0" y="0" width="480" height="170"><rect width="480" height="170" fill="url(#ahFill)"/></mask></defs>${ticks}${days}<path d="${path} L${x(end)} 130 L8 130Z" fill="url(#ahSemantic)" mask="url(#ahFade)"/><path d="${path}" class="ah-curve"/>${hours}<path d="M8 ${y(indoor)}H434" class="ah-indoor-line"/><text class="ah-indoor-label" x="12" y="${y(indoor) - 6}">Indoor ${indoor.toFixed(1)}</text><path id="ahCursor" class="ah-cursor"/><circle id="ahDot" r="4" class="ah-dot"/>`;
-  positionAhIndoorLabel(chart, points.map(p => ({ x: x(p.time), y: y(p.value) })), y(indoor));
+  let bars = '';
+  const barHours = 2;
+  for (let t = start; t < end; t += barHours*3600000) {
+    const until = Math.min(end, t+barHours*3600000);
+    // Midpoint samples represent each bar's interval; the cursor reads the exact selected time.
+    const ach = effectiveAirExchange(weatherAtTime(timeline, new Date((t+until)/2)), state.indoorTemp).airChangesPerHour;
+    const bx = x(t)+1.5, width = Math.max(1,x(until)-x(t)-3);
+    bars += '<rect class="airflow-bar" x="'+bx+'" y="'+ay(ach)+'" width="'+width+'" height="'+(bottom-ay(ach))+'" rx="2"><title>Estimated airflow '+ach.toFixed(1)+' ACH</title></rect>';
+    if (state.chartHours === 24 && width > 23 && bottom-ay(ach) > 16 * textScale) bars += '<text class="airflow-label" text-anchor="middle" x="'+(bx+width/2)+'" y="'+(ay(ach)+13*textScale)+'">'+ach.toFixed(1)+'</text>';
+  }
+  chart.innerHTML = '<defs>'+gradient+excessClip+'<clipPath id="outlookPlot"><rect x="'+left+'" y="'+top+'" width="'+(right-left)+'" height="'+(bottom-top)+'"/></clipPath></defs>'+ticks+days+'<g clip-path="url(#outlookPlot)"><path d="'+path+' L'+x(end)+' '+y(indoor)+' L'+left+' '+y(indoor)+'Z" class="ah-excess-fill" clip-path="url(#ahExcessClip)" fill="url(#ahSemantic)" opacity=".09"/>'+bars+'<path d="'+path+'" class="ah-curve"/></g>'+hours+'<path d="M'+left+' '+y(indoor)+'H'+right+'" class="ah-indoor-line"/><text class="ah-indoor-label" x="'+(left+4)+'" y="'+(y(indoor)-6)+'">Indoor '+indoor.toFixed(1)+' g/m³</text><path id="ahCursor" class="ah-cursor"/><circle id="ahDot" r="'+(6 * textScale)+'" class="ah-dot"/>';
+  positionAhIndoorLabel(chart, points.map(p => ({ x:x(p.time), y:y(p.value) })), y(indoor), top, bottom);
   let selected = 0;
-  const maxHours = (end - start) / 3600000;
+  const maxHours = (end-start)/3600000;
   chart.setAttribute('aria-valuemax', maxHours.toFixed(2));
   function select(hours) {
-    selected = clamp(hours, 0, maxHours);
-    const time = start + selected * 3600000;
-    const next = points.findIndex(p => p.time >= time);
-    const b = points[Math.max(0, next)];
-    const a = points[Math.max(0, next - 1)];
-    const fraction = b.time === a.time ? 0 : (time - a.time) / (b.time - a.time);
-    const value = a.value + (b.value - a.value) * fraction;
-    const day = new Intl.DateTimeFormat('en-GB', { timeZone: state.timezone, weekday: 'short' }).format(time);
-    const label = `${selected === 0 ? 'Now' : day + ' ' + formatShortTime(new Date(time))} · ${value.toFixed(1)} g/m³`;
+    selected = clamp(hours,0,maxHours);
+    state.chartSelection = selected;
+    const time = start+selected*3600000;
+    const weather = weatherAtTime(timeline,new Date(time));
+    const value = absoluteHumidity(weather.temp,weather.rh);
+    const ach = effectiveAirExchange(weather,state.indoorTemp).airChangesPerHour;
+    const label = (selected === 0 ? 'Now' : dayFormatter.format(time)+' '+formatShortTime(new Date(time)))+' · '+value.toFixed(1)+' g/m³ · '+ach.toFixed(1)+' ACH';
     reading.textContent = label;
-    chart.setAttribute('aria-valuenow', selected.toFixed(2));
-    chart.setAttribute('aria-valuetext', label);
-    chart.querySelector('#ahCursor').setAttribute('d', `M${x(time)} 14V130`);
-    chart.querySelector('#ahDot').setAttribute('cx', x(time));
-    chart.querySelector('#ahDot').setAttribute('cy', y(value));
+    chart.setAttribute('aria-valuenow',selected.toFixed(2));
+    chart.setAttribute('aria-valuetext',label);
+    chart.querySelector('#ahCursor').setAttribute('d','M'+x(time)+' '+top+'V'+bottom);
+    chart.querySelector('#ahDot').setAttribute('cx',x(time));
+    // Follow the displayed curve exactly between forecast samples.
+    const next = Math.max(1,points.findIndex(p=>p.time>=time));
+    const b=points[next], a=points[next-1];
+    const fraction=b.time===a.time ? 0 : (time-a.time)/(b.time-a.time);
+    chart.querySelector('#ahDot').setAttribute('cy',y(a.value+(b.value-a.value)*fraction));
   }
   const inspect = event => {
-    const bounds = chart.getBoundingClientRect();
-    select(((event.clientX - bounds.left) / bounds.width * 480 - 8) / 426 * maxHours);
+    const bounds=chart.getBoundingClientRect();
+    select(((event.clientX-bounds.left)/bounds.width*480-left)/(right-left)*maxHours);
   };
   chart.onpointerdown = event => { chart.setPointerCapture(event.pointerId); inspect(event); };
-  chart.onpointermove = event => { if (chart.hasPointerCapture(event.pointerId) || event.pointerType === 'mouse') inspect(event); };
+  chart.onpointermove = event => { if(chart.hasPointerCapture(event.pointerId)||event.pointerType==='mouse') inspect(event); };
   chart.onkeydown = event => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
     event.preventDefault();
-    select(event.key === 'Home' ? 0 : event.key === 'End' ? maxHours : selected + (event.key === 'ArrowRight' ? 1 : -1));
+    select(event.key==='Home' ? 0 : event.key==='End' ? maxHours : selected+(event.key==='ArrowRight'?1:-1));
   };
-  select(0);
+  select(state.chartSelection);
 }
 
-function positionAhIndoorLabel(chart, curve, lineY) {
+function positionAhIndoorLabel(chart, curve, lineY, plotTop = 14, plotBottom = 130) {
   const label = chart.querySelector('.ah-indoor-label');
   const box = label.getBBox();
   const baselineOffset = Number(label.getAttribute('y')) - box.y;
-  const padding = 4; // Includes the white halo and a little space around the curve.
-  const candidates = [lineY - 6 - box.height, lineY + 6].map(top => {
-    top = clamp(top, 14 + padding, 130 - padding - box.height);
-    const bounds = { left: box.x - padding, right: box.x + box.width + padding,
+  const padding = 4; // Keep a little clear space around the text and curve.
+  const lastX = Math.max(box.x, 480 - padding - box.width);
+  const positions = [box.x, lastX];
+  const candidates = [lineY - 6 - box.height, lineY + 6].flatMap(top => positions.map(left => {
+    top = clamp(top, plotTop + padding, plotBottom - padding - box.height);
+    const bounds = { left: left - padding, right: left + box.width + padding,
       top: top - padding, bottom: top + box.height + padding };
     let overlap = 0;
     // Measure curve length inside the padded label rectangle, including segments
@@ -2650,8 +2847,236 @@ function positionAhIndoorLabel(chart, curve, lineY) {
       }
       overlap += Math.max(0, leave - enter) * Math.hypot(b.x - a.x, b.y - a.y);
     }
-    return { top, overlap };
-  });
-  const best = candidates[1].overlap < candidates[0].overlap ? candidates[1] : candidates[0];
+    return { left, top, overlap };
+  }));
+  // Keep the label left when clear; otherwise try the chart's right edge.
+  // Fall below the reference only when both upper corners are obstructed.
+  const best = candidates.find(candidate => candidate.overlap === 0) ||
+    candidates.reduce((best, candidate) => candidate.overlap < best.overlap ? candidate : best);
+  label.setAttribute('x', best.left);
   label.setAttribute('y', best.top + baselineOffset);
+}
+
+function enableSheetDrag(dialog) {
+  const header = dialog.querySelector('.section-heading, .plan-dialog-heading, .location-dialog-heading');
+  const handle = dialog.querySelector('.sheet-handle');
+  let gesture = null;
+  const reset = () => {
+    gesture = null;
+    dialog.style.removeProperty('transform');
+    dialog.classList.remove('sheet-dragging');
+  };
+  [handle, header].filter(Boolean).forEach(surface => {
+    surface.classList.add('sheet-drag-surface');
+    surface.addEventListener('pointerdown', event => {
+      if (!window.matchMedia('(max-width: 39.999rem)').matches || !event.isPrimary || event.button !== 0 ||
+          event.target.closest('button, input, select, a')) return;
+      gesture = { id: event.pointerId, y: event.clientY, distance: 0 };
+      surface.setPointerCapture(event.pointerId);
+    });
+    surface.addEventListener('pointermove', event => {
+      if (!gesture || gesture.id !== event.pointerId) return;
+      gesture.distance = Math.max(0, event.clientY - gesture.y);
+      dialog.classList.add('sheet-dragging');
+      dialog.style.transform = 'translateY(' + gesture.distance + 'px)';
+    });
+    surface.addEventListener('pointerup', event => {
+      if (!gesture || gesture.id !== event.pointerId) return;
+      const dismiss = Math.max(0, event.clientY - gesture.y) >= 120;
+      reset();
+      if (surface.hasPointerCapture(event.pointerId)) surface.releasePointerCapture(event.pointerId);
+      if (dismiss) dialog.close();
+    });
+    surface.addEventListener('pointercancel', reset);
+    surface.addEventListener('lostpointercapture', reset);
+  });
+  dialog.addEventListener('close', reset);
+}
+
+// Ruler positions are relative to the fixed centre marker, in CSS pixels.
+function rulerValueFromDrag(start, distance, min, max, step, spacing) {
+  return Number(Math.min(max, Math.max(min, Math.round((start - distance / spacing * step) / step) * step)).toFixed(step < 1 ? 1 : 0));
+}
+
+function renderReadingRulers() {
+  document.querySelectorAll('[data-ruler]').forEach(ruler => {
+    const input = ruler.querySelector('input');
+    const value = state[ruler.dataset.ruler];
+    const step = Number(input.step), spacing = Number(ruler.dataset.tickSpacing);
+    const majorEvery = Math.round(Number(ruler.dataset.majorInterval) / step);
+    const centre = value / step;
+    const radius = Math.ceil((ruler.clientWidth || 440) / (2 * spacing)) + 1;
+    let ticks = '';
+    for (let tick = Math.floor(centre) - radius; tick <= Math.ceil(centre) + radius; tick++) {
+      const number = Number((tick * step).toFixed(1));
+      if (number < Number(input.min) || number > Number(input.max)) continue;
+      const major = tick % majorEvery === 0;
+      ticks += '<span class="ruler-tick' + (major ? ' ruler-tick-major' : '') + '" style="left:calc(50% + ' + ((tick - centre) * spacing).toFixed(2) + 'px)">' + (major && Math.abs((tick - centre) * spacing) > 16 ? '<span>' + number + '</span>' : '') + '</span>';
+    }
+    ruler.querySelector('.ruler-ticks').innerHTML = ticks;
+    input.setAttribute('aria-valuetext', value + ' ' + ruler.dataset.unit);
+  });
+  const lastSet = document.querySelector('#indoorLastSet');
+  lastSet.hidden = !state.indoorLastSet;
+  if (state.indoorLastSet) {
+    const date = new Date(state.indoorLastSet);
+    const today = date.toDateString() === new Date().toDateString();
+    lastSet.textContent = 'Last set ' + date.toLocaleString(undefined, { ...(today ? {} : {day:'numeric',month:'short'}), hour:'2-digit',minute:'2-digit',hour12:false });
+  }
+}
+
+function bindReadingRulers() {
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  document.querySelectorAll('[data-ruler]').forEach(ruler => {
+    const dialog = ruler.closest('dialog');
+    const input = ruler.querySelector('input');
+    const step = Number(input.step), spacing = Number(ruler.dataset.tickSpacing);
+    let gesture = null, frame = null;
+    const stopCoast = () => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = null;
+    };
+    const reset = () => {
+      stopCoast();
+      const id = gesture?.id;
+      gesture = null;
+      ruler.classList.remove('is-dragging');
+      if (id !== undefined && ruler.hasPointerCapture(id)) ruler.releasePointerCapture(id);
+    };
+    const applyDistance = (start, distance) => {
+      const next = rulerValueFromDrag(start, distance, Number(input.min), Number(input.max), step, spacing);
+      if (Number(input.value) !== next) {
+        input.value = next;
+        input.dispatchEvent(new Event('input', {bubbles:true}));
+      }
+      return next;
+    };
+    const coast = velocity => {
+      if (reducedMotion.matches || Math.abs(velocity) < .25) return;
+      // At most 120px of extra travel over 450ms, with no bounce or overshoot.
+      const distance = Math.sign(velocity) * Math.min(120, Math.abs(velocity) * 180);
+      const value = Number(input.value), started = performance.now();
+      const tick = now => {
+        frame = null;
+        const progress = Math.min(1, Math.max(0, (now - started) / 450));
+        const next = applyDistance(value, distance * (1 - Math.pow(1 - progress, 3)));
+        const atLimit = distance > 0 ? next <= Number(input.min) : next >= Number(input.max);
+        if (progress < 1 && !atLimit) frame = requestAnimationFrame(tick);
+      };
+      frame = requestAnimationFrame(tick);
+    };
+    ruler.addEventListener('pointerdown', event => {
+      if (!event.isPrimary || event.button !== 0) return;
+      reset();
+      input.focus({preventScroll:true});
+      gesture = {id:event.pointerId,x:event.clientX,y:event.clientY,value:Number(input.value),dragging:false,samples:[{x:event.clientX,time:event.timeStamp}]};
+      ruler.setPointerCapture(event.pointerId);
+    });
+    ruler.addEventListener('pointermove', event => {
+      if (!gesture || gesture.id !== event.pointerId) return;
+      const dx = event.clientX - gesture.x, dy = event.clientY - gesture.y;
+      if (!gesture.dragging && Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 4) { reset(); return; }
+      if (!gesture.dragging && Math.abs(dx) < 4) return;
+      gesture.dragging = true;
+      ruler.classList.add('is-dragging');
+      gesture.samples.push({x:event.clientX,time:event.timeStamp});
+      while (gesture.samples.length > 2 && gesture.samples[1].time < event.timeStamp - 80) gesture.samples.shift();
+      applyDistance(gesture.value, dx);
+    });
+    ruler.addEventListener('pointerup', event => {
+      if (!gesture || gesture.id !== event.pointerId) return;
+      const first = gesture.samples[0], last = gesture.samples.at(-1);
+      const elapsed = event.timeStamp - first.time;
+      const velocity = gesture.dragging && event.timeStamp - last.time < 80 && elapsed > 0 && elapsed <= 160
+        ? (last.x - first.x) / elapsed : 0;
+      reset();
+      coast(velocity);
+    });
+    ruler.addEventListener('pointercancel', reset);
+    ruler.addEventListener('lostpointercapture', () => { if (gesture) reset(); });
+    dialog.addEventListener('close', reset);
+    dialog.addEventListener('pointerdown', stopCoast);
+    dialog.addEventListener('keydown', stopCoast);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) reset(); });
+    reducedMotion.addEventListener('change', () => { if (reducedMotion.matches) reset(); });
+    new ResizeObserver(renderReadingRulers).observe(ruler);
+  });
+  [elements.indoorTempInput,elements.indoorRhInput,elements.minTempInput,elements.targetRhInput].forEach(input => {
+    input.addEventListener('focus', () => input.select());
+    input.addEventListener('keydown', event => {
+      if (event.key === 'Enter') { event.preventDefault(); input.blur(); }
+    });
+  });
+}
+
+
+// Freeze only the page content: dialogs stay outside the fixed container.
+function createDialogScrollLock() {
+  let saved = null, viewportFrame = null;
+  const root = document.documentElement, body = document.body;
+  const page = document.querySelector('.app-shell');
+  const remember = (element, names) => names.map(name => [name, element.style.getPropertyValue(name), element.style.getPropertyPriority(name)]);
+  const restore = (element, properties) => properties.forEach(([name,value,priority]) => {
+    if (value) element.style.setProperty(name,value,priority);
+    else element.style.removeProperty(name);
+  });
+  const syncViewport = () => {
+    if (!saved) return;
+    const viewport = window.visualViewport;
+    const height = viewport?.height || window.innerHeight;
+    const top = viewport?.offsetTop || 0;
+    if (!(height > 0)) return;
+    root.style.setProperty('--sheet-visible-height', height + 'px');
+    root.style.setProperty('--sheet-visible-bottom', (top + height) + 'px');
+  };
+  const release = () => {
+    if (!saved || document.querySelector('dialog[open]')) return;
+    window.visualViewport?.removeEventListener('resize', syncViewport);
+    window.visualViewport?.removeEventListener('scroll', syncViewport);
+    window.removeEventListener('resize', syncViewport);
+    if (viewportFrame !== null) window.cancelAnimationFrame(viewportFrame);
+    viewportFrame = null;
+    const previous = saved;
+    saved = null;
+    restore(page, previous.page);
+    restore(body, previous.body);
+    restore(root, previous.root);
+    root.style.setProperty('scroll-behavior','auto');
+    window.scrollTo({left:previous.x,top:previous.y,behavior:'instant'});
+    restore(root, previous.behavior);
+  };
+  const open = dialog => {
+    if (dialog.open) return;
+    if (!saved) {
+      const bounds = page.getBoundingClientRect();
+      const height = Math.max(root.scrollHeight, body.scrollHeight);
+      saved = {x:window.scrollX,y:window.scrollY,
+        body:remember(body,['min-height','overflow']),
+        page:remember(page,['position','top','left','width','margin']),
+        root:remember(root,['overflow','overscroll-behavior','--sheet-visible-height','--sheet-visible-bottom']),
+        behavior:remember(root,['scroll-behavior'])};
+      root.style.setProperty('overflow','hidden');
+      root.style.setProperty('overscroll-behavior','none');
+      root.style.setProperty('scroll-behavior','auto');
+      body.style.setProperty('min-height',height+'px');
+      page.style.setProperty('position','fixed');
+      page.style.setProperty('top',bounds.top+'px');
+      page.style.setProperty('left',bounds.left+'px');
+      page.style.setProperty('width',bounds.width+'px');
+      page.style.setProperty('margin','0');
+      body.style.setProperty('overflow','hidden');
+      window.visualViewport?.addEventListener('resize', syncViewport);
+      window.visualViewport?.addEventListener('scroll', syncViewport);
+      window.addEventListener('resize', syncViewport);
+      syncViewport();
+    }
+    try {
+      dialog.showModal();
+      syncViewport();
+      if (viewportFrame !== null) window.cancelAnimationFrame(viewportFrame);
+      viewportFrame = window.requestAnimationFrame(() => { viewportFrame = null; syncViewport(); });
+    }
+    catch (error) { release(); throw error; }
+  };
+  return {open,release};
 }

@@ -70,18 +70,18 @@ test('iOS foreground sessions retain a stationary meter across completion and di
   assert.match(start, /session\.meter = meter/);
   assert.match(finish, /retainMeter && IS_IOS && !document.hidden && retainVoiceMeter\(session\)/);
   assert.match(complete, /finishVoiceListening\(session\)/);
-  assert.match(toggle, /stopVoiceInput\(!elements\.voiceDialog\.open, activeVoiceSession, "manual"\)/);
+  assert.match(toggle, /stopVoiceInput\(elements\.voiceDialog\.hidden, activeVoiceSession, "manual"\)/);
   assert.doesNotMatch(close, /releaseRetainedVoiceMeter/);
   assert.match(app, /releaseRetainedVoiceMeter\("page hidden"\)/);
 });
 
-test('production build identifies the v0.6.0 branch and synchronized cache', () => {
-  assert.match(app, /APP_BUILD_VERSION = "v0\.6\.0"/);
-  assert.match(index, /styles\.css\?v=131/);
-  assert.match(index, /app\.js\?v=131/);
-  assert.match(serviceWorker, /is-it-dryer-out-v131/);
-  assert.match(serviceWorker, /styles\.css\?v=131/);
-  assert.match(serviceWorker, /app\.js\?v=131/);
+test('production build identifies v0.7.0 and its synchronized cache', () => {
+  assert.match(app, /APP_BUILD_VERSION = "v0\.7\.0"/);
+  assert.match(index, /styles\.css\?v=133/);
+  assert.match(index, /app\.js\?v=133/);
+  assert.match(serviceWorker, /is-it-dryer-out-v133/);
+  assert.match(serviceWorker, /styles\.css\?v=133/);
+  assert.match(serviceWorker, /app\.js\?v=133/);
 });
 
 test('live hearing replaces listening in the status box until review', () => {
