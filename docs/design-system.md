@@ -1,8 +1,8 @@
 # Is it dryer out — design system
 
-**Version:** 1.0 local implementation · **Updated:** 27 September 2026 · **Status:** warm-neutral system applied to the local app
+**Version:** 1.0 · **Updated:** 28 September 2026 · **Status:** implemented in the v0.7.0 app source
 
-This is a reusable specification for the app, grounded in the current local working tree. The warm-grey palette and component states are implemented locally. Typography/radius normalisation and new inline numeric validation remain proposals. The working tree contains unreleased changes, so this is not an inventory of the published site.
+This is a reusable specification for the app. The warm-grey palette and component states are implemented in the v0.7.0 source. Typography/radius normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
 
 Open [the visual review board](design-system.html) for colour and state specimens. This document records the rules; the board illustrates them.
 
@@ -288,7 +288,7 @@ Maintain existing main verdicts: TARGET MET, OPEN WINDOWS, KEEP CLOSED, OPEN IF 
 - Add exceptions to the relevant section with a reason, not as an unexplained late stylesheet override.
 - Update the spec and visual specimens together when a rule changes; record screenshots only after the implementation is verified.
 - Keep semantic weather colours, voice lifecycle policies and model calculations out of neutral-theme refactors.
-- No commit, push, release or cache-version bump is part of this local UI implementation.
+- Git and cache-version work is handled during release preparation, separate from design-system iteration.
 
 ### Remaining contracts added in the completeness review
 
@@ -328,6 +328,7 @@ The existence of a rule is not proof of its implementation. Before calling the s
 
 ## Revision log
 
+- 1.0 release preparation, 28 September 2026: aligned this system with the v0.7.0 app source and retained the pre-implementation captures as historical evidence.
 - 1.0 local implementation, 27 September 2026: applied warm neutral roles and states to the app, retained weather and AH semantics, added the angled loading sweeps and related control usability fixes. Updated the board to distinguish current specimens from historical evidence. No release or cache-version change.
 - 0.9 draft, 27 September 2026: separated user-directed design choices from the remaining palette sign-off and clarified that implementation is a later step with recommended default scope. Preview/spec only; app unchanged.
 - 0.8 draft, 27 September 2026: proposed an angled sweep for CHECKING and the chart skeleton in the loading specimen, with static reduced-motion and failure states. Preview/spec only; app unchanged.

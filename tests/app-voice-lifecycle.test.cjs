@@ -75,13 +75,13 @@ test('iOS foreground sessions retain a stationary meter across completion and di
   assert.match(app, /releaseRetainedVoiceMeter\("page hidden"\)/);
 });
 
-test('production build identifies the redesign branch and synchronized cache', () => {
-  assert.match(app, /APP_BUILD_VERSION = "complete-layout-redesign"/);
-  assert.match(index, /styles\.css\?v=132/);
-  assert.match(index, /app\.js\?v=132/);
-  assert.match(serviceWorker, /is-it-dryer-out-v132/);
-  assert.match(serviceWorker, /styles\.css\?v=132/);
-  assert.match(serviceWorker, /app\.js\?v=132/);
+test('production build identifies v0.7.0 and its synchronized cache', () => {
+  assert.match(app, /APP_BUILD_VERSION = "v0\.7\.0"/);
+  assert.match(index, /styles\.css\?v=133/);
+  assert.match(index, /app\.js\?v=133/);
+  assert.match(serviceWorker, /is-it-dryer-out-v133/);
+  assert.match(serviceWorker, /styles\.css\?v=133/);
+  assert.match(serviceWorker, /app\.js\?v=133/);
 });
 
 test('live hearing replaces listening in the status box until review', () => {

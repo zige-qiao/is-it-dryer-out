@@ -49,23 +49,27 @@ Do not document transient experiments, reverted tweaks, or implementation detail
 
 ## Information Hierarchy
 
-Show the recommendation and outdoor chart first, then its ventilation summary, moisture comparison cards, supporting accordions and footer. On wide screens keep the recommendation and chart on the left and moisture comparison/supporting details on the right.
+Show the recommendation and integrated outdoor chart first, then its ventilation summary, moisture comparison cards, supporting accordions and footer. Keep the app in its centred, single-column shell on wide screens.
 
 Indoor editing opens from Edit on the Indoor card. Keep temperature and humidity rulers, typed values, last-set time and voice entry in the same sheet. Values save immediately; Done closes the sheet. Speak opens voice review within that sheet; Back to manual returns to the rulers. Keep one Listening/Hearing status box and reveal the final transcript and Apply only for review. Retain the waveform inside the voice panel.
 
-The whole ventilation summary opens Ventilation settings. Keep paired minimum-temperature and target-humidity controls, stacked room/opening options and immediate persistence without an Apply step.
+The whole ventilation summary opens Ventilation settings. Keep paired minimum-temperature and target-humidity rulers, room-size segments, the two-column opening grid, custom dimensions/airflow panels and immediate persistence without an Apply step.
 
 ## Responsive Controls
 
 - Keep indoor rulers stacked, with visible tick alignment, typed entry and keyboard adjustment. Clamp and snap supported values without floating-point drift.
 - Preserve horizontal ruler gestures without hijacking vertical scrolling. Respect reduced motion and cancel momentum on interruption, close or backgrounding.
-- Keep minimum temperature and target humidity paired, with unified minus/value/plus fields and matching sliders.
+- Keep minimum temperature and target humidity rulers paired, with compact bordered editable values and numbered major ticks. Minimum temperature uses whole degrees.
+- Keep indoor rulers stacked, and give all editable numbers the same clear control border and keyboard focus treatment.
+- Keep room and opening choices as accessible single-selection groups. Use a thin border at rest; use a darker, thicker border and light warm fill for selected Opening tiles. Preserve label wrapping and custom-panel scrolling.
 - Sheets support Done, Escape and mobile drag-to-dismiss. Preserve scroll position, visible focus and opener focus on dismissal; adapt to the visible viewport when the keyboard opens.
+- Keep the Location sheet's visible Close action on mobile, where it has no Done footer.
 
 ## Recommendation Language
 
 Use these main verdicts:
 
+- `TARGET MET` when the current indoor humidity is at or near the target.
 - `OPEN WINDOWS` when ventilation provides a meaningful drying period.
 - `KEEP CLOSED` when outdoor air would worsen indoor moisture or another harmful limit applies.
 - `OPEN IF NEEDED` when there is no clear drying benefit but brief ventilation may still help with fresh air.
@@ -82,7 +86,7 @@ When displaying forecast outcomes, use `Uncertain` instead of `Wait` and `Little
 - Keep the outdoor outlook inside the recommendation, with 24 h / 48 h controls, an AH line, indoor reference and estimated ACH bars. Derive both views' scales from the same 48-hour forecast and stop at available coverage.
 - Preserve pointer and keyboard inspection, local-time labels and a readable indoor reference label that avoids the curve.
 - Use the full moisture uncertainty range for amber and retain soft semantic-colour transitions.
-- Keep loading and failure states clear; avoid displaying stale outdoor results as current. Preserve retry and weather refresh actions.
+- Keep loading and failure states clear; avoid displaying stale outdoor results as current. Preserve retry and weather refresh actions. The CHECKING label and chart skeleton use angled sweeps only while loading; reduced motion and failure are static.
 - Keep Last checked with its muted refresh icon near the location. Refresh page belongs in the footer.
 - Compare outdoor and indoor AH cards with warmed-outdoor RH between them. Match the outdoor card and warmed-RH value to moisture semantics.
 - Keep dashboard horizontal and bottom padding equal.
@@ -102,9 +106,11 @@ Keep Open-Meteo attribution and the `Source documentation` and `View weather dat
 
 ## Visual Conventions
 
-- Page background: `#f2f0ed`.
+- Use the neutral roles in `styles.css` and the written [design system](../../../docs/design-system.md): warm page and light-control surfaces, white panels, warm ink and two border strengths. Keep the launch background aligned with the page.
+- Keep the AH chart's white/amber/coral line colours separate from recommendation verdict and moisture-comparison semantics.
+- Give light controls consistent rest, hover, pressed and focus states; keep the primary Done action dark. Essential input boundaries need the stronger control-border role.
 - Avoid decorative drop shadows.
-- Use black and white for ordinary control accents; reserve status colors for recommendation meaning.
+- Use warm neutrals for ordinary control accents; reserve status colours for weather and moisture meaning.
 - Keep verdict styling aligned without allowing borders or outlines to change card dimensions.
 - Keep the recommendation and chart visually integrated, with a restrained neutral ventilation-summary footer.
 - Keep the recommendation's top padding compact while adding the device safe-area inset. Keep the location button un-underlined and explicitly reset its native appearance for consistent rendering across browsers.

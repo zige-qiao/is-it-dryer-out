@@ -1,8 +1,8 @@
 # Is it dryer out
 
-## Development — complete-layout-redesign
+## v0.7.0 — Layout and design system
 
-This branch adds the redesigned recommendation and outdoor outlook, an Indoor readings sheet, and revised modal interactions. The latest published release remains v0.6.0 — Moisture Outlook.
+This release brings the recommendation, forecast chart, settings, and reading controls into one consistent layout and warm-neutral design system. Weather and moisture colours retain their separate meanings.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
@@ -12,18 +12,21 @@ A personal ventilation checker for estimating whether opening windows should red
 - Compare outdoor and indoor AH in the moisture cards. **Let in** shows outdoor RH once warmed to your indoor temperature. Colours indicate drier, uncertain, or wetter conditions.
 - Select **Edit** on the Indoor card. Drag the temperature and humidity rulers, use arrow keys, or tap a number to type. Values save immediately; **Done** closes the sheet. A last-set time appears after readings are updated.
 - In supported browsers, select **Speak** inside Indoor readings. Live Hearing text replaces Listening in the status box. Review the recognised values and select **Apply**, or return **Back to manual**.
-- Open the ventilation summary below the chart to change minimum temperature, target humidity, room size, or opening setup. Changes save immediately; **Done** closes the settings.
+- Open the ventilation summary below the chart to change minimum temperature, target humidity, room size, or opening setup. Room and opening choices use single-selection groups; Custom reveals room dimensions or airflow. Changes save immediately; **Done** closes the settings.
+- Select the location name to search for a town or postcode, use the device location, or choose a recent place. The mobile location sheet has a visible **Close** button.
 - Select the refresh icon beside **Last checked** for fresh weather. **Refresh page** in the footer reloads the page.
 - Open **Why this recommendation?**, **Glossary**, **How estimates work**, or **Weather data** for explanations, definitions and source details.
 
 Sheets support Escape and mobile drag-to-dismiss, preserve the page's scroll position, and follow the visible viewport when the keyboard opens.
+
+The [design system](docs/design-system.md) records the app's warm-neutral roles and component states. The AH forecast line keeps its distinct white, amber, and coral scale; recommendation and moisture-card colours remain semantic.
 
 ## How it works
 
 Current iPhone voice policy (established in `v0.5.4.11-foreground-voice` and unchanged in this branch): after the first user-requested voice attempt, keep the microphone stream enabled throughout the foreground session, including natural completion, manual Stop, Apply and dialog close. The amber indicator may remain on. Transcription ends separately; the waveform is reset and its animation cancelled between attempts. No new Stop/Abort/Release controls or readiness message are added. Backgrounding or leaving releases capture; restarting after that release remains an unresolved platform risk. No audio file is saved or uploaded by the meter; browser speech recognition may use an external service.
 
 - Enter indoor temperature, relative humidity, target humidity, and minimum indoor temperature manually. Voice input can update indoor temperature and humidity in browsers that provide speech recognition and microphone access. On iPhone, the dialog waveform uses a standard microphone stream to keep the iOS audio session available during recognition and between foreground attempts.
-- On every load, the app asks the browser for the current location. Use `Update` to request a fresh location check.
+- On first use, the app asks the browser for the current location. Afterward it uses the saved location; select the location name and **Use current location** to request a fresh device-location check.
 - Location search accepts UK postcodes with or without spaces, regardless of letter case, and outward codes such as `M1`, `M33`, or `SW1A`.
 - If location permission is unavailable, the app uses the most recently stored location, or Sale, Greater Manchester as the initial fallback.
 - When device location is used, its coordinates are sent to BigDataCloud only to obtain a nearby locality name.
@@ -66,6 +69,8 @@ Created by Ziggy Qiao. The app links to its [GitHub repository](https://github.c
 
 ## Release history
 
+- `v0.7.0`: Integrated recommendation and 24/48-hour outlook, indoor and ventilation sheets with ruler and custom controls, location and modal refinements, warm-neutral design system, and release cache revision 133.
+- `v0.6.0`: Moisture comparison cards and interactive 48-hour AH outlook.
 - `v0.5.5`: Refresh-style voice entry button, immediate voice dialog, dialog-only waveform, and concise spoken-reading examples; iPhone voice capture policy unchanged.
 - `v0.5.4`: Shared ventilation-settings dialog, calculation-specific recommendation explanations, clearer weather provenance, and refined responsive accessibility.
 - `v0.5.3.3`: Browser and WebKit identification plus bounded audio-interruption testing for voice diagnostics.
