@@ -12,11 +12,10 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=134" />
+    <link rel="stylesheet" href="styles.css?v=135" />
     <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
-    <div class="pull-refresh" id="pullRefresh" aria-hidden="true"><span class="pull-refresh-spinner"></span><span id="pullRefreshText">Pull to update weather</span></div>
     <main class="app-shell">
       <section class="indoor-summary" aria-labelledby="indoorSummaryHeading">
         <div class="indoor-summary-content">
@@ -42,6 +41,11 @@
       </section>
       <div class="layout-column left-column">
         <section class="recommendation" aria-live="polite">
+          <div class="pull-refresh" id="pullRefresh" aria-hidden="true">
+            <span class="pull-refresh-dots"><span></span><span></span><span></span></span>
+            <span class="pull-refresh-result-icon" aria-hidden="true"></span>
+            <span id="pullRefreshText">Keep pulling</span>
+          </div>
           <div class="verdict-panel">
             <div class="location-row">
               <button class="location-button" type="button" id="locationButton" aria-haspopup="dialog">
@@ -375,6 +379,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=134" type="module"></script>
+    <script src="app.js?v=135" type="module"></script>
   </body>
 </html>

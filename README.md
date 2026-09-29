@@ -1,12 +1,12 @@
 # Is it dryer out
 
-## Current local preview — unpublished
+## v0.7.2 — Indoor controls and touch refresh
 
-The optional Indoor summary strip sits above the verdict with current temperature, RH and a relative reading age. It is hidden by default; Indoor readings opens on launch by default. The footer cog opens Settings to change either preference. Outer cards have 20px corners, the 24 h / 48 h switch has a small gap, and keyboard focus appears outside most controls.
+The optional Indoor summary strip sits above the verdict with current temperature, RH and a relative reading age. It is hidden by default; Indoor readings opens on launch by default. The footer cog opens Settings to change either preference. Pulling down at the top refreshes outdoor weather with a layered card animation. The verdict says **Checked just now** for the first minute after a successful update, then shows the local check time. Outer cards have 20px corners, the 24 h / 48 h switch has a small gap, and keyboard focus appears outside most controls.
 
 ## v0.7.1 — Forecast and reading refinements
 
-The published v0.7.1 update opened Indoor readings when the app loaded, started the outlook at 48 hours, and refined the verdict and chart colours. The selected chart dot and g/m³ reading follow the line colour. The local preview changes above are not part of that release.
+The v0.7.1 update opened Indoor readings when the app loaded, started the outlook at 48 hours, and refined the verdict and chart colours. The selected chart dot and g/m³ reading follow the line colour.
 
 A personal ventilation checker for estimating whether opening windows should reduce indoor humidity, and for how long.
 
@@ -18,7 +18,7 @@ A personal ventilation checker for estimating whether opening windows should red
 - In supported browsers, select the strip's microphone button or **Speak** inside Indoor readings. The strip button opens voice entry and starts listening from that tap. Live Hearing text replaces Listening in the status box. Review the recognised values and select **Apply**, or return **Back to manual**.
 - Open the ventilation summary below the chart to change minimum temperature, target humidity, room size, or opening setup. Room and opening choices use single-selection groups; Custom reveals room dimensions or airflow. Changes save immediately; **Done** closes the settings.
 - Select the location name to search for a town or postcode, use the device location, or choose a recent place. The mobile location sheet has a visible **Close** button.
-- Select the refresh icon beside **Last checked**, or pull down from the top on a touch device, to update outdoor weather without reloading the page. **Refresh page** in the footer reloads the whole app and follows the launch preference.
+- Select the refresh icon beside the **Checked** status, or pull down from the top on a touch device, to update outdoor weather without reloading the page. **Refresh page** in the footer reloads the whole app and follows the launch preference.
 - Select the footer cog for **Settings**. **Show Indoor summary** is off by default; **Open Indoor readings on launch** is on by default. Changes save immediately in this browser.
 - Open **Why this recommendation?**, **Glossary**, **How estimates work**, or **Weather data** for explanations, definitions and source details.
 
@@ -74,6 +74,7 @@ Created by Ziggy Qiao. The app links to its [GitHub repository](https://github.c
 
 ## Release history
 
+- `v0.7.2`: Optional Indoor summary and saved launch preference, Settings popup, layered pull to refresh, checked-time wording, 20px outer cards, refined focus rings, and app shell cache revision 135.
 - `v0.7.1`: Default 48-hour outlook and Indoor readings sheet on load; faster chart loading sweep; refined verdict and AH chart colours with matching inspection dot and moisture reading; app shell cache revision 134.
 - `v0.7.0`: Integrated recommendation and 24/48-hour outlook, indoor and ventilation sheets with ruler and custom controls, location and modal refinements, warm-neutral design system, and release cache revision 133.
 - `v0.6.0`: Moisture comparison cards and interactive 48-hour AH outlook.

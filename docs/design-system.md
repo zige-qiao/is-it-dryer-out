@@ -1,8 +1,8 @@
 # Is it dryer out — design system
 
-**Version:** 1.1 · **Updated:** 28 September 2026 · **Status:** local, unpublished refinements after v0.7.1
+**Version:** 1.2 · **Updated:** 29 September 2026 · **Status:** v0.7.2
 
-This is a reusable specification for the app. The warm-grey controls and component states were implemented in v0.7.0, and the revised verdict and AH chart colours shipped in v0.7.1. The Indoor summary strip and subsequent layout and focus refinements are local, unpublished work. Broader typography normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
+This is a reusable specification for the app. The warm-grey controls and component states were implemented in v0.7.0, the revised verdict and AH chart colours shipped in v0.7.1, and the Indoor summary strip with subsequent layout and focus refinements shipped in v0.7.2. Broader typography normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
 
 Open [the visual review board](design-system.html) for colour and state specimens. This document records the rules; the board illustrates them.
 
@@ -12,7 +12,7 @@ Your feedback set the warm-neutral direction, kept the AH chart's separate white
 
 The 27 September instruction to apply this system authorised the displayed warm token values and visible state treatments. The local app now includes the related missing hover tokens, a 44px Refresh page target, visible mobile Location Close and a matching installed-app launch background. Typography/radius normalisation and new inline invalid-input feedback remain separate follow-ups.
 
-Since the last design-system update, the local app gained an optional compact Indoor summary above the verdict, saved display and launch preferences, pull to refresh for outdoor weather, relative reading ages and 20px outer card corners. The 24 h / 48 h choices have a 4px gap, and keyboard focus rings sit outside most visible controls. These refinements are not part of the historical v0.7.1 release record.
+In v0.7.2, the app gained an optional compact Indoor summary above the verdict, saved display and launch preferences, pull to refresh for outdoor weather, relative reading ages and 20px outer card corners. The 24 h / 48 h choices have a 4px gap, and keyboard focus rings sit outside most visible controls. These refinements are not part of the historical v0.7.1 release record.
 
 ## 1. Purpose and principles
 
@@ -57,7 +57,7 @@ Source review: `index.html`, `styles.css`, `app.js`, `manifest.webmanifest`, and
 
 The listed screens were inspected and captured in this run. Custom panels, voice states, weather loading/failure, alternate verdicts, search-result/error states, reduced motion and forced colours were reviewed in source, not exercised live in this audit. No microphone or device-location permission was requested. Earlier implementation tests are not evidence of a full accessibility audit. Actual iOS keyboard behaviour, screen readers, 200% zoom, all semantic colour pairs, and physical touch devices need the acceptance checks in section 10.
 
-## 3. Colour foundations — implemented locally
+## 3. Colour foundations — implemented
 
 ### Neutral role tokens
 
@@ -254,8 +254,9 @@ Disabled controls use 45% opacity on the complete control, no hover/press animat
 
 - **Indoor summary:** an optional flat white card with a subtle border and 20px radius sits above the verdict. It shows indoor temperature and RH with muted °C / % RH units and a faint, vertically centred 1px divider. Edit opens the existing Indoor sheet; the separate microphone button appears only when speech recognition is available and opens its voice view from one tap. Keep the detailed Indoor comparison card for AH and dew point. The strip is hidden by default.
 - **Settings:** a 44px cog beside Refresh page opens a bottom sheet on mobile and centred dialog on desktop. Its two independent switches save immediately in browser storage: Show Indoor summary is off by default; Open Indoor readings on launch is on by default. Launch means a full page load. A manually opened sheet returns focus to its opener; the automatically opened Indoor sheet focuses the location button on close. Settings returns focus to the cog. Let the footer credit and actions wrap without clipping at narrow widths.
-- **Pull to refresh:** a downward drag from the top of the touch page reveals a compact spinner and release cue; a sufficient pull calls the existing outdoor-weather refresh once, without reloading the page. Short, horizontal, interrupted, busy, interactive-control, chart and open-sheet gestures do not trigger it. Hold the indicator during the request, then briefly show success or failure; respect reduced motion. Native-browser gesture suppression is best effort on iOS Safari, so retain the refresh buttons.
+- **Pull to refresh:** a downward drag from the top of the touch page reveals three dots and a cue on the same continuous white backing as the ventilation footer. Dots light in sequence, with `Keep pulling` changing to `Release to re-check` once the full cue is visible. The optional Indoor summary, cue and footer stay still while the verdict slides over the footer with resistance from the start, approaching half its rendered height. Once the verdict crosses the footer's lower border, the moisture comparison and all following content move by the excess distance, keeping the footer-to-next-card gap. A sufficient pull refreshes outdoor weather once without reloading the page; on release, the verdict settles to the full cue height through the request and brief result, then springs closed. Keep the success or failure icon visible until the return completes, then reset to three dots. Short, horizontal, interrupted, busy, interactive-control, chart and open-sheet gestures do not trigger refresh. The Indoor summary scrolls normally outside this gesture; reduced motion closes and resets together without a spring or dot pulse. Native-browser gesture suppression is best effort on iOS Safari, so retain the refresh buttons.
 - **Reading age:** after an indoor edit, show `Just now` for the first minute, `1m ago` through `59m ago`, then `1h 0m ago` and higher in both the strip and Indoor sheet. Prefix the strip age with a decorative dot; use no `set` or `Updated` label. Refresh each minute and on return to the visible page. Hide both age labels when there is no valid saved timestamp; retain the absolute device-local timestamp as a title.
+- **Weather check status:** show `Checked just now` for 60 seconds after a successful outdoor update, then `Checked HH:mm` in the selected location's time zone. Recalculate on return to the tab. Keep `Updating…` and `Update failed` distinct, and retain full timestamps in Weather data.
 - **Edit / Indoor card:** retain the current whole-card action. Warm the card's subtle interaction tint and the Edit pill together. Outline the card for keyboard focus, avoid a second Tab stop, and keep the pill label visible. This corrects the earlier suggestion to show feedback only on the pill.
 - **Rulers:** fixed centre marker, labelled major ticks, native range semantics and direct numeric entry. Horizontal adjustment yields to vertical scrolling. Cancel momentum on new interaction, close or backgrounding. Show number + unit as one field. Draw keyboard focus outside the ruler so its edge fade cannot obscure the ring.
 - **Ranges:** indoor temperature 10–32°C in 0.1°C steps; indoor humidity 20–90% in 1% steps; minimum indoor temperature 16–26°C in 1°C steps; target humidity 40–65% in 1% steps. Min-temperature and target fields stay the same width. Saved fractional minimum temperatures round to whole degrees.
@@ -288,7 +289,7 @@ Maintain existing main verdicts: TARGET MET, OPEN WINDOWS, KEEP CLOSED, OPEN IF 
 
 1. The main stylesheet now defines the warm role tokens and maps the existing `--bg`, `--panel`, `--ink`, `--muted`, `--line` and button-family variables to them. Essential input boundaries use the stronger control-border role.
 2. Neutral actions, options, fields/rulers, location/voice surfaces and footer interactions use those roles. Recommendation and AH chart semantic colours remain separate.
-3. The manifest launch colour matches the page. Outer focus rings, Opening selection and loading sweeps are implemented. The Indoor summary and related refinements are local, unpublished work.
+3. The manifest launch colour matches the page. Outer focus rings, Opening selection and loading sweeps are implemented. The Indoor summary and related refinements shipped in v0.7.2.
 4. Future work: consolidate any obsolete component rules after checking remaining users. Treat broader typography/geometry normalisation and inline numeric validation as separate reviews.
 5. A requested push or release remains the trigger for repository release documentation and cache-version work.
 
@@ -340,6 +341,7 @@ The existence of a rule is not proof of its implementation. Before calling the s
 
 ## Revision log
 
+- 1.2 v0.7.2 release, 29 September 2026: recorded the Indoor controls, layered pull to refresh, updated checked-time label and release status; retained historical v0.7.1 evidence.
 - 1.1 local update, 28 September 2026: documented the unpublished Indoor summary strip, manual sheet opening, relative reading age, current outer/inner radii, 24 h / 48 h spacing and outer keyboard focus pattern. Kept v0.7.1 and historical captures as records of their time.
 - 1.0 v0.7.1 preparation, 28 September 2026: updated the release status and 48-hour default specimens; retained the current palette and earlier audit history.
 - 1.0 local palette update, 28 September 2026: matched all four verdict gradients and the chart's amber/coral stops to the current preview. The selected dot and g/m³ reading follow the curve colour.

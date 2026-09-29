@@ -2,13 +2,15 @@
 
 All notable changes to Is it dryer out are documented here.
 
-## Unreleased — local UI refinements
+## v0.7.2 — Indoor controls and touch refresh - 2026-09-29
 
 - Added a compact Indoor summary above the verdict with temperature, RH, relative reading age, and separate Edit and supported-browser microphone actions. Its relative age matches the sheet, and manually opened sheets return focus to their opener.
 - Added a footer Settings sheet with saved Indoor-summary visibility (off by default) and Indoor-sheet-on-launch (on by default) preferences. Added pull to refresh for outdoor weather without a page reload.
+- Refined pull to refresh into layered cards: a three-dot cue shares a white backing with the stationary ventilation footer; the verdict resists pulls toward half its height, lower content follows once it passes the footer, and the result icon remains visible until the return completes.
+- Show `Checked just now` for the first minute after a successful outdoor weather check, then show the location's clock time.
 - Aligned outer card corners to 20px while retaining the 14px inner comparison cards; added a faint reading divider and 4px between the 24 h and 48 h options.
 - Moved keyboard focus rings outside most visible controls with a 2px clear gap, retaining distinct selected borders and the wider focus shapes on the ventilation summary and dashboard explainers.
-- Updated the design-system specification, visual board, README and UI guidance for these unpublished changes.
+- Updated the design-system specification, visual board, README and UI guidance for these changes. Set the app build identity to `v0.7.2` and synchronized the app shell cache at revision 135.
 
 ## v0.7.1 — Forecast and reading refinements - 2026-09-28
 
