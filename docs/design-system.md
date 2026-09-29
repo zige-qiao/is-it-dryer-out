@@ -1,6 +1,6 @@
 # Is it dryer out — design system
 
-**Version:** 1.2 · **Updated:** 29 September 2026 · **Status:** v0.7.2
+**Version:** 1.3 · **Updated:** 29 September 2026 · **Status:** v0.7.3
 
 This is a reusable specification for the app. The warm-grey controls and component states were implemented in v0.7.0, the revised verdict and AH chart colours shipped in v0.7.1, and the Indoor summary strip with subsequent layout and focus refinements shipped in v0.7.2. Broader typography normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
 
@@ -252,6 +252,7 @@ Disabled controls use 45% opacity on the complete control, no hover/press animat
 
 ### Specific behaviours
 
+- **AH chart:** render the forecast curve as one continuous high-resolution bitmap at its normal display size so its semantic colours persist through iPhone scroll and zoom. Tapping and dragging inspect values without a browser tap flash or chart outline. Keyboard focus remains visible as an outer ring, and arrow keys plus Home/End continue to inspect values.
 - **Indoor summary:** an optional flat white card with a subtle border and 20px radius sits above the verdict. It shows indoor temperature and RH with muted °C / % RH units and a faint, vertically centred 1px divider. Edit opens the existing Indoor sheet; the separate microphone button appears only when speech recognition is available and opens its voice view from one tap. Keep the detailed Indoor comparison card for AH and dew point. The strip is hidden by default.
 - **Settings:** a 44px cog beside Refresh page opens a bottom sheet on mobile and centred dialog on desktop. Its two independent switches save immediately in browser storage: Show Indoor summary is off by default; Open Indoor readings on launch is on by default. Launch means a full page load. A manually opened sheet returns focus to its opener; the automatically opened Indoor sheet focuses the location button on close. Settings returns focus to the cog. Let the footer credit and actions wrap without clipping at narrow widths.
 - **Pull to refresh:** a downward drag from the top of the touch page reveals three dots and a cue on the same continuous white backing as the ventilation footer. Dots light in sequence, with `Keep pulling` changing to `Release to re-check` once the full cue is visible. The optional Indoor summary, cue and footer stay still while the verdict slides over the footer with resistance from the start, approaching half its rendered height. Once the verdict crosses the footer's lower border, the moisture comparison and all following content move by the excess distance, keeping the footer-to-next-card gap. A sufficient pull refreshes outdoor weather once without reloading the page; on release, the verdict settles to the full cue height through the request and brief result, then springs closed. Keep the success or failure icon visible until the return completes, then reset to three dots. Short, horizontal, interrupted, busy, interactive-control, chart and open-sheet gestures do not trigger refresh. The Indoor summary scrolls normally outside this gesture; reduced motion closes and resets together without a spring or dot pulse. Native-browser gesture suppression is best effort on iOS Safari, so retain the refresh buttons.
@@ -341,6 +342,7 @@ The existence of a rule is not proof of its implementation. Before calling the s
 
 ## Revision log
 
+- 1.3 v0.7.3 release, 29 September 2026: recorded the iPhone chart curve rendering and pointer versus keyboard focus behavior.
 - 1.2 v0.7.2 release, 29 September 2026: recorded the Indoor controls, layered pull to refresh, updated checked-time label and release status; retained historical v0.7.1 evidence.
 - 1.1 local update, 28 September 2026: documented the unpublished Indoor summary strip, manual sheet opening, relative reading age, current outer/inner radii, 24 h / 48 h spacing and outer keyboard focus pattern. Kept v0.7.1 and historical captures as records of their time.
 - 1.0 v0.7.1 preparation, 28 September 2026: updated the release status and 48-hour default specimens; retained the current palette and earlier audit history.

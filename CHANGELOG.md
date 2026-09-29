@@ -2,6 +2,12 @@
 
 All notable changes to Is it dryer out are documented here.
 
+## v0.7.3 — iPhone chart rendering - 2026-09-29
+
+- Render the AH forecast curve as a continuous PNG at twice the previous bitmap resolution, displayed at the same size, to preserve its semantic colours after offscreen scrolling on iPhone and improve pinch-zoom sharpness.
+- Remove touch tap highlighting and pointer focus outlines from the chart while retaining a visible keyboard focus ring and chart inspection.
+- Set the app build identity to `v0.7.3` and synchronize the app shell cache at revision 136.
+
 ## v0.7.2 — Indoor controls and touch refresh - 2026-09-29
 
 - Added a compact Indoor summary above the verdict with temperature, RH, relative reading age, and separate Edit and supported-browser microphone actions. Its relative age matches the sheet, and manually opened sheets return focus to their opener.

@@ -1,5 +1,9 @@
 # Is it dryer out
 
+## v0.7.3 — iPhone chart rendering
+
+The AH forecast curve is rendered as a continuous, higher-resolution image so its white, amber and coral colours survive scrolling and zooming on iPhone. Tapping or dragging the chart inspects values without a focus flash or outline; keyboard navigation still shows a focus ring.
+
 ## v0.7.2 — Indoor controls and touch refresh
 
 The optional Indoor summary strip sits above the verdict with current temperature, RH and a relative reading age. It is hidden by default; Indoor readings opens on launch by default. The footer cog opens Settings to change either preference. Pulling down at the top refreshes outdoor weather with a layered card animation. The verdict says **Checked just now** for the first minute after a successful update, then shows the local check time. Outer cards have 20px corners, the 24 h / 48 h switch has a small gap, and keyboard focus appears outside most controls.
@@ -74,6 +78,7 @@ Created by Ziggy Qiao. The app links to its [GitHub repository](https://github.c
 
 ## Release history
 
+- `v0.7.3`: Higher-resolution chart curve rendering for iPhone and no chart tap highlight, with keyboard focus retained; app shell cache revision 136.
 - `v0.7.2`: Optional Indoor summary and saved launch preference, Settings popup, layered pull to refresh, checked-time wording, 20px outer cards, refined focus rings, and app shell cache revision 135.
 - `v0.7.1`: Default 48-hour outlook and Indoor readings sheet on load; faster chart loading sweep; refined verdict and AH chart colours with matching inspection dot and moisture reading; app shell cache revision 134.
 - `v0.7.0`: Integrated recommendation and 24/48-hour outlook, indoor and ventilation sheets with ruler and custom controls, location and modal refinements, warm-neutral design system, and release cache revision 133.

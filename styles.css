@@ -2000,6 +2000,9 @@ input[type="range"] {
 :where(button, a, input, select, summary, .ah-chart):focus-visible {
   outline: 2px solid var(--interaction-ring); outline-offset: 2px; box-shadow: none;
 }
+.ah-chart { -webkit-tap-highlight-color: transparent; }
+.ah-chart:focus { outline: none; box-shadow: none; }
+.ah-chart:focus-visible:not(.is-pointer-inspecting) { outline: 2px solid var(--interaction-ring); outline-offset: 2px; }
 a { border-radius: 2px; }
 .plan-summary-trigger, .dashboard-explainer summary { position: relative; border-radius: 8px; }
 .plan-summary-trigger:focus-visible, .dashboard-explainer summary:focus-visible { outline: none; }

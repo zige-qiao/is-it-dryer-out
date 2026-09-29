@@ -40,7 +40,7 @@ const OPENING_SETUPS = {
 };
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 // Keep the build identity in the script so stale code identifies itself correctly.
-const APP_BUILD_VERSION = "v0.7.2";
+const APP_BUILD_VERSION = "v0.7.3";
 const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
 const IS_IOS = /iP(?:hone|ad|od)/.test(navigator.userAgent)
   || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -2969,6 +2969,7 @@ function renderAhChart() {
   });
   chart.dataset.weatherState = unavailable ? (state.weatherLoadFailed ? 'failed' : 'loading') : 'ready';
   if (unavailable) {
+    chart.classList.remove('is-pointer-inspecting');
     const indoor = absoluteHumidity(state.indoorTemp, state.indoorRh);
     // These shapes are placeholders, not a scale or estimates of outdoor weather.
     const heights = [22, 25, 25, 28, 27, 26, 25, 22, 21, 20, 21, 22];
@@ -3000,6 +3001,35 @@ function renderAhChart() {
   const gradient = '<linearGradient id="ahSemantic" gradientUnits="userSpaceOnUse" x1="0" y1="'+y(indoor + margin * 1.75)+'" x2="0" y2="'+y(indoor - margin * 1.75)+'"><stop offset="0" stop-color="var(--chart-wet)"/><stop offset="0.2142857143" stop-color="var(--chart-near)"/><stop offset="0.7857142857" stop-color="var(--chart-near)"/><stop offset="1" stop-color="white"/></linearGradient>';
   const excessClip = '<clipPath id="ahExcessClip"><rect x="'+left+'" y="'+top+'" width="'+(right-left)+'" height="'+Math.max(0,y(indoor)-top)+'"/></clipPath>';
   const path = points.map((p,i) => (i ? 'L' : 'M')+x(p.time).toFixed(2)+','+y(p.value).toFixed(2)).join(' ');
+  // Draw one continuous stroke at twice the previous bitmap resolution, then
+  // display it at the same size. This avoids the iOS SVG gradient repaint issue.
+  const curveCanvas = document.createElement('canvas');
+  const displayWidth = chartWidth || 480;
+  const rasterScale = Math.max(2, Math.min(4, 2 * (window.devicePixelRatio || 1)));
+  curveCanvas.width = Math.ceil(displayWidth * rasterScale);
+  curveCanvas.height = Math.ceil((bottom - top) / 480 * displayWidth * rasterScale);
+  const curveContext = curveCanvas.getContext('2d');
+  let curve = '<path d="'+path+'" class="ah-curve"/>';
+  if (curveContext) {
+    const chartStyles = getComputedStyle(chart);
+    const wetColor = chartStyles.getPropertyValue('--chart-wet').trim() || '#ffb3a8';
+    const nearColor = chartStyles.getPropertyValue('--chart-near').trim() || '#ffd27a';
+    curveContext.scale(curveCanvas.width / 480, curveCanvas.height / (bottom - top));
+    curveContext.translate(0, -top);
+    const lineGradient = curveContext.createLinearGradient(0, y(indoor + margin * 1.75), 0, y(indoor - margin * 1.75));
+    lineGradient.addColorStop(0, wetColor);
+    lineGradient.addColorStop(0.2142857143, nearColor);
+    lineGradient.addColorStop(0.7857142857, nearColor);
+    lineGradient.addColorStop(1, 'white');
+    curveContext.beginPath();
+    points.forEach((point, i) => i ? curveContext.lineTo(x(point.time), y(point.value)) : curveContext.moveTo(x(point.time), y(point.value)));
+    curveContext.strokeStyle = lineGradient;
+    curveContext.lineWidth = 2.5 * textScale;
+    curveContext.lineJoin = 'round';
+    curveContext.lineCap = 'round';
+    curveContext.stroke();
+    curve = '<image x="'+left+'" y="'+top+'" width="'+(right-left)+'" height="'+(bottom-top)+'" href="'+curveCanvas.toDataURL('image/png')+'" aria-hidden="true"/>';
+  }
   const ticks = '<path d="M'+left+' '+bottom+'H'+right+'" class="ah-grid"/>';
   const dayFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: state.timezone, weekday: 'short' });
   const clockFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: state.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
@@ -3027,7 +3057,7 @@ function renderAhChart() {
     bars += '<rect class="airflow-bar" x="'+bx+'" y="'+ay(ach)+'" width="'+width+'" height="'+(bottom-ay(ach))+'" rx="2"><title>Estimated airflow '+ach.toFixed(1)+' ACH</title></rect>';
     if (state.chartHours === 24 && width > 23 && bottom-ay(ach) > 16 * textScale) bars += '<text class="airflow-label" text-anchor="middle" x="'+(bx+width/2)+'" y="'+(ay(ach)+13*textScale)+'">'+ach.toFixed(1)+'</text>';
   }
-  chart.innerHTML = '<defs>'+gradient+excessClip+'<clipPath id="outlookPlot"><rect x="'+left+'" y="'+top+'" width="'+(right-left)+'" height="'+(bottom-top)+'"/></clipPath></defs>'+ticks+days+'<g clip-path="url(#outlookPlot)"><path d="'+path+' L'+x(end)+' '+y(indoor)+' L'+left+' '+y(indoor)+'Z" class="ah-excess-fill" clip-path="url(#ahExcessClip)" fill="url(#ahSemantic)" opacity=".09"/>'+bars+'<path d="'+path+'" class="ah-curve"/></g>'+hours+'<path d="M'+left+' '+y(indoor)+'H'+right+'" class="ah-indoor-line"/><text class="ah-indoor-label" x="'+(left+4)+'" y="'+(y(indoor)-6)+'">Indoor '+indoor.toFixed(1)+' g/m³</text><path id="ahCursor" class="ah-cursor"/><circle id="ahDot" r="'+(6 * textScale)+'" class="ah-dot"/>';
+  chart.innerHTML = '<defs>'+gradient+excessClip+'<clipPath id="outlookPlot"><rect x="'+left+'" y="'+top+'" width="'+(right-left)+'" height="'+(bottom-top)+'"/></clipPath></defs>'+ticks+days+'<g clip-path="url(#outlookPlot)"><path d="'+path+' L'+x(end)+' '+y(indoor)+' L'+left+' '+y(indoor)+'Z" class="ah-excess-fill" clip-path="url(#ahExcessClip)" fill="url(#ahSemantic)" opacity=".09"/>'+bars+curve+'</g>'+hours+'<path d="M'+left+' '+y(indoor)+'H'+right+'" class="ah-indoor-line"/><text class="ah-indoor-label" x="'+(left+4)+'" y="'+(y(indoor)-6)+'">Indoor '+indoor.toFixed(1)+' g/m³</text><path id="ahCursor" class="ah-cursor"/><circle id="ahDot" r="'+(6 * textScale)+'" class="ah-dot"/>';
   reading.innerHTML = '<span class="ah-reading-time"></span> · <span class="ah-reading-moisture"></span> · <span class="ah-reading-airflow"></span>';
   const readingTime = reading.querySelector('.ah-reading-time');
   const readingMoisture = reading.querySelector('.ah-reading-moisture');
@@ -3071,9 +3101,11 @@ function renderAhChart() {
     const bounds=chart.getBoundingClientRect();
     select(((event.clientX-bounds.left)/bounds.width*480-left)/(right-left)*maxHours);
   };
-  chart.onpointerdown = event => { chart.setPointerCapture(event.pointerId); inspect(event); };
+  chart.onpointerdown = event => { chart.classList.add('is-pointer-inspecting'); chart.setPointerCapture(event.pointerId); inspect(event); };
   chart.onpointermove = event => { if(chart.hasPointerCapture(event.pointerId)||event.pointerType==='mouse') inspect(event); };
+  chart.onblur = () => chart.classList.remove('is-pointer-inspecting');
   chart.onkeydown = event => {
+    chart.classList.remove('is-pointer-inspecting');
     if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
     event.preventDefault();
     select(event.key==='Home' ? 0 : event.key==='End' ? maxHours : selected+(event.key==='ArrowRight'?1:-1));

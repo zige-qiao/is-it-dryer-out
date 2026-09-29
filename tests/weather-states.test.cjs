@@ -16,6 +16,11 @@ function fixture(width = 320) {
   };
   const elements = new Proxy({}, { get: (target, name) => target[name] ||= node() });
   const chart = node(), reading = node(), outdoor = node();
+  const canvasContext = {
+    scale() {}, translate() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {},
+    createLinearGradient: () => ({ addColorStop() {} }),
+  };
+  const canvas = { width: 0, height: 0, getContext: () => canvasContext, toDataURL: () => 'data:image/png;base64,AA==' };
   const buttons = [24, 48].map(hours => Object.assign(node(), { dataset: { chartHours: String(hours) } }));
   const state = { indoorTemp: 20.1, indoorRh: 59, outdoorTemp: null, outdoorRh: null, chartHours: 24, chartSelection: 0, weatherRequestPending: true, weatherLoadFailed: false, location: { name: 'Sale' }, timezone: 'UTC' };
   const start = Date.UTC(2026, 8, 27), end = start + 86400000;
@@ -32,7 +37,9 @@ function fixture(width = 320) {
     Date: TestDate,
     setTimeout: (callback, delay) => { const id = ++nextTimer; timers.set(id, { callback, at: now + delay }); return id; },
     clearTimeout: id => timers.delete(id),
-    document: { activeElement: null, querySelector: s => s === '#ahChart' ? chart : s === '#ahChartReading' ? reading : outdoor, querySelectorAll: () => buttons },
+    document: { activeElement: null, createElement: () => canvas, querySelector: s => s === '#ahChart' ? chart : s === '#ahChartReading' ? reading : outdoor, querySelectorAll: () => buttons },
+    window: { devicePixelRatio: 2 },
+    getComputedStyle: () => ({ getPropertyValue: name => name === '--chart-wet' ? '#ffb3a8' : '#ffd27a' }),
     buildWeatherTimeline: () => state.outdoorTemp === null ? [] : [{ time: new Date(start) }, { time: new Date(end) }],
     buildAhOutlook: () => ({ start, end, points: [{ time: start, value: 8 }, { time: end, value: 8 }], indoor: 10.3, low: 7, high: 12, achHigh: 3 }),
     absoluteHumidity: (_temp, rh) => rh === 59 ? 10.3 : 11.2,
@@ -60,7 +67,7 @@ function fixture(width = 320) {
     vm.runInContext(next < 0 ? rest : rest.slice(0, next + 1), context);
   }
   return {
-    context, state, elements, chart, reading, buttons, requests,
+    context, state, elements, chart, canvas, reading, buttons, requests,
     advance: (ms, runTimers = true) => {
       now += ms;
       if (runTimers) {
@@ -124,6 +131,8 @@ test('recovery restores chart inspection with identical geometry at mobile and d
     assert.equal(typeof f.chart.onkeydown, 'function');
     assert.ok(f.buttons.every(b => !b.disabled));
     assert.doesNotMatch(f.chart.innerHTML, /ah-skeleton/);
+    assert.equal(f.canvas.width, width * 4);
+    assert.match(f.chart.innerHTML, /<image x="0" y="8" width="480" height="150" href="data:image\/png/);
     assert.equal(f.elements.refreshWeather.getAttribute('aria-label'), 'Refresh outdoor weather');
     assert.equal(f.elements.decisionLabel.textContent, 'OPEN WINDOWS');
   }
