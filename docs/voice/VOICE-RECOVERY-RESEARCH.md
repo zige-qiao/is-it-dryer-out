@@ -1,10 +1,10 @@
 # Voice recovery research — 22 September 2026
 
-> Historical research, preserved 27 September 2026. The proposals and acceptance criteria below reflect 22 September, not the current implementation plan. The later foreground microphone retention policy was accepted, the cleanup-completion experiment was run, and single-box Listening / Hearing was implemented. See the [current investigation](../../VOICE-INVESTIGATION.md) for the latest device evidence. External issue statuses below were checked on the original research date only.
+> Historical research, preserved 27 September 2026. The proposals and acceptance criteria below reflect 22 September, not the current implementation plan. The later foreground microphone retention policy was accepted, the cleanup-completion experiment was run, and single-box Listening / Hearing was implemented. See the [current investigation](VOICE-INVESTIGATION.md) for the latest device evidence. External issue statuses below were checked on the original research date only.
 
 ## Outcome
 
-Updated after all three `.9` stop-enabled runs. Capture remained responsive after manual Stop in the clearest controls, but release/reopen failed 3/3. In run C the user intentionally paused then resumed speech: repeated tiny levels were silence, not evidence of stuck capture. Full chronology and timing are in [VOICE-INVESTIGATION.md](../../VOICE-INVESTIGATION.md). Microphone-only release/reopen succeeded twice with the amber dot clearing each time. Do not repeat the retracted “Stop necessarily kills the retained stream” inference.
+Updated after all three `.9` stop-enabled runs. Capture remained responsive after manual Stop in the clearest controls, but release/reopen failed 3/3. In run C the user intentionally paused then resumed speech: repeated tiny levels were silence, not evidence of stuck capture. Full chronology and timing are in [VOICE-INVESTIGATION.md](VOICE-INVESTIGATION.md). Microphone-only release/reopen succeeded twice with the amber dot clearing each time. Do not repeat the retracted “Stop necessarily kills the retained stream” inference.
 
 No verified browser recovery currently satisfies all requirements: immediate Stop/Abort, microphone indicator clearing, and successful immediate retry without reloading or switching apps. The following are ranked diagnostic experiments, not production fixes.
 

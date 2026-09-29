@@ -1,9 +1,10 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
-const fs = require('node:fs');
-const source = fs.readFileSync(require.resolve('../app.js'), 'utf8');
-
+const { environment, callbacks } = require('./helpers/browser.cjs');
+const { createDashboard } = require('../src/ui/dashboard.js');
+const { createChart } = require('../src/ui/chart.js');
+const { createWeatherController } = require('../src/services/weather.js');
+const { absoluteHumidity, dewPoint } = require('../src/domain/humidity.js');
 function fixture(width = 320) {
   const node = () => {
     const attrs = new Map(), classes = new Set();
@@ -11,7 +12,7 @@ function fixture(width = 320) {
       dataset: {}, style: { setProperty() {} }, textContent: '', innerHTML: '', disabled: false,
       classList: { add: (...names) => names.forEach(n => classes.add(n)), remove: (...names) => names.forEach(n => classes.delete(n)), toggle: (n, on) => on ? classes.add(n) : classes.delete(n), contains: n => classes.has(n) },
       setAttribute: (n, v) => attrs.set(n, String(v)), getAttribute: n => attrs.get(n), removeAttribute: n => attrs.delete(n),
-      getBoundingClientRect: () => ({ width, left: 0 }), querySelector: () => node(),
+      getBoundingClientRect: () => ({ width, left: 0 }), querySelector: () => node(), querySelectorAll: () => [], getBBox: () => ({x:12,y:40,width:90,height:20}),
     };
   };
   const elements = new Proxy({}, { get: (target, name) => target[name] ||= node() });
@@ -22,8 +23,9 @@ function fixture(width = 320) {
   };
   const canvas = { width: 0, height: 0, getContext: () => canvasContext, toDataURL: () => 'data:image/png;base64,AA==' };
   const buttons = [24, 48].map(hours => Object.assign(node(), { dataset: { chartHours: String(hours) } }));
-  const state = { indoorTemp: 20.1, indoorRh: 59, outdoorTemp: null, outdoorRh: null, chartHours: 24, chartSelection: 0, weatherRequestPending: true, weatherLoadFailed: false, location: { name: 'Sale' }, timezone: 'UTC' };
-  const start = Date.UTC(2026, 8, 27), end = start + 86400000;
+  const state = { indoorTemp: 20.1, indoorRh: 59, outdoorTemp: null, outdoorRh: null, chartHours: 24, chartSelection: 0, weatherRequestPending: true, weatherLoadFailed: false, location: { name: 'Sale', latitude:53.4, longitude:-2.3 }, timezone: 'UTC' };
+  const start = Date.now(), end = start + 86400000;
+  Object.assign(state, {minTemp:18,targetRh:55,roomPreset:'medium',openingSetup:'single',roomLength:4,roomWidth:5,roomHeight:2.5,customAirflow:80,outdoorPressure:1013.25,outdoorWind:0,forecast:[{time:new Date(end),temp:15,rh:70,dewPoint:dewPoint(15,70),pressure:1013.25,wind:0}]});
   const requests = [];
   let now = Date.UTC(2026, 8, 29, 12);
   let nextTimer = 0;
@@ -32,40 +34,26 @@ function fixture(width = 320) {
     constructor(...args) { super(...(args.length ? args : [now])); }
     static now() { return now; }
   }
-  const context = vm.createContext({
-    state, elements, activeWeatherRequestId: 0, checkedLabelTimer: null, DEFAULT_PRESSURE_HPA: 1013,
+  const context = environment({
+    state, elements,
     Date: TestDate,
     setTimeout: (callback, delay) => { const id = ++nextTimer; timers.set(id, { callback, at: now + delay }); return id; },
     clearTimeout: id => timers.delete(id),
     document: { activeElement: null, createElement: () => canvas, querySelector: s => s === '#ahChart' ? chart : s === '#ahChartReading' ? reading : outdoor, querySelectorAll: () => buttons },
     window: { devicePixelRatio: 2 },
     getComputedStyle: () => ({ getPropertyValue: name => name === '--chart-wet' ? '#ffb3a8' : '#ffd27a' }),
-    buildWeatherTimeline: () => state.outdoorTemp === null ? [] : [{ time: new Date(start) }, { time: new Date(end) }],
-    buildAhOutlook: () => ({ start, end, points: [{ time: start, value: 8 }, { time: end, value: 8 }], indoor: 10.3, low: 7, high: 12, achHigh: 3 }),
-    absoluteHumidity: (_temp, rh) => rh === 59 ? 10.3 : 11.2,
-    dewPoint: () => 11.8, formatTemp: v => `${v}°C`, formatRh: v => `${v}%`,
+    formatTemp: v => `${v}°C`, formatRh: v => `${v}%`,
     formatShortTime: () => '12:00', formatWeatherTimestamp: () => 'earlier',
-    renderReadingRulers() {}, renderPlanControls() {},
-    estimateOpeningWindowPlan: () => ({ status: 'minimal-impact' }),
-    effectiveAirExchange: () => ({ airChangesPerHour: 2 }),
-    compareMoisture: () => ({ outdoor: 8, indoor: 10.3, difference: 2.3, margin: 1, status: 'drier' }),
+    renderReadingRulers() {},
     planLimitingExplanation: () => 'Check conditions again later.',
-    saturationVaporPressure: () => 1, relativeHumidityAtTemperature: () => 40,
-    moistureMargin: () => 1, positionAhIndoorLabel() {},
-    weatherAtTime: () => ({ temp: 15, rh: 50 }),
-    clamp: (v, min, max) => Math.max(min, Math.min(max, v)),
     setDecisionSummary: (a, b) => { elements.decisionPrimary.textContent = a; elements.decisionSecondary.textContent = b; },
     renderRecommendation: () => { elements.decisionLabel.textContent = 'OPEN WINDOWS'; },
     saveLocation() {}, updateLocationUi() {}, weatherUrlForLocation: location => location.name,
-    buildForecast: () => [],
     fetch: url => new Promise((resolve, reject) => requests.push({ url, resolve, reject })),
   });
-  for (const name of ['renderPlan', 'renderRecommendationExplanation', 'renderWeatherDataDetails', 'render', 'updateWeatherCheckedLabel', 'fetchWeather', 'setLocation', 'renderAhChart']) {
-    const begin = source.indexOf(`${name === 'fetchWeather' ? 'async ' : ''}function ${name}(`);
-    const rest = source.slice(begin);
-    const next = rest.slice(1).search(/\n(?:async )?function /);
-    vm.runInContext(next < 0 ? rest : rest.slice(0, next + 1), context);
-  }
+  Object.assign(context, createChart(context, context));
+  Object.assign(context, createDashboard({ ...context, ...callbacks(context, ['renderAhChart']) }, context));
+  Object.assign(context, createWeatherController({ ...context, ...callbacks(context, ['render']) }, context));
   return {
     context, state, elements, chart, canvas, reading, buttons, requests,
     advance: (ms, runTimers = true) => {
@@ -84,7 +72,7 @@ test('initial checking and failure retain indoor data, clear outdoor data and ex
   f.context.render();
   assert.equal(f.elements.decisionLabel.textContent, 'Checking');
   assert.equal(f.elements.outdoorAbsoluteHumidity.textContent, '--');
-  assert.equal(f.elements.indoorAbsoluteHumidity.textContent, '10.3');
+  assert.equal(f.elements.indoorAbsoluteHumidity.textContent, absoluteHumidity(20.1,59).toFixed(1));
   assert.match(f.chart.innerHTML, /ah-skeleton-shimmer/);
   assert.equal(f.chart.getAttribute('tabindex'), '-1');
   assert.equal(f.chart.getAttribute('role'), 'img');
@@ -95,11 +83,11 @@ test('initial checking and failure retain indoor data, clear outdoor data and ex
   assert.equal(f.elements.decisionLabel.textContent, 'NO DATA');
   assert.equal(f.elements.refreshWeather.getAttribute('aria-label'), 'Retry outdoor weather');
   assert.doesNotMatch(f.chart.innerHTML, /ah-skeleton-shimmer/);
-  assert.match(f.chart.innerHTML, /Indoor 10.3/);
+  assert.match(f.chart.innerHTML, new RegExp('Indoor '+absoluteHumidity(20.1,59).toFixed(1)));
   f.state.indoorRh = 65;
   f.context.render();
-  assert.match(f.chart.innerHTML, /Indoor 11.2/);
-  assert.equal(f.elements.indoorAbsoluteHumidity.textContent, '11.2');
+  assert.match(f.chart.innerHTML, new RegExp('Indoor '+absoluteHumidity(20.1,65).toFixed(1)));
+  assert.equal(f.elements.indoorAbsoluteHumidity.textContent, absoluteHumidity(20.1,65).toFixed(1));
 });
 
 test('pending or failed refresh hides previous recommendations and preserves historical timestamp', () => {
@@ -148,7 +136,7 @@ test('failed fetch can retry successfully and only the newest location request c
   assert.equal(f.elements.decisionLabel.textContent, 'NO DATA');
   assert.equal(f.elements.refreshWeather.disabled, false);
   const retry = f.context.fetchWeather();
-  f.context.setLocation({ name: 'London' }, 'search');
+  f.context.setLocation({ name: 'London', latitude:51.5, longitude:0 }, 'search');
   const latest = f.context.fetchWeather();
   const response = temp => ({ ok: true, json: async () => ({ current: { temperature_2m: temp, relative_humidity_2m: 70 } }) });
   f.requests[1].resolve(response(99));

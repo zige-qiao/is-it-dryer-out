@@ -2253,27 +2253,27 @@ html { overscroll-behavior-y: contain; }
 .pull-refresh {
   position: absolute; z-index: 1; inset: 0 0 auto;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-  min-height: 76px; padding: 14px 16px;
-  color: #056b97;
+  min-height: 76px; padding: 10px 16px;
+  color: var(--ink-main);
   font-size: var(--font-ui); font-weight: 700; text-align: center;
   opacity: 0; pointer-events: none; transition: opacity 160ms ease-out;
 }
 body.pull-active .pull-refresh, body.pull-refreshing .pull-refresh, body.pull-result .pull-refresh { opacity: 1; }
 .verdict-panel { transform: translateY(var(--pull-distance, 0px)); }
 .dashboard-panel, .details-footnotes { transform: translateY(var(--pull-follow-distance, 0px)); }
-.pull-refresh-dots { display: flex; gap: 8px; }
-.pull-refresh-dots span { width: 10px; height: 10px; border-radius: 50%; background: #c9deed; }
+.pull-refresh-dots { display: flex; height: 24px; align-items: center; gap: 8px; }
+.pull-refresh-dots span { width: 10px; height: 10px; border-radius: 50%; background: var(--border-subtle); }
 body.pull-active .pull-refresh-dots span:first-child,
 body.pull-mid .pull-refresh-dots span:nth-child(2),
 body.pull-ready .pull-refresh-dots span:nth-child(3),
-body.pull-refreshing .pull-refresh-dots span { background: #056b97; }
+body.pull-refreshing .pull-refresh-dots span { background: var(--ink-muted); }
 body.pull-refreshing .pull-refresh-dots span { animation: pull-dot-pulse 900ms ease-in-out infinite; }
 body.pull-refreshing .pull-refresh-dots span:nth-child(2) { animation-delay: 120ms; }
 body.pull-refreshing .pull-refresh-dots span:nth-child(3) { animation-delay: 240ms; }
 .pull-refresh-result-icon { display: none; width: 24px; height: 24px; place-items: center; border-radius: 50%; background: currentColor; }
 .pull-refresh-result-icon::after { content: '✓'; color: white; font-size: 17px; line-height: 1; }
-body.pull-result .pull-refresh { color: var(--status-open); }
-body.pull-result.pull-failed .pull-refresh { color: var(--closed); }
+body.pull-result .pull-refresh-result-icon { color: var(--status-open); }
+body.pull-result.pull-failed .pull-refresh-result-icon { color: var(--closed); }
 body.pull-result .pull-refresh-dots { display: none; }
 body.pull-result .pull-refresh-result-icon { display: grid; }
 body.pull-result.pull-failed .pull-refresh-result-icon::after { content: '!'; }

@@ -1,5 +1,9 @@
 # Is it dryer out
 
+## v0.7.3.1 — Structure and pull cue
+
+The dependency-free app now separates calculations, browser services, interface controls and voice into native JavaScript modules. The app's behaviour and public URLs remain the same, while direct module tests and full offline caching cover the new structure. Pull-to-refresh text and dots use neutral colours; the success and failure icons keep their green and red colours, and the cue text stays in place as the icon changes.
+
 ## v0.7.3 — iPhone chart rendering
 
 The AH forecast curve is rendered as a continuous, higher-resolution image so its white, amber and coral colours survive scrolling and zooming on iPhone. Tapping or dragging the chart inspects values without a focus flash or outline; keyboard navigation still shows a focus ring.
@@ -62,7 +66,7 @@ Indoor readings, plan settings, and the most recent location are stored only in 
 
 ## Voice diagnostics
 
-The [voice investigation](VOICE-INVESTIGATION.md) is the canonical record for current policy, device evidence and unresolved recovery failures. It links to archived research, the unsubmitted WebKit report draft and supporting video analysis.
+The [voice investigation](docs/voice/VOICE-INVESTIGATION.md) is the canonical record for current policy, device evidence and unresolved recovery failures. It links to archived research, the unsubmitted WebKit report draft and supporting video analysis.
 
 The standalone diagnostic page remains build `v0.5.4.10-cleanup-audit`, asset 127. Use `voice-test.html?mode=track-pause&staged=1&stopTrack=enabled` for the microphone-only / recognition / release control. Cleanup logs distinguish stopped tracks from AudioContext closure; successful JavaScript cleanup does not prove that the microphone indicator cleared. Older build descriptions in the investigation are historical, not the expected build at today's hosted URL.
 
@@ -70,7 +74,9 @@ Add `?voice-debug=1` to the app URL for temporary lifecycle logging and **Copy**
 
 ## Development checks
 
-No dependency installation is required. With a recent Node.js, run `node --check app.js`, `node --check service-worker.js`, and `node --test tests/*.test.cjs`. In restricted environments that cannot spawn test workers, use `node --test --test-isolation=none tests/*.test.cjs`. Run `git diff --check` before pushing. Automated checks do not replace browser and iPhone verification.
+No dependency installation is required. With Node.js 24 or later, run `node --check app.js`, `node --check service-worker.js`, and `node --test tests/*.test.cjs` (or `npm test` when npm is available). In restricted environments that cannot spawn test workers, use `node --test --test-isolation=none tests/*.test.cjs`. Run `git diff --check` before pushing. Automated checks do not replace browser and iPhone verification.
+
+See the [architecture and development guide](docs/development.md) for the module layout, local HTTP serving, and offline-cache checks.
 
 ## Project information
 
@@ -78,6 +84,7 @@ Created by Ziggy Qiao. The app links to its [GitHub repository](https://github.c
 
 ## Release history
 
+- `v0.7.3.1`: Native JavaScript modules and direct tests, complete offline module caching, consolidated voice documentation, and a neutral pull-to-refresh cue; app shell cache revision 137.
 - `v0.7.3`: Higher-resolution chart curve rendering for iPhone and no chart tap highlight, with keyboard focus retained; app shell cache revision 136.
 - `v0.7.2`: Optional Indoor summary and saved launch preference, Settings popup, layered pull to refresh, checked-time wording, 20px outer cards, refined focus rings, and app shell cache revision 135.
 - `v0.7.1`: Default 48-hour outlook and Indoor readings sheet on load; faster chart loading sweep; refined verdict and AH chart colours with matching inspection dot and moisture reading; app shell cache revision 134.

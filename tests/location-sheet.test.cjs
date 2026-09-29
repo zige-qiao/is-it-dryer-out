@@ -1,14 +1,10 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
-const fs = require('node:fs');
-const source = fs.readFileSync(require.resolve('../app.js'), 'utf8');
-function extract(name) {
-  const start = source.search(new RegExp(`(?:async )?function ${name}\\(`));
-  const rest = source.slice(start);
-  const end = rest.slice(1).search(/\n(?:async )?function /);
-  return end < 0 ? rest : rest.slice(0, end + 1);
-}
+const { environment, callbacks } = require('./helpers/browser.cjs');
+const { createLocationController } = require('../src/ui/location.js');
+const { createDialogs } = require('../src/ui/dialogs.js');
+const { createStorage } = require('../src/services/storage.js');
+const { LOCATION_HISTORY_STORAGE_KEY } = require('../src/config.js');
 function fixture() {
   let focus, weatherCalls = 0, nextTimer = 0;
   const timers = new Map(), storage = new Map();
@@ -22,7 +18,7 @@ function fixture() {
   }
   const elements = Object.fromEntries(['locationSearchInput','locationSearchResults','locationIdle','locationClearButton','locationCurrentName','locationUpdateButton','locationRecents','locationRecentList','locationDialogStatus','locationDialog'].map(key => [key, element()]));
   const state = { location: { name: 'Sale', latitude: 53.42, longitude: -2.32 }, lastCheckedAt: true };
-  const context = vm.createContext({ elements, state, document: { createElement: element },
+  const context = environment({ elements, state, document: { createElement: element },
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
     setTimeout: (fn, delay) => { assert.equal(delay, 300); timers.set(++nextTimer, fn); return nextTimer; },
     clearTimeout: id => timers.delete(id),
@@ -30,9 +26,12 @@ function fixture() {
     formatSearchLocation: result => result.name, isUkPostcodeQuery: query => /^M\d/.test(query),
     searchLocations: async () => [], reverseGeocodeLocation: async () => 'Device place'
   });
-  vm.runInContext('const LOCATION_HISTORY_STORAGE_KEY="history"; let recentLocations=[], locationSearchTimer, locationSearchRequestId=0, locationAttemptId=0, locationFinding=false, locationStatus="", locationRetry=false;', context);
-  for (const name of ['validHistoryLocation','sameLocation','saveLocationHistory','loadLocationHistory','rememberLocation','selectLocation','renderRecentLocations','renderLocationIdle','cancelLocationSearch','handleLocationInput','addWorldwideSearchButton','renderLocationResults','handleLocationSearch','runLocationSearch','useCurrentLocation','closeLocationDialog','cancelLocationWork']) vm.runInContext(extract(name), context);
-  return { context, elements, state, storage, timers, get focus() { return focus; }, get weatherCalls() { return weatherCalls; }, history: () => JSON.parse(vm.runInContext('JSON.stringify(recentLocations)', context)) };
+  const persistence = createStorage(context, context);
+  Object.assign(context, createLocationController({ ...context, readLocationHistory:persistence.loadLocationHistory, writeLocationHistory:persistence.saveLocationHistory, ...callbacks(context, ['setLocation','fetchWeather','formatSearchLocation','isUkPostcodeQuery','searchLocations','reverseGeocodeLocation','getBrowserLocation']) }, context));
+  return { context, elements, state, storage, timers, get focus() { return focus; }, get weatherCalls() { return weatherCalls; }, history: () => {
+    context.renderRecentLocations();
+    return elements.locationRecentList.children.map(row => ({name:row.children[0].children[0].textContent}));
+  } };
 }
 const place = (name, latitude) => ({ name, latitude, longitude: 1 });
 test('history seeds once, deduplicates, limits to three, and respects an emptied history', () => {
@@ -40,8 +39,8 @@ test('history seeds once, deduplicates, limits to three, and respects an emptied
   assert.equal(f.history()[0].name, 'Sale');
   for (const p of [place('A',1),place('B',2),place('C',3),place('B renamed',2)]) f.context.rememberLocation(p);
   assert.deepEqual(f.history().map(p => p.name), ['B renamed','C','A']);
-  f.storage.set('history', '[]'); f.context.loadLocationHistory(true); assert.deepEqual(f.history(), []);
-  f.storage.set('history', 'bad json'); f.context.loadLocationHistory(true); assert.deepEqual(f.history(), []);
+  f.storage.set(LOCATION_HISTORY_STORAGE_KEY, '[]'); f.context.loadLocationHistory(true); assert.deepEqual(f.history(), []);
+  f.storage.set(LOCATION_HISTORY_STORAGE_KEY, 'bad json'); f.context.loadLocationHistory(true); assert.deepEqual(f.history(), []);
   f.context.localStorage.getItem = () => { throw Error('blocked'); };
   f.context.localStorage.setItem = () => { throw Error('blocked'); };
   assert.doesNotThrow(() => { f.context.loadLocationHistory(true); f.context.rememberLocation(place('A',1)); });
@@ -52,7 +51,7 @@ test('remove never selects or closes; moves focus and persists empty history', (
   assert.equal(f.state.location.name, 'Sale'); assert.equal(f.elements.locationDialog.open, true); assert.equal(f.weatherCalls, 0);
   assert.equal(f.focus, f.elements.locationRecentList.children[0].children[1]);
   f.focus.events.click(); assert.equal(f.focus, f.elements.locationUpdateButton);
-  assert.equal(f.elements.locationRecents.hidden, true); assert.equal(f.storage.get('history'), '[]');
+  assert.equal(f.elements.locationRecents.hidden, true); assert.equal(f.storage.get(LOCATION_HISTORY_STORAGE_KEY), '[]');
 });
 test('typing debounces; clear and dismissal discard late results', async () => {
   const f = fixture(); const pending = [];
@@ -109,7 +108,7 @@ test('sheet release needs 120px even for a fast flick and cancelled drags reset'
   const events = {}, styles = new Map(); let closed = 0;
   const surface = {classList:{add(){}},addEventListener:(name,fn)=>events[name]=fn,setPointerCapture(){},hasPointerCapture:()=>true,releasePointerCapture(){}};
   const dialog = {querySelector:selector=>selector === '.sheet-handle' ? null : surface,classList:{add(){},remove(){}},style:{removeProperty:name=>styles.delete(name)},close:()=>closed++,addEventListener(){}};
-  const context = vm.createContext({window:{matchMedia:()=>({matches:true})}}); vm.runInContext(extract('enableSheetDrag'),context); context.enableSheetDrag(dialog);
+  const context = environment({window:{matchMedia:()=>({matches:true})}}); Object.assign(context,createDialogs({},context)); context.enableSheetDrag(dialog);
   const event = y => ({isPrimary:true,button:0,pointerId:1,clientY:y,target:{closest:()=>null}});
   for (const distance of [30,80,119]) { events.pointerdown(event(10)); events.pointermove(event(10+distance)); events.pointerup(event(10+distance)); }
   assert.equal(closed,0);

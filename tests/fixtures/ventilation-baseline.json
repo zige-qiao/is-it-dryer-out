@@ -1,0 +1,395 @@
+[
+  {
+    "label": "target met",
+    "settings": {
+      "indoorTemp": 24,
+      "indoorRh": 50,
+      "targetRh": 55,
+      "minTemp": 18,
+      "roomPreset": "medium",
+      "roomLength": 4,
+      "roomWidth": 5,
+      "roomHeight": 2.5,
+      "openingSetup": "single",
+      "customAirflow": 80,
+      "outdoorPressure": 1013.25
+    },
+    "start": {
+      "time": "2026-09-29T12:00:00.000Z",
+      "temp": 10,
+      "rh": 70,
+      "pressure": 1013.25,
+      "wind": 10,
+      "dewPoint": 4.782515269916923
+    },
+    "timeline": [
+      {
+        "time": "2026-09-29T12:00:00.000Z",
+        "temp": 10,
+        "rh": 70,
+        "pressure": 1013.25,
+        "wind": 10,
+        "dewPoint": 4.782515269916923
+      },
+      {
+        "time": "2026-10-01T12:00:00.000Z",
+        "temp": 10,
+        "rh": 70,
+        "pressure": 1013.25,
+        "wind": 10,
+        "dewPoint": 4.782515269916923
+      }
+    ],
+    "expected": {
+      "status": "target-met",
+      "minutes": null,
+      "limitMinutes": 0,
+      "projectedTemp": 24,
+      "projectedRh": 50
+    }
+  },
+  {
+    "label": "useful drying",
+    "settings": {
+      "indoorTemp": 24,
+      "indoorRh": 58,
+      "targetRh": 55,
+      "minTemp": 18,
+      "roomPreset": "medium",
+      "roomLength": 4,
+      "roomWidth": 5,
+      "roomHeight": 2.5,
+      "openingSetup": "single",
+      "customAirflow": 80,
+      "outdoorPressure": 1013.25
+    },
+    "start": {
+      "time": "2026-09-29T12:00:00.000Z",
+      "temp": 10,
+      "rh": 70,
+      "pressure": 1013.25,
+      "wind": 10,
+      "dewPoint": 4.782515269916923
+    },
+    "timeline": [
+      {
+        "time": "2026-09-29T12:00:00.000Z",
+        "temp": 10,
+        "rh": 70,
+        "pressure": 1013.25,
+        "wind": 10,
+        "dewPoint": 4.782515269916923
+      },
+      {
+        "time": "2026-10-01T12:00:00.000Z",
+        "temp": 10,
+        "rh": 70,
+        "pressure": 1013.25,
+        "wind": 10,
+        "dewPoint": 4.782515269916923
+      }
+    ],
+    "expected": {
+      "status": "good",
+      "minutes": 5,
+      "limitMinutes": 5,
+      "projectedTemp": 23.452766250864205,
+      "projectedRh": 54.97704912546505
+    }
+  },
+  {
+    "label": "uncertain",
+    "settings": {
+      "indoorTemp": 24,
+      "indoorRh": 58,
+      "targetRh": 55,
+      "minTemp": 18,
+      "roomPreset": "medium",
+      "roomLength": 4,
+      "roomWidth": 5,
+      "roomHeight": 2.5,
+      "openingSetup": "single",
+      "customAirflow": 80,
+      "outdoorPressure": 1013.25
+    },
+    "start": {
+      "time": "2026-09-29T12:00:00.000Z",
+      "temp": 24,
+      "rh": 58,
+      "pressure": 1013.25,
+      "wind": 10,
+      "dewPoint": 15.237526153756772
+    },
+    "timeline": [
+      {
+        "time": "2026-09-29T12:00:00.000Z",
+        "temp": 24,
+        "rh": 58,
+        "pressure": 1013.25,
+        "wind": 10,
+        "dewPoint": 15.237526153756772
+      },
+      {
+        "time": "2026-10-01T12:00:00.000Z",
+        "temp": 24,
+        "rh": 58,
+        "pressure": 1013.25,
+        "wind": 10,
+        "dewPoint": 15.237526153756772
+      }
+    ],
+    "expected": {
+      "status": "uncertain",
+      "minutes": null,
+      "limitMinutes": 0,
+      "projectedTemp": 24,
+      "projectedRh": 58
+    }
+  },
+  {
+    "label": "below minimum",
+    "settings": {
+      "indoorTemp": 17,
+      "indoorRh": 58,
+      "targetRh": 55,
+      "minTemp": 18,
+      "roomPreset": "medium",
+      "roomLength": 4,
+      "roomWidth": 5,
+      "roomHeight": 2.5,
+      "openingSetup": "single",
+      "customAirflow": 80,
+      "outdoorPressure": 1013.25
+    },
+    "start": {
+      "time": "2026-09-29T12:00:00.000Z",
+      "temp": 10,
+      "rh": 70,
+      "pressure": 1013.25,
+      "wind": 10,
+      "dewPoint": 4.782515269916923
+    },
+    "timeline": [
+      {
+        "time": "2026-09-29T12:00:00.000Z",
+        "temp": 10,
+        "rh": 70,
+        "pressure": 1013.25,
+        "wind": 10,
+        "dewPoint": 4.782515269916923
+      },
+      {
+        "time": "2026-10-01T12:00:00.000Z",
+        "temp": 10,
+        "rh": 70,
+        "pressure": 1013.25,
+        "wind": 10,
+        "dewPoint": 4.782515269916923
+      }
+    ],
+    "expected": {
+      "status": "below-minimum",
+      "minutes": null,
+      "limitMinutes": 0,
+      "projectedTemp": 17,
+      "projectedRh": 58
+    }
+  },
+  {
+    "label": "temperature limit",
+    "settings": {
+      "indoorTemp": 24,
+      "indoorRh": 58,
+      "targetRh": 40,
+      "minTemp": 23.9,
+      "roomPreset": "medium",
+      "roomLength": 4,
+      "roomWidth": 5,
+      "roomHeight": 2.5,
+      "openingSetup": "single",
+      "customAirflow": 80,
+      "outdoorPressure": 1013.25
+    },
+    "start": {
+      "time": "2026-09-29T12:00:00.000Z",
+      "temp": 0,
+      "rh": 60,
+      "pressure": 1013.25,
+      "wind": 10,
+      "dewPoint": -6.841605654279044
+    },
+    "timeline": [
+      {
+        "time": "2026-09-29T12:00:00.000Z",
+        "temp": 0,
+        "rh": 60,
+        "pressure": 1013.25,
+        "wind": 10,
+        "dewPoint": -6.841605654279044
+      },
+      {
+        "time": "2026-10-01T12:00:00.000Z",
+        "temp": 0,
+        "rh": 60,
+        "pressure": 1013.25,
+        "wind": 10,
+        "dewPoint": -6.841605654279044
+      }
+    ],
+    "expected": {
+      "status": "too-cold",
+      "minutes": null,
+      "limitMinutes": 0,
+      "projectedTemp": 24,
+      "projectedRh": 58
+    }
+  },
+  {
+    "label": "humid indoor air limited by temperature",
+    "settings": {
+      "indoorTemp": 24,
+      "indoorRh": 90,
+      "targetRh": 40,
+      "minTemp": 16,
+      "roomPreset": "medium",
+      "roomLength": 4,
+      "roomWidth": 5,
+      "roomHeight": 2.5,
+      "openingSetup": "single",
+      "customAirflow": 80,
+      "outdoorPressure": 1013.25
+    },
+    "start": {
+      "time": "2026-09-29T12:00:00.000Z",
+      "temp": 5,
+      "rh": 100,
+      "pressure": 1013.25,
+      "wind": 10,
+      "dewPoint": 5
+    },
+    "timeline": [
+      {
+        "time": "2026-09-29T12:00:00.000Z",
+        "temp": 5,
+        "rh": 100,
+        "pressure": 1013.25,
+        "wind": 10,
+        "dewPoint": 5
+      },
+      {
+        "time": "2026-10-01T12:00:00.000Z",
+        "temp": 5,
+        "rh": 100,
+        "pressure": 1013.25,
+        "wind": 10,
+        "dewPoint": 5
+      }
+    ],
+    "expected": {
+      "status": "too-cold",
+      "minutes": null,
+      "limitMinutes": 67,
+      "projectedTemp": 16.01897767415222,
+      "projectedRh": 56.458396016103386
+    }
+  },
+  {
+    "label": "wetter",
+    "settings": {
+      "indoorTemp": 24,
+      "indoorRh": 58,
+      "targetRh": 55,
+      "minTemp": 18,
+      "roomPreset": "medium",
+      "roomLength": 4,
+      "roomWidth": 5,
+      "roomHeight": 2.5,
+      "openingSetup": "single",
+      "customAirflow": 80,
+      "outdoorPressure": 1013.25
+    },
+    "start": {
+      "time": "2026-09-29T12:00:00.000Z",
+      "temp": 30,
+      "rh": 80,
+      "pressure": 1013.25,
+      "wind": 10,
+      "dewPoint": 26.174866225277476
+    },
+    "timeline": [
+      {
+        "time": "2026-09-29T12:00:00.000Z",
+        "temp": 30,
+        "rh": 80,
+        "pressure": 1013.25,
+        "wind": 10,
+        "dewPoint": 26.174866225277476
+      },
+      {
+        "time": "2026-10-01T12:00:00.000Z",
+        "temp": 30,
+        "rh": 80,
+        "pressure": 1013.25,
+        "wind": 10,
+        "dewPoint": 26.174866225277476
+      }
+    ],
+    "expected": {
+      "status": "wetter",
+      "minutes": null,
+      "limitMinutes": 0,
+      "projectedTemp": 24,
+      "projectedRh": 58
+    }
+  },
+  {
+    "label": "outdoor air would condense at indoor temperature",
+    "settings": {
+      "indoorTemp": 20,
+      "indoorRh": 60,
+      "targetRh": 55,
+      "minTemp": 18,
+      "roomPreset": "medium",
+      "roomLength": 4,
+      "roomWidth": 5,
+      "roomHeight": 2.5,
+      "openingSetup": "single",
+      "customAirflow": 80,
+      "outdoorPressure": 1013.25
+    },
+    "start": {
+      "time": "2026-09-29T12:00:00.000Z",
+      "temp": 30,
+      "rh": 90,
+      "dewPoint": 28.180474567695615,
+      "pressure": 1013.25,
+      "wind": 10
+    },
+    "timeline": [
+      {
+        "time": "2026-09-29T12:00:00.000Z",
+        "temp": 30,
+        "rh": 90,
+        "dewPoint": 28.180474567695615,
+        "pressure": 1013.25,
+        "wind": 10
+      },
+      {
+        "time": "2026-10-01T12:00:00.000Z",
+        "temp": 30,
+        "rh": 90,
+        "dewPoint": 28.180474567695615,
+        "pressure": 1013.25,
+        "wind": 10
+      }
+    ],
+    "expected": {
+      "status": "wetter",
+      "minutes": null,
+      "limitMinutes": 0,
+      "projectedTemp": 20,
+      "projectedRh": 60
+    },
+    "expectedWarmedRh": 163.50467925892548
+  }
+]

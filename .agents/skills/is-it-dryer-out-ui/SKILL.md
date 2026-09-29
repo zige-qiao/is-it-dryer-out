@@ -26,6 +26,8 @@ Inspect only the files relevant to the requested change. Read broader context wh
 
 Preserve uncommitted user changes. Use existing IDs, classes, helpers, and rendering patterns unless the requested change requires otherwise.
 
+The root `app.js` owns state, DOM lookup and feature wiring. Native modules under `src/domain/`, `src/services/`, `src/ui/` and `src/voice/` own calculations, external/browser services, interface features and voice respectively. Read the [architecture guide](../../../docs/development.md) before changes crossing these boundaries. Keep calculations independent of the DOM, controller resources private, and cross-feature callbacks wired through the entry point. Tests import modules and controllers directly; do not reintroduce function-source extraction.
+
 ## Where rules belong
 
 | File | Owns |
@@ -34,7 +36,7 @@ Preserve uncommitted user changes. Use existing IDs, classes, helpers, and rende
 | [Written design system](../../../docs/design-system.md) and [visual board](../../../docs/design-system.html) | Current layout, tokens, component states, responsive behavior, and visual examples. |
 | [README](../../../README.md) | Durable user-facing behavior, setup, usage, and published release information. |
 | [CHANGELOG](../../../CHANGELOG.md) | Notable changes under **Unreleased** until published; numbered release history stays historical. |
-| [Voice investigation](../../../VOICE-INVESTIGATION.md) | Experiments, rejected approaches, device evidence, and unresolved microphone behavior. |
+| [Voice investigation](../../../docs/voice/VOICE-INVESTIGATION.md) | Experiments, rejected approaches, device evidence, and unresolved microphone behavior. |
 
 At the end of a change, check whether a durable visual or interaction rule belongs in the design system, user-facing behavior needs the README, or a notable change needs the changelog. Update this skill only when the way we work or a critical product constraint changes. Follow an explicit documentation request immediately; otherwise consolidate routine documentation during local iteration and reconcile it before a requested push. Do not record transient experiments or rewrite historical release notes as current behavior.
 
@@ -97,11 +99,11 @@ UK location search accepts complete postcodes with or without spaces and case-in
 
 Indoor readings, plan settings, and the most recent location stay in browser storage. Do not add a backend or transmit additional user data without an explicit request.
 
-Voice input updates indoor temperature and RH only. Keep review before Apply, immediate manual Stop, session isolation, and the meterless fallback. On desktop, recognition must not wait for its optional meter. On iOS, prepare the standard meter before a fresh recognition attempt and retain its enabled stream after explicit voice activation throughout the foreground session, including Stop, Apply, sheet close, and recognition errors. Stop waveform animation outside active attempts; release capture on hidden/pagehide and clean up invalid resources. The persistent amber indicator is an accepted trade-off; background-release recovery remains unresolved. Do not reintroduce the rejected release-and-reopen recovery without new device evidence. Read [VOICE-INVESTIGATION.md](../../../VOICE-INVESTIGATION.md) for experiments and diagnostic rules when working on voice or microphone lifecycle.
+Voice input updates indoor temperature and RH only. Keep review before Apply, immediate manual Stop, session isolation, and the meterless fallback. On desktop, recognition must not wait for its optional meter. On iOS, prepare the standard meter before a fresh recognition attempt and retain its enabled stream after explicit voice activation throughout the foreground session, including Stop, Apply, sheet close, and recognition errors. Stop waveform animation outside active attempts; release capture on hidden/pagehide and clean up invalid resources. The persistent amber indicator is an accepted trade-off; background-release recovery remains unresolved. Do not reintroduce the rejected release-and-reopen recovery without new device evidence. Read [VOICE-INVESTIGATION.md](../../../docs/voice/VOICE-INVESTIGATION.md) for experiments and diagnostic rules when working on voice or microphone lifecycle.
 
 ## Cache Updates
 
-When preparing a GitHub push that changes `index.html`, `styles.css`, or `app.js`, increment the numeric cache version once, consistently in all three places:
+When preparing a GitHub push that changes `index.html`, `styles.css`, `app.js`, or production modules under `src/`, increment the numeric cache version once, consistently in all three places:
 
 - `styles.css?v=N` and `app.js?v=N` in `index.html`.
 - The corresponding asset URLs in `service-worker.js`.
@@ -109,15 +111,17 @@ When preparing a GitHub push that changes `index.html`, `styles.css`, or `app.js
 
 This prevents the installed app from showing stale UI without creating a cache revision for every local iteration.
 
+Keep every production module in the service worker's `APP_FILES` list. Imported module URLs remain relative and unversioned; the new cache revision refreshes the complete graph. Deploy the root assets and `src/` together. Missing resources must never fall back to HTML unless the request is a navigation.
+
 ## Verification
 
-For microphone diagnostics, use the [voice investigation](../../../VOICE-INVESTIGATION.md). A live track or completed JavaScript cleanup does not prove usable audio or that the device's microphone indicator has cleared.
+For microphone diagnostics, use the [voice investigation](../../../docs/voice/VOICE-INVESTIGATION.md). A live track or completed JavaScript cleanup does not prove usable audio or that the device's microphone indicator has cleared.
 
 Verify in proportion to the change while iterating:
 
 - For copy changes, inspect the affected rendered state.
 - For layout or styling changes, inspect the affected viewport and include narrow mobile and wide desktop when responsive behavior could change.
-- For JavaScript changes, run `node --check app.js`.
+- For JavaScript changes, syntax-check the entry point and changed modules, then run the relevant imported-module tests with Node.js 24 or later. For structural changes, run `node --test tests/*.test.cjs`, or add `--test-isolation=none` when test-worker creation is restricted.
 - Check `service-worker.js` only when its code or cache references change.
 - Measure rendered gaps, dimensions, clipping, or overflow when those properties are affected or under investigation.
 - Restore test-only UI states before finishing when appropriate.

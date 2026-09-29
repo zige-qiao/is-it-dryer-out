@@ -1,6 +1,7 @@
 const {test}=require('node:test');
-const assert=require('node:assert/strict');const vm=require('node:vm');const fs=require('node:fs');
-const source=fs.readFileSync(require.resolve('../app.js'),'utf8');
+const assert=require('node:assert/strict');
+const { environment } = require('./helpers/browser.cjs');
+const { createDialogs } = require('../src/ui/dialogs.js');
 function fixture(){
  const style=()=>{const values=new Map();return {getPropertyValue:n=>values.get(n)?.[0]||'',getPropertyPriority:n=>values.get(n)?.[1]||'',setProperty:(n,v,p='')=>values.set(n,[v,p]),removeProperty:n=>values.delete(n)}};
  const body={style:style(),scrollHeight:1800},root={style:style(),clientWidth:1265,scrollHeight:1800},page={style:style(),getBoundingClientRect:()=>({top:-237,left:384.5,width:496})};let openCount=0;const scrolls=[];
@@ -8,7 +9,7 @@ function fixture(){
  const viewport={height:700,offsetTop:40,addEventListener:(n,fn)=>viewportEvents[n]=fn,removeEventListener:n=>delete viewportEvents[n]};
  const window={scrollX:0,scrollY:237,innerHeight:800,visualViewport:viewport,addEventListener:(n,fn)=>windowEvents[n]=fn,removeEventListener:n=>delete windowEvents[n],requestAnimationFrame:()=>1,cancelAnimationFrame(){},scrollTo:p=>scrolls.push(p)};
  const document={body,documentElement:root,querySelector:selector=>selector==='.app-shell'?page:openCount?{}:null};
- const context=vm.createContext({document,window});vm.runInContext(source.slice(source.indexOf('function createDialogScrollLock()')),context);
+ const context=createDialogs({}, environment({document,window}));
  const makeDialog=()=>({open:false,showModal(){this.open=true;openCount++},close(){this.open=false;openCount--}});
  return {lock:context.createDialogScrollLock(),body,root,page,scrolls,makeDialog,viewport,viewportEvents,windowEvents};
 }

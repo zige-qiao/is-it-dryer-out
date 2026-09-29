@@ -1,11 +1,9 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const vm=require('node:vm');
-const fs=require('node:fs');
-const app=fs.readFileSync(require.resolve('../app.js'),'utf8');
-function extract(name,next){return app.slice(app.indexOf('function '+name+'('),next?app.indexOf('function '+next+'('):undefined);}
-const ctx=vm.createContext({});
-vm.runInContext(extract('rulerValueFromDrag','renderReadingRulers'),ctx);
+const { environment } = require('./helpers/browser.cjs');
+const { createReadingControls } = require('../src/ui/readings.js');
+const { createStorage } = require('../src/services/storage.js');
+const ctx=createReadingControls();
 test('ruler drag snaps in both directions without floating-point drift',()=>{
  assert.equal(ctx.rulerValueFromDrag(24,8,10,32,.1,8),23.9);
  assert.equal(ctx.rulerValueFromDrag(24,-80,10,32,.1,8),25);
@@ -21,9 +19,8 @@ test('ruler drag and typed values clamp and snap to supported readings',()=>{
 test('old readings retain values without inventing a last-set timestamp',()=>{
  let saved=JSON.stringify({indoorTemp:21.5,indoorRh:61});
  const state={indoorTemp:24,indoorRh:58};
- const context=vm.createContext({state,STORAGE_KEY:'indoor',Date,localStorage:{getItem:()=>saved,setItem:(_,s)=>saved=s,removeItem:()=>{}},numberInRange:(v,min,max,f)=>Number.isFinite(v)&&v>=min&&v<=max?v:f});
- vm.runInContext(extract('loadIndoorReadings','loadPlanSettings'),context);
- vm.runInContext(extract('saveIndoorReadings','savePlanSettings'),context);
+ const context=environment({state,Date,localStorage:{getItem:()=>saved,setItem:(_,s)=>saved=s,removeItem:()=>{}}});
+ Object.assign(context,createStorage(context,context));
  context.loadIndoorReadings();
  assert.equal(state.indoorLastSet,null); assert.equal(state.indoorTemp,21.5);
  context.saveIndoorReadings(); const timestamp=state.indoorLastSet;
@@ -37,8 +34,8 @@ test('pointer gestures ignore taps and vertical scrolling, and stop after cancel
  const input={value:24,min:10,max:32,step:.1,focus(){},dispatchEvent(){changes++;}};
  const ruler={dataset:{tickSpacing:8},closest:()=>({addEventListener:(name,fn)=>dialogEvents[name]=fn}),querySelector:()=>input,classList:{add(){},remove(){}},addEventListener:(name,fn)=>events[name]=fn,setPointerCapture(){captured=true},hasPointerCapture(){return captured},releasePointerCapture(){captured=false}};
  const field={addEventListener(){}};
- const context=vm.createContext({window:{matchMedia:()=>({matches:false,addEventListener(){}})},document:{addEventListener(){},querySelectorAll:()=>[ruler],querySelector:()=>({addEventListener:(name,fn)=>dialogEvents[name]=fn})},elements:{indoorTempInput:field,indoorRhInput:field,minTempInput:field,targetRhInput:field},ResizeObserver:class{observe(){}},renderReadingRulers(){},Event:class{},rulerValueFromDrag:ctx.rulerValueFromDrag});
- vm.runInContext(extract('bindReadingRulers'),context);context.bindReadingRulers();
+ const context=environment({window:{matchMedia:()=>({matches:false,addEventListener(){}})},document:{addEventListener(){},querySelectorAll:()=>[ruler],querySelector:()=>({addEventListener:(name,fn)=>dialogEvents[name]=fn})},elements:{indoorTempInput:field,indoorRhInput:field,minTempInput:field,targetRhInput:field},ResizeObserver:class{observe(){}},renderReadingRulers(){},Event:class{},rulerValueFromDrag:ctx.rulerValueFromDrag});
+ Object.assign(context,createReadingControls(context,context));context.bindReadingRulers();
  const point=(x,y)=>({isPrimary:true,button:0,pointerId:1,clientX:x,clientY:y});
  events.pointerdown(point(100,100));events.pointerup(point(100,100));assert.equal(changes,0);
  events.pointerdown(point(100,100));events.pointermove(point(101,120));assert.equal(changes,0);
@@ -54,8 +51,8 @@ function momentumFixture({reduced=false,value=24,step=.1,min=10,max=32,spacing=s
  const ruler={dataset:{tickSpacing:spacing},closest:()=>({addEventListener:(name,fn)=>dialogEvents[name]=fn}),querySelector:()=>input,classList:{add(){},remove(){}},addEventListener:(n,fn)=>events[n]=fn,setPointerCapture(){captured=true},hasPointerCapture:()=>captured,releasePointerCapture(){captured=false;events.lostpointercapture();}};
  const doc={hidden:false,querySelectorAll:()=>[ruler],querySelector:()=>({addEventListener:(n,fn)=>dialogEvents[n]=fn}),addEventListener:(n,fn)=>pageEvents[n]=fn};
  const field={addEventListener(){}};
- const context=vm.createContext({document:doc,window:{matchMedia:()=>motion},performance:{now:()=>time},requestAnimationFrame:fn=>{frames.set(++id,fn);return id},cancelAnimationFrame:id=>frames.delete(id),elements:{indoorTempInput:field,indoorRhInput:field,minTempInput:field,targetRhInput:field},ResizeObserver:class{observe(){}},renderReadingRulers(){},Event:class{},rulerValueFromDrag:ctx.rulerValueFromDrag});
- vm.runInContext(extract('bindReadingRulers'),context);context.bindReadingRulers();
+ const context=environment({document:doc,window:{matchMedia:()=>motion},performance:{now:()=>time},requestAnimationFrame:fn=>{frames.set(++id,fn);return id},cancelAnimationFrame:id=>frames.delete(id),elements:{indoorTempInput:field,indoorRhInput:field,minTempInput:field,targetRhInput:field},ResizeObserver:class{observe(){}},renderReadingRulers(){},Event:class{},rulerValueFromDrag:ctx.rulerValueFromDrag});
+ Object.assign(context,createReadingControls(context,context));context.bindReadingRulers();
  const event=(x,t,y=100)=>({isPrimary:true,button:0,pointerId:1,clientX:x,clientY:y,timeStamp:t});
  return {input,events,dialogEvents,pageEvents,motionEvents,motion,doc,frames,event,
  flick(dx=40,release=45){events.pointerdown(event(100,0));events.pointermove(event(100+dx,40));events.pointerup(event(100+dx,release));},
@@ -101,8 +98,8 @@ test('ventilation major ticks use explicit intervals and announce the correct un
   const ticks={innerHTML:''}, input={min,max,step,setAttribute(n,v){this[n]=v;}};
   return {dataset:{ruler:key,tickSpacing:spacing,majorInterval:interval,unit},clientWidth:124,ticks,input,querySelector:s=>s==='input'?input:ticks};
  });
- const context=vm.createContext({state:{minTemp:18,targetRh:55},document:{querySelectorAll:()=>rulers,querySelector:()=>({})}});
- vm.runInContext(extract('renderReadingRulers','bindReadingRulers'),context);context.renderReadingRulers();
+ const context=environment({state:{minTemp:18,targetRh:55},document:{querySelectorAll:()=>rulers,querySelector:()=>({})}});
+ Object.assign(context,createReadingControls(context,context));context.renderReadingRulers();
  assert.match(rulers[0].ticks.innerHTML, /<span>17<\/span>/);
  assert.match(rulers[0].ticks.innerHTML, /<span>19<\/span>/);
  assert.match(rulers[1].ticks.innerHTML, /<span>50<\/span>/);

@@ -1,11 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { readFileSync } = require('node:fs');
-const vm = require('node:vm');
-const app = readFileSync(require.resolve('../app.js'), 'utf8');
-const context = { clamp: (value, min, max) => Math.max(min, Math.min(max, value)) };
-vm.createContext(context);
-vm.runInContext(app.slice(app.indexOf('function positionAhIndoorLabel(')), context);
+const { createChart } = require('../src/ui/chart.js');
+const context = createChart();
 function place(curve, line = 75) {
   let baseline = line - 6;
   let x = 12;

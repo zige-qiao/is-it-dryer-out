@@ -1,6 +1,6 @@
 # Draft — reopened microphone yields silence after manual SpeechRecognition.stop()
 
-> Historical, unsubmitted draft, preserved 27 September 2026. This reproduction describes the pinned `.9` diagnostic. The hosted page and current release helper have since changed: `.10` added cleanup-completion auditing. See the [current investigation](../../VOICE-INVESTIGATION.md) for that later evidence. External issue statuses below are historical.
+> Historical, unsubmitted draft, preserved 27 September 2026. This reproduction describes the pinned `.9` diagnostic. The hosted page and current release helper have since changed: `.10` added cleanup-completion auditing. See the [current investigation](VOICE-INVESTIGATION.md) for that later evidence. External issue statuses below are historical.
 
 Not submitted. Prepared 22 September 2026 from user-supplied device logs. Proposed component: WebRTC / media capture; maintainers may route differently.
 

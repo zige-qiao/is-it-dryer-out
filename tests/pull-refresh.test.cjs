@@ -1,10 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-
-const source = fs.readFileSync(require.resolve('../app.js'), 'utf8');
-const gestureSource = source.slice(source.indexOf('function bindPullToRefresh()'), source.indexOf('function bindTypedValue('));
+const { environment } = require('./helpers/browser.cjs');
+const { createPullRefresh } = require('../src/ui/pull-refresh.js');
 
 function fixture({ reducedMotion = true, footerHeight = 64, verdictHeight = 400 } = {}) {
   const listeners = new Map();
@@ -44,7 +41,7 @@ function fixture({ reducedMotion = true, footerHeight = 64, verdictHeight = 400 
     hidden: false,
   };
   const window = { scrollY: 0, matchMedia: () => ({ matches: reducedMotion }) };
-  const context = vm.createContext({
+  const context = environment({
     document, window, state, elements,
     setTimeout: callback => { const id = ++nextTimer; timers.set(id, callback); return id; },
     clearTimeout: id => timers.delete(id),
@@ -55,7 +52,7 @@ function fixture({ reducedMotion = true, footerHeight = 64, verdictHeight = 400 
       if (waitForWeather) await new Promise(resolve => { resolveWeather = resolve; });
     },
   });
-  vm.runInContext(gestureSource, context);
+  Object.assign(context, createPullRefresh(context, context));
   context.bindPullToRefresh();
   const target = { closest: () => null };
   const start = (x = 100, y = 100, from = target) => listeners.get('touchstart')({ touches: [{ clientX: x, clientY: y }], target: from });
