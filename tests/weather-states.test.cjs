@@ -20,8 +20,18 @@ function fixture(width = 320) {
   const state = { indoorTemp: 20.1, indoorRh: 59, outdoorTemp: null, outdoorRh: null, chartHours: 24, chartSelection: 0, weatherRequestPending: true, weatherLoadFailed: false, location: { name: 'Sale' }, timezone: 'UTC' };
   const start = Date.UTC(2026, 8, 27), end = start + 86400000;
   const requests = [];
+  let now = Date.UTC(2026, 8, 29, 12);
+  let nextTimer = 0;
+  const timers = new Map();
+  class TestDate extends Date {
+    constructor(...args) { super(...(args.length ? args : [now])); }
+    static now() { return now; }
+  }
   const context = vm.createContext({
-    state, elements, activeWeatherRequestId: 0, DEFAULT_PRESSURE_HPA: 1013,
+    state, elements, activeWeatherRequestId: 0, checkedLabelTimer: null, DEFAULT_PRESSURE_HPA: 1013,
+    Date: TestDate,
+    setTimeout: (callback, delay) => { const id = ++nextTimer; timers.set(id, { callback, at: now + delay }); return id; },
+    clearTimeout: id => timers.delete(id),
     document: { activeElement: null, querySelector: s => s === '#ahChart' ? chart : s === '#ahChartReading' ? reading : outdoor, querySelectorAll: () => buttons },
     buildWeatherTimeline: () => state.outdoorTemp === null ? [] : [{ time: new Date(start) }, { time: new Date(end) }],
     buildAhOutlook: () => ({ start, end, points: [{ time: start, value: 8 }, { time: end, value: 8 }], indoor: 10.3, low: 7, high: 12, achHigh: 3 }),
@@ -43,13 +53,23 @@ function fixture(width = 320) {
     buildForecast: () => [],
     fetch: url => new Promise((resolve, reject) => requests.push({ url, resolve, reject })),
   });
-  for (const name of ['renderPlan', 'renderRecommendationExplanation', 'renderWeatherDataDetails', 'render', 'fetchWeather', 'setLocation', 'renderAhChart']) {
+  for (const name of ['renderPlan', 'renderRecommendationExplanation', 'renderWeatherDataDetails', 'render', 'updateWeatherCheckedLabel', 'fetchWeather', 'setLocation', 'renderAhChart']) {
     const begin = source.indexOf(`${name === 'fetchWeather' ? 'async ' : ''}function ${name}(`);
     const rest = source.slice(begin);
     const next = rest.slice(1).search(/\n(?:async )?function /);
     vm.runInContext(next < 0 ? rest : rest.slice(0, next + 1), context);
   }
-  return { context, state, elements, chart, reading, buttons, requests };
+  return {
+    context, state, elements, chart, reading, buttons, requests,
+    advance: (ms, runTimers = true) => {
+      now += ms;
+      if (runTimers) {
+        for (const [id, timer] of [...timers]) {
+          if (timer.at <= now) { timers.delete(id); timer.callback(); }
+        }
+      }
+    },
+  };
 }
 
 test('initial checking and failure retain indoor data, clear outdoor data and expose one recovery action', () => {
@@ -131,4 +151,49 @@ test('failed fetch can retry successfully and only the newest location request c
   assert.equal(f.state.outdoorTemp, 15);
   assert.equal(f.elements.decisionLabel.textContent, 'OPEN WINDOWS');
   assert.equal(f.elements.refreshWeather.disabled, false);
+});
+
+test('checked label changes at one minute, catches up on return, and does not replace failure', async () => {
+  const f = fixture();
+  const response = { ok: true, json: async () => ({ current: { temperature_2m: 15, relative_humidity_2m: 70 } }) };
+  const first = f.context.fetchWeather();
+  f.requests[0].resolve(response);
+  await first;
+  assert.equal(f.elements.weatherStatus.textContent, 'Checked just now');
+  f.advance(59_999);
+  assert.equal(f.elements.weatherStatus.textContent, 'Checked just now');
+  f.advance(1);
+  assert.equal(f.elements.weatherStatus.textContent, 'Checked 12:00');
+
+  const second = f.context.fetchWeather();
+  f.requests[1].resolve(response);
+  await second;
+  assert.equal(f.elements.weatherStatus.textContent, 'Checked just now');
+  f.advance(61_000, false);
+  f.context.updateWeatherCheckedLabel();
+  assert.equal(f.elements.weatherStatus.textContent, 'Checked 12:00');
+
+  const failed = f.context.fetchWeather();
+  f.requests[2].reject(new Error('offline'));
+  await failed;
+  assert.equal(f.elements.weatherStatus.textContent, 'Update failed');
+  f.advance(61_000);
+  f.context.updateWeatherCheckedLabel();
+  assert.equal(f.elements.weatherStatus.textContent, 'Update failed');
+});
+
+test('a new successful check restarts the just-now minute', async () => {
+  const f = fixture();
+  const response = { ok: true, json: async () => ({ current: { temperature_2m: 15, relative_humidity_2m: 70 } }) };
+  const first = f.context.fetchWeather();
+  f.requests[0].resolve(response);
+  await first;
+  f.advance(30_000);
+  const second = f.context.fetchWeather();
+  f.requests[1].resolve(response);
+  await second;
+  f.advance(30_000);
+  assert.equal(f.elements.weatherStatus.textContent, 'Checked just now');
+  f.advance(30_000);
+  assert.equal(f.elements.weatherStatus.textContent, 'Checked 12:00');
 });

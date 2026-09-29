@@ -13,6 +13,7 @@ const LOCATION_LABEL_OVERRIDES = new Map([
 ]);
 const STORAGE_KEY = "dew-indoor-readings";
 const PLAN_STORAGE_KEY = "is-it-dryer-out-plan";
+const UI_PREFERENCES_STORAGE_KEY = "is-it-dryer-out-ui-preferences";
 const LOCATION_STORAGE_KEY = "is-it-dryer-out-location";
 const LOCATION_HISTORY_STORAGE_KEY = "is-it-dryer-out-location-history";
 let recentLocations = [];
@@ -39,7 +40,7 @@ const OPENING_SETUPS = {
 };
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 // Keep the build identity in the script so stale code identifies itself correctly.
-const APP_BUILD_VERSION = "v0.7.1";
+const APP_BUILD_VERSION = "v0.7.2";
 const VOICE_DEBUG_ENABLED = new URLSearchParams(window.location.search).get("voice-debug") === "1";
 const IS_IOS = /iP(?:hone|ad|od)/.test(navigator.userAgent)
   || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -58,6 +59,7 @@ const INPUT_UNCERTAINTY = {
 };
 
 let dialogScrollLock;
+const uiPreferences = { showIndoorSummary: false, openIndoorOnLaunch: true };
 
 const state = {
   indoorLastSet: null,
@@ -91,6 +93,8 @@ const state = {
 
 const elements = {
   recommendation: document.querySelector(".recommendation"),
+  verdictPanel: document.querySelector(".verdict-panel"),
+  forecastPanel: document.querySelector(".forecast-panel"),
   dashboardPanel: document.querySelector(".dashboard-panel"),
   decisionLabel: document.querySelector("#decisionLabel"),
   decisionPrimary: document.querySelector("#decisionPrimary"),
@@ -102,6 +106,15 @@ const elements = {
   indoorRhInput: document.querySelector("#indoorRhInput"),
   indoorTempValue: document.querySelector("#indoorTempValue"),
   indoorRhValue: document.querySelector("#indoorRhValue"),
+  indoorSummaryTemp: document.querySelector("#indoorSummaryTemp"),
+  indoorSummaryRh: document.querySelector("#indoorSummaryRh"),
+  settingsButton: document.querySelector("#settingsButton"),
+  settingsDialog: document.querySelector("#settingsDialog"),
+  settingsDialogTitle: document.querySelector("#settingsDialogTitle"),
+  showIndoorSummary: document.querySelector("#showIndoorSummary"),
+  openIndoorOnLaunch: document.querySelector("#openIndoorOnLaunch"),
+  pullRefresh: document.querySelector("#pullRefresh"),
+  pullRefreshText: document.querySelector("#pullRefreshText"),
   outdoorTempValue: document.querySelector("#outdoorTempValue"),
   outdoorRhValue: document.querySelector("#outdoorRhValue"),
   indoorDewPoint: document.querySelector("#indoorDewPoint"),
@@ -163,6 +176,7 @@ const elements = {
 };
 
 let activeWeatherRequestId = 0;
+let checkedLabelTimer = null;
 let activeVoiceSession = null;
 let retainedVoiceMeter = null;
 let voiceDebugSession = 0;
@@ -1078,6 +1092,19 @@ function formatShortTime(date) {
   }
 }
 
+function updateWeatherCheckedLabel() {
+  if (checkedLabelTimer !== null) clearTimeout(checkedLabelTimer);
+  checkedLabelTimer = null;
+  if (state.weatherRequestPending || state.weatherLoadFailed || !state.lastSuccessfulUpdateAt) return;
+  const elapsed = Math.max(0, Date.now() - state.lastSuccessfulUpdateAt.getTime());
+  if (elapsed < 60_000) {
+    elements.weatherStatus.textContent = "Checked just now";
+    checkedLabelTimer = setTimeout(updateWeatherCheckedLabel, 60_000 - elapsed);
+  } else {
+    elements.weatherStatus.textContent = `Checked ${formatShortTime(state.lastSuccessfulUpdateAt)}`;
+  }
+}
+
 function formatWeatherTimestamp(date) {
   const options = { dateStyle: "medium", timeStyle: "short" };
   try {
@@ -1247,6 +1274,26 @@ function loadPlanSettings() {
   } catch {
     localStorage.removeItem(PLAN_STORAGE_KEY);
   }
+}
+
+function loadUiPreferences() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(UI_PREFERENCES_STORAGE_KEY));
+    if (typeof saved?.showIndoorSummary === 'boolean') uiPreferences.showIndoorSummary = saved.showIndoorSummary;
+    if (typeof saved?.openIndoorOnLaunch === 'boolean') uiPreferences.openIndoorOnLaunch = saved.openIndoorOnLaunch;
+  } catch { /* Keep the defaults if browser storage is unavailable or invalid. */ }
+  applyUiPreferences();
+}
+
+function applyUiPreferences() {
+  document.documentElement.dataset.showIndoorSummary = String(uiPreferences.showIndoorSummary);
+  elements.showIndoorSummary.checked = uiPreferences.showIndoorSummary;
+  elements.openIndoorOnLaunch.checked = uiPreferences.openIndoorOnLaunch;
+}
+
+function saveUiPreferences() {
+  try { localStorage.setItem(UI_PREFERENCES_STORAGE_KEY, JSON.stringify(uiPreferences)); }
+  catch { /* The switches still work for this page session. */ }
 }
 
 
@@ -1844,6 +1891,8 @@ function render() {
   renderReadingRulers();
   elements.indoorTempValue.textContent = formatTemp(state.indoorTemp);
   elements.indoorRhValue.textContent = formatRh(state.indoorRh);
+  elements.indoorSummaryTemp.textContent = state.indoorTemp.toFixed(1);
+  elements.indoorSummaryRh.textContent = String(Math.round(state.indoorRh));
   elements.warmingTemp.textContent = formatTemp(state.indoorTemp);
 
   const plan = renderPlan();
@@ -1979,6 +2028,8 @@ function markLocationRequested() {
 
 function setLocation(location, mode) {
   activeWeatherRequestId += 1;
+  if (checkedLabelTimer !== null) clearTimeout(checkedLabelTimer);
+  checkedLabelTimer = null;
   state.location = location;
   state.locationMode = mode;
   state.outdoorTemp = null;
@@ -2387,6 +2438,8 @@ async function initializeLocation(hasSavedLocation) {
 async function fetchWeather() {
   const requestId = ++activeWeatherRequestId;
   const requestLocation = { ...state.location };
+  if (checkedLabelTimer !== null) clearTimeout(checkedLabelTimer);
+  checkedLabelTimer = null;
   state.weatherRequestPending = true;
   state.weatherLoadFailed = false;
   elements.weatherStatus.textContent = "Updating…";
@@ -2421,7 +2474,6 @@ async function fetchWeather() {
     state.weatherLoadFailed = false;
     if (typeof data.timezone === "string" && data.timezone) state.timezone = data.timezone;
 
-    elements.weatherStatus.textContent = `Checked ${formatShortTime(state.lastCheckedAt)}`;
   } catch {
     if (requestId !== activeWeatherRequestId) return;
     state.lastCheckedAt = new Date();
@@ -2430,11 +2482,169 @@ async function fetchWeather() {
   } finally {
     if (requestId !== activeWeatherRequestId) return;
     state.weatherRequestPending = false;
+    updateWeatherCheckedLabel();
     elements.recommendation.removeAttribute("aria-busy");
     elements.dashboardPanel.removeAttribute("aria-busy");
     elements.refreshWeather.disabled = false;
     render();
   }
+}
+
+function bindPullToRefresh() {
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let start = null;
+  let distance = 0;
+  let threshold = 100;
+  let pullLimit = 0;
+  let active = false;
+  let visibleDistance = 0;
+  let footerClearance = 0;
+  let animationFrame = null;
+  let settling = false;
+  let resultTimer = null;
+  const measureFooterClearance = () => Math.max(0,
+    elements.forecastPanel.offsetTop + elements.forecastPanel.offsetHeight -
+    elements.verdictPanel.offsetTop - elements.verdictPanel.offsetHeight);
+  const paintDistance = value => {
+    visibleDistance = Math.max(-8, value);
+    const followDistance = Math.max(0, visibleDistance - footerClearance);
+    document.body.style.setProperty('--pull-distance', `${Math.round(visibleDistance * 100) / 100}px`);
+    document.body.style.setProperty('--pull-follow-distance', `${Math.round(followDistance * 100) / 100}px`);
+  };
+  const stopAnimation = () => {
+    if (animationFrame !== null) cancelAnimationFrame(animationFrame);
+    animationFrame = null;
+    settling = false;
+  };
+  const settleTo = (target, onComplete = () => {}) => {
+    stopAnimation();
+    if (reducedMotion.matches || Math.abs(visibleDistance - target) < 0.5) {
+      paintDistance(target);
+      if (target === 0) {
+        document.body.style.removeProperty('--pull-distance');
+        document.body.style.removeProperty('--pull-follow-distance');
+      }
+      onComplete();
+      return;
+    }
+    const from = visibleDistance;
+    let startedAt = null;
+    settling = true;
+    const frame = time => {
+      if (startedAt === null) startedAt = time;
+      const progress = Math.min(1, (time - startedAt) / 450);
+      const spring = 1 - Math.exp(-8 * progress) * Math.cos(7 * progress);
+      paintDistance(from + (target - from) * spring);
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(frame);
+      } else {
+        animationFrame = null;
+        settling = false;
+        paintDistance(target);
+        if (target === 0) {
+          document.body.style.removeProperty('--pull-distance');
+          document.body.style.removeProperty('--pull-follow-distance');
+        }
+        onComplete();
+      }
+    };
+    animationFrame = requestAnimationFrame(frame);
+  };
+  const resetGesture = () => {
+    start = null;
+    distance = 0;
+    active = false;
+    document.body.classList.remove('pull-active', 'pull-mid', 'pull-ready');
+  };
+  const closePull = (immediate = false) => {
+    if (resultTimer) clearTimeout(resultTimer);
+    resultTimer = null;
+    resetGesture();
+    document.body.classList.remove('pull-refreshing');
+    const resetResult = () => {
+      document.body.classList.remove('pull-result', 'pull-failed');
+      elements.pullRefreshText.textContent = 'Keep pulling';
+    };
+    if (immediate) {
+      stopAnimation();
+      paintDistance(0);
+      document.body.style.removeProperty('--pull-distance');
+      document.body.style.removeProperty('--pull-follow-distance');
+      resetResult();
+    } else {
+      settleTo(0, resetResult);
+    }
+  };
+  document.addEventListener('touchstart', event => {
+    if (event.touches.length !== 1 || window.scrollY > 0 || settling || state.weatherRequestPending ||
+        document.body.classList.contains('pull-refreshing') || document.body.classList.contains('pull-result') ||
+        document.querySelector('dialog[open]') ||
+        event.target.closest('button, a, input, select, textarea, summary, .ah-chart, .reading-ruler')) return;
+    const touch = event.touches[0];
+    start = { x: touch.clientX, y: touch.clientY };
+    footerClearance = measureFooterClearance();
+    pullLimit = elements.verdictPanel.offsetHeight / 2;
+    const cueHeight = elements.pullRefresh.offsetHeight;
+    threshold = pullLimit > cueHeight
+      ? Math.max(100, Math.ceil(-pullLimit * Math.log(1 - cueHeight / pullLimit)))
+      : 100;
+    distance = 0;
+    active = false;
+  }, { passive: true });
+  document.addEventListener('touchmove', event => {
+    if (!start) return;
+    if (event.touches.length !== 1) { closePull(); return; }
+    const touch = event.touches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (window.scrollY > 0 || dy < -8 || Math.abs(dx) > Math.max(12, dy * 0.7)) { closePull(); return; }
+    if (dy <= 0) return;
+    event.preventDefault();
+    if (dy < 12) {
+      if (active) {
+        active = false;
+        document.body.classList.remove('pull-active', 'pull-mid', 'pull-ready');
+        paintDistance(0);
+      }
+      return;
+    }
+    active = true;
+    distance = dy;
+    document.body.classList.add('pull-active');
+    paintDistance(pullLimit * (1 - Math.exp(-dy / pullLimit)));
+    document.body.classList.toggle('pull-mid', dy >= threshold / 2);
+    document.body.classList.toggle('pull-ready', dy >= threshold);
+    elements.pullRefreshText.textContent = dy >= threshold ? 'Release to re-check' : 'Keep pulling';
+  }, { passive: false });
+  document.addEventListener('touchend', async () => {
+    if (!start) return;
+    const refresh = active && distance >= threshold && !state.weatherRequestPending;
+    if (!refresh) { closePull(); return; }
+    resetGesture();
+    document.body.classList.add('pull-refreshing');
+    settleTo(elements.pullRefresh.offsetHeight);
+    elements.pullRefreshText.textContent = 'Updating weather…';
+    try {
+      const update = fetchWeather();
+      footerClearance = measureFooterClearance();
+      paintDistance(visibleDistance);
+      await update;
+      elements.pullRefreshText.textContent = state.weatherLoadFailed ? 'Weather update failed' : 'Weather updated';
+      document.body.classList.toggle('pull-failed', state.weatherLoadFailed);
+    } catch {
+      elements.pullRefreshText.textContent = 'Weather update failed';
+      document.body.classList.add('pull-failed');
+    } finally {
+      footerClearance = measureFooterClearance();
+      paintDistance(visibleDistance);
+      document.body.classList.remove('pull-refreshing');
+      if (document.hidden) { closePull(true); return; }
+      document.body.classList.add('pull-result');
+      resultTimer = setTimeout(closePull, 1400);
+    }
+  }, { passive: true });
+  document.addEventListener('touchcancel', () => { if (start) closePull(); }, { passive: true });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) closePull(true); });
 }
 
 
@@ -2515,8 +2725,12 @@ function bindEvents() {
   chartResizeObserver.observe(document.querySelector('#ahChart'));
   const indoorDialog = document.querySelector('#indoorDialog');
   const editIndoor = document.querySelector('#editIndoorButton');
+  const summaryEdit = document.querySelector('#indoorSummaryEdit');
+  const summaryVoice = document.querySelector('#indoorSummaryVoice');
+  const indoorOpeners = [editIndoor, summaryEdit, summaryVoice];
+  let indoorDialogOpener = null;
   dialogScrollLock = createDialogScrollLock();
-  [indoorDialog, elements.planDialog, elements.locationDialog].forEach(dialog => {
+  [indoorDialog, elements.planDialog, elements.locationDialog, elements.settingsDialog].forEach(dialog => {
     dialog.addEventListener('close', dialogScrollLock.release);
     enableSheetDrag(dialog);
     let startedOutside = false;
@@ -2537,17 +2751,44 @@ function bindEvents() {
     });
     dialog.addEventListener('close', () => { startedOutside = false; });
   });
-  editIndoor.addEventListener('click', () => {
-    editIndoor.setAttribute('aria-expanded', 'true');
+  const openIndoorEditor = opener => {
+    indoorDialogOpener = opener;
+    opener?.setAttribute('aria-expanded', 'true');
     dialogScrollLock.open(indoorDialog);
     document.querySelector('#indoor-heading').focus({ preventScroll: true });
-  });
+  };
+  editIndoor.addEventListener('click', () => openIndoorEditor(editIndoor));
+  summaryEdit.addEventListener('click', () => openIndoorEditor(summaryEdit));
   document.querySelector('#indoorDoneButton').addEventListener('click', () => indoorDialog.close());
   indoorDialog.addEventListener('close', () => {
     if (!elements.voiceDialog.hidden) closeVoiceDialog();
-    editIndoor.setAttribute('aria-expanded', 'false');
-    editIndoor.focus({ preventScroll: true });
+    indoorOpeners.forEach(opener => opener.setAttribute('aria-expanded', 'false'));
+    (indoorDialogOpener || elements.locationButton).focus({ preventScroll: true });
+    indoorDialogOpener = null;
   });
+  elements.settingsButton.addEventListener('click', () => {
+    elements.settingsButton.setAttribute('aria-expanded', 'true');
+    dialogScrollLock.open(elements.settingsDialog);
+    elements.settingsDialogTitle.focus({ preventScroll: true });
+  });
+  elements.settingsDialog.addEventListener('close', () => {
+    elements.settingsButton.setAttribute('aria-expanded', 'false');
+    elements.settingsButton.focus({ preventScroll: true });
+  });
+  elements.showIndoorSummary.addEventListener('change', () => {
+    uiPreferences.showIndoorSummary = elements.showIndoorSummary.checked;
+    applyUiPreferences();
+    saveUiPreferences();
+  });
+  elements.openIndoorOnLaunch.addEventListener('change', () => {
+    uiPreferences.openIndoorOnLaunch = elements.openIndoorOnLaunch.checked;
+    saveUiPreferences();
+  });
+  if (uiPreferences.openIndoorOnLaunch) {
+    requestAnimationFrame(() => {
+      if (!document.querySelector('dialog[open]')) openIndoorEditor(null);
+    });
+  }
   document.querySelectorAll('[data-chart-hours]').forEach(button => button.addEventListener('click', () => {
     state.chartHours = Number(button.dataset.chartHours);
     state.chartSelection = Math.min(state.chartSelection, state.chartHours);
@@ -2626,6 +2867,12 @@ function bindEvents() {
   });
   if (SpeechRecognition) {
     elements.voiceInputButton.hidden = false;
+    summaryVoice.hidden = false;
+    summaryVoice.addEventListener('click', () => {
+      indoorDialogOpener = summaryVoice;
+      summaryVoice.setAttribute('aria-expanded', 'true');
+      startVoiceInput();
+    });
     elements.voiceInputButton.addEventListener("click", toggleVoiceListening);
     elements.voiceListenButton.addEventListener("click", toggleVoiceListening);
     elements.voiceDialogCloseButton.addEventListener("click", closeVoiceDialog);
@@ -2640,15 +2887,17 @@ if ("serviceWorker" in navigator) {
 
 loadIndoorReadings();
 loadPlanSettings();
+loadUiPreferences();
 initializeVoiceDebugPanel();
 const hasSavedLocation = loadLocation();
 loadLocationHistory(hasSavedLocation);
 updateLocationUi();
 bindEvents();
+bindPullToRefresh();
 render();
-document.querySelector('#editIndoorButton').click();
 initializeLocation(hasSavedLocation);
 setInterval(fetchWeather, WEATHER_REFRESH_INTERVAL_MS);
+setInterval(updateIndoorLastSetLabels, 60_000);
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") {
@@ -2666,6 +2915,8 @@ document.addEventListener("visibilitychange", () => {
     releaseRetainedVoiceMeter("page hidden");
     return;
   }
+  updateIndoorLastSetLabels();
+  updateWeatherCheckedLabel();
   if (!state.lastCheckedAt || minutesSince(state.lastCheckedAt) >= 15) fetchWeather();
 });
 
@@ -2875,7 +3126,7 @@ function positionAhIndoorLabel(chart, curve, lineY, plotTop = 14, plotBottom = 1
 }
 
 function enableSheetDrag(dialog) {
-  const header = dialog.querySelector('.section-heading, .plan-dialog-heading, .location-dialog-heading');
+  const header = dialog.querySelector('.section-heading, .plan-dialog-heading, .location-dialog-heading, .settings-dialog-heading');
   const handle = dialog.querySelector('.sheet-handle');
   let gesture = null;
   const reset = () => {
@@ -2933,13 +3184,25 @@ function renderReadingRulers() {
     ruler.querySelector('.ruler-ticks').innerHTML = ticks;
     input.setAttribute('aria-valuetext', value + ' ' + ruler.dataset.unit);
   });
+  updateIndoorLastSetLabels();
+}
+
+function updateIndoorLastSetLabels() {
   const lastSet = document.querySelector('#indoorLastSet');
+  const summaryLastSet = document.querySelector('#indoorSummaryLastSet');
   lastSet.hidden = !state.indoorLastSet;
-  if (state.indoorLastSet) {
-    const date = new Date(state.indoorLastSet);
-    const today = date.toDateString() === new Date().toDateString();
-    lastSet.textContent = 'Last set ' + date.toLocaleString(undefined, { ...(today ? {} : {day:'numeric',month:'short'}), hour:'2-digit',minute:'2-digit',hour12:false });
-  }
+  summaryLastSet.hidden = !state.indoorLastSet;
+  if (!state.indoorLastSet) return;
+
+  const minutes = Math.max(0, Math.floor((Date.now() - state.indoorLastSet) / 60_000));
+  const elapsed = minutes === 0 ? 'Just now'
+    : minutes < 60 ? `${minutes}m ago`
+    : `${Math.floor(minutes / 60)}h ${minutes % 60}m ago`;
+  lastSet.textContent = elapsed;
+  summaryLastSet.textContent = `· ${elapsed}`;
+  const absoluteTime = new Date(state.indoorLastSet).toLocaleString();
+  lastSet.title = absoluteTime;
+  summaryLastSet.title = absoluteTime;
 }
 
 function bindReadingRulers() {
