@@ -4,14 +4,17 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
-## v0.7.3.1 — Structure and pull cue - 2026-09-30
+## v0.7.3.1 — Structure, pull cue, and moisture estimates - 2026-09-30
 
 - Split the production JavaScript into native modules for calculations, services, UI, and voice, retaining the dependency-free static app and existing URLs.
 - Replace source-extraction tests with module and controller tests; add calculation parity and offline import-graph coverage.
 - Cache all production modules and limit HTML fallback to navigation requests.
 - Consolidate voice investigation records under `docs/voice/` and document the architecture and development workflow.
 - Change pull-to-refresh cue text and dots to neutral design tokens. Keep the green success and red failure icons, and align the 24px dot row with the result icon so the text does not shift.
-- Set the app build identity to `v0.7.3.1` and synchronize the app shell cache at revision 137.
+- Compare indoor and outdoor moisture at a shared temperature so the recommendation follows the moisture ratio used by the ventilation estimate, while the cards and chart still display actual absolute humidity.
+- Colour the forecast curve by the moisture comparison at each forecast time, and allow a below-minimum room to benefit from warmer, drier incoming air.
+- Shorten the README and move detailed usage guidance into `docs/user-guide.md`; align the design records with the updated comparison and chart behaviour.
+- Set the app build identity to `v0.7.3.1` and synchronize the updated app shell cache at revision 138.
 
 ## v0.7.3 — iPhone chart rendering - 2026-09-29
 

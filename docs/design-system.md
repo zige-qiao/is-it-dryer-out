@@ -1,8 +1,8 @@
 # Is it dryer out — design system
 
-**Version:** 1.3 · **Updated:** 29 September 2026 · **Status:** v0.7.3
+**Version:** 1.4 · **Updated:** 30 September 2026 · **Status:** v0.7.3.1
 
-This is a reusable specification for the app. The warm-grey controls and component states were implemented in v0.7.0, the revised verdict and AH chart colours shipped in v0.7.1, and the Indoor summary strip with subsequent layout and focus refinements shipped in v0.7.2. Broader typography normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
+This is a reusable specification for the app. The warm-grey controls and component states were implemented in v0.7.0, the revised verdict and AH chart colours shipped in v0.7.1, and the Indoor summary strip with subsequent layout and focus refinements shipped in v0.7.2. The current shared-temperature moisture comparison and time-based chart gradient are described below. Broader typography normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
 
 Open [the visual review board](design-system.html) for colour and state specimens. This document records the rules; the board illustrates them.
 
@@ -121,7 +121,7 @@ Suggested semantic aliases for later implementation: `--verdict-target-start/end
 
 #### B. Outdoor card and “Let in” humidity
 
-These reflect absolute humidity, independently of the plan verdict. Let `difference = indoor AH − outdoor AH`; compare it with the existing calculated uncertainty margin.
+The Outdoor and Indoor cards display absolute humidity at each reading's actual temperature. Their colour state is independent of the plan verdict: express both readings as vapour density at the indoor temperature, then compare that difference with its calculated uncertainty margin. At a shared air pressure, this has the same ordering as the humidity ratio used by the ventilation model. The displayed AH numbers can therefore have a different ordering from the colour state when temperatures differ.
 
 | Comparison / class | Foreground | Card fill | Condition |
 |---|---|---|---|
@@ -141,9 +141,9 @@ The AH line remains its own semantic colour family, separate from both the recom
 
 | Element | Effective colour / opacity | Meaning |
 |---|---|---|
-| Wetter end of forecast AH curve | `#FFB3A8` (`--chart-wet`) | Outdoor AH above indoor by more than the uncertainty interval. |
-| Full uncertainty interval | `#FFD27A` (`--chart-near`) | At/near indoor AH within ± the calculated moisture margin. |
-| Drier end of forecast AH curve | `#FFFFFF` | Reliably lower outdoor AH. |
+| Wetter end of forecast AH curve | `#FFB3A8` (`--chart-wet`) | Outdoor air reliably wetter at the indoor reference temperature. |
+| Full uncertainty interval | `#FFD27A` (`--chart-near`) | Moisture difference within ± the calculated margin at the indoor reference temperature. |
+| Drier end of forecast AH curve | `#FFFFFF` | Outdoor air reliably drier at the indoor reference temperature. |
 | Indoor reference line / label | White at 70% / white | Dashed comparison reference, not a forecast series. |
 | Airflow bars / values | `#FFFFFF38` (about 22%) / white | Estimated ACH; bars do not encode wet/dry categories. |
 | Time/axis text | `#FFFFFFD9` (about 85%) | Supporting annotations. |
@@ -152,11 +152,11 @@ The AH line remains its own semantic colour family, separate from both the recom
 | Selected moisture reading | Curve colour at the selected point | The g/m³ value follows the line; time and ACH stay white. |
 | Chart top divider | `#FFFFFF40` (about 25%) | Separation within the same coloured surface. |
 
-The curve gradient is **vertical in data coordinates**, not a left-to-right time gradient. It spans indoor AH + 1.75 × margin to indoor AH − 1.75 × margin. Amber stops at 21.4286% and 78.5714% preserve the whole ±margin interval; red and white blend outside it. Keep the full interval amber. A slightly drier forecast value can still be amber if within uncertainty.
+The curve height still plots actual outdoor AH against the actual indoor AH reference. Its colour is evaluated separately at each forecast time by comparing vapour density at the indoor temperature, using that time's calculated uncertainty margin. The gradient runs left to right through forecast time, with smooth transitions between sampled colours. Amber covers the full ±margin interval; coral and white blend outside it. The selected point and g/m³ reading use the curve colour at that time. Colour need not follow the curve's vertical position relative to the dashed indoor line when air temperatures differ.
 
 The chart uses brighter colours than the pale comparison cards because it sits on the dark recommendation surface. Do not substitute `#1769AA`, `#8A6700` or `#A23B2A` for these chart strokes. Contrast against each verdict gradient still needs rendering checks; this document does not claim all semantic combinations pass.
 
-The review board includes an illustrative full chart, with the forecast curve, indoor reference, airflow bars and values, local-time labels, grid and day separators, and inspection cursor shown together. It also shows the current loading skeleton. The values in the specimen are examples, not a live forecast or an extra chart legend.
+The review board includes an illustrative full chart, with the forecast curve, indoor reference, airflow bars and values, local-time labels, grid and day separators, and inspection cursor shown together. It illustrates the time-based colour progression and the current loading skeleton. The values in the specimen are examples, not a live forecast or an extra chart legend.
 
 #### D. Loading, unavailable data and feedback
 
@@ -342,6 +342,7 @@ The existence of a rule is not proof of its implementation. Before calling the s
 
 ## Revision log
 
+- 1.4 update, 30 September 2026: aligned card and chart colour semantics with shared-temperature moisture comparison and the time-based forecast gradient.
 - 1.3 v0.7.3 release, 29 September 2026: recorded the iPhone chart curve rendering and pointer versus keyboard focus behavior.
 - 1.2 v0.7.2 release, 29 September 2026: recorded the Indoor controls, layered pull to refresh, updated checked-time label and release status; retained historical v0.7.1 evidence.
 - 1.1 local update, 28 September 2026: documented the unpublished Indoor summary strip, manual sheet opening, relative reading age, current outer/inner radii, 24 h / 48 h spacing and outer keyboard focus pattern. Kept v0.7.1 and historical captures as records of their time.

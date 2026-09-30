@@ -19,6 +19,8 @@ Use the refresh icon beside the location, or pull down from the top on a touch d
 
 Opening times are estimates: actual airflow depends on your room, windows and the weather. Small moisture differences may be too uncertain to justify opening.
 
+The moisture cards and chart show actual absolute humidity. Their colours compare indoor and outdoor air at the same temperature, matching the ventilation estimate.
+
 Readings and preferences are saved in your browser. The interface can load offline after caching, but fresh weather needs an internet connection.
 
 On iPhone, voice input may keep the microphone indicator on while the app remains in the foreground. See the [user guide](docs/user-guide.md) for voice behaviour, data services and detailed instructions.

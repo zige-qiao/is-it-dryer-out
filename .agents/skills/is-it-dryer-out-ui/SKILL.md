@@ -74,11 +74,11 @@ When displaying forecast outcomes, use `Uncertain` instead of `Wait` and `Little
 
 - Keep the outdoor outlook inside the recommendation, defaulting to 48 h with 24 h / 48 h controls, an AH line, indoor reference and estimated ACH bars. Derive both views' scales from the same 48-hour forecast and stop at available coverage.
 - Preserve pointer and keyboard inspection, local-time labels and a readable indoor reference label that avoids the curve. The selected dot and g/m³ reading follow the curve colour at the inspected point.
-- Use the full moisture uncertainty range for amber and retain soft semantic-colour transitions.
+- Plot actual outdoor AH against the actual indoor AH reference, but colour each forecast time using a shared-temperature moisture comparison and its uncertainty margin. Use the full uncertainty range for amber and retain soft semantic-colour transitions across time.
 - Keep loading and failure states clear; avoid displaying stale outdoor results as current. Preserve retry and weather refresh actions. The CHECKING label and chart skeleton use angled sweeps only while loading; reduced motion and failure are static.
 - Pulling down at the page top on touch devices refreshes outdoor weather without reloading the page. Keep the existing refresh controls as alternatives.
 - Keep Last checked with its muted refresh icon near the location. Refresh page belongs in the footer.
-- Compare outdoor and indoor AH cards with warmed-outdoor RH between them. Match the outdoor card and warmed-RH value to moisture semantics.
+- Show actual AH in the outdoor and indoor cards with warmed-outdoor RH between them. The outdoor card and warmed-RH colour use the shared-temperature moisture comparison, so do not infer their colour solely from the ordering of the displayed AH values.
 
 ## Supporting Details
 

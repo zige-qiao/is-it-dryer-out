@@ -22,15 +22,15 @@ Use the refresh icon beside the checked time, or pull down from the page top on 
 
 ## Reading the result
 
-The recommendation compares indoor and outdoor water content, accounting for uncertainty in the readings. Absolute humidity (AH) expresses that water content in grams per cubic metre. The **Let in** value estimates outdoor relative humidity after that air warms to the current indoor temperature.
+The recommendation compares indoor and outdoor moisture at the same reference temperature, accounting for uncertainty in the readings. The cards show each reading's actual absolute humidity (AH) in grams per cubic metre; their colours reflect the shared-temperature comparison, so the colour need not follow the order of those two displayed numbers when the air temperatures differ. The **Let in** value estimates outdoor relative humidity after that air warms to the current indoor temperature.
 
-The outlook starts at 48 hours and can switch to 24 hours. The curve shows outdoor AH against the indoor reference, and the bars show estimated air changes per hour (ACH). Both ranges use the same 48-hour scales. Tap, drag or hover to inspect values; keyboard users can use arrow keys and Home/End.
+The outlook starts at 48 hours and can switch to 24 hours. The curve shows actual outdoor AH against the actual indoor reference, and the bars show estimated air changes per hour (ACH). Along the curve, coral means reliably wetter, amber means within the uncertainty margin, and white means reliably drier after comparing air at the indoor temperature. Both ranges use the same 48-hour scales. Tap, drag or hover to inspect values; keyboard users can use arrow keys and Home/End.
 
 ## How opening times are estimated
 
 Room volume, opening setup, forecast wind and the indoor–outdoor temperature difference determine estimated airflow. The app then simulates moisture and temperature minute by minute. Between hourly forecast points, humidity is derived from interpolated dew point.
 
-The estimate stops when the humidity target or minimum temperature is reached, condensation is predicted, or outdoor air stops being reliably drier. When both an estimated outcome time and a reliably drier period are shown, follow the earlier limit.
+The estimate stops when the humidity target is reached, the room would cool below its minimum, condensation is predicted, or outdoor air stops being reliably drier. A room already below its minimum can still benefit from opening if the incoming air is warmer and reliably drier; the estimate stops if that room starts cooling again while still below its minimum. When both an estimated outcome time and a reliably drier period are shown, follow the earlier limit.
 
 Useful drying can produce **OPEN WINDOWS** even when the target cannot be reached. An expected humidity reduction below one percentage point produces **OPEN IF NEEDED**: ventilation might still help with fresh air, but may not meaningfully reduce humidity. Harmful conditions produce **KEEP CLOSED**; small differences within the uncertainty margin do not establish a drying benefit.
 
