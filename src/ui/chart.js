@@ -1,4 +1,4 @@
-import { clamp, absoluteHumidity, moistureMargin } from '../domain/humidity.js';
+import { clamp, absoluteHumidity, compareMoisture } from '../domain/humidity.js';
 import { buildWeatherTimeline as calculateBuildWeatherTimeline, weatherAtTime } from '../domain/forecast.js';
 import { effectiveAirExchange as calculateEffectiveAirExchange } from '../domain/ventilation.js';
 
@@ -9,11 +9,27 @@ export function createChart({
   const { window, document, Date, getComputedStyle } = environment;
   const buildWeatherTimeline = (...args) => calculateBuildWeatherTimeline(state, ...args);
   const effectiveAirExchange = (...args) => calculateEffectiveAirExchange(state, ...args);
+  const semanticPosition = weather => {
+    const comparison = compareMoisture(state.indoorTemp, state.indoorRh, weather.temp, weather.rh);
+    return clamp(0.5 + comparison.difference / (comparison.margin * 3.5), 0, 1);
+  };
+  const nearStart = 0.2142857143, nearEnd = 0.7857142857;
+  function semanticColor(position, wet, near) {
+    const rgb = value => {
+      const hex = value.trim().match(/^#([0-9a-f]{6})$/i)?.[1];
+      return hex ? [0, 2, 4].map(offset => parseInt(hex.slice(offset, offset + 2), 16)) : [255, 255, 255];
+    };
+    const from = rgb(position < nearStart ? wet : near);
+    const to = rgb(position < nearStart ? near : '#ffffff');
+    const fraction = position < nearStart ? position / nearStart
+      : position <= nearEnd ? 0 : (position - nearEnd) / (1 - nearEnd);
+    return `rgb(${from.map((channel, index) => Math.round(channel + (to[index] - channel) * fraction)).join(', ')})`;
+  }
   function buildAhOutlook(timeline, hours) {
     const start = timeline[0].time.getTime();
     const fullEnd = Math.min(start + 48 * 3600000, timeline.at(-1).time.getTime());
     const end = Math.min(start + hours * 3600000, fullEnd);
-    const sample = weather => ({ time: weather.time.getTime(), value: absoluteHumidity(weather.temp, weather.rh), ach: effectiveAirExchange(weather, state.indoorTemp).airChangesPerHour });
+    const sample = weather => ({ time: weather.time.getTime(), value: absoluteHumidity(weather.temp, weather.rh), ach: effectiveAirExchange(weather, state.indoorTemp).airChangesPerHour, semantic: semanticPosition(weather) });
     const full = timeline.filter(p => p.time.getTime() < fullEnd).map(sample);
     full.push(sample(weatherAtTime(timeline, new Date(fullEnd))));
     const points = full.filter(p => p.time < end);
@@ -75,8 +91,34 @@ export function createChart({
     const y = value => bottom - (value - low) / (high - low) * (bottom - top);
     const airflowBandHeight = (bottom - top) / 3;
     const ay = ach => bottom - ach / achHigh * airflowBandHeight;
-    const margin = moistureMargin(state.indoorTemp, state.indoorRh, state.outdoorTemp, state.outdoorRh);
-    const gradient = '<linearGradient id="ahSemantic" gradientUnits="userSpaceOnUse" x1="0" y1="'+y(indoor + margin * 1.75)+'" x2="0" y2="'+y(indoor - margin * 1.75)+'"><stop offset="0" stop-color="var(--chart-wet)"/><stop offset="0.2142857143" stop-color="var(--chart-near)"/><stop offset="0.7857142857" stop-color="var(--chart-near)"/><stop offset="1" stop-color="white"/></linearGradient>';
+    const chartStyles = getComputedStyle(chart);
+    const wetColor = chartStyles.getPropertyValue('--chart-wet').trim() || '#ffb3a8';
+    const nearColor = chartStyles.getPropertyValue('--chart-near').trim() || '#ffd27a';
+    const semanticSamples = [];
+    for (let time = start; time < end; time += 15 * 60000) {
+      semanticSamples.push({ time, position: semanticPosition(weatherAtTime(timeline, new Date(time))) });
+    }
+    semanticSamples.push({ time: end, position: semanticPosition(weatherAtTime(timeline, new Date(end))) });
+    const gradientSamples = [semanticSamples[0]];
+    for (let index = 1; index < semanticSamples.length; index += 1) {
+      const previous = semanticSamples[index - 1], next = semanticSamples[index];
+      for (const threshold of [nearStart, nearEnd]) {
+        if ((previous.position - threshold) * (next.position - threshold) >= 0) continue;
+        let low = previous.time, high = next.time;
+        const increasing = next.position > previous.position;
+        for (let step = 0; step < 16; step += 1) {
+          const middle = (low + high) / 2;
+          const position = semanticPosition(weatherAtTime(timeline, new Date(middle)));
+          if ((position < threshold) === increasing) low = middle;
+          else high = middle;
+        }
+        gradientSamples.push({ time: (low + high) / 2, position: threshold });
+      }
+      gradientSamples.push(next);
+    }
+    gradientSamples.sort((a, b) => a.time - b.time);
+    const gradientStops = gradientSamples.map(sample => '<stop offset="'+((sample.time-start)/(end-start))+'" stop-color="'+semanticColor(sample.position, wetColor, nearColor)+'"/>').join('');
+    const gradient = '<linearGradient id="ahSemantic" gradientUnits="userSpaceOnUse" x1="'+left+'" y1="0" x2="'+right+'" y2="0">'+gradientStops+'</linearGradient>';
     const excessClip = '<clipPath id="ahExcessClip"><rect x="'+left+'" y="'+top+'" width="'+(right-left)+'" height="'+Math.max(0,y(indoor)-top)+'"/></clipPath>';
     const path = points.map((p,i) => (i ? 'L' : 'M')+x(p.time).toFixed(2)+','+y(p.value).toFixed(2)).join(' ');
     // Draw one continuous stroke at twice the previous bitmap resolution, then
@@ -89,16 +131,10 @@ export function createChart({
     const curveContext = curveCanvas.getContext('2d');
     let curve = '<path d="'+path+'" class="ah-curve"/>';
     if (curveContext) {
-      const chartStyles = getComputedStyle(chart);
-      const wetColor = chartStyles.getPropertyValue('--chart-wet').trim() || '#ffb3a8';
-      const nearColor = chartStyles.getPropertyValue('--chart-near').trim() || '#ffd27a';
       curveContext.scale(curveCanvas.width / 480, curveCanvas.height / (bottom - top));
       curveContext.translate(0, -top);
-      const lineGradient = curveContext.createLinearGradient(0, y(indoor + margin * 1.75), 0, y(indoor - margin * 1.75));
-      lineGradient.addColorStop(0, wetColor);
-      lineGradient.addColorStop(0.2142857143, nearColor);
-      lineGradient.addColorStop(0.7857142857, nearColor);
-      lineGradient.addColorStop(1, 'white');
+      const lineGradient = curveContext.createLinearGradient(left, 0, right, 0);
+      gradientSamples.forEach(sample => lineGradient.addColorStop((sample.time-start)/(end-start), semanticColor(sample.position, wetColor, nearColor)));
       curveContext.beginPath();
       points.forEach((point, i) => i ? curveContext.lineTo(x(point.time), y(point.value)) : curveContext.moveTo(x(point.time), y(point.value)));
       curveContext.strokeStyle = lineGradient;
@@ -165,15 +201,15 @@ export function createChart({
       const fraction=b.time===a.time ? 0 : (time-a.time)/(b.time-a.time);
       const curveValue = a.value+(b.value-a.value)*fraction;
       chart.querySelector('#ahDot').setAttribute('cy',y(curveValue));
-      const colorPosition = clamp((indoor+margin*1.75-curveValue)/(margin*3.5),0,1);
-      const nearStart = 0.2142857143, nearEnd = 0.7857142857;
+      const nextColor = Math.max(1, gradientSamples.findIndex(sample => sample.time >= time));
+      const first = gradientSamples[nextColor - 1], second = gradientSamples[nextColor];
+      const colorFraction = second.time === first.time ? 0 : clamp((time - first.time) / (second.time - first.time), 0, 1);
+      const colorChannels = sample => semanticColor(sample.position, wetColor, nearColor).match(/\d+/g).map(Number);
+      const fromColor = colorChannels(first), toColor = colorChannels(second);
       readingTime.textContent = timeLabel;
       readingMoisture.textContent = moistureLabel;
       readingAirflow.textContent = airflowLabel;
-      readingMoisture.style.color = colorPosition < nearStart
-        ? `color-mix(in srgb, var(--chart-wet) ${(1-colorPosition/nearStart)*100}%, var(--chart-near))`
-        : colorPosition <= nearEnd ? 'var(--chart-near)'
-        : `color-mix(in srgb, var(--chart-near) ${(1-(colorPosition-nearEnd)/(1-nearEnd))*100}%, white)`;
+      readingMoisture.style.color = `rgb(${fromColor.map((channel, index) => Math.round(channel + (toColor[index] - channel) * colorFraction)).join(', ')})`;
     }
     const inspect = event => {
       const bounds=chart.getBoundingClientRect();

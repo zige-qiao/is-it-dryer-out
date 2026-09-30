@@ -1,4 +1,4 @@
-import { absoluteHumidity } from '../domain/humidity.js';
+import { equivalentAbsoluteHumidity } from '../domain/humidity.js';
 import { MAX_OPEN_MINUTES, MINIMUM_NOTICEABLE_RH_CHANGE } from '../config.js';
 
 export function createRecommendationView({
@@ -199,7 +199,7 @@ export function createRecommendationView({
         if (projectedRhDrop < MINIMUM_NOTICEABLE_RH_CHANGE) {
           return "With this plan, opening a window isn't expected to lower the indoor humidity reading by even one percentage point.";
         }
-        const projectedMoisture = absoluteHumidity(plan.projectedTemp, plan.projectedRh);
+        const projectedMoisture = equivalentAbsoluteHumidity(plan.projectedTemp, plan.projectedRh, state.indoorTemp);
         if (comparison.indoor - projectedMoisture <= comparison.margin) {
           return "With this plan, the expected moisture reduction is within the margin of error, so the change is unclear.";
         }

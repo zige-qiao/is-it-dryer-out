@@ -1,6 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { createChart } = require('../src/ui/chart.js');
+const { absoluteHumidity, compareMoisture, dewPoint } = require('../src/domain/humidity.js');
 const context = createChart();
 function place(curve, line = 75) {
   let baseline = line - 6;
@@ -27,4 +28,31 @@ test('indoor label prefers above when clear and stays inside plot at either extr
     assert.ok(x >= 12 && x + 90 <= 476);
     assert.ok(top >= 18 && top + 20 <= 126);
   }
+});
+
+test('chart preserves actual AH values while semantic colour follows the moisture comparison', () => {
+  const state = {
+    indoorTemp: 10,
+    indoorRh: 80,
+    outdoorTemp: 30,
+    outdoorRh: 24,
+    roomPreset: 'medium',
+    openingSetup: 'single',
+  };
+  const weather = {
+    time: new Date('2026-09-29T12:00:00Z'),
+    temp: 30,
+    rh: 24,
+    wind: 0,
+    pressure: 1013.25,
+    dewPoint: dewPoint(30, 24),
+  };
+  const later = { ...weather, time: new Date('2026-09-29T13:00:00Z') };
+  const outlook = createChart({ state }).buildAhOutlook([weather, later], 1);
+  const comparison = compareMoisture(state.indoorTemp, state.indoorRh, weather.temp, weather.rh);
+  assert.equal(outlook.points[0].value, absoluteHumidity(weather.temp, weather.rh));
+  assert.equal(outlook.indoor, absoluteHumidity(state.indoorTemp, state.indoorRh));
+  assert.equal(outlook.points[0].semantic, Math.max(0, Math.min(1, 0.5 + comparison.difference / (comparison.margin * 3.5))));
+  assert.ok(outlook.points[0].value < outlook.indoor);
+  assert.ok(outlook.points[0].semantic < 0.5);
 });

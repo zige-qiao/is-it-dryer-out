@@ -60,7 +60,8 @@ export function weatherAtTime(timeline, targetTime) {
   if (timeline.length === 1 || targetTime <= timeline[0].time) return timeline[0];
 
   let previous = timeline[0];
-  for (const next of timeline.slice(1)) {
+  for (let index = 1; index < timeline.length; index += 1) {
+    const next = timeline[index];
     if (targetTime <= next.time) {
       const interval = next.time.getTime() - previous.time.getTime();
       const progress = interval > 0 ? (targetTime.getTime() - previous.time.getTime()) / interval : 0;

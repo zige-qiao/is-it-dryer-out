@@ -38,6 +38,22 @@ export function hasMeaningfulRhImprovement(state, projectedRh) {
   return state.indoorRh - projectedRh >= MINIMUM_NOTICEABLE_RH_CHANGE;
 }
 
+function stepVentilation(state, weather, pressure, ratio, temp) {
+  const exchange = effectiveAirExchange(state, weather, temp);
+  const airExchangeFraction = 1 - Math.exp(-exchange.airChangesPerHour / 60);
+  const heatExchangeFraction = 1 - Math.exp(-exchange.airChangesPerHour * THERMAL_RESPONSE_FACTOR / 60);
+  const outdoorRatio = humidityRatio(weather.temp, weather.rh, pressure);
+  const nextRatio = ratio + (outdoorRatio - ratio) * airExchangeFraction;
+  const nextTemp = temp + (weather.temp - temp) * heatExchangeFraction;
+  const vapor = vaporPressureFromHumidityRatio(nextRatio, pressure);
+  return {
+    ratio: nextRatio,
+    temp: nextTemp,
+    vapor,
+    rh: relativeHumidityAtTemperature(vapor, nextTemp),
+  };
+}
+
 export function projectedDryAirHorizon(state, startWeather, timeline) {
   const startTime = startWeather.time instanceof Date ? startWeather.time : new Date();
   let projectedRatio = humidityRatio(
@@ -71,13 +87,9 @@ export function projectedDryAirHorizon(state, startWeather, timeline) {
       return { minutes: minute - 1, capped: false };
     }
 
-    const exchange = effectiveAirExchange(state, weather, projectedTemp);
-    const airExchangeFraction = 1 - Math.exp(-exchange.airChangesPerHour / 60);
-    const heatChangesPerHour = exchange.airChangesPerHour * THERMAL_RESPONSE_FACTOR;
-    const heatExchangeFraction = 1 - Math.exp(-heatChangesPerHour / 60);
-    const outdoorRatio = humidityRatio(weather.temp, weather.rh, pressure);
-    projectedRatio += (outdoorRatio - projectedRatio) * airExchangeFraction;
-    projectedTemp += (weather.temp - projectedTemp) * heatExchangeFraction;
+    const next = stepVentilation(state, weather, pressure, projectedRatio, projectedTemp);
+    projectedRatio = next.ratio;
+    projectedTemp = next.temp;
   }
 
   return { minutes: MAX_OPEN_MINUTES, capped: true };
@@ -85,7 +97,9 @@ export function projectedDryAirHorizon(state, startWeather, timeline) {
 
 export function estimateOpeningWindowPlan(state, startWeather, timeline) {
   if (state.indoorRh <= state.targetRh + TARGET_MARGIN_RH) return planResult(state, "target-met");
-  if (state.indoorTemp < state.minTemp) return planResult(state, "below-minimum");
+  if (state.indoorTemp < state.minTemp && startWeather.temp <= state.indoorTemp) {
+    return planResult(state, "below-minimum");
+  }
 
   const initialComparison = compareMoisture(
     state.indoorTemp,
@@ -97,15 +111,17 @@ export function estimateOpeningWindowPlan(state, startWeather, timeline) {
   if (initialComparison.status === "uncertain") return planResult(state, "uncertain");
 
   const startTime = startWeather.time instanceof Date ? startWeather.time : new Date();
+  const initialPressureHpa = startWeather.pressure ?? state.outdoorPressure;
   let projectedRatio = humidityRatio(
     state.indoorTemp,
     state.indoorRh,
-    startWeather.pressure ?? state.outdoorPressure,
+    initialPressureHpa,
   );
   const initialAbsolute = initialComparison.indoor;
+  const equivalentAtInitialTemp = ratio =>
+    (216.7 * vaporPressureFromHumidityRatio(ratio, initialPressureHpa)) / (state.indoorTemp + 273.15);
   let projectedTemp = state.indoorTemp;
   let projectedRh = state.indoorRh;
-  let finalPressureHpa = startWeather.pressure ?? state.outdoorPressure;
   let lastComfortableMinute = 0;
   let lastComfortableTemp = state.indoorTemp;
   let lastComfortableRh = state.indoorRh;
@@ -116,8 +132,6 @@ export function estimateOpeningWindowPlan(state, startWeather, timeline) {
     const projectedPressureHpa = Number.isFinite(weather.pressure)
       ? weather.pressure
       : state.outdoorPressure;
-    finalPressureHpa = projectedPressureHpa;
-    const outdoorRatio = humidityRatio(weather.temp, weather.rh, projectedPressureHpa);
     const projectedVaporBeforeMixing = vaporPressureFromHumidityRatio(
       projectedRatio,
       projectedPressureHpa,
@@ -153,14 +167,11 @@ export function estimateOpeningWindowPlan(state, startWeather, timeline) {
       });
     }
 
-    const exchange = effectiveAirExchange(state, weather, projectedTemp);
-    const airExchangeFraction = 1 - Math.exp(-exchange.airChangesPerHour / 60);
-    const heatChangesPerHour = exchange.airChangesPerHour * THERMAL_RESPONSE_FACTOR;
-    const heatExchangeFraction = 1 - Math.exp(-heatChangesPerHour / 60);
-    projectedRatio += (outdoorRatio - projectedRatio) * airExchangeFraction;
-    projectedTemp += (weather.temp - projectedTemp) * heatExchangeFraction;
-
-    const projectedVapor = vaporPressureFromHumidityRatio(projectedRatio, projectedPressureHpa);
+    const previousTemp = projectedTemp;
+    const next = stepVentilation(state, weather, projectedPressureHpa, projectedRatio, projectedTemp);
+    projectedRatio = next.ratio;
+    projectedTemp = next.temp;
+    const projectedVapor = next.vapor;
     const saturation = saturationVaporPressure(projectedTemp);
     if (projectedVapor >= saturation) {
       if (lastComfortableMinute && !hasMeaningfulRhImprovement(state, lastComfortableRh)) {
@@ -177,8 +188,9 @@ export function estimateOpeningWindowPlan(state, startWeather, timeline) {
       });
     }
 
-    projectedRh = relativeHumidityAtTemperature(projectedVapor, projectedTemp);
-    if (projectedTemp < state.minTemp) {
+    projectedRh = next.rh;
+    if (projectedTemp < state.minTemp &&
+      (state.indoorTemp >= state.minTemp || projectedTemp <= previousTemp)) {
       if (lastComfortableMinute && !hasMeaningfulRhImprovement(state, lastComfortableRh)) {
         return planResult(state, "minimal-impact", {
           limitMinutes: lastComfortableMinute,
@@ -196,8 +208,7 @@ export function estimateOpeningWindowPlan(state, startWeather, timeline) {
     lastComfortableMinute = minute;
     lastComfortableTemp = projectedTemp;
     lastComfortableRh = projectedRh;
-    const projectedAbsolute = (216.7 * projectedVapor) / (projectedTemp + 273.15);
-    const netImprovement = initialAbsolute - projectedAbsolute;
+    const netImprovement = initialAbsolute - equivalentAtInitialTemp(projectedRatio);
     if (
       projectedRh <= state.targetRh + TARGET_MARGIN_RH &&
       netImprovement > initialComparison.margin
@@ -211,11 +222,9 @@ export function estimateOpeningWindowPlan(state, startWeather, timeline) {
     }
   }
 
-  const finalVapor = vaporPressureFromHumidityRatio(projectedRatio, finalPressureHpa);
-  const finalAbsolute = (216.7 * finalVapor) / (projectedTemp + 273.15);
   return planResult(state,
     hasMeaningfulRhImprovement(state, projectedRh) &&
-      initialAbsolute - finalAbsolute > initialComparison.margin
+      initialAbsolute - equivalentAtInitialTemp(projectedRatio) > initialComparison.margin
       ? "slow"
       : "minimal-impact",
     {
