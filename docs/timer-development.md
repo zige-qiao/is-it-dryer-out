@@ -1,6 +1,6 @@
-# Timer installer preparation
+# Ventilation timer setup and device evidence
 
-The web-app UI is implemented, but the install artifact and iPhone verification are pending.
+The web-app UI uses the [shared Ventilation Timer Shortcut](https://www.icloud.com/shortcuts/d16fde94799a414bb11a3a40c484f080). It was created manually on the user's iPhone after the signing experiment below failed. Install Shortcut now opens that iCloud link directly; the macOS workflow is not needed for this installation route.
 
 `scripts/build-timer-shortcut.py` generates a property-list Shortcut with input validation and Clock's Start Timer action. It does not require the user to construct actions. Only whole-number text from 1 through 180 is accepted. The Shortcut receives minutes from the web app; it does not fetch weather, upload readings, or wait in the background.
 
@@ -8,8 +8,22 @@ Apple's supported `shortcuts sign` command requires macOS. The **Build Ventilati
 
 ## Signing test result
 
-On 2026-10-03, [run 37143389908](https://github.com/zige-qiao/is-it-dryer-out/actions/runs/37143389908) generated the source successfully but failed signing on the hosted macOS 15 runner: `Error: In order to do this, you must be signed into iCloud.` No install artifact was produced. Retrying the same hosted environment cannot resolve this account requirement. Sign on a trusted Mac already signed into iCloud; do not put Apple account credentials into the workflow. The Shortcut actions and iPhone handoff remain unverified.
+On 2026-10-03, [run 37143389908](https://github.com/zige-qiao/is-it-dryer-out/actions/runs/37143389908) generated the source successfully but failed signing on the hosted macOS 15 runner: `Error: In order to do this, you must be signed into iCloud.` No install artifact was produced. Retrying the same hosted environment cannot resolve this account requirement. Signing would require a trusted Mac already signed into iCloud; do not put Apple account credentials into the workflow. This generated installer remains unverified and is not the shared iPhone-created Shortcut used by the app.
 
-After a requested push and workflow run, download the signed artifact, verify its import and actions on iPhone, and host the signed file with the app or provide a real iCloud sharing link. Set `TIMER_SHORTCUT_INSTALL_URL` in `src/ui/timer.js` to the verified installer location. The existing Install Shortcut action shows the pending-installation page until then.
+## Device evidence
 
-Validate different durations, empty/fractional/out-of-range input, cancelled handoffs, missing Shortcut, Safari and Home Screen launches, and an audible alarm with the phone locked and offline. Verify the Shortcut is named Ventilation Timer. Only then remove the pending-installation statements in the README and design-system documentation.
+On 2026-10-03 the user confirmed that launching from the iPhone browser started the correct duration in Clock, and that the alarm worked in airplane mode. Screenshots identify Chrome as the calling browser. The user subsequently confirmed that timer launches also work from Safari and the Home Screen web app. The iCloud record was checked and its name is Ventilation Timer. Fresh import from the shared link, multiple different durations, locked-phone delivery, cancelled handoffs and missing-Shortcut recovery are not yet confirmed. Removal of the temporary diagnostic input alert from the shared Shortcut has not been independently checked.
+
+Remaining device checks are different durations using the same Shortcut, invalid Shortcut input, cancelled handoffs, missing Shortcut, fresh import, and an audible alarm with the phone locked and offline. Web-app validation of empty/fractional/out-of-range minutes, refresh preservation, keyboard adjustment, focus return and sheet dismissal has passed automated checks. Preserve the name Ventilation Timer.
+
+## v0.7.4 pre-release verification
+
+On 2026-10-03, all 109 automated tests passed, including timer validation and handoff URL encoding, ruler interaction/cancellation, dialog scroll locking, weather recovery and complete offline import-graph coverage. Syntax checks passed for all 22 JavaScript files, and `git diff --check` reported no whitespace errors.
+
+Windows Edge browser checks passed at 320, 390, 640 and 1280px for dashboard/chart rendering, chart keyboard inspection, sheet opening/dismissal, weather failure/recovery and documentation rendering. Timer-specific checks at 320, 390 and 1280px passed for spacing, tooltip bounds, focus restoration, drag dismissal, typed/ruler input and refresh preservation. The weather fixtures included a rendered, nonblank forecast curve. A fresh real service-worker installation cached all 26 app assets and reloaded the module graph offline.
+
+These checks are browser emulation, not additional physical iPhone tests. The user-confirmed Safari and Home Screen handoffs are recorded above. The v0.7.4 release uses synchronised cache revision 140; the cache checks are rerun after the publishing bump.
+
+## Return-to-app experiment
+
+An `x-success` callback to the current web address was considered and removed before device testing. Reopening a URL cannot guarantee return to the originating Chrome tab, Safari tab or Home Screen app, which is the user's requirement. Keep the existing plain handoff rather than redirecting into a potentially different browser. No automatic-return behavior is enabled.

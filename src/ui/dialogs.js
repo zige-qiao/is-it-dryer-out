@@ -19,7 +19,7 @@ export function createDialogs({
       surface.classList.add('sheet-drag-surface');
       surface.addEventListener('pointerdown', event => {
         if (!window.matchMedia('(max-width: 39.999rem)').matches || !event.isPrimary || event.button !== 0 ||
-            event.target.closest('button, input, select, a')) return;
+            event.target.closest('button, input, select, a, summary')) return;
         gesture = { id: event.pointerId, y: event.clientY, distance: 0 };
         surface.setPointerCapture(event.pointerId);
       });

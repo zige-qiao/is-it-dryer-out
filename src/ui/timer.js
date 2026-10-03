@@ -1,6 +1,5 @@
 export const TIMER_SHORTCUT_NAME = 'Ventilation Timer';
-// Set this to the tested iCloud sharing URL after creating the Shortcut on iPhone.
-export const TIMER_SHORTCUT_INSTALL_URL = null;
+export const TIMER_SHORTCUT_INSTALL_URL = 'https://www.icloud.com/shortcuts/d16fde94799a414bb11a3a40c484f080';
 
 export function isAppleMobile(navigator = globalThis.navigator) {
   return /iPhone|iPad|iPod/.test(navigator?.userAgent || '') ||
@@ -40,7 +39,6 @@ export function createTimerController({ state, elements, dialogScrollLock, rende
       button.setAttribute('aria-expanded', 'true');
       state.timerMinutes = minutes;
       elements.timerMinutesInput.value = minutes;
-      elements.timerContext.textContent = button.dataset.timerContext;
       elements.timerMinutes.value = minutes;
       dialogScrollLock.open(elements.timerDialog);
       sync();
@@ -62,9 +60,19 @@ export function createTimerController({ state, elements, dialogScrollLock, rende
       window.location.href = timerShortcutUrl(minutes);
     });
     elements.timerDialog.addEventListener('close', () => {
+      if (elements.timerHelp) elements.timerHelp.open = false;
       opener?.setAttribute('aria-expanded', 'false');
       (opener?.isConnected ? opener : elements.decisionLabel).focus({ preventScroll: true });
       opener = null;
+    });
+    elements.timerDialog.addEventListener('click', event => {
+      if (elements.timerHelp?.open && !elements.timerHelp.contains(event.target)) elements.timerHelp.open = false;
+    });
+    elements.timerDialog.addEventListener('cancel', event => {
+      if (!elements.timerHelp?.open) return;
+      event.preventDefault();
+      elements.timerHelp.open = false;
+      elements.timerHelp.querySelector('summary').focus({ preventScroll: true });
     });
     if (TIMER_SHORTCUT_INSTALL_URL) {
       elements.timerInstallLink.href = TIMER_SHORTCUT_INSTALL_URL;

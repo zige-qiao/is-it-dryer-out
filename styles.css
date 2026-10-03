@@ -41,10 +41,11 @@
 }
 
 .verdict-time {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
-  min-width: 44px;
+  min-height: 0;
+  min-width: 0;
   padding: 0 2px;
   margin: 0 -2px;
   border: 0;
@@ -55,7 +56,8 @@
   font-weight: 800;
   line-height: inherit;
   text-decoration: underline;
-  text-decoration-color: currentColor;
+  text-decoration-style: dotted;
+  text-decoration-color: rgb(255 255 255 / 50%);
   text-decoration-thickness: 1px;
   text-underline-offset: 4px;
   white-space: nowrap;
@@ -64,12 +66,21 @@
 .verdict-time:active { background: rgb(255 255 255 / 20%); }
 .verdict-time:focus-visible { outline: 2px solid white; outline-offset: 2px; }
 @media (hover: hover) { .verdict-time:hover { background: rgb(255 255 255 / 12%); } }
-.timer-dialog #timerContext { margin: 0; color: var(--muted); line-height: 1.5; }
-.timer-dialog h2 { margin: 0; font-size: 1.2rem; }
 .timer-dialog .sheet-close-button { display: inline-flex; }
-.timer-dialog .timer-install-link { display: flex; align-items: center; justify-content: center; min-height: 44px; color: var(--ink); text-underline-offset: 3px; }
-.timer-dialog .sheet-secondary { min-height: 44px; }
-.timer-dialog .ruler-value input { width: 3.2ch; }
+.timer-dialog .indoor-done { margin-top: 0; }
+.timer-dialog .timer-install-link { display: flex; align-items: center; min-height: 44px; color: var(--ink); text-underline-offset: 3px; font-size: 14px; }
+.timer-dialog .section-heading { position: relative; }
+.timer-title { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.timer-title h2 { overflow-wrap: anywhere; }
+.timer-help { flex: 0 0 32px; }
+.timer-help summary { display: flex; align-items: center; justify-content: center; width: 32px; height: 44px; border-radius: 8px; color: var(--muted); cursor: pointer; list-style: none; }
+.timer-help summary::-webkit-details-marker { display: none; }
+.timer-help summary > span { display: grid; place-items: center; width: 18px; height: 18px; border: 1px solid currentColor; border-radius: 50%; font-size: 13px; font-weight: 650; line-height: 1; }
+.timer-help summary:is(:hover, :active), .timer-help[open] summary { background: var(--surface-control); }
+.timer-help summary:focus-visible, .timer-install-link:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.timer-help-content { position: absolute; z-index: 3; top: calc(100% + 4px); left: 0; right: 0; padding: 4px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 12px rgb(0 0 0 / .08); }
+.timer-help-content p { margin: 8px 0 0; font-size: 14px; line-height: 1.5; color: var(--ink); }
+.timer-dialog .ruler-control .ruler-value input { width: 3ch; }
 .timer-dialog .ruler-value input[aria-invalid="true"] { color: var(--closed); }
 .timer-dialog .sheet-primary:disabled { opacity: .45; cursor: default; }
 
@@ -2264,7 +2275,7 @@ html[data-show-indoor-summary="true"] .indoor-summary { display: flex; }
 .settings-dialog::backdrop { background: var(--overlay-scrim); }
 .settings-dialog-content { display: grid; gap: 8px; padding: 1.25rem 1.25rem calc(24px + env(safe-area-inset-bottom)); }
 .settings-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-.settings-dialog-heading h2 { margin: 0; font-size: 1.2rem; }
+.settings-dialog-heading h2, .indoor-dialog .section-heading h2 { margin: 0; font-size: 1.2rem; }
 .settings-toggle {
   position: relative;
   display: flex; align-items: center; justify-content: space-between; gap: 16px;

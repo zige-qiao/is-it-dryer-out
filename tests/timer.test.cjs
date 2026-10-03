@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { element, environment } = require('./helpers/browser.cjs');
-const { isAppleMobile, validTimerMinutes, timerShortcutUrl, createTimerController } = require('../src/ui/timer.js');
+const { TIMER_SHORTCUT_INSTALL_URL, isAppleMobile, validTimerMinutes, timerShortcutUrl, createTimerController } = require('../src/ui/timer.js');
 const { createRecommendationView } = require('../src/ui/recommendation.js');
 const { createFormatters } = require('../src/ui/format.js');
 
@@ -35,7 +35,7 @@ test('each verdict line binds its own numeric duration and keeps combined durati
   const a = v.elements.decisionPrimary.children[1], b = v.elements.decisionSecondary.children[1];
   assert.equal(a.tag, 'button'); assert.equal(a.textContent, '1 hr 20 min'); assert.equal(a.dataset.timerMinutes, 80);
   assert.equal(b.tag, 'button'); assert.equal(b.dataset.timerMinutes, 120);
-  assert.match(b.dataset.timerContext, /not a recommended/);
+  assert.match(b.dataset.timerContext, /may not need to keep the windows open/);
   assert.equal(v.elements.decisionPrimary.children[0], 'About ');
   assert.equal(v.elements.decisionSecondary.children[0], 'Up to ');
   v.renderRecommendation({ status: 'good', minutes: 120, dryAirHorizon: { minutes: 120, capped: true } });
@@ -67,7 +67,7 @@ test('limits and capped times carry appropriate context; unavailable and desktop
 
 test('timer sheet preserves temporary edits and hands off only validated minutes without claiming success', () => {
   const state = { indoorTemp: 24, timerMinutes: 1 };
-  const names = ['recommendation', 'timerDialog', 'timerDialogTitle', 'timerContext', 'timerMinutes', 'timerMinutesInput', 'timerStartButton', 'timerInstallLink', 'decisionLabel'];
+  const names = ['recommendation', 'timerDialog', 'timerDialogTitle', 'timerMinutes', 'timerMinutesInput', 'timerStartButton', 'timerInstallLink', 'decisionLabel'];
   const elements = Object.fromEntries(names.map(name => [name, element()]));
   Object.defineProperty(elements.timerMinutesInput, 'valueAsNumber', { get() { return this.value === '' ? NaN : Number(this.value); } });
   const button = element(); button.dataset = { timerMinutes: '80', timerContext: 'Target duration' }; button.isConnected = true;
@@ -75,17 +75,19 @@ test('timer sheet preserves temporary edits and hands off only validated minutes
   button.focus = () => { focus = 'button'; };
   elements.decisionLabel.focus = () => { focus = 'heading'; };
   elements.recommendation.contains = node => node === button;
-  const window = { location: { href: '' } };
+  const appUrl = 'http://192.168.1.165:8768/';
+  const window = { location: { href: appUrl } };
   const controller = createTimerController({ state, elements, dialogScrollLock: { open: dialog => dialog.showModal() }, renderRulers: () => rendered++ }, environment({ window }));
   controller.initialize();
+  assert.equal(elements.timerInstallLink.href, TIMER_SHORTCUT_INSTALL_URL);
+  assert.equal(new URL(elements.timerInstallLink.href).hostname, 'www.icloud.com');
   elements.recommendation.emit('click', { target: { closest: () => button } });
   assert.ok(elements.timerDialog.open); assert.equal(state.timerMinutes, 80);
-  assert.equal(elements.timerContext.textContent, 'Target duration');
   assert.equal(elements.timerMinutesInput.value, 80);
   for (const invalid of ['', '0', '181', '1.5']) {
     elements.timerMinutesInput.value = invalid; elements.timerMinutesInput.emit('input');
     assert.ok(elements.timerStartButton.disabled);
-    elements.timerStartButton.emit('click'); assert.equal(window.location.href, '');
+    elements.timerStartButton.emit('click'); assert.equal(window.location.href, appUrl);
   }
   elements.timerMinutesInput.value = '42'; elements.timerMinutesInput.emit('input');
   assert.equal(state.timerMinutes, 42); assert.equal(state.indoorTemp, 24);

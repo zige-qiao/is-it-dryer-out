@@ -4,8 +4,16 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+## v0.7.4 - Ventilation timer - 2026-10-03
+
 - Add clickable verdict durations on iPhone/iPad and a ventilation timer sheet with the existing minutes ruler and editable value.
-- Hand off reviewed minutes to a reusable Clock timer Shortcut. Shared installation link and iPhone verification remain pending.
+- Move Shortcut installation into a compact help popover beside the timer title.
+- Hand off reviewed minutes to one reusable Ventilation Timer Shortcut and provide its real iCloud installation link; no backend, web countdown or automatic return to a browser is introduced.
+- Preserve original verdict spacing, use dotted duration underlines at 50% opacity, and shorten minimum indoor temperature to min indoor temperature.
+- Match timer and Indoor title typography to Settings; restore the mobile drag handle, tighten timer spacing, remove duplicate unit labels and timing-context paragraphs, and retain a centred, compact help target.
+- Preserve temporary timer edits during weather refresh, validate whole minutes from 1 to 180, and restore opener focus on dismissal.
+- Record user-confirmed timer handoffs from Chrome, Safari and the Home Screen web app, plus an alarm that worked in airplane mode. Fresh installation and additional recovery/locked-phone scenarios remain separately unverified.
+- Set the app build identity to `v0.7.4` and synchronise the app shell cache at revision 140.
 
 ## v0.7.3.1 — Structure, pull cue, and moisture estimates - 2026-09-30
 

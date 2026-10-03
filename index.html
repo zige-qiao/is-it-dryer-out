@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=139" />
+    <link rel="stylesheet" href="styles.css?v=140" />
     <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
@@ -380,15 +380,22 @@
     </dialog>
 
     <dialog class="indoor-dialog timer-dialog" id="timerDialog" aria-labelledby="timerDialogTitle">
-      <div class="sheet-handle" aria-hidden="true"></div>
+      <div class="sheet-handle" aria-hidden="true"><span></span></div>
       <section class="inputs-panel">
         <div class="section-heading">
-          <h2 id="timerDialogTitle" tabindex="-1">Ventilation timer</h2>
+          <div class="timer-title">
+            <h2 id="timerDialogTitle" tabindex="-1">Ventilation timer</h2>
+            <details class="timer-help" id="timerHelp">
+              <summary aria-label="Timer setup" title="Timer setup"><span aria-hidden="true">?</span></summary>
+              <div class="timer-help-content">
+                <p>Add the Shortcut once, then tap Start iPhone timer whenever you need a timer. Your iPhone will switch to the Shortcuts app to set the timer.</p>
+                <a id="timerInstallLink" class="timer-install-link" href="https://www.icloud.com/shortcuts/d16fde94799a414bb11a3a40c484f080" target="_blank" rel="noopener">Install Shortcut</a>
+              </div>
+            </details>
+          </div>
           <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close ventilation timer" title="Close">&times;</button>
         </div>
-        <p id="timerContext"></p>
         <div class="control ruler-control">
-            <label for="timerMinutesInput">Duration</label>
             <label class="reading-field ruler-value" for="timerMinutesInput">
               <input id="timerMinutesInput" type="number" min="1" max="180" step="1" value="1" inputmode="numeric" aria-label="Timer duration in minutes" /><span aria-hidden="true">min</span>
             </label>
@@ -398,10 +405,8 @@
           </div>
         </div>
         <button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button>
-        <a id="timerInstallLink" class="timer-install-link" href="docs/timer-shortcut.html" target="_blank" rel="noopener">Install Shortcut</a>
-        <button class="secondary-button sheet-secondary" type="button" data-close-dialog>Close</button>
       </section>
     </dialog>
-    <script src="app.js?v=139" type="module"></script>
+    <script src="app.js?v=140" type="module"></script>
   </body>
 </html>

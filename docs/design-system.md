@@ -1,6 +1,6 @@
 # Is it dryer out — design system
 
-**Version:** 1.4 · **Updated:** 30 September 2026 · **Status:** v0.7.3.1
+**Version:** 1.5 · **Updated:** 3 October 2026 · **Status:** v0.7.4
 
 This is a reusable specification for the app. The warm-grey controls and component states were implemented in v0.7.0, the revised verdict and AH chart colours shipped in v0.7.1, and the Indoor summary strip with subsequent layout and focus refinements shipped in v0.7.2. The current shared-temperature moisture comparison and time-based chart gradient are described below. Broader typography normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
 
@@ -16,13 +16,19 @@ In v0.7.2, the app gained an optional compact Indoor summary above the verdict, 
 
 ## 1. Purpose and principles
 
-### Ventilation timer (unreleased)
+### Ventilation timer (v0.7.4)
 
-On iPhone/iPad, each duration in the two verdict lines is an inline button with an underline, a 44px minimum target, and distinct pressed/focus states. Qualifiers stay outside the button; combined hour/minute durations stay together. Other devices retain plain emphasized text.
+Timer and Indoor sheet titles match Settings and Ventilation settings at 1.2rem, using the same inherited heading font and weight.
 
-The timer uses the Indoor sheet geometry and a stacked 1-180 minute ruler: 1-minute ticks, labelled 5-minute marks, and 8px spacing. Typed entry remains available. Start is disabled for empty, fractional, or out-of-range values. Draft minutes are temporary and independent of saved readings/settings; refresh does not replace edits. The sheet identifies the selected duration's context. Drier-air windows are not presented as recommended opening durations; capped target estimates create a recheck reminder.
+Inline verdict times retain the original text width and line height. The user chose original verdict spacing over 44px touch targets; targets follow the duration text rather than expanding into adjacent lines.
 
-Clock owns the timer after the Shortcut handoff; the web app displays no countdown or success claim. Closing restores the clicked duration's focus, or the verdict heading if it has been replaced. Shared Shortcut installation and real-device verification remain pending.
+The timer's compact numeric field shows min beside the value, with room for three digits and an accessible duration label. The field-to-ruler gap is 8px and the ruler-to-Start gap is 20px. There is no timing-context paragraph in the sheet. The mobile drag handle matches the other sheets. Start is the only bottom action; dismissal uses the header close control, Escape, outside tap or sheet drag.
+
+On iPhone/iPad, each duration in the two verdict lines is an inline button with a dotted, 50%-opacity underline and distinct pressed/focus states. Qualifiers stay outside the button; combined hour/minute durations stay together. Other devices retain plain emphasized text.
+
+The timer uses the Indoor sheet geometry and a stacked 1-180 minute ruler: 1-minute ticks, labelled 5-minute marks, and 8px spacing. Typed entry remains available. Start is disabled for empty, fractional, or out-of-range values. Draft minutes are temporary and independent of saved readings/settings; refresh does not replace edits. The verdict duration's accessible name retains its timing context. Drier-air windows are not presented as recommended opening durations; capped target estimates create a recheck reminder.
+
+Clock owns the timer after the Shortcut handoff; the web app displays no countdown or success claim. Closing restores the clicked duration's focus, or the verdict heading if it has been replaced. A 32px-wide, 44px-tall help control, with its visible symbol centred and 11px from the title, opens a compact setup popover with Install Shortcut, linking directly to iCloud. Its narrower width is a user-requested exception to the usual 44px target. Escape dismisses the popover before the sheet; clicking elsewhere or closing the sheet also clears it. The user confirmed timer handoffs from Chrome, Safari and the Home Screen web app, plus the airplane-mode alarm and sharing link. Fresh import and recovery/locked-phone scenarios remain separately unverified.
 
 - Help someone decide whether opening windows reduces indoor moisture, and for approximately how long.
 - Put the compact Indoor reading controls first, followed by the prominent recommendation, evidence and settings.
@@ -350,6 +356,7 @@ The existence of a rule is not proof of its implementation. Before calling the s
 
 ## Revision log
 
+- 1.5 v0.7.4 release, 3 October 2026: recorded clickable verdict durations, timer ruler and compact help popup, approved spacing and typography, and user-confirmed Safari/Home Screen timer handoffs.
 - 1.4 update, 30 September 2026: aligned card and chart colour semantics with shared-temperature moisture comparison and the time-based forecast gradient.
 - 1.3 v0.7.3 release, 29 September 2026: recorded the iPhone chart curve rendering and pointer versus keyboard focus behavior.
 - 1.2 v0.7.2 release, 29 September 2026: recorded the Indoor controls, layered pull to refresh, updated checked-time label and release status; retained historical v0.7.1 evidence.

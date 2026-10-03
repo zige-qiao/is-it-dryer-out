@@ -50,11 +50,11 @@ const state = {
 const elements = {
   timerDialog: document.querySelector('#timerDialog'),
   timerDialogTitle: document.querySelector('#timerDialogTitle'),
-  timerContext: document.querySelector('#timerContext'),
   timerMinutes: document.querySelector('#timerMinutes'),
   timerMinutesInput: document.querySelector('#timerMinutesInput'),
   timerStartButton: document.querySelector('#timerStartButton'),
   timerInstallLink: document.querySelector('#timerInstallLink'),
+  timerHelp: document.querySelector('#timerHelp'),
   recommendation: document.querySelector(".recommendation"),
   verdictPanel: document.querySelector(".verdict-panel"),
   forecastPanel: document.querySelector(".forecast-panel"),

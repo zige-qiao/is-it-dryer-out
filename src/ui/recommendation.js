@@ -108,8 +108,8 @@ export function createRecommendationView({
           : `Up to ${dryDuration} of reliably drier air.`,
         targetDuration,
         dryDuration,
-        { minutes: plan.minutes, context: 'Estimated time to reach your humidity target.' },
-        { minutes: plan.dryAirHorizon.minutes, context: 'Drier-air forecast window, not a recommended opening duration.' },
+        { minutes: plan.minutes, context: 'About this long to reach your target humidity.' },
+        { minutes: plan.dryAirHorizon.minutes, context: 'Outside air should stay drier for this long. You may not need to keep the windows open the whole time.' },
       );
     } else if (plan.status === "forecast-limit") {
       elements.decisionLabel.textContent = plan.limitMinutes ? "OPEN WINDOWS" : "OPEN IF NEEDED";
@@ -145,7 +145,7 @@ export function createRecommendationView({
       const primary =
         plan.status === "too-cold"
           ? plan.limitMinutes
-            ? `${limitDuration} to minimum indoor temperature.`
+            ? `${limitDuration} to min indoor temperature.`
             : `Opening would drop it below ${formatTemp(state.minTemp)} now.`
           : plan.limitMinutes
             ? `${limitDuration} until condensation risk rises.`

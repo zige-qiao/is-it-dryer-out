@@ -25,13 +25,23 @@ Readings and preferences are saved in your browser. The interface can load offli
 
 On iPhone, voice input may keep the microphone indicator on while the app remains in the foreground. See the [user guide](docs/user-guide.md) for voice behaviour, data services and detailed instructions.
 
-## Development and documentation
-
-### Ventilation timer (local development)
+## Ventilation timer
 
 On iPhone/iPad, tap a time in either verdict line to open the timer sheet. Adjust the minutes with the ruler or typed entry, then choose Start iPhone timer. Each time retains its own meaning; the drier-air forecast window is not a recommended opening duration.
 
-This uses one reusable Shortcut named **Ventilation Timer**, which starts the Clock timer. An automated installer build is prepared; signing, the install link, and real-device verification are pending. See [timer development](docs/timer-development.md). Users will add the ready-made Shortcut once rather than build its actions. The web app cannot confirm that a timer started or track its cancellation. Once started, Clock owns the alarm and works offline.
+This uses one reusable Shortcut named **Ventilation Timer**, which starts the Clock timer. Open the help popup beside the timer title and choose Install Shortcut to [add the ready-made Shortcut](https://www.icloud.com/shortcuts/d16fde94799a414bb11a3a40c484f080) once; no Mac or manual action-building is needed. Starting a timer switches your iPhone to the Shortcuts app.
+
+The user confirmed that the handoff works from Chrome, Safari and the Home Screen web app, and that the alarm worked in airplane mode. The web app cannot confirm that a timer started or track its cancellation. Once started, Clock owns the alarm and works offline. See the [user guide](docs/user-guide.md#ventilation-timer) for usage and [timer development](docs/timer-development.md) for remaining test gaps.
+
+## Recent changes
+
+- [v0.7.4](CHANGELOG.md#v074---ventilation-timer---2026-10-03): iPhone ventilation timers from verdict times, adjustable minutes and one reusable Shortcut.
+- [v0.7.3.1](CHANGELOG.md): refined moisture estimates, forecast colours and pull-to-refresh feedback; reorganised the app into native modules.
+- [v0.7.3](CHANGELOG.md): improved iPhone forecast-curve rendering and chart focus behaviour.
+
+See the [full changelog](CHANGELOG.md) for all releases and detailed notes.
+
+## Development and documentation
 
 Built with HTML, CSS and native JavaScript modules. No build step or dependency installation is needed. With Node.js 24 or later, run:
 
