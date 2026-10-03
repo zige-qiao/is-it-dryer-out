@@ -20,6 +20,8 @@ Keep the main recommendation decisive, the controls easy to adjust, and technica
 
 Apply clearly requested, small, reversible UI edits directly, without a separate approval step. Discuss choices that are unclear, consequential, or materially expand the request before making those changes. A request to edit does not also request a commit, branch, push, merge, tag, or release; perform those operations only when requested.
 
+When providing a UI preview, always include a clickable link the user can open on their iPhone. Discover the current LAN address and verify the preview server is reachable on it; say when the phone must share the computer's Wi-Fi and the computer must remain running. Prefer an existing HTTPS preview when available. Do not present a localhost-only link as the phone preview.
+
 ## Files And Existing Work
 
 Inspect only the files relevant to the requested change. Read broader context when the change crosses structural, behavioral, caching, documentation, or release boundaries.

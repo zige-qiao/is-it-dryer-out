@@ -4,6 +4,8 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Align fixed layout spacing, control/icon sizes and ordinary corner radii to a 4px grid; use 52px ruler fields and a 48px settings switch while preserving typography, fine strokes and flexible geometry. Prevent ruler digits from clipping by reserving text space and using 100px paired fields.
+
 - Close the ventilation timer sheet before handing off to Shortcuts, without claiming that the timer started.
 - Make focus return consistent across all sheets: touch-opened sheets restore focus quietly, while openers with visible keyboard focus retain their indicator. Hide all header close buttons below 640px, retaining existing Done actions and mobile drag dismissal.
 
