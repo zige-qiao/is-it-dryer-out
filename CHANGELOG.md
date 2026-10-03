@@ -4,6 +4,9 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Add clickable verdict durations on iPhone/iPad and a ventilation timer sheet with the existing minutes ruler and editable value.
+- Hand off reviewed minutes to a reusable Clock timer Shortcut. Shared installation link and iPhone verification remain pending.
+
 ## v0.7.3.1 — Structure, pull cue, and moisture estimates - 2026-09-30
 
 - Split the production JavaScript into native modules for calculations, services, UI, and voice, retaining the dependency-free static app and existing URLs.

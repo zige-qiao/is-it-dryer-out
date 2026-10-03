@@ -191,6 +191,7 @@ export function createReadingControls({
       dialog.addEventListener('pointerdown', stopCoast);
       dialog.addEventListener('keydown', stopCoast);
       document.addEventListener('visibilitychange', () => { if (document.hidden) reset(); });
+      window.addEventListener('pagehide', reset);
       reducedMotion.addEventListener('change', () => { if (reducedMotion.matches) reset(); });
       new ResizeObserver(renderReadingRulers).observe(ruler);
     });

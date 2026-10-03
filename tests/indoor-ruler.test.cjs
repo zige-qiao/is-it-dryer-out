@@ -34,7 +34,7 @@ test('pointer gestures ignore taps and vertical scrolling, and stop after cancel
  const input={value:24,min:10,max:32,step:.1,focus(){},dispatchEvent(){changes++;}};
  const ruler={dataset:{tickSpacing:8},closest:()=>({addEventListener:(name,fn)=>dialogEvents[name]=fn}),querySelector:()=>input,classList:{add(){},remove(){}},addEventListener:(name,fn)=>events[name]=fn,setPointerCapture(){captured=true},hasPointerCapture(){return captured},releasePointerCapture(){captured=false}};
  const field={addEventListener(){}};
- const context=environment({window:{matchMedia:()=>({matches:false,addEventListener(){}})},document:{addEventListener(){},querySelectorAll:()=>[ruler],querySelector:()=>({addEventListener:(name,fn)=>dialogEvents[name]=fn})},elements:{indoorTempInput:field,indoorRhInput:field,minTempInput:field,targetRhInput:field},ResizeObserver:class{observe(){}},renderReadingRulers(){},Event:class{},rulerValueFromDrag:ctx.rulerValueFromDrag});
+ const context=environment({window:{addEventListener(){},matchMedia:()=>({matches:false,addEventListener(){}})},document:{addEventListener(){},querySelectorAll:()=>[ruler],querySelector:()=>({addEventListener:(name,fn)=>dialogEvents[name]=fn})},elements:{indoorTempInput:field,indoorRhInput:field,minTempInput:field,targetRhInput:field},ResizeObserver:class{observe(){}},renderReadingRulers(){},Event:class{},rulerValueFromDrag:ctx.rulerValueFromDrag});
  Object.assign(context,createReadingControls(context,context));context.bindReadingRulers();
  const point=(x,y)=>({isPrimary:true,button:0,pointerId:1,clientX:x,clientY:y});
  events.pointerdown(point(100,100));events.pointerup(point(100,100));assert.equal(changes,0);
@@ -51,7 +51,7 @@ function momentumFixture({reduced=false,value=24,step=.1,min=10,max=32,spacing=s
  const ruler={dataset:{tickSpacing:spacing},closest:()=>({addEventListener:(name,fn)=>dialogEvents[name]=fn}),querySelector:()=>input,classList:{add(){},remove(){}},addEventListener:(n,fn)=>events[n]=fn,setPointerCapture(){captured=true},hasPointerCapture:()=>captured,releasePointerCapture(){captured=false;events.lostpointercapture();}};
  const doc={hidden:false,querySelectorAll:()=>[ruler],querySelector:()=>({addEventListener:(n,fn)=>dialogEvents[n]=fn}),addEventListener:(n,fn)=>pageEvents[n]=fn};
  const field={addEventListener(){}};
- const context=environment({document:doc,window:{matchMedia:()=>motion},performance:{now:()=>time},requestAnimationFrame:fn=>{frames.set(++id,fn);return id},cancelAnimationFrame:id=>frames.delete(id),elements:{indoorTempInput:field,indoorRhInput:field,minTempInput:field,targetRhInput:field},ResizeObserver:class{observe(){}},renderReadingRulers(){},Event:class{},rulerValueFromDrag:ctx.rulerValueFromDrag});
+ const context=environment({document:doc,window:{matchMedia:()=>motion,addEventListener:(n,fn)=>pageEvents[n]=fn},performance:{now:()=>time},requestAnimationFrame:fn=>{frames.set(++id,fn);return id},cancelAnimationFrame:id=>frames.delete(id),elements:{indoorTempInput:field,indoorRhInput:field,minTempInput:field,targetRhInput:field},ResizeObserver:class{observe(){}},renderReadingRulers(){},Event:class{},rulerValueFromDrag:ctx.rulerValueFromDrag});
  Object.assign(context,createReadingControls(context,context));context.bindReadingRulers();
  const event=(x,t,y=100)=>({isPrimary:true,button:0,pointerId:1,clientX:x,clientY:y,timeStamp:t});
  return {input,events,dialogEvents,pageEvents,motionEvents,motion,doc,frames,event,
@@ -78,7 +78,7 @@ test('slow drag, paused release and reduced motion do not coast',()=>{
  const paused=momentumFixture();paused.flick(40,200);assert.equal(paused.frames.size,0);
 });
 test('new touch, keyboard, close, hidden page and reduced-motion change stop momentum',()=>{
- for(const stop of [f=>f.events.pointerdown(f.event(110,60)),f=>f.dialogEvents.pointerdown(),f=>f.dialogEvents.keydown(),f=>f.dialogEvents.close(),f=>{f.doc.hidden=true;f.pageEvents.visibilitychange()},f=>{f.motion.matches=true;f.motionEvents.change()}]) {
+ for(const stop of [f=>f.events.pointerdown(f.event(110,60)),f=>f.dialogEvents.pointerdown(),f=>f.dialogEvents.keydown(),f=>f.dialogEvents.close(),f=>f.pageEvents.pagehide(),f=>{f.doc.hidden=true;f.pageEvents.visibilitychange()},f=>{f.motion.matches=true;f.motionEvents.change()}]) {
   const f=momentumFixture();f.flick();assert.equal(f.frames.size,1);stop(f);const value=f.input.value;f.advance(450);assert.equal(f.frames.size,0);assert.equal(f.input.value,value);
  }
 });

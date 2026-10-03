@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=138" />
+    <link rel="stylesheet" href="styles.css?v=139" />
     <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
@@ -67,7 +67,7 @@
               </button>
             </div>
             </div>
-            <h1 id="decisionLabel">Checking</h1>
+            <h1 id="decisionLabel" tabindex="-1">Checking</h1>
             <p id="decisionSummary">
               <span id="decisionPrimary">Getting local conditions...</span>
               <span id="decisionSecondary"></span>
@@ -379,6 +379,29 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=138" type="module"></script>
+    <dialog class="indoor-dialog timer-dialog" id="timerDialog" aria-labelledby="timerDialogTitle">
+      <div class="sheet-handle" aria-hidden="true"></div>
+      <section class="inputs-panel">
+        <div class="section-heading">
+          <h2 id="timerDialogTitle" tabindex="-1">Ventilation timer</h2>
+          <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close ventilation timer" title="Close">&times;</button>
+        </div>
+        <p id="timerContext"></p>
+        <div class="control ruler-control">
+            <label for="timerMinutesInput">Duration</label>
+            <label class="reading-field ruler-value" for="timerMinutesInput">
+              <input id="timerMinutesInput" type="number" min="1" max="180" step="1" value="1" inputmode="numeric" aria-label="Timer duration in minutes" /><span aria-hidden="true">min</span>
+            </label>
+          <div class="reading-ruler" data-ruler="timerMinutes" data-major-interval="5" data-tick-spacing="8" data-unit="minutes">
+            <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
+            <input id="timerMinutes" type="range" min="1" max="180" step="1" value="1" aria-label="Timer duration in minutes" />
+          </div>
+        </div>
+        <button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button>
+        <a id="timerInstallLink" class="timer-install-link" href="docs/timer-shortcut.html" target="_blank" rel="noopener">Install Shortcut</a>
+        <button class="secondary-button sheet-secondary" type="button" data-close-dialog>Close</button>
+      </section>
+    </dialog>
+    <script src="app.js?v=139" type="module"></script>
   </body>
 </html>

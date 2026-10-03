@@ -1,5 +1,6 @@
 import { equivalentAbsoluteHumidity } from '../domain/humidity.js';
 import { MAX_OPEN_MINUTES, MINIMUM_NOTICEABLE_RH_CHANGE } from '../config.js';
+import { validTimerMinutes } from './timer.js';
 
 export function createRecommendationView({
   state,
@@ -7,15 +8,28 @@ export function createRecommendationView({
   formatTemp,
   formatRh,
   formatDuration,
+  timerSupported = false,
 } = {}, environment = globalThis) {
   const { document } = environment;
 
-  function setDecisionLine(element, text, emphasizedDuration, emphasizeWhole) {
+  function setDecisionLine(element, text, emphasizedDuration, emphasizeWhole, timer) {
     element.replaceChildren();
     if (emphasizedDuration && text.includes(emphasizedDuration)) {
       const [prefix, suffix] = text.split(emphasizedDuration);
-      const duration = document.createElement("strong");
+      const interactive = timerSupported && validTimerMinutes(timer?.minutes);
+      const duration = document.createElement(interactive ? "button" : "strong");
       duration.textContent = emphasizedDuration;
+      if (interactive) {
+        duration.type = 'button';
+        duration.className = 'verdict-time';
+        duration.dataset.timerMinutes = timer.minutes;
+        duration.dataset.timerContext = timer.context;
+        duration.setAttribute('aria-label', `Set timer for ${emphasizedDuration}: ${timer.context}`);
+        duration.setAttribute('aria-haspopup', 'dialog');
+        duration.setAttribute('aria-controls', 'timerDialog');
+        duration.setAttribute('aria-expanded', 'false');
+        duration.title = 'Set ventilation timer';
+      }
       element.append(prefix, duration, suffix);
       return;
     }
@@ -30,9 +44,9 @@ export function createRecommendationView({
     element.textContent = text;
   }
 
-  function setDecisionSummary(primary, secondary, primaryDuration, secondaryDuration) {
-    setDecisionLine(elements.decisionPrimary, primary, primaryDuration, true);
-    setDecisionLine(elements.decisionSecondary, secondary, secondaryDuration, false);
+  function setDecisionSummary(primary, secondary, primaryDuration, secondaryDuration, primaryTimer, secondaryTimer) {
+    setDecisionLine(elements.decisionPrimary, primary, primaryDuration, true, primaryTimer);
+    setDecisionLine(elements.decisionSecondary, secondary, secondaryDuration, false, secondaryTimer);
   }
 
   function planTone(plan) {
@@ -94,6 +108,8 @@ export function createRecommendationView({
           : `Up to ${dryDuration} of reliably drier air.`,
         targetDuration,
         dryDuration,
+        { minutes: plan.minutes, context: 'Estimated time to reach your humidity target.' },
+        { minutes: plan.dryAirHorizon.minutes, context: 'Drier-air forecast window, not a recommended opening duration.' },
       );
     } else if (plan.status === "forecast-limit") {
       elements.decisionLabel.textContent = plan.limitMinutes ? "OPEN WINDOWS" : "OPEN IF NEEDED";
@@ -106,6 +122,8 @@ export function createRecommendationView({
           ? `Estimated then: ${formatRh(plan.projectedRh)} RH at ${formatTemp(plan.projectedTemp)}.`
           : "Open briefly for fresh air; humidity may not fall.",
         plan.limitMinutes ? limitDuration : null,
+        null,
+        { minutes: plan.limitMinutes, context: 'Reliably drier forecast-air limit.' },
       );
     } else if (plan.status === "settling") {
       elements.decisionLabel.textContent = plan.minutes ? "OPEN WINDOWS" : "OPEN IF NEEDED";
@@ -118,6 +136,8 @@ export function createRecommendationView({
           ? `Estimated then: ${formatRh(plan.projectedRh)} RH at ${formatTemp(plan.projectedTemp)}.`
           : "Open briefly for fresh air; humidity may not fall.",
         plan.minutes ? settlingDuration : null,
+        null,
+        { minutes: plan.minutes, context: 'Estimated useful drying period.' },
       );
     } else if (limited) {
       elements.decisionLabel.textContent = plan.limitMinutes ? "OPEN WINDOWS" : "KEEP CLOSED";
@@ -140,6 +160,8 @@ export function createRecommendationView({
         primary,
         secondary,
         plan.limitMinutes ? limitDuration : null,
+        null,
+        { minutes: plan.limitMinutes, context: plan.status === 'too-cold' ? 'Estimated time to minimum indoor temperature.' : 'Estimated time until condensation risk rises.' },
       );
     } else if (plan.status === "slow") {
       elements.decisionLabel.textContent = "OPEN WINDOWS";
@@ -149,6 +171,8 @@ export function createRecommendationView({
         `Recheck within ${modelDuration}; drying will be slow.`,
         modelDuration,
         modelDuration,
+        { minutes: MAX_OPEN_MINUTES, context: 'Recheck reminder; the humidity target may take longer.' },
+        { minutes: MAX_OPEN_MINUTES, context: 'Recheck reminder; the humidity target may take longer.' },
       );
     } else if (plan.status === "minimal-impact") {
       elements.decisionLabel.textContent = "OPEN IF NEEDED";

@@ -11,12 +11,14 @@ import { createReadingControls } from './src/ui/readings.js';
 import { createDialogs } from './src/ui/dialogs.js';
 import { createPullRefresh } from './src/ui/pull-refresh.js';
 import { createEvents } from './src/ui/events.js';
+import { createTimerController, isAppleMobile } from './src/ui/timer.js';
 import { DEFAULT_LOCATION, DEFAULT_PRESSURE_HPA, DEFAULT_TIMEZONE, WEATHER_REFRESH_INTERVAL_MS } from './src/config.js';
 
 const uiPreferences = { showIndoorSummary: false, openIndoorOnLaunch: true };
 
 const state = {
   indoorLastSet: null,
+  timerMinutes: 1,
   indoorTemp: 24,
   indoorRh: 58,
   targetRh: 55,
@@ -46,6 +48,13 @@ const state = {
 };
 
 const elements = {
+  timerDialog: document.querySelector('#timerDialog'),
+  timerDialogTitle: document.querySelector('#timerDialogTitle'),
+  timerContext: document.querySelector('#timerContext'),
+  timerMinutes: document.querySelector('#timerMinutes'),
+  timerMinutesInput: document.querySelector('#timerMinutesInput'),
+  timerStartButton: document.querySelector('#timerStartButton'),
+  timerInstallLink: document.querySelector('#timerInstallLink'),
   recommendation: document.querySelector(".recommendation"),
   verdictPanel: document.querySelector(".verdict-panel"),
   forecastPanel: document.querySelector(".forecast-panel"),
@@ -180,6 +189,7 @@ const formatters = createFormatters({
   state,
 });
 const recommendationView = createRecommendationView({
+  timerSupported: isAppleMobile(),
   state,
   elements,
   formatTemp: (...args) => formatters.formatTemp(...args),
@@ -249,6 +259,10 @@ const events = createEvents({
   closePlanDialog: (...args) => dialogs.closePlanDialog(...args),
 });
 const lock = dialogs.createDialogScrollLock();
+const timerController = createTimerController({
+  state, elements, dialogScrollLock,
+  renderRulers: () => readingControls.renderReadingRulers(),
+});
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("service-worker.js");
 
@@ -260,6 +274,7 @@ const hasSavedLocation = storage.loadLocation();
 locationController.loadLocationHistory(hasSavedLocation);
 locationController.updateLocationUi();
 events.bindEvents();
+timerController.initialize();
 pullRefresh.bindPullToRefresh();
 dashboard.render();
 locationController.initializeLocation(hasSavedLocation);

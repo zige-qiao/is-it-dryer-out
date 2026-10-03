@@ -16,6 +16,14 @@ In v0.7.2, the app gained an optional compact Indoor summary above the verdict, 
 
 ## 1. Purpose and principles
 
+### Ventilation timer (unreleased)
+
+On iPhone/iPad, each duration in the two verdict lines is an inline button with an underline, a 44px minimum target, and distinct pressed/focus states. Qualifiers stay outside the button; combined hour/minute durations stay together. Other devices retain plain emphasized text.
+
+The timer uses the Indoor sheet geometry and a stacked 1-180 minute ruler: 1-minute ticks, labelled 5-minute marks, and 8px spacing. Typed entry remains available. Start is disabled for empty, fractional, or out-of-range values. Draft minutes are temporary and independent of saved readings/settings; refresh does not replace edits. The sheet identifies the selected duration's context. Drier-air windows are not presented as recommended opening durations; capped target estimates create a recheck reminder.
+
+Clock owns the timer after the Shortcut handoff; the web app displays no countdown or success claim. Closing restores the clicked duration's focus, or the verdict heading if it has been replaced. Shared Shortcut installation and real-device verification remain pending.
+
 - Help someone decide whether opening windows reduces indoor moisture, and for approximately how long.
 - Put the compact Indoor reading controls first, followed by the prominent recommendation, evidence and settings.
 - Use warm neutrals for controls and structure. Reserve semantic colours for weather and moisture meaning.

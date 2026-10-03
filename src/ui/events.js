@@ -46,7 +46,7 @@ export function createEvents({
     const summaryVoice = document.querySelector('#indoorSummaryVoice');
     const indoorOpeners = [editIndoor, summaryEdit, summaryVoice];
     let indoorDialogOpener = null;
-    [indoorDialog, elements.planDialog, elements.locationDialog, elements.settingsDialog].forEach(dialog => {
+    [indoorDialog, elements.planDialog, elements.locationDialog, elements.settingsDialog, elements.timerDialog].filter(Boolean).forEach(dialog => {
       dialog.addEventListener('close', dialogScrollLock.release);
       enableSheetDrag(dialog);
       let startedOutside = false;

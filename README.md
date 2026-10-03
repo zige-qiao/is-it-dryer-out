@@ -27,6 +27,12 @@ On iPhone, voice input may keep the microphone indicator on while the app remain
 
 ## Development and documentation
 
+### Ventilation timer (local development)
+
+On iPhone/iPad, tap a time in either verdict line to open the timer sheet. Adjust the minutes with the ruler or typed entry, then choose Start iPhone timer. Each time retains its own meaning; the drier-air forecast window is not a recommended opening duration.
+
+This uses one reusable Shortcut named **Ventilation Timer**, which starts the Clock timer. An automated installer build is prepared; signing, the install link, and real-device verification are pending. See [timer development](docs/timer-development.md). Users will add the ready-made Shortcut once rather than build its actions. The web app cannot confirm that a timer started or track its cancellation. Once started, Clock owns the alarm and works offline.
+
 Built with HTML, CSS and native JavaScript modules. No build step or dependency installation is needed. With Node.js 24 or later, run:
 
 ```sh

@@ -1,0 +1,28 @@
+name: Build Ventilation Timer installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ventilation-timer-ios]
+    paths:
+      - .github/workflows/build-timer-shortcut.yml
+      - scripts/build-timer-shortcut.py
+
+permissions:
+  contents: read
+
+jobs:
+  sign:
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Shortcut source
+        run: python3 scripts/build-timer-shortcut.py 'dist/Ventilation Timer unsigned.shortcut'
+      - name: Sign for installation
+        run: shortcuts sign --mode anyone --input 'dist/Ventilation Timer unsigned.shortcut' --output 'dist/Ventilation Timer.shortcut'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ventilation-timer-installer
+          path: dist/Ventilation Timer.shortcut
+          if-no-files-found: error
