@@ -4,6 +4,7 @@ const { element, environment } = require('./helpers/browser.cjs');
 const { TIMER_SHORTCUT_INSTALL_URL, isAppleMobile, validTimerMinutes, timerShortcutUrl, createTimerController } = require('../src/ui/timer.js');
 const { createRecommendationView } = require('../src/ui/recommendation.js');
 const { createFormatters } = require('../src/ui/format.js');
+const { createDialogs } = require('../src/ui/dialogs.js');
 
 test('timer accepts only supported whole minutes and encodes the reusable Shortcut name', () => {
   for (const value of [1, 20, 80, 180]) {
@@ -76,8 +77,21 @@ test('timer sheet preserves temporary edits and hands off only validated minutes
   elements.decisionLabel.focus = () => { focus = 'heading'; };
   elements.recommendation.contains = node => node === button;
   const appUrl = 'http://192.168.1.165:8768/';
-  const window = { location: { href: appUrl } };
-  const controller = createTimerController({ state, elements, dialogScrollLock: { open: dialog => dialog.showModal() }, renderRulers: () => rendered++ }, environment({ window }));
+  let href = appUrl, releases = 0;
+  const window = { location: { get href() { return href; }, set href(value) {
+    assert.equal(elements.timerDialog.open, false);
+    assert.equal(focus, 'button');
+    assert.equal(button.getAttribute('aria-expanded'), 'false');
+    assert.equal(releases, 1);
+    href = value;
+  } } };
+  const document = { activeElement: null };
+  const dialogs = createDialogs({}, environment({ document }));
+  const controller = createTimerController({ state, elements,
+    dialogScrollLock: { open: dialog => dialog.showModal(), release: () => releases++ },
+    rememberSheetFocus: dialogs.rememberSheetFocus, restoreSheetFocus: dialogs.restoreSheetFocus,
+    closeSheet: dialogs.closeSheet,
+    renderRulers: () => rendered++ }, environment({ window }));
   controller.initialize();
   assert.equal(elements.timerInstallLink.href, TIMER_SHORTCUT_INSTALL_URL);
   assert.equal(new URL(elements.timerInstallLink.href).hostname, 'www.icloud.com');
@@ -88,13 +102,18 @@ test('timer sheet preserves temporary edits and hands off only validated minutes
     elements.timerMinutesInput.value = invalid; elements.timerMinutesInput.emit('input');
     assert.ok(elements.timerStartButton.disabled);
     elements.timerStartButton.emit('click'); assert.equal(window.location.href, appUrl);
+    assert.ok(elements.timerDialog.open);
   }
   elements.timerMinutesInput.value = '42'; elements.timerMinutesInput.emit('input');
   assert.equal(state.timerMinutes, 42); assert.equal(state.indoorTemp, 24);
+  // Native dialogs queue close events; cleanup must not wait for that event.
+  elements.timerDialog.close = function () { this.open = false; };
   elements.timerStartButton.emit('click'); assert.equal(window.location.href, timerShortcutUrl(42));
-  assert.ok(elements.timerDialog.open);
+  assert.equal(elements.timerDialog.open, false);
+  assert.ok(button.classList.contains('is-restored-pointer-focus'));
+  elements.timerStartButton.emit('click'); assert.equal(releases, 1);
   assert.ok(rendered > 0);
-  elements.timerDialog.close(); assert.equal(focus, 'button');
+  elements.timerDialog.emit('close'); assert.equal(focus, 'button');
   elements.recommendation.emit('click', { target: { closest: () => button } });
-  button.isConnected = false; elements.timerDialog.close(); assert.equal(focus, 'heading');
+  button.isConnected = false; elements.timerDialog.close(); elements.timerDialog.emit('close'); assert.equal(focus, 'heading');
 });

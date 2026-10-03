@@ -107,7 +107,7 @@ test('geolocation failure restores retry while preserving search and recents', a
 test('sheet release needs 120px even for a fast flick and cancelled drags reset', () => {
   const events = {}, styles = new Map(); let closed = 0;
   const surface = {classList:{add(){}},addEventListener:(name,fn)=>events[name]=fn,setPointerCapture(){},hasPointerCapture:()=>true,releasePointerCapture(){}};
-  const dialog = {querySelector:selector=>selector === '.sheet-handle' ? null : surface,classList:{add(){},remove(){}},style:{removeProperty:name=>styles.delete(name)},close:()=>closed++,addEventListener(){}};
+  const dialog = {open:true,querySelector:selector=>selector === '.sheet-handle' ? null : surface,classList:{add(){},remove(){}},style:{removeProperty:name=>styles.delete(name)},close:()=>closed++,addEventListener(){}};
   const context = environment({window:{matchMedia:()=>({matches:true})}}); Object.assign(context,createDialogs({},context)); context.enableSheetDrag(dialog);
   const event = y => ({isPrimary:true,button:0,pointerId:1,clientY:y,target:{closest:()=>null}});
   for (const distance of [30,80,119]) { events.pointerdown(event(10)); events.pointermove(event(10+distance)); events.pointerup(event(10+distance)); }

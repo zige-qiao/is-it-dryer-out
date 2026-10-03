@@ -4,6 +4,7 @@ export function createLocationController({
   state,
   elements,
   dialogScrollLock,
+  closeSheet = dialog => dialog.close(),
   hasRequestedLocation,
   markLocationRequested,
   reverseGeocodeLocation,
@@ -267,7 +268,7 @@ export function createLocationController({
 
   function closeLocationDialog() {
     cancelLocationWork();
-    if (elements.locationDialog.open) elements.locationDialog.close();
+    if (elements.locationDialog.open) closeSheet(elements.locationDialog);
   }
 
   function cancelLocationWork() {

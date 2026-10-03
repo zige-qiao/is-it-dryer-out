@@ -64,9 +64,8 @@
   cursor: pointer;
 }
 .verdict-time:active { background: rgb(255 255 255 / 20%); }
-.verdict-time:focus-visible { outline: 2px solid white; outline-offset: 2px; }
+.verdict-time:is(:focus-visible, .is-restored-keyboard-focus:focus):not(.is-restored-pointer-focus) { outline: 2px solid white; outline-offset: 2px; }
 @media (hover: hover) { .verdict-time:hover { background: rgb(255 255 255 / 12%); } }
-.timer-dialog .sheet-close-button { display: inline-flex; }
 .timer-dialog .indoor-done { margin-top: 0; }
 .timer-dialog .timer-install-link { display: flex; align-items: center; min-height: 44px; color: var(--ink); text-underline-offset: 3px; font-size: 14px; }
 .timer-dialog .section-heading { position: relative; }
@@ -141,7 +140,7 @@ select {
 .indoor-summary-edit { gap: 6px; padding: 0 16px; font-size: 15px; font-weight: 600; }
 .indoor-summary-edit svg { width: 15px; height: 15px; }
 .indoor-summary-voice[hidden] { display: none; }
-.indoor-summary-actions button:focus-visible { outline: 2px solid var(--ink-main); outline-offset: 2px; }
+.indoor-summary-actions button:is(:focus-visible, .is-restored-keyboard-focus:focus):not(.is-restored-pointer-focus) { outline: 2px solid var(--ink-main); outline-offset: 2px; }
 .indoor-summary-actions button:active { background: var(--surface-pressed); }
 @media (hover: hover) { .indoor-summary-actions button:hover { background: var(--surface-hover); } }
 @media (max-width: 360px) {
@@ -2041,16 +2040,17 @@ input[type="range"] {
 :root { --interaction-ring: var(--ink-main); --interaction-hover: var(--surface-hover); --interaction-pressed: var(--surface-pressed); }
 .verdict-panel { --interaction-ring: #fff; --interaction-hover: #ffffff1a; --interaction-pressed: #ffffff2e; }
 :where(button, a, input, select, summary, .ah-chart) { -webkit-tap-highlight-color: transparent; }
-:where(button, a, input, select, summary, .ah-chart):focus-visible {
+:where(button, a, input, select, summary, .ah-chart):focus-visible, .is-restored-keyboard-focus:focus {
   outline: 2px solid var(--interaction-ring); outline-offset: 2px; box-shadow: none;
 }
+.is-restored-pointer-focus:focus { outline: none; box-shadow: none; }
 .ah-chart { -webkit-tap-highlight-color: transparent; }
 .ah-chart:focus { outline: none; box-shadow: none; }
 .ah-chart:focus-visible:not(.is-pointer-inspecting) { outline: 2px solid var(--interaction-ring); outline-offset: 2px; }
 a { border-radius: 2px; }
 .plan-summary-trigger, .dashboard-explainer summary { position: relative; border-radius: 8px; }
-.plan-summary-trigger:focus-visible, .dashboard-explainer summary:focus-visible { outline: none; }
-.plan-summary-trigger:focus-visible::before, .dashboard-explainer summary:focus-visible::before {
+.plan-summary-trigger:is(:focus-visible, .is-restored-keyboard-focus:focus), .dashboard-explainer summary:focus-visible { outline: none; }
+.plan-summary-trigger:is(:focus-visible, .is-restored-keyboard-focus:focus):not(.is-restored-pointer-focus)::before, .dashboard-explainer summary:focus-visible::before {
   content: '';
   position: absolute;
   inset: 2px -8px;
@@ -2058,7 +2058,7 @@ a { border-radius: 2px; }
   border-radius: 8px;
   pointer-events: none;
 }
-:is(#indoor-heading, #planDialogTitle, #locationDialogTitle):focus { outline: none; }
+:is(#indoor-heading, #planDialogTitle, #locationDialogTitle, #settingsDialogTitle, #timerDialogTitle, #decisionLabel):focus { outline: none; }
 dialog:focus { outline: none; }
 
 /* One focus boundary for each compound field. */
@@ -2070,8 +2070,8 @@ dialog:focus { outline: none; }
 
 /* Compact visual focus shapes preserve the larger clickable boxes. */
 .location-button span { padding: 4px 6px; margin: -4px -6px; border-radius: 8px; }
-.location-button:focus-visible { outline: none; }
-.location-button:focus-visible span { outline: 2px solid var(--interaction-ring); outline-offset: 2px; }
+.location-button:is(:focus-visible, .is-restored-keyboard-focus:focus) { outline: none; }
+.location-button:is(:focus-visible, .is-restored-keyboard-focus:focus):not(.is-restored-pointer-focus) span { outline: 2px solid var(--interaction-ring); outline-offset: 2px; }
 .weather-refresh-button { position: relative; isolation: isolate; }
 .weather-refresh-button::before {
   content: ''; position: absolute; z-index: -1; width: calc(1rem + 12px); height: calc(1rem + 12px);
@@ -2084,8 +2084,8 @@ dialog:focus { outline: none; }
 .chart-range button::before { content: ''; position: absolute; z-index: -1; inset: 11px 0; border-radius: 6px; }
 .chart-range button:focus-visible { outline: none; }
 .chart-range button:focus-visible::before { outline: 2px solid var(--interaction-ring); outline-offset: 2px; }
-#editIndoorButton:focus-visible { outline: none; }
-.indoor-card:has(#editIndoorButton:focus-visible) { outline: 2px solid var(--interaction-ring); outline-offset: 2px; }
+#editIndoorButton:is(:focus-visible, .is-restored-keyboard-focus:focus) { outline: none; }
+.indoor-card:has(#editIndoorButton:is(:focus-visible, .is-restored-keyboard-focus:focus):not(.is-restored-pointer-focus)) { outline: 2px solid var(--interaction-ring); outline-offset: 2px; }
 
 /* Keep native range behaviour; custom rulers show focus around the visible track. */
 input[type="range"] { accent-color: var(--ink-main); }
@@ -2102,7 +2102,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { border-radius: 50%; outlin
   .chart-range button[aria-pressed="true"]:hover:not(:disabled)::before { background: var(--surface-hover); }
   .indoor-card:has(#editIndoorButton:not(:disabled)):hover { outline: 1px solid var(--border-control); outline-offset: -1px; background: var(--surface-control); }
   .indoor-card:has(#editIndoorButton:not(:disabled)):hover #editIndoorButton span { background: var(--surface-hover); }
-  .indoor-card:has(#editIndoorButton:focus-visible) { outline: 2px solid var(--interaction-ring); outline-offset: 2px; }
+  .indoor-card:has(#editIndoorButton:is(:focus-visible, .is-restored-keyboard-focus:focus):not(.is-restored-pointer-focus)) { outline: 2px solid var(--interaction-ring); outline-offset: 2px; }
   .plan-summary-trigger:hover:not(:disabled) .plan-summary-group, .dashboard-explainer summary:hover { color: var(--ink); }
   .plan-summary-trigger:hover:not(:disabled) .plan-summary-chevron, .dashboard-explainer summary:hover::after { border-color: var(--ink); }
   a:hover, .location-worldwide-button:hover:not(:disabled) { text-decoration: underline; text-underline-offset: 2px; }
@@ -2142,7 +2142,7 @@ input[type="range"]:active:not(:disabled)::-moz-range-thumb { filter: brightness
   input[type="range"]:focus-visible::-moz-range-thumb { outline-color: Highlight; }
   .chart-range button[aria-pressed="true"]::before { border: 1px solid ButtonText; }
   .indoor-card:has(#editIndoorButton:not(:disabled)):hover { outline: 1px solid ButtonText; outline-offset: -1px; }
-  .indoor-card:has(#editIndoorButton:focus-visible) { outline: 2px solid ButtonText; outline-offset: 2px; }
+  .indoor-card:has(#editIndoorButton:is(:focus-visible, .is-restored-keyboard-focus:focus):not(.is-restored-pointer-focus)) { outline: 2px solid ButtonText; outline-offset: 2px; }
 }
 
 /* Indoor ruler entry: one continuous scale and one directly editable value. */
@@ -2262,7 +2262,7 @@ html[data-show-indoor-summary="true"] .indoor-summary { display: flex; }
   background: transparent; color: var(--ink-main); cursor: pointer;
 }
 .settings-button svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.settings-button:focus-visible { outline: 2px solid var(--ink-main); outline-offset: 2px; }
+.settings-button:is(:focus-visible, .is-restored-keyboard-focus:focus):not(.is-restored-pointer-focus) { outline: 2px solid var(--ink-main); outline-offset: 2px; }
 .settings-button:active { background: var(--surface-pressed); }
 @media (hover: hover) { .settings-button:hover { background: var(--surface-hover); } }
 
@@ -2388,8 +2388,8 @@ body.pull-result.pull-failed .pull-refresh-result-icon::after { content: '!'; }
 
 /* Anchor mobile sheets to the visible viewport after fixing the page body. */
 @media (max-width: 39.999rem) {
-  :is(.indoor-dialog, .plan-dialog) .sheet-close-button { display: none; }
-  .location-dialog .sheet-close-button, .timer-dialog .sheet-close-button { display: inline-flex; }
+  :is(.indoor-dialog, .plan-dialog, .location-dialog, .settings-dialog) .sheet-close-button { display: none; }
+  :is(.location-dialog-heading, .settings-dialog-heading) { min-height: 44px; }
   :is(.indoor-dialog, .plan-dialog, .location-dialog) {
     position: fixed;
     top: auto;

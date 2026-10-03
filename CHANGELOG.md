@@ -4,6 +4,9 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Close the ventilation timer sheet before handing off to Shortcuts, without claiming that the timer started.
+- Make focus return consistent across all sheets: touch-opened sheets restore focus quietly, while openers with visible keyboard focus retain their indicator. Hide all header close buttons below 640px, retaining existing Done actions and mobile drag dismissal.
+
 ## v0.7.4 - Ventilation timer - 2026-10-03
 
 - Add clickable verdict durations on iPhone/iPad and a ventilation timer sheet with the existing minutes ruler and editable value.

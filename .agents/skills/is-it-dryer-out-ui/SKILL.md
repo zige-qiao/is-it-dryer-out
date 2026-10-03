@@ -52,7 +52,7 @@ The whole ventilation summary opens Ventilation settings, where changes persist 
 
 - Keep indoor rulers stacked and ventilation rulers paired. Preserve typed entry, keyboard adjustment, snapping, and horizontal gestures without hijacking vertical scrolling. Cancel momentum on interruption, close, or backgrounding.
 - Keep room and opening choices as accessible single-selection groups. Sheets support Done, Escape, and mobile drag-to-dismiss; preserve scroll position, visible focus, and opener focus. Adapt to the visible viewport when the keyboard opens.
-- Keep the Location sheet's visible Close action on mobile. Follow the [design system](../../../docs/design-system.md) for exact breakpoints, dimensions, time labels, radii, and focus treatment.
+- Hide all sheet header close buttons below 640px and retain them on larger screens; preserve existing Done actions, outside-tap dismissal, Escape and mobile drag dismissal. Restore opener focus quietly unless it had visible keyboard focus when activated, even if the user typed inside the sheet. Follow the [design system](../../../docs/design-system.md) for exact breakpoints, dimensions, time labels, radii, and focus treatment.
 
 ## Recommendation Language
 

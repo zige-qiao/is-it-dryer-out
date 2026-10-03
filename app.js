@@ -169,6 +169,7 @@ const weatherController = createWeatherController({
   render: (...args) => dashboard.render(...args),
 });
 const locationController = createLocationController({
+  closeSheet: (...args) => dialogs.closeSheet(...args),
   state,
   elements,
   dialogScrollLock,
@@ -255,6 +256,10 @@ const events = createEvents({
   bindSteppers: (...args) => readingControls.bindSteppers(...args),
   bindReadingRulers: (...args) => readingControls.bindReadingRulers(...args),
   enableSheetDrag: (...args) => dialogs.enableSheetDrag(...args),
+  bindSheetFocus: (...args) => dialogs.bindSheetFocus(...args),
+  rememberSheetFocus: (...args) => dialogs.rememberSheetFocus(...args),
+  restoreSheetFocus: (...args) => dialogs.restoreSheetFocus(...args),
+  closeSheet: (...args) => dialogs.closeSheet(...args),
   openPlanDialog: (...args) => dialogs.openPlanDialog(...args),
   closePlanDialog: (...args) => dialogs.closePlanDialog(...args),
 });
@@ -262,6 +267,9 @@ const lock = dialogs.createDialogScrollLock();
 const timerController = createTimerController({
   state, elements, dialogScrollLock,
   renderRulers: () => readingControls.renderReadingRulers(),
+  rememberSheetFocus: (...args) => dialogs.rememberSheetFocus(...args),
+  restoreSheetFocus: (...args) => dialogs.restoreSheetFocus(...args),
+  closeSheet: (...args) => dialogs.closeSheet(...args),
 });
 
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("service-worker.js");
@@ -273,8 +281,9 @@ voiceController.initializeVoiceDebugPanel();
 const hasSavedLocation = storage.loadLocation();
 locationController.loadLocationHistory(hasSavedLocation);
 locationController.updateLocationUi();
-events.bindEvents();
+// Give the timer help popup first refusal of Escape before shared dismissal.
 timerController.initialize();
+events.bindEvents();
 pullRefresh.bindPullToRefresh();
 dashboard.render();
 locationController.initializeLocation(hasSavedLocation);

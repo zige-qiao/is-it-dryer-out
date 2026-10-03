@@ -10,7 +10,7 @@ The footer Settings button controls two saved preferences: **Show Indoor summary
 
 Open the ventilation summary below the chart to set minimum indoor temperature, target humidity, room size and window opening. Choose a room preset or enter custom dimensions; custom airflow is also available. These settings save immediately.
 
-Sheets can be closed with Escape or their close controls; mobile sheets also support dragging down to dismiss. The supporting **Why this recommendation?**, **Glossary**, **How estimates work** and **Weather data** sections explain the current result and terminology.
+Sheets can be closed with Escape, a tap outside, or their existing Done actions. Below 640px, drag down from the handle or header to dismiss; header close buttons appear on larger screens. Focus returns to the opener without a highlight unless its keyboard focus indicator was visible when the sheet opened. The supporting **Why this recommendation?**, **Glossary**, **How estimates work** and **Weather data** sections explain the current result and terminology.
 
 ## Location and weather
 
@@ -40,7 +40,7 @@ These are planning estimates, not measurements. Actual airflow depends on the bu
 
 On iPhone/iPad, tap a duration in either verdict line to open the timer sheet. Adjust the whole minutes with the ruler, arrow keys or numeric field (1-180 minutes), then choose **Start iPhone timer**. Timer adjustments are temporary and do not change your saved indoor readings or ventilation settings.
 
-Before the first use, open the help popup beside the timer title and choose **Install Shortcut** to [add Ventilation Timer](https://www.icloud.com/shortcuts/d16fde94799a414bb11a3a40c484f080). Add it once and keep its name unchanged; the app passes a different duration each time. Starting a timer switches to Shortcuts, which starts Apple's Clock timer. There is no automatic return to the originating browser or Home Screen app.
+Before the first use, open the help popup beside the timer title and choose **Install Shortcut** to [add Ventilation Timer](https://www.icloud.com/shortcuts/d16fde94799a414bb11a3a40c484f080). Add it once and keep its name unchanged; the app passes a different duration each time. Starting a timer closes the sheet before switching to Shortcuts, which starts Apple's Clock timer. There is no automatic return to the originating browser or Home Screen app. If you cancel the handoff, the sheet stays closed.
 
 The two verdict times can mean different things. A period of reliably drier outdoor air is not a recommendation to keep the windows open for that entire period. A capped estimate of more than three hours opens a 180-minute recheck reminder. Other platforms retain plain duration text.
 

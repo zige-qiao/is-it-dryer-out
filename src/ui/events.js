@@ -26,12 +26,17 @@ export function createEvents({
   bindSteppers,
   bindReadingRulers,
   enableSheetDrag,
+  bindSheetFocus,
+  rememberSheetFocus,
+  restoreSheetFocus,
+  closeSheet,
   openPlanDialog,
   closePlanDialog,
 } = {}, environment = globalThis) {
   const { window, document, requestAnimationFrame, ResizeObserver } = environment;
 
   function bindEvents() {
+    bindSheetFocus();
     let lastChartWidth = 0;
     const chartResizeObserver = new ResizeObserver(entries => {
       const width = entries[0].contentRect.width;
@@ -45,9 +50,13 @@ export function createEvents({
     const summaryEdit = document.querySelector('#indoorSummaryEdit');
     const summaryVoice = document.querySelector('#indoorSummaryVoice');
     const indoorOpeners = [editIndoor, summaryEdit, summaryVoice];
-    let indoorDialogOpener = null;
     [indoorDialog, elements.planDialog, elements.locationDialog, elements.settingsDialog, elements.timerDialog].filter(Boolean).forEach(dialog => {
       dialog.addEventListener('close', dialogScrollLock.release);
+      dialog.addEventListener('cancel', event => {
+        if (event.defaultPrevented) return;
+        event.preventDefault();
+        closeSheet(dialog);
+      });
       enableSheetDrag(dialog);
       let startedOutside = false;
       const isOutside = event => {
@@ -62,34 +71,34 @@ export function createEvents({
       });
       dialog.addEventListener('pointercancel', () => { startedOutside = false; });
       dialog.addEventListener('click', event => {
-        if (startedOutside && isOutside(event)) dialog.close();
+        if (startedOutside && isOutside(event)) closeSheet(dialog);
         startedOutside = false;
       });
       dialog.addEventListener('close', () => { startedOutside = false; });
     });
     const openIndoorEditor = opener => {
-      indoorDialogOpener = opener;
+      rememberSheetFocus(indoorDialog, opener, elements.locationButton);
       opener?.setAttribute('aria-expanded', 'true');
       dialogScrollLock.open(indoorDialog);
       document.querySelector('#indoor-heading').focus({ preventScroll: true });
     };
     editIndoor.addEventListener('click', () => openIndoorEditor(editIndoor));
     summaryEdit.addEventListener('click', () => openIndoorEditor(summaryEdit));
-    document.querySelector('#indoorDoneButton').addEventListener('click', () => indoorDialog.close());
+    document.querySelector('#indoorDoneButton').addEventListener('click', () => closeSheet(indoorDialog));
     indoorDialog.addEventListener('close', () => {
       if (!elements.voiceDialog.hidden) closeVoiceDialog();
       indoorOpeners.forEach(opener => opener.setAttribute('aria-expanded', 'false'));
-      (indoorDialogOpener || elements.locationButton).focus({ preventScroll: true });
-      indoorDialogOpener = null;
+      restoreSheetFocus(indoorDialog);
     });
     elements.settingsButton.addEventListener('click', () => {
+      rememberSheetFocus(elements.settingsDialog, elements.settingsButton, elements.settingsButton);
       elements.settingsButton.setAttribute('aria-expanded', 'true');
       dialogScrollLock.open(elements.settingsDialog);
       elements.settingsDialogTitle.focus({ preventScroll: true });
     });
     elements.settingsDialog.addEventListener('close', () => {
       elements.settingsButton.setAttribute('aria-expanded', 'false');
-      elements.settingsButton.focus({ preventScroll: true });
+      restoreSheetFocus(elements.settingsDialog);
     });
     elements.showIndoorSummary.addEventListener('change', () => {
       uiPreferences.showIndoorSummary = elements.showIndoorSummary.checked;
@@ -156,10 +165,13 @@ export function createEvents({
 
     elements.refreshWeather.addEventListener("click", fetchWeather);
     document.querySelector("#pageRefreshButton").addEventListener("click", () => window.location.reload());
-    elements.locationButton.addEventListener("click", openLocationDialog);
+    elements.locationButton.addEventListener("click", () => {
+      rememberSheetFocus(elements.locationDialog, elements.locationButton, elements.locationButton);
+      openLocationDialog();
+    });
     elements.locationDialog.addEventListener("close", () => {
       cancelLocationWork();
-      elements.locationButton.focus({ preventScroll: true });
+      restoreSheetFocus(elements.locationDialog);
     });
     elements.locationUpdateButton.addEventListener("click", useCurrentLocation);
     elements.locationSearchForm.addEventListener("submit", handleLocationSearch);
@@ -173,19 +185,22 @@ export function createEvents({
       button.addEventListener("click", () => {
         const dialog = button.closest("dialog");
         if (dialog === elements.locationDialog) closeLocationDialog();
-        else dialog.close();
+        else closeSheet(dialog);
       });
     });
-    elements.planSummaryButton.addEventListener("click", openPlanDialog);
+    elements.planSummaryButton.addEventListener("click", () => {
+      rememberSheetFocus(elements.planDialog, elements.planSummaryButton, elements.planSummaryButton);
+      openPlanDialog();
+    });
     elements.planDoneButton.addEventListener("click", closePlanDialog);
     elements.planDialog.addEventListener("close", () => {
-      elements.planSummaryButton.focus({ preventScroll: true });
+      restoreSheetFocus(elements.planDialog);
     });
     if (voiceSupported) {
       elements.voiceInputButton.hidden = false;
       summaryVoice.hidden = false;
       summaryVoice.addEventListener('click', () => {
-        indoorDialogOpener = summaryVoice;
+        rememberSheetFocus(indoorDialog, summaryVoice, elements.locationButton);
         summaryVoice.setAttribute('aria-expanded', 'true');
         startVoiceInput();
       });

@@ -5,6 +5,75 @@ export function createDialogs({
   dialogScrollLock,
 } = {}, environment = globalThis) {
   const { window, document, requestAnimationFrame, cancelAnimationFrame } = environment;
+  const sheetFocus = new WeakMap();
+  const restoredTargets = new Set();
+  const observedTargets = new WeakSet();
+  let pointerFocus = null, focusBound = false;
+
+  function clearRestoredFocus(target) {
+    target.classList.remove('is-restored-pointer-focus', 'is-restored-keyboard-focus');
+    restoredTargets.delete(target);
+  }
+
+  const hasKeyboardFocus = target => document.activeElement === target &&
+    !target.classList.contains('is-restored-pointer-focus') &&
+    (target.matches(':focus-visible') || target.classList.contains('is-restored-keyboard-focus'));
+
+  function bindSheetFocus() {
+    if (focusBound) return;
+    focusBound = true;
+    // Snapshot before a pointer press changes the browser's focus-visible heuristic.
+    document.addEventListener('pointerdown', event => {
+      const focused = document.activeElement;
+      pointerFocus = { target: event.target, focused, keyboard: focused ? hasKeyboardFocus(focused) : false };
+      for (const target of restoredTargets) clearRestoredFocus(target);
+    }, true);
+    document.addEventListener('keydown', () => {
+      pointerFocus = null;
+      for (const target of restoredTargets) clearRestoredFocus(target);
+    }, true);
+    document.addEventListener('click', () => { pointerFocus = null; });
+    document.addEventListener('pointercancel', () => { pointerFocus = null; }, true);
+  }
+
+  function rememberSheetFocus(dialog, opener, fallback) {
+    const pointerActivation = opener && pointerFocus && opener.contains(pointerFocus.target);
+    const keyboard = Boolean(opener && (pointerActivation
+      ? pointerFocus.focused === opener && pointerFocus.keyboard
+      : hasKeyboardFocus(opener)));
+    sheetFocus.set(dialog, { opener, fallback, keyboard });
+    pointerFocus = null;
+  }
+
+  function prepareSheetFocus(dialog) {
+    const saved = sheetFocus.get(dialog);
+    if (!saved) return;
+    const target = saved.opener?.isConnected ? saved.opener : saved.fallback;
+    if (!target) return;
+    clearRestoredFocus(target);
+    target.classList.add(saved.keyboard && target === saved.opener
+      ? 'is-restored-keyboard-focus' : 'is-restored-pointer-focus');
+    restoredTargets.add(target);
+    if (!observedTargets.has(target)) {
+      target.addEventListener('blur', () => clearRestoredFocus(target));
+      observedTargets.add(target);
+    }
+    return target;
+  }
+
+  function restoreSheetFocus(dialog) {
+    const target = prepareSheetFocus(dialog);
+    sheetFocus.delete(dialog);
+    if (!target) return;
+    target.focus({ preventScroll: true });
+  }
+
+  function closeSheet(dialog) {
+    if (!dialog.open) return;
+    prepareSheetFocus(dialog);
+    dialog.close();
+    restoreSheetFocus(dialog);
+  }
 
   function enableSheetDrag(dialog) {
     const header = dialog.querySelector('.section-heading, .plan-dialog-heading, .location-dialog-heading, .settings-dialog-heading');
@@ -34,7 +103,7 @@ export function createDialogs({
         const dismiss = Math.max(0, event.clientY - gesture.y) >= 120;
         reset();
         if (surface.hasPointerCapture(event.pointerId)) surface.releasePointerCapture(event.pointerId);
-        if (dismiss) dialog.close();
+        if (dismiss) closeSheet(dialog);
       });
       surface.addEventListener('pointercancel', reset);
       surface.addEventListener('lostpointercapture', reset);
@@ -119,8 +188,8 @@ export function createDialogs({
   }
 
   function closePlanDialog() {
-    if (elements.planDialog.open) elements.planDialog.close();
+    closeSheet(elements.planDialog);
   }
 
-  return { enableSheetDrag, createDialogScrollLock, openPlanDialog, closePlanDialog };
+  return { bindSheetFocus, rememberSheetFocus, restoreSheetFocus, closeSheet, enableSheetDrag, createDialogScrollLock, openPlanDialog, closePlanDialog };
 }

@@ -15,9 +15,16 @@ export function timerShortcutUrl(minutes) {
   return `shortcuts://run-shortcut?name=${encodeURIComponent(TIMER_SHORTCUT_NAME)}&input=text&text=${minutes}`;
 }
 
-export function createTimerController({ state, elements, dialogScrollLock, renderRulers } = {}, environment = globalThis) {
+export function createTimerController({ state, elements, dialogScrollLock, renderRulers, rememberSheetFocus, restoreSheetFocus, closeSheet } = {}, environment = globalThis) {
   const { window } = environment;
   let opener = null;
+  const finishClose = () => {
+    if (elements.timerDialog.open || !opener) return;
+    if (elements.timerHelp) elements.timerHelp.open = false;
+    opener.setAttribute('aria-expanded', 'false');
+    restoreSheetFocus(elements.timerDialog);
+    opener = null;
+  };
   const sync = () => {
     const minutes = elements.timerMinutesInput.valueAsNumber;
     const valid = validTimerMinutes(minutes);
@@ -36,6 +43,7 @@ export function createTimerController({ state, elements, dialogScrollLock, rende
       const minutes = Number(button.dataset.timerMinutes);
       if (!validTimerMinutes(minutes)) return;
       opener = button;
+      rememberSheetFocus(elements.timerDialog, button, elements.decisionLabel);
       button.setAttribute('aria-expanded', 'true');
       state.timerMinutes = minutes;
       elements.timerMinutesInput.value = minutes;
@@ -55,16 +63,15 @@ export function createTimerController({ state, elements, dialogScrollLock, rende
     });
     elements.timerStartButton.addEventListener('click', () => {
       const minutes = elements.timerMinutesInput.valueAsNumber;
-      if (!validTimerMinutes(minutes)) return;
+      if (!elements.timerDialog.open || !validTimerMinutes(minutes)) return;
+      closeSheet(elements.timerDialog);
+      // Native close events are queued; finish before handing control to another app.
+      dialogScrollLock.release();
+      finishClose();
       // The browser cannot confirm whether Shortcuts actually starts the Clock timer.
       window.location.href = timerShortcutUrl(minutes);
     });
-    elements.timerDialog.addEventListener('close', () => {
-      if (elements.timerHelp) elements.timerHelp.open = false;
-      opener?.setAttribute('aria-expanded', 'false');
-      (opener?.isConnected ? opener : elements.decisionLabel).focus({ preventScroll: true });
-      opener = null;
-    });
+    elements.timerDialog.addEventListener('close', finishClose);
     elements.timerDialog.addEventListener('click', event => {
       if (elements.timerHelp?.open && !elements.timerHelp.contains(event.target)) elements.timerHelp.open = false;
     });
