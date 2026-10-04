@@ -23,22 +23,27 @@
 <body>
   <main>
     <h1>Camera flash test</h1>
-    <p>Take a still photo with flash. The live feed may pause briefly, then resume.</p>
+    <p>Compare a plain still photo with a flash request. Watch the phone's light: a returned photo does not prove the flash fired.</p>
     <div class="actions">
       <button id="start" type="button">Start camera</button>
-      <button id="capture" type="button" disabled>Take flash photo</button>
+      <button id="plain" type="button" disabled>Take photo</button>
+      <button id="capture" type="button" disabled>Try flash</button>
+      <button id="torch" type="button" aria-pressed="false" disabled>Torch on</button>
+      <button id="pause" type="button" aria-pressed="false" disabled>Pause feed</button>
     </div>
-    <p id="status" role="status">Ready. Start the camera to check flash support.</p>
+    <p id="status" role="status">Ready. Start the camera to try photo capture.</p>
     <p id="capabilities"></p>
+    <p>Pause freezes the preview while keeping the camera active. Torch is turned off for each photo attempt, then restored.</p>
     <video id="video" muted playsinline aria-label="Live rear-camera feed" hidden></video>
     <section id="result" hidden>
-      <h2>Captured photo</h2>
-      <img id="photo" alt="Still photo captured with flash requested">
+      <h2>Photo returned</h2>
+      <p id="resultMode"></p>
+      <img id="photo" alt="Returned still photo">
     </section>
   </main>
   <script type="module">
-    import { createFlashTest } from './camera-flash-test.js';
-    createFlashTest(Object.fromEntries(['start', 'capture', 'status', 'capabilities', 'video', 'result', 'photo']
+    import { createFlashTest } from './camera-flash-test.js?v=2';
+    createFlashTest(Object.fromEntries(['start', 'plain', 'capture', 'torch', 'pause', 'status', 'capabilities', 'video', 'result', 'resultMode', 'photo']
       .map(id => [id, document.getElementById(id)]))).initialize();
   </script>
 </body>
