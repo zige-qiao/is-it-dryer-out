@@ -1,15 +1,18 @@
 // Standalone diagnostic: never imports recognition or production camera code.
 export function createFlashTest(elements, environment = globalThis) {
-  const { start, plain, capture, torch, pause, status, capabilities, video, result, resultMode, photo, log, copyLog, copyStatus } = elements;
+  const { start, plain, capture, torch, pause, autoFlash, autoStatus, status, capabilities, video, result, resultMode, photo, log, copyLog, copyStatus } = elements;
   let session = 0, stream = null, imageCapture = null, busy = false, photoURL = null;
   let supportsTorch = false, torchState = false, previewPaused = false;
+  let autoEnabled = autoFlash.checked, lowLight = false, darkSamples = 0, autoOwnsTorch = false;
+  let sampleTimer = null, lastFrame = null, sampleCanvas = null;
+  const brightnessThreshold = 50, sampleInterval = 500;
   const pending = new Set();
   const stale = request => request !== session || environment.document.hidden;
   const aborted = () => Object.assign(new Error('Camera test cancelled.'), { name: 'AbortError' });
   const message = error => `${error?.name || 'Error'}: ${error?.message || 'Camera operation failed.'}`;
   const clock = () => environment.performance.now();
   const started = clock(), entries = [];
-  const header = ['Camera flash test — log v3', `Started: ${new Date().toISOString()}`,
+  const header = ['Camera flash test — log v4', `Started: ${new Date().toISOString()}`,
     `Browser: ${environment.navigator?.userAgent || 'unknown'}`,
     `Secure context: ${environment.isSecureContext !== false}`, 'No photos or camera identifiers are included.'].join('\n');
   function record(event, details = {}) {
@@ -51,6 +54,93 @@ export function createFlashTest(elements, environment = globalThis) {
     torch.setAttribute('aria-pressed', String(torchState === true));
     pause.textContent = previewPaused ? 'Resume feed' : 'Pause feed';
     pause.setAttribute('aria-pressed', String(previewPaused));
+    autoFlash.checked = autoEnabled; autoFlash.disabled = busy;
+    plain.textContent = autoEnabled ? 'Auto photo' : 'Take photo';
+    scheduleSampling();
+  }
+  function cancelSampling() {
+    if (sampleTimer !== null) environment.clearTimeout(sampleTimer);
+    sampleTimer = null;
+  }
+  function scheduleSampling() {
+    if (!autoEnabled || !live() || busy || previewPaused || video.paused || environment.document.hidden) {
+      cancelSampling(); darkSamples = 0; return;
+    }
+    if (sampleTimer !== null) return;
+    const request = session;
+    sampleTimer = environment.setTimeout(() => { sampleTimer = null; void sampleBrightness(request); }, sampleInterval);
+  }
+  function disableAuto(reason) {
+    autoEnabled = false; autoOwnsTorch = false; cancelSampling(); darkSamples = 0;
+    autoStatus.textContent = reason;
+    record('auto.disabled', { reason });
+  }
+  async function autoFailure(error, request) {
+    const releaseTorch = autoOwnsTorch;
+    disableAuto(`Auto flash disabled. ${message(error)} Manual controls remain available.`);
+    busy = true; sync();
+    record('auto.error', { error: message(error) });
+    if (releaseTorch && live() && torchState !== false) {
+      try { await applyTorch(false, request); }
+      catch (cleanupError) {
+        if (!stale(request)) {
+          record('auto.cleanup.error', { error: message(cleanupError) });
+          autoStatus.textContent += ` Could not turn torch off. ${message(cleanupError)}`;
+        }
+      }
+    }
+  }
+  async function sampleBrightness(request) {
+    if (stale(request) || !autoEnabled || busy || previewPaused || video.paused || !live()) { sync(); return; }
+    try {
+      const width = video.videoWidth, height = video.videoHeight, frame = video.currentTime;
+      if (video.readyState < 2 || !width || !height || !Number.isFinite(frame) || frame === lastFrame) {
+        darkSamples = 0; return;
+      }
+      lastFrame = frame;
+      sampleCanvas ||= environment.document.createElement('canvas');
+      sampleCanvas.width = sampleCanvas.height = 32;
+      const context = sampleCanvas.getContext('2d', { willReadFrequently: true });
+      if (!context) throw new Error('Preview brightness sampling is unavailable.');
+      context.drawImage(video, width / 4, height / 4, width / 2, height / 2, 0, 0, 32, 32);
+      const pixels = context.getImageData(0, 0, 32, 32).data;
+      let sum = 0;
+      for (let i = 0; i < pixels.length; i += 4) sum += .2126 * pixels[i] + .7152 * pixels[i + 1] + .0722 * pixels[i + 2];
+      const brightness = sum / (pixels.length / 4);
+      if (!Number.isFinite(brightness)) throw new Error('Preview brightness sampling returned no pixels.');
+      darkSamples = brightness < brightnessThreshold ? darkSamples + 1 : 0;
+      record('auto.brightness', { brightness: Math.round(brightness * 10) / 10, threshold: brightnessThreshold, darkSamples, lowLight });
+      autoStatus.textContent = lowLight ? `Low light latched. Auto photo requests flash${autoOwnsTorch ? '; torch on' : ''}.`
+        : `Brightness ${Math.round(brightness)}/255. Flash selected after 3 readings below ${brightnessThreshold}.`;
+      if (!lowLight && darkSamples >= 3) {
+        lowLight = true;
+        record('auto.decision', { mode: 'flash', brightness, threshold: brightnessThreshold, supportsTorch });
+        if (supportsTorch && torchState !== true) {
+          busy = true; sync(); await applyTorch(true, request);
+          if (stale(request)) return;
+          autoOwnsTorch = true;
+        }
+        autoStatus.textContent = `Low light latched. Auto photo requests flash${autoOwnsTorch ? '; torch on' : '; torch unavailable'}. Restart camera to measure again.`;
+      }
+    } catch (error) { if (!stale(request)) await autoFailure(error, request); }
+    finally { if (!stale(request)) { busy = false; sync(); } }
+  }
+  async function toggleAutoFlash() {
+    if (busy || environment.document.hidden) { sync(); return; }
+    const request = session, turnOffTorch = !autoFlash.checked && autoOwnsTorch;
+    autoEnabled = autoFlash.checked; cancelSampling(); darkSamples = 0; lastFrame = null;
+    record('auto.changed', { enabled: autoEnabled, lowLight });
+    autoStatus.textContent = autoEnabled ? lowLight ? 'Low light remains latched for this camera session.' : 'Auto flash on. Waiting for fresh preview frames.' : 'Auto flash off.';
+    // The flash decision survives toggles; only a new camera session resets it.
+    busy = true; sync();
+    try {
+      if (turnOffTorch && live() && torchState !== false) await applyTorch(false, request);
+      else if (autoEnabled && lowLight && live() && supportsTorch && torchState !== true) {
+        await applyTorch(true, request); if (!stale(request)) autoOwnsTorch = true;
+      }
+      if (!autoEnabled) autoOwnsTorch = false;
+    } catch (error) { if (!stale(request)) await autoFailure(error, request); }
+    finally { if (!stale(request)) { busy = false; sync(); } }
   }
   function bounded(operation, milliseconds, label) {
     return new Promise((resolve, reject) => {
@@ -74,6 +164,9 @@ export function createFlashTest(elements, environment = globalThis) {
     });
   }
   function releaseStream() {
+    cancelSampling();
+    if (sampleCanvas) { sampleCanvas.width = sampleCanvas.height = 0; sampleCanvas = null; }
+    lastFrame = null;
     if (stream) record('camera.release', preview());
     imageCapture = null; supportsTorch = false; torchState = false;
     stream?.getTracks().forEach(track => track.stop()); stream = null;
@@ -86,6 +179,8 @@ export function createFlashTest(elements, environment = globalThis) {
   function stop() {
     record('test.stop', { hidden: environment.document.hidden });
     session++; [...pending].forEach(cancel => cancel());
+    cancelSampling(); lowLight = false; darkSamples = 0; lastFrame = null; autoOwnsTorch = false;
+    autoStatus.textContent = autoEnabled ? 'Auto flash on. Waiting for camera.' : 'Auto flash off.';
     releaseStream(); clearPhoto(); busy = false; previewPaused = false; capabilities.textContent = '';
     status.textContent = 'Camera stopped. Tap Start camera to try again.'; sync();
   }
@@ -163,6 +258,7 @@ export function createFlashTest(elements, environment = globalThis) {
   }
   async function toggleTorch() {
     if (busy || !live() || !supportsTorch || environment.document.hidden) return;
+    if (autoEnabled) disableAuto('Auto flash disabled by manual torch control.');
     const request = session; busy = true; sync();
     try {
       await applyTorch(torchState === false, request);
@@ -181,6 +277,7 @@ export function createFlashTest(elements, environment = globalThis) {
       if (wantedTorch && torchState !== true) await applyTorch(true, request);
       if (!stale(request)) { previewPaused = false; record('preview.resumed', preview()); status.textContent = 'Live feed resumed.'; }
     } catch (error) {
+      if (!stale(request) && autoEnabled && autoOwnsTorch) await autoFailure(error, request);
       if (!stale(request)) { video.pause(); record('preview.resume.error', { error: message(error) }); status.textContent = `Could not fully resume. ${message(error)} Tap Start camera to retry.`; }
     } finally { if (!stale(request)) { busy = false; sync(); } }
   }
@@ -192,7 +289,7 @@ export function createFlashTest(elements, environment = globalThis) {
       if (environment.isSecureContext === false) throw new Error('Open this test over HTTPS to use the camera.');
       if (!environment.navigator?.mediaDevices?.getUserMedia) throw new Error('Camera access is unavailable in this browser.');
       await openStream(request); await checkCapabilities(request);
-      if (!stale(request)) status.textContent = imageCapture ? 'Live feed ready. Try Take photo or Try flash.' : 'Live feed ready. Still-photo capture is unavailable.';
+      if (!stale(request)) status.textContent = imageCapture ? `Live feed ready. Try ${autoEnabled ? 'Auto photo' : 'Take photo'} or Try flash.` : 'Live feed ready. Still-photo capture is unavailable.';
     } catch (error) {
       if (!stale(request)) { record('camera.start.error', { error: message(error) }); releaseStream(); status.textContent = message(error); }
     } finally {
@@ -223,12 +320,14 @@ export function createFlashTest(elements, environment = globalThis) {
     if (!(await previewAdvances(request))) throw new Error('Live feed did not resume. Tap Start camera to retry.');
     record('preview.reopened', preview());
   }
-  async function takePhoto(mode = 'plain') {
+  async function takePhoto(mode = 'auto') {
     if (busy || !live() || !imageCapture || environment.document.hidden) return;
-    const request = session, wantedTorch = torchState === true, wantedPause = previewPaused;
+    const automatic = mode === 'auto' && autoEnabled;
+    if (mode === 'auto') mode = automatic && lowLight ? 'flash' : 'plain';
+    const request = session, wantedTorch = torchState === true, wantedPause = previewPaused, wantedAutoTorch = autoOwnsTorch;
     const label = mode === 'flash' ? 'Flash requested: takePhoto({ fillLightMode: "flash" })' : 'Default photo: takePhoto()';
     const attempted = clock();
-    record('photo.attempt', { mode, wantedTorch, wantedPause, preview: preview() });
+    record('photo.attempt', { mode, automatic, lowLight, wantedTorch, wantedPause, preview: preview() });
     busy = true; clearPhoto(); sync(); status.textContent = mode === 'flash' ? 'Trying still-photo flash…' : 'Taking default still photo…';
     let captureError = null, issued = false, recoveryError = null, torchError = null;
     try {
@@ -250,6 +349,7 @@ export function createFlashTest(elements, environment = globalThis) {
     } catch (error) {
       if (stale(request)) return;
       captureError = error;
+      if (autoEnabled && !issued) await autoFailure(error, request);
       record('photo.error', { mode, error: message(error), milliseconds: Math.round(clock() - attempted) });
       // Abandon the owner of a hung operation before allowing another attempt.
       if (error?.name === 'TimeoutError') releaseStream();
@@ -263,8 +363,8 @@ export function createFlashTest(elements, environment = globalThis) {
       record('preview.recovery.error', { error: message(error) });
     }
     try {
-      if (!stale(request) && live() && wantedTorch && torchState !== true) await applyTorch(true, request);
-    } catch (error) { if (stale(request)) return; torchError = error; }
+      if (!stale(request) && live() && wantedTorch && (!wantedAutoTorch || autoEnabled) && torchState !== true) await applyTorch(true, request);
+    } catch (error) { if (stale(request)) return; torchError = error; if (autoEnabled) await autoFailure(error, request); }
     if (stale(request)) return;
     previewPaused = wantedPause;
     if (wantedPause && live()) video.pause();
@@ -275,15 +375,17 @@ export function createFlashTest(elements, environment = globalThis) {
     record('photo.complete', { mode, status: status.textContent, preview: preview(), torchState, previewPaused });
   }
   function initialize() {
-    record('test.ready', { imageCaptureAPI: typeof environment.ImageCapture === 'function' });
+    record('test.ready', { imageCaptureAPI: typeof environment.ImageCapture === 'function', autoFlash: autoEnabled, threshold: brightnessThreshold, sampleInterval });
+    autoStatus.textContent = autoEnabled ? 'Auto flash on. Waiting for camera.' : 'Auto flash off.';
     copyLog.addEventListener('click', () => void copyDiagnosticLog());
     start.addEventListener('click', () => void startCamera());
     plain.addEventListener('click', () => void takePhoto());
     capture.addEventListener('click', () => void takePhoto('flash'));
     torch.addEventListener('click', () => void toggleTorch());
     pause.addEventListener('click', () => void togglePause());
+    autoFlash.addEventListener('change', () => void toggleAutoFlash());
     environment.document.addEventListener('visibilitychange', () => { if (environment.document.hidden) stop(); });
     environment.addEventListener('pagehide', stop); sync();
   }
-  return { initialize, startCamera, takePhoto, toggleTorch, togglePause, stop, copyDiagnosticLog };
+  return { initialize, startCamera, takePhoto, toggleTorch, togglePause, toggleAutoFlash, stop, copyDiagnosticLog };
 }
