@@ -2389,7 +2389,7 @@ body.pull-result.pull-failed .pull-refresh-result-icon::after { content: '!'; }
 .camera-flash[aria-pressed="true"] { color: #202725; background: #fff; }
 .camera-flash svg { width: 20px; height: 20px; aspect-ratio: 1; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .camera-flash:focus-visible { outline: 2px solid white; outline-offset: 3px; }
-.camera-status { position: absolute; bottom: 12px; left: 12px; z-index: 2; box-sizing: border-box; width: max-content; max-width: calc(100% - 76px); min-height: 44px; display: flex; align-items: center; margin: 0; padding: 8px 12px; border-radius: 12px; background: var(--surface-panel); color: var(--ink-main); font-size: 14px; line-height: 1.5; pointer-events: none; overflow-wrap: anywhere; }
+.camera-status { position: absolute; bottom: 12px; left: 12px; z-index: 2; box-sizing: border-box; width: max-content; max-width: calc(100% - 76px); min-height: 32px; display: flex; align-items: center; margin: 0; padding: 4px 8px; border-radius: 12px; background: var(--surface-panel); color: var(--ink-main); font-size: 14px; line-height: 1.5; pointer-events: none; overflow-wrap: anywhere; }
 .camera-auto-help { display: block; margin-top: 8px; }
 #cameraCaptureButton { width: 100%; margin-top: var(--space-12); }
 .camera-photo-wrap { position: relative; margin-top: var(--space-8); border-radius: 12px; background: var(--surface-control); touch-action: none; user-select: none; -webkit-user-select: none; }
