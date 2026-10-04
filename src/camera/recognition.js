@@ -1,5 +1,6 @@
 import { parseRecognisedDigits } from './readings.js';
 import { readSegmentedDigits } from './segments.js';
+import { detectReadingRegions, locateGlyphs, temperatureGroups } from './detection.js';
 
 const ASSET_ROOT = new URL('../../vendor/tesseract/', import.meta.url);
 export const OCR_CACHE_NAME = 'dew-camera-ocr-6.0.1-v1';
@@ -42,7 +43,7 @@ export function prepareDigits(source, document = globalThis.document) {
     if (variance > best) { best = variance; threshold = i; }
   }
   for (let i = 0; i < pixels.data.length; i += 4) {
-    const value = pixels.data[i] <= threshold ? 0 : 255;
+    const value = best > 0 && pixels.data[i] <= threshold ? 0 : 255;
     pixels.data[i] = pixels.data[i + 1] = pixels.data[i + 2] = value; pixels.data[i + 3] = 255;
   }
   context.putImageData(pixels, 20, 20);
@@ -52,6 +53,23 @@ export function prepareDigits(source, document = globalThis.document) {
 export function createRecognitionService(environment = globalThis) {
   let worker = null, generation = 0, scriptPromise = null;
   const { document, caches, fetch } = environment;
+
+  function pixels(source, maxSize = 800) {
+    const scale = Math.min(1, maxSize / Math.max(source.width, source.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(source.width * scale)); canvas.height = Math.max(1, Math.round(source.height * scale));
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    context.drawImage(source, 0, 0, canvas.width, canvas.height);
+    return context.getImageData(0, 0, canvas.width, canvas.height);
+  }
+
+  async function locate(source) {
+    const session = ++generation;
+    // Let the finding state paint before bounded, local image analysis.
+    await new Promise(resolve => environment.setTimeout(resolve, 0));
+    if (session !== generation) return null;
+    return detectReadingRegions(pixels(source));
+  }
 
   async function loadAssets(onStatus) {
     onStatus('Preparing offline recognition…');
@@ -77,6 +95,21 @@ export function createRecognitionService(environment = globalThis) {
 
   async function recognise({ temperature, humidity }, onStatus = () => {}) {
     const session = ++generation;
+    onStatus('Reading selected region…');
+    const result = { temperature: '', humidity: '' }, candidates = {};
+    for (const [field, source] of Object.entries({ temperature, humidity })) {
+      if (!source?.width || !source.height) continue;
+      const prepared = prepareDigits(source, document);
+      const thresholded = prepared.getContext('2d').getImageData(20, 20, prepared.width - 40, prepared.height - 40);
+      const glyphs = locateGlyphs(thresholded, true).sort((a, b) => a.x - b.x);
+      if (field === 'temperature') result.temperature = temperatureGroups(glyphs)[0]?.value || '';
+      else {
+        result.humidity = readSegmentedDigits(thresholded, 2);
+      }
+      // No OCR fallback on blank photos or a lone clipped glyph.
+      if (!result[field] && glyphs.length >= 2) candidates[field] = source;
+    }
+    if (!Object.keys(candidates).length) return result;
     await loadAssets(onStatus);
     if (session !== generation) return null;
     const candidate = await environment.Tesseract.createWorker('eng', 1, {
@@ -88,29 +121,22 @@ export function createRecognitionService(environment = globalThis) {
     if (session !== generation) { await candidate.terminate(); return null; }
     worker = candidate;
     try {
-      await worker.setParameters({ tessedit_char_whitelist: '0123456789', tessedit_pageseg_mode: '7' });
-      onStatus('Reading photo…');
-      const main = cropCanvas(temperature, { x: 0, y: 0, width: .76, height: 1 }, document);
-      const fraction = cropCanvas(temperature, { x: .81, y: .44, width: .19, height: .56 }, document);
-      const read = async (source, digits) => {
-        const prepared = prepareDigits(source, document);
-        const context = prepared.getContext('2d');
-        const segmented = readSegmentedDigits(context.getImageData(20, 20, prepared.width - 40, prepared.height - 40), digits);
-        if (segmented) return segmented;
-        const result = await candidate.recognize(prepared);
-        if (session !== generation) return '';
-        return parseRecognisedDigits(result.data.text, result.data.confidence, digits);
-      };
-      const whole = await read(main, 2);
-      const decimal = await read(fraction, 1);
-      const rh = await read(humidity, 3);
+      await worker.setParameters({ tessedit_char_whitelist: '0123456789.', tessedit_pageseg_mode: '7' });
+      onStatus('Reading selected region…');
+      for (const [field, source] of Object.entries(candidates)) {
+        const response = await candidate.recognize(prepareDigits(source, document));
+        if (session !== generation) return null;
+        const text = response.data.text.trim();
+        result[field] = field === 'humidity' ? parseRecognisedDigits(text, response.data.confidence, 2)
+          : response.data.confidence >= 85 && /^\d{2}\.\d$/.test(text) ? text : '';
+      }
       if (session !== generation) return null;
-      return { temperature: whole && decimal ? `${whole}.${decimal}` : '', humidity: rh };
+      return result;
     } finally {
       if (worker === candidate) { worker = null; await candidate.terminate(); }
     }
   }
 
   function cancel() { generation++; const previous = worker; worker = null; if (previous) void previous.terminate().catch(() => {}); }
-  return { recognise, cancel };
+  return { locate, recognise, cancel };
 }

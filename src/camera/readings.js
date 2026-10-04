@@ -15,20 +15,13 @@ export function validateCameraReadings(temperature, humidity) {
 
 export function parseRecognisedDigits(text, confidence, maxDigits) {
   const cleaned = String(text ?? '').trim();
-  return confidence >= 55 && new RegExp(`^\\d{1,${maxDigits}}$`).test(cleaned) ? cleaned : '';
-}
-
-export function initialCrops() {
-  return {
-    temperature: { x: .025, y: .05, width: .49, height: .9 },
-    humidity: { x: .64, y: .05, width: .33, height: .9 },
-  };
+  return confidence >= 85 && new RegExp(`^\\d{1,${maxDigits}}$`).test(cleaned) ? cleaned : '';
 }
 
 export function boundedCrop(crop) {
-  const x = Math.max(0, Math.min(.95, Number(crop.x) || 0));
-  const y = Math.max(0, Math.min(.95, Number(crop.y) || 0));
-  return { x, y, width: Math.max(.05, Math.min(1 - x, Number(crop.width) || .05)), height: Math.max(.05, Math.min(1 - y, Number(crop.height) || .05)) };
+  const x = Math.max(0, Math.min(.98, Number(crop.x) || 0));
+  const y = Math.max(0, Math.min(.98, Number(crop.y) || 0));
+  return { x, y, width: Math.max(.02, Math.min(1 - x, Number(crop.width) || .02)), height: Math.max(.02, Math.min(1 - y, Number(crop.height) || .02)) };
 }
 
 export function cameraErrorMessage(error, secure = true) {

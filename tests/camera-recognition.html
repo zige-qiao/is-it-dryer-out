@@ -3,14 +3,20 @@
 <p>This browser-only check uses a local, untracked fixture at tests/fixtures/camera-monitor.jpg. Copy the supplied photo there before running it. It is not an album-upload feature.</p>
 <script type="module">
 import { createRecognitionService, cropCanvas } from '../src/camera/recognition.js';
-import { initialCrops } from '../src/camera/readings.js';
+
 const status = document.querySelector('#status');
 try {
   const image = new Image(); image.src = './fixtures/camera-monitor.jpg'; await image.decode();
-  const source = document.querySelector('#source'); source.width = 730; source.height = 206;
-  source.getContext('2d').drawImage(image, 80, 300, 730, 206, 0, 0, 730, 206);
-  const crops = initialCrops(), service = createRecognitionService();
-  const result = await service.recognise({ temperature: cropCanvas(source, crops.temperature), humidity: cropCanvas(source, crops.humidity) }, text => status.textContent = text);
+  const source = document.querySelector('#source'); source.width = image.width; source.height = image.height; source.style.width = 'min(100%, 480px)';
+  source.getContext('2d').drawImage(image, 0, 0);
+  const service = createRecognitionService(), found = await service.locate(source);
+  if (!found?.regions.temperature || !found.regions.humidity) throw Error('Current digits were not located');
+  const result = await service.recognise({ temperature: cropCanvas(source, found.regions.temperature), humidity: cropCanvas(source, found.regions.humidity) }, text => status.textContent = text);
+  const blank = document.createElement('canvas'); blank.width = 480; blank.height = 360;
+  blank.getContext('2d').fillStyle = '#555'; blank.getContext('2d').fillRect(0, 0, 480, 360);
+  if (await service.locate(blank)) throw Error('Blank photo received invented regions');
+  const blankRead = await service.recognise({ temperature: blank, humidity: blank });
+  if (blankRead.temperature || blankRead.humidity) throw Error('Blank crop received invented values');
   const passed = result.temperature === '22.3' && result.humidity === '59';
   document.querySelector('#result').textContent = JSON.stringify(result);
   status.textContent = passed ? 'PASS: 22.3°C and 59%, excluding low/high records.' : 'FAIL: readings differ from the photo.';

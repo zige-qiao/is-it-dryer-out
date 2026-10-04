@@ -23,7 +23,7 @@ The moisture cards and chart show actual absolute humidity. Their colours compar
 
 Readings and preferences are saved in your browser. The interface can load offline after caching, but fresh weather needs an internet connection.
 
-Camera scanning reads the current top numbers on the supported segmented LCD monitor; it ignores low/high records. Camera images stay on-device and are discarded after review. Local OCR assets prepare on first use and support subsequent offline scanning. Camera access requires HTTPS (or localhost for development). See the [camera instructions](docs/user-guide.md#camera-readings) for correction and recovery.
+Camera scanning reads the current top numbers on the supported segmented LCD monitor; it ignores low/high records. Camera images stay on-device and are discarded after review. Detected number boundaries can be moved and resized directly on the photo. Blank photos show no boxes. Segment detection runs locally; OCR fallback assets are cached when needed. Camera access requires HTTPS (or localhost for development). See the [camera instructions](docs/user-guide.md#camera-readings) for correction and recovery.
 
 On iPhone, voice input may keep the microphone indicator on while the app remains in the foreground. See the [user guide](docs/user-guide.md) for voice behaviour, data services and detailed instructions.
 

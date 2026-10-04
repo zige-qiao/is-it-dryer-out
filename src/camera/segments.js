@@ -38,6 +38,8 @@ export function readSegmentedDigits({ data, width, height }, maxDigits = 3) {
       result += '1'; continue;
     }
     if (glyph.width / glyph.height > 1.1) return '';
+    // LCD digits have clear space inside both halves. A filled patch is not 8.
+    if (density(.3, .2, .7, .35) > .35 || density(.3, .65, .7, .8) > .35) return '';
     const zones = [[.28, .025, .72, .13], [.80, .19, .98, .39], [.80, .61, .98, .81],
       [.28, .87, .72, .98], [.02, .61, .20, .81], [.02, .19, .20, .39], [.28, .445, .72, .555]];
     const densities = zones.map(zone => density(...zone));

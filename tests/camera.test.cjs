@@ -11,7 +11,7 @@ function fixture({ deferredMedia = false, deferredReading = false, error, torch 
   const elements = Object.fromEntries(['indoorDialog', 'cameraTitle', 'cameraInputButton', 'cameraBackButton', 'cameraPanel', 'cameraCapturePanel',
     'cameraReviewPanel', 'cameraErrorPanel', 'cameraVideo', 'cameraFlash', 'cameraCaptureStatus', 'cameraCaptureButton',
     'cameraPhoto', 'cameraTempCrop', 'cameraRhCrop', 'cameraTempBox', 'cameraRhBox', 'cameraTempDraft', 'cameraRhDraft',
-    'cameraTempError', 'cameraRhError', 'cameraConfirmButton', 'cameraReadStatus', 'cameraCropControls', 'cameraErrorMessage',
+    'cameraTempError', 'cameraRhError', 'cameraConfirmButton', 'cameraReadStatus', 'cameraPhotoWrap', 'cameraSelectTemp', 'cameraSelectRh', 'cameraErrorMessage',
     'cameraErrorHelp', 'cameraErrorDetails', 'cameraManualButton', 'cameraRetryButton', 'cameraRetakeButton', 'cameraReadAgainButton'].map(name => [name, element()]));
   const canvas = () => ({ ...element(), width: 0, height: 0, getContext: () => ({ drawImage() {} }) });
   for (const name of ['cameraPhoto', 'cameraTempCrop', 'cameraRhCrop']) elements[name] = canvas();
@@ -23,17 +23,17 @@ function fixture({ deferredMedia = false, deferredReading = false, error, torch 
   let resolveMedia, resolveReading, cancelled = 0, before = 0;
   const mediaPromise = new Promise(resolve => resolveMedia = resolve);
   const readPromise = new Promise(resolve => resolveReading = resolve);
-  const sliders = ['temperature','humidity'].flatMap(field => ['x','y','width','height'].map(axis => {
-    const slider = element(); slider.dataset = { cameraCrop: field, cropAxis: axis }; return slider;
-  }));
-  const env = environment({ isSecureContext: true, document: { createElement: canvas, querySelectorAll: () => sliders },
+  Object.assign(elements.cameraPhotoWrap, { getBoundingClientRect: () => ({ left:0, top:0, width:400, height:300 }), setPointerCapture() {}, hasPointerCapture: () => false });
+  const regions = { temperature:{x:.1,y:.2,width:.35,height:.2}, humidity:{x:.55,y:.2,width:.25,height:.2} };
+  const found = values => ({ regions:{temperature:values.temperature?regions.temperature:null,humidity:values.humidity?regions.humidity:null}, values });
+  const env = environment({ isSecureContext: true, document: { createElement: canvas, querySelectorAll: () => [] },
     navigator: { mediaDevices: { getUserMedia: async value => { requests.push(value); if(error) throw error; return deferredMedia ? mediaPromise : stream; } } } });
   const controller = createCameraController({ state, elements, beforeCamera: () => before++, returnFocus() {},
     render: () => renders.push({ ...state }), saveIndoorReadings: source => saved.push({ source, ...state }),
-    recogniseService: { cancel: () => cancelled++, recognise: async fields => { crops.push(fields); return deferredReading ? readPromise : { temperature: '22.3', humidity: '59' }; } },
+    recogniseService: { cancel: () => cancelled++, locate: async () => found(await (deferredReading ? readPromise : {temperature:'22.3',humidity:'59'})), recognise: async fields => { crops.push(fields); return deferredReading ? readPromise : { temperature: '22.3', humidity: '59' }; } },
   }, env);
   controller.initialize();
-  return { elements, controller, track, requests, constraints, saved, state, renders, crops, sliders,
+  return { elements, controller, track, requests, constraints, saved, state, renders, crops,
     resolveMedia: () => resolveMedia(stream), resolveReading, get cancelled() { return cancelled; }, get before() { return before; } };
 }
 
@@ -68,11 +68,13 @@ test('editing while OCR is pending cancels the attempt and preserves the correct
   f.controller.confirm(); assert.equal(f.saved[0].indoorTemp, 21.8);
 });
 
-test('crop adjustments invalidate recognised values until corrected or read again', async () => {
+test('moving a detected crop invalidates only that value and re-reads on completion', async () => {
   const f = fixture(); await f.controller.startCamera(); f.controller.capturePhoto(); await flush();
-  f.sliders[0].value = '10'; f.sliders[0].emit('input');
-  assert.equal(f.elements.cameraTempDraft.value, ''); assert.equal(f.elements.cameraRhDraft.value, '');
+  f.elements.cameraTempBox.emit('keydown',{key:'ArrowRight',preventDefault(){}});
+  assert.equal(f.elements.cameraTempDraft.value, ''); assert.equal(f.elements.cameraRhDraft.value, '59');
   assert.equal(f.elements.cameraConfirmButton.disabled, true); f.controller.confirm(); assert.equal(f.saved.length, 0);
+  await flush(); assert.equal(f.elements.cameraTempDraft.value,'22.3');
+  assert.equal(f.crops[0].humidity,null);
 });
 
 test('flash constraints are video-track scoped and backgrounding releases capture', async () => {
@@ -94,9 +96,9 @@ test('permission and missing-camera errors offer recovery without changing readi
 test('camera validation rejects missing, fractional humidity, excess precision and out-of-range results without clamping', () => {
   for (const pair of [['','59'],['22.3',''],['223','59'],['22.35','59'],['22.3','59.5'],['9.9','59'],['22.3','91'],['1e1','59']]) assert.equal(validateCameraReadings(...pair).valid, false, pair.join('/'));
   assert.equal(validateCameraReadings('10.0','20').valid, true); assert.equal(validateCameraReadings('32','90').valid, true);
-  assert.equal(parseRecognisedDigits('22', 80, 2), '22'); assert.equal(parseRecognisedDigits('22', 20, 2), '');
+  assert.equal(parseRecognisedDigits('22', 95, 2), '22'); assert.equal(parseRecognisedDigits('22', 80, 2), '');
   assert.equal(parseRecognisedDigits('2 2', 99, 2), '');
-  assert.deepEqual(boundedCrop({ x: .98, y: -.1, width: 2, height: 2 }), { x: .95, y: 0, width: 1 - .95, height: 1 });
+  assert.deepEqual(boundedCrop({ x: .99, y: -.1, width: 2, height: 2 }), { x: .98, y: 0, width: 1 - .98, height: 1 });
 });
 
 test('a blank or noise-only LCD crop remains unresolved', () => {
@@ -104,6 +106,9 @@ test('a blank or noise-only LCD crop remains unresolved', () => {
   assert.equal(readSegmentedDigits({ data, width: 120, height: 80 }), '');
   for (let i = 0; i < 20; i++) data[((i * 17) % (120 * 80)) * 4] = 0;
   assert.equal(readSegmentedDigits({ data, width: 120, height: 80 }), '');
+  const solid = new Uint8ClampedArray(50 * 80 * 4);
+  for (let i = 3; i < solid.length; i += 4) solid[i] = 255;
+  assert.equal(readSegmentedDigits({ data: solid, width: 50, height: 80 }), '');
 });
 
 test('photo origin is temporary metadata and manual/voice saves clear it', () => {
@@ -119,7 +124,17 @@ test('partial recognition leaves the missing value empty and confirmation disabl
   f.resolveReading({ temperature: '22.3', humidity: '' }); await flush();
   assert.equal(f.elements.cameraTempDraft.value, '22.3'); assert.equal(f.elements.cameraRhDraft.value, '');
   assert.equal(f.elements.cameraConfirmButton.disabled, true); f.controller.confirm(); assert.equal(f.saved.length, 0);
+  assert.equal(f.elements.cameraRhBox.hidden,true);
   assert.match(f.elements.cameraReadStatus.textContent, /One reading/);
+});
+
+test('blank detection leaves both boxes and thumbnails hidden instead of inventing crops',async()=>{
+  const f=fixture({deferredReading:true}); await f.controller.startCamera();f.controller.capturePhoto();
+  f.resolveReading({temperature:'',humidity:''});await flush();
+  assert.equal(f.elements.cameraTempBox.hidden,true);assert.equal(f.elements.cameraRhBox.hidden,true);
+  assert.equal(f.elements.cameraTempCrop.width,0);assert.equal(f.elements.cameraRhCrop.width,0);
+  assert.equal(f.crops.length,0);assert.match(f.elements.cameraReadStatus.textContent,/No readings found/);
+  assert.equal(f.elements.cameraTempError.textContent,'');assert.equal(f.elements.cameraConfirmButton.disabled,true);
 });
 
 test('invalid edited drafts cannot be saved and retake discards all pending values', async () => {

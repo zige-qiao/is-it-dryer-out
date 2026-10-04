@@ -4,6 +4,8 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Find LCD digits before showing reading boxes; replace crop sliders with direct dragging, corner resizing and drawing on the full review photo. Empty photos show no boxes, and uncertain readings stay empty.
+
 - Add camera-only capture and review for the current top temperature and humidity readings, with matching camera/microphone icon buttons, live flash where supported, editable drafts, crop adjustment, partial-failure recovery and explicit confirmation before saving.
 - Read the supplied segmented LCD locally using a seven-segment decoder with pinned on-device OCR fallback. Cache recognition assets separately for offline use; discard temporary photos and preserve existing voice capture behaviour and saved-reading formats.
 
