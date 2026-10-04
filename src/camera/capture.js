@@ -5,7 +5,7 @@ export function visibleFrame(width, height, viewWidth, viewHeight, zoom = 1) {
   return { x: (width - w) / 2, y: (height - h) / 2, width: w, height: h };
 }
 
-export function createCaptureControls({ video, feed, flash, zoomControl, zoomInput, zoomValue, status, capture, onError }, environment = globalThis) {
+export function createCaptureControls({ video, preview, feed, flash, zoomControl, zoomInput, zoomValue, status, capture, onError }, environment = globalThis) {
   const now = () => environment.performance.now();
   let owner = null, generation = 0, timer = null, frameCallback = null, watchdog = null, deadline = null;
   let first = null, changed = 0, samples = 0, geometry = '', ready = false, revealed = false, baselineLocked = false;
@@ -13,14 +13,36 @@ export function createCaptureControls({ video, feed, flash, zoomControl, zoomInp
   let baseline = 1, nativeZoom = 1, nativeRange = null, desired = 1, digital = 1;
   let torch = false, desiredTorch = false, supportsTorch = false, pending = false, applying = false;
   let revision = 0, appliedRevision = 0, lastApply = -Infinity, controlTimer = null, startupResolve = null, waiters = [];
+  let displayed = null, lastDraw = -Infinity;
   const settings = () => owner?.getSettings?.() || {};
+
+  function captureStatus(text) { status.textContent = text; status.hidden = !text; }
+  function currentFrame() {
+    return displayed && displayed.geometry === geometry && displayed.revision === revision &&
+      displayed.sourceWidth === video.videoWidth && displayed.sourceHeight === video.videoHeight;
+  }
+  function paint() {
+    const time = now(), rect = feed.getBoundingClientRect();
+    if (time - lastDraw < 1000 / 30 || !rect.width || !rect.height) return;
+    const crop = visibleFrame(video.videoWidth, video.videoHeight, rect.width, rect.height, digital);
+    const scale = Math.min(environment.devicePixelRatio || 1, 1280 / Math.max(rect.width, rect.height));
+    const width = Math.max(1, Math.round(rect.width * scale)), height = Math.max(1, Math.round(rect.height * scale));
+    try {
+      if (preview.width !== width || preview.height !== height) { preview.width = width; preview.height = height; }
+      preview.getContext('2d').drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, width, height);
+      displayed = { crop, geometry, revision: pending ? -1 : appliedRevision,
+        sourceWidth: video.videoWidth, sourceHeight: video.videoHeight };
+      lastDraw = time;
+    } catch {
+      stop(); onError({ name: 'NotReadableError' });
+    }
+  }
 
   function sync() {
     digital = Math.max(1, desired / nativeZoom);
-    video.style.transform = `scale(${digital})`;
     zoomInput.value = String(desired); zoomValue.textContent = `${desired.toFixed(1)}×`;
     zoomInput.setAttribute('aria-valuetext', `${desired.toFixed(1)} times zoom`);
-    zoomInput.disabled = !ready; capture.disabled = !ready || pending;
+    zoomInput.disabled = !ready; capture.disabled = !ready || pending || !currentFrame();
     flash.disabled = !ready || pending;
     flash.setAttribute('aria-pressed', String(torch));
     flash.setAttribute('aria-label', torch ? 'Turn flash off' : 'Turn flash on');
@@ -52,8 +74,8 @@ export function createCaptureControls({ video, feed, flash, zoomControl, zoomInp
         const request = generation, track = owner;
         deadline = environment.setTimeout(() => {
           if (owner === track && generation === request && !revealed) {
-            revealed = true; video.classList.remove('camera-starting');
-            status.textContent = 'Camera framing is still settling.'; resolveStartup();
+            revealed = true; preview.classList.remove('camera-starting');
+            captureStatus('Camera framing is still settling.'); resolveStartup();
           }
         }, 1500);
       }
@@ -62,20 +84,23 @@ export function createCaptureControls({ video, feed, flash, zoomControl, zoomInp
       if (time - first >= (baselineLocked ? 0 : 500) && time - changed >= 250 && samples >= 3) {
         if (!ready) {
           lockBaseline(); geometry = signature(metadata); ready = true; revealed = true; update = true;
-          video.classList.remove('camera-starting'); zoomControl.hidden = false;
-          status.textContent = 'Keep the digits sharp and avoid reflections.'; resolveStartup();
+          preview.classList.remove('camera-starting'); zoomControl.hidden = false;
+          captureStatus(''); resolveStartup();
         }
       } else if (!revealed && time - first >= 1500) {
-        revealed = true; video.classList.remove('camera-starting');
-        status.textContent = 'Camera framing is still settling.'; resolveStartup();
-      } else if (revealed && !ready && update) status.textContent = 'Camera framing is still settling.';
-      if (update) sync();
+        revealed = true; preview.classList.remove('camera-starting');
+        captureStatus('Camera framing is still settling.'); resolveStartup();
+      } else if (revealed && !ready && update) captureStatus('Camera framing is still settling.');
+      const wasCurrent = Boolean(currentFrame());
+      paint();
+      if (!owner) return;
+      if (update || wasCurrent !== Boolean(currentFrame())) sync();
     }
     const request = generation, track = owner;
     if (video.requestVideoFrameCallback) frameCallback = video.requestVideoFrameCallback((time, meta) => {
       if (generation === request && owner === track) sample(meta);
     });
-    else timer = environment.setTimeout(() => { if (generation === request && owner === track) sample(); }, 50);
+    else timer = environment.setTimeout(() => { if (generation === request && owner === track) sample(); }, 1000 / 30);
   }
   function stop() {
     generation++; owner = null;
@@ -86,10 +111,11 @@ export function createCaptureControls({ video, feed, flash, zoomControl, zoomInp
     first = null; changed = samples = 0; geometry = ''; lastMetadata = {}; ready = revealed = baselineLocked = false;
     baseline = nativeZoom = desired = digital = 1; nativeRange = null;
     torch = desiredTorch = supportsTorch = pending = applying = false; revision = appliedRevision = 0; lastApply = -Infinity;
-    zoomControl.hidden = true; flash.hidden = true; video.classList.add('camera-starting'); sync();
+    displayed = null; lastDraw = -Infinity; preview.width = preview.height = 0;
+    zoomControl.hidden = true; flash.hidden = true; preview.classList.add('camera-starting'); sync();
   }
   async function start(track) {
-    stop(); owner = track; supportsTorch = Boolean(track.getCapabilities?.().torch); flash.hidden = !supportsTorch; zoomControl.hidden = false;
+    stop(); owner = track; captureStatus('Starting camera…'); supportsTorch = Boolean(track.getCapabilities?.().torch); flash.hidden = !supportsTorch; zoomControl.hidden = false;
     const request = generation;
     const startup = new Promise(resolve => startupResolve = resolve);
     watchdog = environment.setTimeout(() => {
@@ -143,7 +169,7 @@ export function createCaptureControls({ video, feed, flash, zoomControl, zoomInp
           const actualTorch = settings().torch;
           if (typeof actualTorch === 'boolean') torch = actualTorch;
           desiredTorch = torch;
-          if (light !== torch) status.textContent = 'Flash couldn’t change. Try improving the lighting.';
+          if (light !== torch) captureStatus('Flash couldn’t change. Try improving the lighting.');
         }
       }
     } finally {
@@ -164,12 +190,13 @@ export function createCaptureControls({ video, feed, flash, zoomControl, zoomInp
     return new Promise(resolve => waiters.push(resolve));
   }
   function frame() {
-    const rect = feed.getBoundingClientRect();
-    return visibleFrame(video.videoWidth, video.videoHeight, rect.width, rect.height, digital);
+    return displayed ? { ...displayed.crop } : null;
   }
   function isReady() {
-    if (ready && signature(lastMetadata) !== geometry) { ready = false; changed = now(); samples = 0; sync(); }
-    return ready && !pending;
+    if (ready && signature(lastMetadata) !== geometry) {
+      ready = false; changed = now(); samples = 0; captureStatus('Camera framing is still settling.'); sync();
+    }
+    return ready && !pending && Boolean(currentFrame());
   }
   return { start, stop, setZoom, toggleFlash, frame, isReady };
 }

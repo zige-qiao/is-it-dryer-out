@@ -11,14 +11,14 @@ test.afterEach(() => { fixtures.splice(0).forEach(f => f.controller.cancel()); }
 
 function fixture({ deferredMedia = false, deferredReading = false, error, torch = true, regionResult, regionError } = {}) {
   const elements = Object.fromEntries(['indoorDialog', 'cameraTitle', 'cameraInputButton', 'cameraBackButton', 'cameraPanel', 'cameraCapturePanel',
-    'cameraReviewPanel', 'cameraErrorPanel', 'cameraVideo', 'cameraFlash', 'cameraCaptureStatus', 'cameraCaptureButton',
+    'cameraReviewPanel', 'cameraErrorPanel', 'cameraVideo', 'cameraPreview', 'cameraCaptureHint', 'cameraReviewHint', 'cameraFlash', 'cameraCaptureStatus', 'cameraCaptureButton',
     'cameraPhoto', 'cameraTempCrop', 'cameraRhCrop', 'cameraTempBox', 'cameraRhBox', 'cameraTempDraft', 'cameraRhDraft',
     'cameraTempError', 'cameraRhError', 'cameraConfirmButton', 'cameraReadStatus', 'cameraPhotoWrap', 'cameraPendingBox', 'cameraAssignment', 'cameraAssignChoices', 'cameraAssignTemp', 'cameraAssignRh', 'cameraDiscardBox', 'cameraErrorMessage',
     'cameraErrorHelp', 'cameraErrorDetails', 'cameraManualButton', 'cameraRetryButton', 'cameraRetakeButton', 'cameraReadAgainButton', 'cameraFeed', 'cameraZoomControl', 'cameraZoom', 'cameraZoomValue', 'cameraHelpButton', 'cameraCropHint', 'cameraReadStatusText'].map(name => [name, element()]));
-  const canvas = () => ({ ...element(), width: 0, height: 0, getContext: () => ({ drawImage() {} }) });
-  for (const name of ['cameraPhoto', 'cameraTempCrop', 'cameraRhCrop']) elements[name] = canvas();
+  const canvas = () => { const draws=[]; return { ...element(), draws, width: 0, height: 0, getContext: () => ({ drawImage(...args) { draws.push(args); } }) }; };
+  for (const name of ['cameraPreview', 'cameraPhoto', 'cameraTempCrop', 'cameraRhCrop']) elements[name] = canvas();
   elements.indoorDialog.open = true;
-  elements.cameraFeed.getBoundingClientRect = () => ({width:360,height:270});
+  elements.cameraFeed.getBoundingClientRect = () => ({width:360,height:180});
   Object.assign(elements.cameraVideo, { videoWidth: 1920, videoHeight: 1080, play: async () => {}, getBoundingClientRect: () => ({ width: 360, height: 270 }) });
   const track = { stopped: 0, stop() { this.stopped++; }, getCapabilities: () => ({ torch }), applyConstraints: async value => { constraints.push(value); } };
   const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
@@ -44,6 +44,8 @@ test('camera uses video only, keeps readings as drafts, and saves both only afte
   const f = fixture(); await f.controller.startCamera();
   assert.equal(f.requests[0].audio, false); assert.equal(f.requests[0].video.facingMode.ideal, 'environment');
   assert.equal(f.before, 1); f.controller.capturePhoto(); await flush();
+  assert.deepEqual(f.elements.cameraPhoto.draws[0].slice(1,5),f.elements.cameraPreview.draws.at(-1).slice(1,5));
+  assert.equal(f.elements.cameraPhoto.width,1600);assert.equal(f.elements.cameraPhoto.height,800);
   assert.equal(f.track.stopped, 1); assert.deepEqual(f.state, { indoorTemp: 24, indoorRh: 58 });
   assert.equal(f.elements.cameraTempDraft.value, '22.3'); assert.equal(f.saved.length, 0);
   f.controller.confirm(); assert.deepEqual(f.state, { indoorTemp: 22.3, indoorRh: 59 });
@@ -171,7 +173,29 @@ test('ambiguous units require tightening; contradictory units cannot swap an exi
  const wrong=fixture({regionResult:{status:'contradictory',field:'temperature'}});await review(wrong);wrong.elements.cameraTempBox.emit('keydown',{key:'ArrowRight',preventDefault(){}});await flush();assert.equal(wrong.elements.cameraTempDraft.value,'');assert.equal(wrong.elements.cameraRhDraft.value,'59');assert.match(wrong.elements.cameraReadStatusText.textContent,/Unit doesn’t match/);
 });
 test('a worker error leaves existing unaffected readings and manual correction available',async()=>{
- const f=fixture({regionError:new Error('worker')});await review(f);f.elements.cameraTempBox.emit('keydown',{key:'ArrowRight',preventDefault(){}});await flush();assert.equal(f.elements.cameraRhDraft.value,'59');assert.match(f.elements.cameraReadStatusText.textContent,/Reading failed/);f.elements.cameraTempDraft.value='22.1';f.elements.cameraTempDraft.emit('input');f.controller.confirm();assert.equal(f.saved[0].indoorTemp,22.1);
+ const f=fixture({regionError:new Error('worker')});await review(f);f.elements.cameraTempBox.emit('keydown',{key:'ArrowRight',preventDefault(){}});await flush();assert.equal(f.elements.cameraRhDraft.value,'59');assert.match(f.elements.cameraReadStatusText.textContent,/Reading failed/);assert.equal(f.elements.cameraReadStatus.dataset.state,'error');f.elements.cameraTempDraft.value='22.1';f.elements.cameraTempDraft.emit('input');assert.equal(f.elements.cameraReadStatus.dataset.state,'ready');f.controller.confirm();assert.equal(f.saved[0].indoorTemp,22.1);
+});
+
+test('capture help switches content and closes when taking a photo or retaking',async()=>{
+ const f=fixture();await f.controller.startCamera();assert.equal(f.elements.cameraHelpButton.hidden,false);
+ assert.equal(f.elements.cameraHelpButton.getAttribute('aria-label'),'Camera help');assert.equal(f.elements.cameraCaptureHint.hidden,false);assert.equal(f.elements.cameraReviewHint.hidden,true);
+ assert.equal(f.elements.cameraCaptureStatus.hidden,true);f.elements.cameraHelpButton.emit('click');assert.equal(f.elements.cameraCropHint.hidden,false);
+ f.controller.capturePhoto();await flush();assert.equal(f.elements.cameraCropHint.hidden,true);assert.equal(f.elements.cameraCaptureHint.hidden,true);assert.equal(f.elements.cameraReviewHint.hidden,false);
+ f.elements.cameraHelpButton.emit('click');await f.controller.startCamera();assert.equal(f.elements.cameraCropHint.hidden,true);assert.equal(f.elements.cameraReviewHint.hidden,true);
+});
+
+test('ready status requires valid drafts and becomes attention for invalid or missing manual input',async()=>{
+ const f=fixture();await review(f);assert.equal(f.elements.cameraReadStatus.dataset.state,'ready');
+ f.elements.cameraTempDraft.value='223';f.elements.cameraTempDraft.emit('input');assert.equal(f.elements.cameraReadStatus.dataset.state,'attention');assert.equal(f.elements.cameraConfirmButton.disabled,true);
+ f.elements.cameraTempDraft.value='22.1';f.elements.cameraTempDraft.emit('input');assert.equal(f.elements.cameraReadStatus.dataset.state,'ready');assert.equal(f.elements.cameraConfirmButton.disabled,false);
+ f.elements.cameraRhDraft.value='';f.elements.cameraRhDraft.emit('input');assert.equal(f.elements.cameraReadStatus.dataset.state,'attention');assert.equal(f.elements.cameraConfirmButton.disabled,true);
+});
+
+test('moving a box shows information rather than a ready or processing status',async()=>{
+ const f=fixture();await review(f);const surface=f.elements.cameraPhotoWrap;
+ surface.emit('pointerdown',pointer('temperature',100,80));surface.emit('pointermove',pointer(null,120,100));
+ assert.equal(f.elements.cameraReadStatus.dataset.state,'info');assert.equal(f.elements.cameraConfirmButton.disabled,true);
+ surface.emit('pointercancel',pointer(null,120,100));assert.equal(f.elements.cameraReadStatus.dataset.state,'ready');
 });
 
 test('review status changes text and icon together and editing help is hidden on returning to manual entry',async()=>{

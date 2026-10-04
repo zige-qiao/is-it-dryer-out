@@ -13,7 +13,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
   let gesturing = false, previews = {}, corrections = {}, gestureState = null;
   let statusKind = 'ready';
   const help = createCameraHelp({ button: elements.cameraHelpButton, content: elements.cameraCropHint, dialog: elements.indoorDialog }, document);
-  const captureControls = createCaptureControls({ video: elements.cameraVideo, feed: elements.cameraFeed,
+  const captureControls = createCaptureControls({ video: elements.cameraVideo, preview: elements.cameraPreview, feed: elements.cameraFeed,
     flash: elements.cameraFlash, zoomControl: elements.cameraZoomControl, zoomInput: elements.cameraZoom,
     zoomValue: elements.cameraZoomValue, status: elements.cameraCaptureStatus, capture: elements.cameraCaptureButton,
     onError: error => { if (active && !captured) { releaseCamera(); showError(error, true); } },
@@ -30,7 +30,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
       cancelReading(); elements.cameraReviewPanel.setAttribute('aria-busy', 'false');
       crops[field] = crop; if (field !== 'pending') delete previews[field]; drawCrops();
       elements.cameraAssignment.hidden = true;
-      setReviewStatus('ready', 'Release to read this box.'); validate();
+      setReviewStatus('info', 'Release to read this box.'); validate();
     },
     onCommit: field => void readRegion(field),
     onGesture: (ongoing, field, cancelled) => {
@@ -69,7 +69,9 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
   }
 
   function view(name) {
-    help.close(); elements.cameraHelpButton.hidden = name !== 'review';
+    help.close(); elements.cameraHelpButton.hidden = name === 'error';
+    elements.cameraHelpButton.setAttribute('aria-label', name === 'capture' ? 'Camera help' : 'Reading box help');
+    elements.cameraCaptureHint.hidden = name !== 'capture'; elements.cameraReviewHint.hidden = name !== 'review';
     elements.cameraZoomControl.hidden = name !== 'capture';
     for (const key of ['Capture', 'Review', 'Error']) elements[`camera${key}Panel`].hidden = key.toLowerCase() !== name;
     elements.cameraBackButton.hidden = false;
@@ -94,6 +96,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     view('capture');
     elements.cameraCaptureButton.disabled = true;
     elements.cameraCaptureStatus.textContent = 'Starting camera…';
+    elements.cameraCaptureStatus.hidden = false;
     if (environment.isSecureContext === false || !navigator?.mediaDevices?.getUserMedia) {
       showError({ name: 'NotFoundError' }, environment.isSecureContext !== false); return;
     }
@@ -144,10 +147,13 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     return result;
   }
 
-  function readStatus() {
-    const count = fields.filter(field => draft(field).value).length;
-    setReviewStatus(count === 2 ? 'ready' : 'attention', count === 2 ? 'Review both values.'
-      : count === 1 ? `${draft('temperature').value ? 'Humidity' : 'Temperature'} needs attention.` : 'No readings found.');
+  function readStatus(edited = false) {
+    const result = validateCameraReadings(elements.cameraTempDraft.value, elements.cameraRhDraft.value);
+    const validFields = fields.filter(field => draft(field).value && !result.errors[field]);
+    if (crops.pending) setReviewStatus('attention', 'Assign or discard the new box.');
+    else if (result.valid) setReviewStatus('ready', edited ? 'Review your changes before confirming.' : 'Review both values.');
+    else setReviewStatus('attention', validFields.length === 1 ? `${validFields[0] === 'temperature' ? 'Humidity' : 'Temperature'} needs attention.`
+      : fields.some(field => draft(field).value) ? 'Check both values.' : 'No readings found.');
   }
 
   async function detect() {
@@ -163,7 +169,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
       for (const field of fields) draft(field).value = result?.values?.[field] || '';
       readStatus();
     } catch {
-      if (active && request === session) setReviewStatus('attention', 'Reading failed. Enter values manually.');
+      if (active && request === session) setReviewStatus('error', 'Reading failed. Enter values manually.');
     } finally {
       if (active && request === session) { reading = false; elements.cameraReviewPanel.setAttribute('aria-busy', 'false'); validate(); }
     }
@@ -202,7 +208,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
       }
     } catch {
       if (active && session === request) {
-        setReviewStatus('attention', 'Reading failed. Enter values manually.');
+        setReviewStatus('error', 'Reading failed. Enter values manually.');
         if (field === 'pending') { elements.cameraAssignment.hidden = false; elements.cameraAssignChoices.hidden = false; }
       }
     } finally {
@@ -257,8 +263,8 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     for (const input of [elements.cameraTempDraft, elements.cameraRhDraft]) {
       input.addEventListener('focus', () => { input.scrollIntoView?.({ block: 'center', behavior: 'smooth' }); });
       input.addEventListener('input', () => {
-        if (reading) { cancelReading(); elements.cameraReviewPanel.setAttribute('aria-busy', 'false'); setReviewStatus('ready', 'Review your changes before confirming.'); }
-        validate(true);
+        if (reading) { cancelReading(); elements.cameraReviewPanel.setAttribute('aria-busy', 'false'); }
+        readStatus(true); validate(true);
       });
     }
   }
