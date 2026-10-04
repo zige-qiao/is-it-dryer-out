@@ -1,9 +1,9 @@
-const CACHE_NAME = "is-it-dryer-out-v140";
+const CACHE_NAME = "is-it-dryer-out-v141";
 const APP_FILES = [
   "./",
   "index.html",
-  "styles.css?v=140",
-  "app.js?v=140",
+  "styles.css?v=141",
+  "app.js?v=141",
   "src/config.js",
   "src/domain/humidity.js",
   "src/domain/forecast.js",

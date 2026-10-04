@@ -19,6 +19,8 @@ Domain functions receive readings/settings explicitly and do not access the DOM 
 
 Cross-feature callbacks are wired in `app.js`, avoiding circular imports. Browser listeners and timers start only during explicit initialisation, not module import. The root stylesheet and public asset names remain unchanged. The standalone `voice-test.html` / `voice-test.js` diagnostic remains independent of production voice code and retains its historical build identity.
 
+`styles.css` owns the shared 4px spacing tokens and component geometry. Keep the [written design system](design-system.md) and [visual board](design-system.html) aligned with its effective rules, including 52px numeric fields, 100px paired ruler fields, 128px Indoor temperature fields, and the 48 × 28px settings switch. Typography, fine strokes, focus rings and fluid/data-driven geometry retain the documented exceptions. `index.html` owns ruler tick spacing; do not substitute CSS offsets for those control settings.
+
 The dialog helpers own opener-focus snapshots and synchronous focus return. Sheet activation records whether the opener had visible keyboard focus; dismissal prepares its styling before native focus restoration, then consumes the saved return target so a queued close event cannot overwrite later keyboard interaction. Timer initialisation precedes shared event binding so Escape dismisses its open help popup before the sheet. Start completes dismissal and scroll cleanup synchronously before the Shortcut URL handoff.
 
 ## Run locally

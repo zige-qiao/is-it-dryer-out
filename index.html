@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=140" />
+    <link rel="stylesheet" href="styles.css?v=141" />
     <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
@@ -223,7 +223,7 @@
     <label class="reading-field ruler-value" for="indoorRhInput">
       <input id="indoorRhInput" type="number" min="20" max="90" step="1" value="58" inputmode="numeric" aria-label="Indoor relative humidity" /><span aria-hidden="true">%</span>
     </label>
-    <div class="reading-ruler" data-ruler="indoorRh" data-major-interval="5" data-tick-spacing="14" data-unit="percent">
+    <div class="reading-ruler" data-ruler="indoorRh" data-major-interval="5" data-tick-spacing="16" data-unit="percent">
       <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
       <input id="indoorRh" type="range" min="20" max="90" step="1" value="58" aria-describedby="rulerHelp" />
     </div>
@@ -293,7 +293,7 @@
                 <input id="targetRhInput" type="number" min="40" max="65" step="1" value="55" inputmode="numeric" aria-label="Target indoor humidity" />
                 <span aria-hidden="true">%</span>
               </label>
-            <div class="reading-ruler" data-ruler="targetRh" data-major-interval="5" data-tick-spacing="10" data-unit="percent">
+            <div class="reading-ruler" data-ruler="targetRh" data-major-interval="5" data-tick-spacing="12" data-unit="percent">
               <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
               <input id="targetRh" type="range" min="40" max="65" step="1" value="55" aria-describedby="planRulerHelp" />
             </div>
@@ -407,6 +407,6 @@
         <button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button>
       </section>
     </dialog>
-    <script src="app.js?v=140" type="module"></script>
+    <script src="app.js?v=141" type="module"></script>
   </body>
 </html>

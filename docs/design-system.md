@@ -1,8 +1,8 @@
 # Is it dryer out — design system
 
-**Version:** 1.5 · **Updated:** 3 October 2026 · **Status:** v0.7.4
+**Version:** 1.6 · **Updated:** 4 October 2026 · **Status:** Main implementation, unreleased after v0.7.4
 
-This is a reusable specification for the app. The warm-grey controls and component states were implemented in v0.7.0, the revised verdict and AH chart colours shipped in v0.7.1, and the Indoor summary strip with subsequent layout and focus refinements shipped in v0.7.2. The current shared-temperature moisture comparison and time-based chart gradient are described below. Broader typography normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
+This is a reusable specification for the app. The warm-grey controls and component states were implemented in v0.7.0, the revised verdict and AH chart colours shipped in v0.7.1, and the Indoor summary strip with subsequent layout and focus refinements shipped in v0.7.2. The current shared-temperature moisture comparison and time-based chart gradient are described below. Main now includes the 4px grid for fixed layout spacing, control/icon sizes and ordinary radii, along with consistent sheet dismissal and focus return. These changes are unreleased after v0.7.4. Broader typography normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
 
 Open [the visual review board](design-system.html) for colour and state specimens. This document records the rules; the board illustrates them.
 
@@ -10,7 +10,7 @@ Open [the visual review board](design-system.html) for colour and state specimen
 
 Your feedback set the warm-neutral direction, kept the AH chart's separate white/amber/coral roles, and specified the Opening border and fill change. The verdict gradients and chart amber/coral values were updated on 28 September 2026. The number-field clipping, primary-focus and angled CHECKING loading treatments are reflected in the local app. Other weather semantic colours remain as inventoried.
 
-The 27 September instruction to apply this system authorised the displayed warm token values and visible state treatments. The local app now includes the related missing hover tokens, a 44px Refresh page target, visible mobile Location Close and a matching installed-app launch background. Typography/radius normalisation and new inline invalid-input feedback remain separate follow-ups.
+The 27 September instruction to apply this system authorised the displayed warm token values and visible state treatments. The app includes the related missing hover tokens, a 44px Refresh page target and a matching installed-app launch background. The later sheet refinement hides every header close button below 640px, including Location; outside tap, Escape and mobile drag dismissal remain available. Typography normalisation and new inline invalid-input feedback remain separate follow-ups.
 
 In v0.7.2, the app gained an optional compact Indoor summary above the verdict, saved display and launch preferences, pull to refresh for outdoor weather, relative reading ages and 20px outer card corners. The 24 h / 48 h choices have a 4px gap, and keyboard focus rings sit outside most visible controls. These refinements are not part of the historical v0.7.1 release record.
 
@@ -22,13 +22,13 @@ Timer and Indoor sheet titles match Settings and Ventilation settings at 1.2rem,
 
 Inline verdict times retain the original text width and line height. The user chose original verdict spacing over 44px touch targets; targets follow the duration text rather than expanding into adjacent lines.
 
-The timer's compact numeric field shows min beside the value, with room for three digits and an accessible duration label. The field-to-ruler gap is 8px and the ruler-to-Start gap is 20px. There is no timing-context paragraph in the sheet. The mobile drag handle matches the other sheets. Start is the only bottom action; dismissal uses the header close control, Escape, outside tap or sheet drag.
+The timer's compact numeric field shows min beside the value, with room for three digits and an accessible duration label. Numeric ruler fields have a 52px outer height, including their border and padding. The field-to-ruler gap is 8px and the ruler-to-Start gap is 20px. There is no timing-context paragraph in the sheet. The mobile drag handle matches the other sheets. Start is the only bottom action; dismissal uses the header close control, Escape, outside tap or sheet drag.
 
 On iPhone/iPad, each duration in the two verdict lines is an inline button with a dotted, 50%-opacity underline and distinct pressed/focus states. Qualifiers stay outside the button; combined hour/minute durations stay together. Other devices retain plain emphasized text.
 
 The timer uses the Indoor sheet geometry and a stacked 1-180 minute ruler: 1-minute ticks, labelled 5-minute marks, and 8px spacing. Typed entry remains available. Start is disabled for empty, fractional, or out-of-range values. Draft minutes are temporary and independent of saved readings/settings; refresh does not replace edits. The verdict duration's accessible name retains its timing context. Drier-air windows are not presented as recommended opening durations; capped target estimates create a recheck reminder.
 
-Clock owns the timer after the Shortcut handoff; the web app displays no countdown or success claim. Start closes the sheet and completes focus/scroll cleanup before launching Shortcuts, in the same activation handler. Invalid input keeps the sheet open. Closing restores the clicked duration's focus, or the verdict heading if it has been replaced, using the shared focus-return rule below. A 32px-wide, 44px-tall help control, with its visible symbol centred and 11px from the title, opens a compact setup popover with Install Shortcut, linking directly to iCloud. Its narrower width is a user-requested exception to the usual 44px target. Escape dismisses the popover before the sheet; clicking elsewhere or closing the sheet also clears it. The user confirmed timer handoffs from Chrome, Safari and the Home Screen web app, plus the airplane-mode alarm and sharing link. Fresh import and recovery/locked-phone scenarios remain separately unverified.
+Clock owns the timer after the Shortcut handoff; the web app displays no countdown or success claim. Start closes the sheet and completes focus/scroll cleanup before launching Shortcuts, in the same activation handler. Invalid input keeps the sheet open. Closing restores the clicked duration's focus, or the verdict heading if it has been replaced, using the shared focus-return rule below. A 32px-wide, 44px-tall help control, with its visible symbol centred and 12px from the title, opens a compact setup popover with Install Shortcut, linking directly to iCloud. Its narrower width is a user-requested exception to the usual 44px target. Escape dismisses the popover before the sheet; clicking elsewhere or closing the sheet also clears it. The user confirmed timer handoffs from Chrome, Safari and the Home Screen web app, plus the airplane-mode alarm and sharing link. Fresh import and recovery/locked-phone scenarios remain separately unverified.
 
 - Help someone decide whether opening windows reduces indoor moisture, and for approximately how long.
 - Put the compact Indoor reading controls first, followed by the prominent recommendation, evidence and settings.
@@ -225,11 +225,14 @@ Use tabular numerals for changing readings, estimates and timestamps. Keep units
 
 ### Shared scale
 
-- Spacing: 4, 8, 12, 16, 20, 24, 32px. Two-pixel icon/tick alignment is an allowed optical adjustment.
-- Control radius: 10px for fields and option tiles; 12px for main action buttons and custom panels; 8px for compact icon feedback; pill radius for short secondary actions.
-- Current surface radius: 20px for the Indoor summary strip, verdict and its footer, and moisture comparison panel; 14px for the inner Outdoor and Indoor comparison cards; 24px for sheets. Other radius normalisation remains a separate proposal.
+- Fixed spacing and layout dimensions follow a 4px grid. Shared spacing tokens cover 4, 8, 12, 16, 20, 24 and 32px; larger dimensions remain multiples of 4. Round to nearest, with halfway magnitudes rounded upward; preserve negative signs and keep positive spacing at least 4px.
+- Grid exceptions: typography/line height/letter spacing; thin borders, dividers, ruler markers, graphic strokes and focus-ring geometry; circular/pill radii; screen-reader hiding geometry; fluid/text-relative dimensions, safe areas, chart data and animation-driven waveform heights, and gesture/viewport positions. Border compensation and centring calculations may use smaller inner offsets to achieve grid-aligned outer geometry.
+- Forecast range tabs: use a 6px inner radius for selected, hover and pressed surfaces, inside an 8px outer track. This is an explicit user-selected exception to the 4px grid. Preserve 44px targets and the existing outer focus ring.
+- Control radius: 12px for fields and option tiles; 12px for main action buttons and custom panels; 8px for compact icon feedback; pill radius for short secondary actions.
+- Current surface radius: 20px for the Indoor summary strip, verdict and its footer, and moisture comparison panel; 16px for the inner Outdoor and Indoor comparison cards; 24px for sheets.
 - Borders: 1px ordinary, including unselected Opening options; 2px for selected options. Compensate padding by 1px when the border grows so selection never shifts dimensions or content. Keyboard focus is a separate 2px ring with a 2px clear gap **outside** the visible control. Use main ink on light surfaces and white on the coloured verdict. The ventilation summary and dashboard explainer headings keep their wider horizontal focus shapes so text and chevrons have breathing room.
-- Targets: at least 44 × 44px; primary actions at least 48px high. Compact visual pills may sit within a larger hit area. Room options retain 58px minimum height; Opening tiles retain 64px.
+- Targets: at least 44 × 44px; primary actions at least 48px high. Compact visual pills may sit within a larger hit area. Room options use 60px minimum height; Opening tiles retain 64px.
+- Numeric ruler and custom dimension/airflow fields have 52px outer height with border-aware inner inputs. Ruler value inputs cannot shrink and reserve 4px beyond their character width; paired Ventilation fields and the Indoor RH field are 100px wide so two-digit readings and their units fit without clipping. The Indoor temperature field is 128px wide with 8px horizontal padding and a compact 3.5ch-plus-4px input for readings such as 32.0. RH ticks use 16px spacing and target-RH ticks use 12px; temperature and timer spacing stays unchanged. The settings switch is 48 × 28px with a 20px thumb, 4px outer-edge insets and 20px travel. The timer help symbol is 20px inside its retained 32 × 44px target; compensate its centring inset to give a 12px visible title-to-symbol gap.
 - No decorative shadows. A selection edge or focus ring is an interaction signal, not elevation.
 
 ### Responsive rules
@@ -279,7 +282,7 @@ Disabled controls use 45% opacity on the complete control, no hover/press animat
 - **Room size:** 30 / 50 / 80 m³ and Custom. Custom reveals dimensions and calculated volume; keep values when switching away. Room-size options are a single native radio group.
 - **Opening:** slightly open / one window / cross-ventilation / custom airflow. Show `Est. … air changes/hr` beside or below the heading. Custom airflow reveals one labelled input. Current weather adjustments remain part of the calculation, including custom airflow.
 - **Persistence:** manual readings and ventilation changes save immediately. Done closes the sheet; it is not an Apply or Save step. Voice uses an explicit review and Apply step.
-- **Location:** search, recent places, remove action, current-location action, pending/error/retry and empty-results states share the same tokens. Selecting a place closes the sheet. Removing a recent place must remain a separate 44px action. Propose a visible Close action on mobile Location.
+- **Location:** search, recent places, remove action, current-location action, pending/error/retry and empty-results states share the same tokens. Selecting a place closes the sheet. Removing a recent place must remain a separate 44px action. Follow the shared header-close breakpoint and dismissal contract; there is no separate bottom Close action.
 - **Voice:** retain the existing recording lifecycle. Use neutral status/transcript panels; distinguish Ready, Listening/Hearing, review, error and unavailable through wording and controls. A moving waveform represents available audio levels, not proof of transcription. Styling must not alter microphone permissions, retained streams or iOS recovery policy.
 - **Accordions:** full-width 48px headings, one chevron convention, subtle dividers, no card frame. Preserve open states through updates. Default only the recommendation explanation open.
 - **Explainer order:** `Why this recommendation?` (open initially), `Glossary`, `How estimates work`, then `Weather data`. The first explains the live calculation; the glossary defines AH, RH, DP, ACH, Let in and room volume; Weather data contains provider, request location, freshness, attribution and source links. Keep the final `By Ziggy Qiao · GitHub` credit outside the accordions, with Settings and Refresh page as footer actions.
@@ -306,7 +309,7 @@ Maintain existing main verdicts: TARGET MET, OPEN WINDOWS, KEEP CLOSED, OPEN IF 
 1. The main stylesheet now defines the warm role tokens and maps the existing `--bg`, `--panel`, `--ink`, `--muted`, `--line` and button-family variables to them. Essential input boundaries use the stronger control-border role.
 2. Neutral actions, options, fields/rulers, location/voice surfaces and footer interactions use those roles. Recommendation and AH chart semantic colours remain separate.
 3. The manifest launch colour matches the page. Outer focus rings, Opening selection and loading sweeps are implemented. The Indoor summary and related refinements shipped in v0.7.2.
-4. Future work: consolidate any obsolete component rules after checking remaining users. Treat broader typography/geometry normalisation and inline numeric validation as separate reviews.
+4. Fixed spacing, control/icon dimensions and ordinary radii follow the 4px grid in section 4. All sheets share the dismissal and focus-return contract in section 5. Broader typography normalisation and inline numeric validation remain separate reviews; consolidate obsolete component rules only after checking remaining users.
 5. A requested push or release remains the trigger for repository release documentation and cache-version work.
 
 ## 9. Maintaining the system
@@ -336,6 +339,8 @@ These close documentation gaps. Proposed behaviour remains subject to review; no
 
 ### Verification still outstanding
 
+Integration checks on 4 October 2026: all 114 Node regression tests passed. Headless Chromium checks with fixture weather passed at 320, 390, 639, 640 and 1280px for dashboard/sheet overflow, numeric-field fit, settings-switch geometry and pointer/keyboard focus return. The visual board's 100 × 52px numeric specimens and document links passed at 320, 390, 640 and 1280px. Mobile Ventilation and desktop Indoor captures, plus the narrow board specimen, were visually inspected. These checks used desktop browser emulation; they do not establish physical iOS keyboard or Shortcuts behaviour.
+
 The existence of a rule is not proof of its implementation. Before calling the system complete, verify real iOS keyboard behaviour, zoom/reflow, forced colours, reduced motion, screen-reader announcements, every semantic background/line pairing, and loading/error/empty/disabled states. Formal contrast checks across all four gradients remain an explicit verification task.
 
 ## 10. Acceptance checklist for implementation
@@ -357,6 +362,7 @@ The existence of a rule is not proof of its implementation. Before calling the s
 
 ## Revision log
 
+- 1.6 main implementation (unreleased), 4 October 2026: merged the 4px geometry harmonisation and sheet dismissal/focus refinements. Aligned fixed spacing, control/icon dimensions, ordinary radii, ruler fields and switch outer geometry; documented exceptions and reconciled the visual board with the written rules.
 - 1.5 v0.7.4 release, 3 October 2026: recorded clickable verdict durations, timer ruler and compact help popup, approved spacing and typography, and user-confirmed Safari/Home Screen timer handoffs.
 - 1.4 update, 30 September 2026: aligned card and chart colour semantics with shared-temperature moisture comparison and the time-based forecast gradient.
 - 1.3 v0.7.3 release, 29 September 2026: recorded the iPhone chart curve rendering and pointer versus keyboard focus behavior.

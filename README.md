@@ -35,6 +35,7 @@ The user confirmed that the handoff works from Chrome, Safari and the Home Scree
 
 ## Recent changes
 
+- Current main (unreleased): consistent spacing and rounded controls, wider numeric ruler fields, and sheet dismissal that preserves the opener's keyboard-focus state. The timer sheet closes before switching to Shortcuts. See [Unreleased](CHANGELOG.md#unreleased).
 - [v0.7.4](CHANGELOG.md#v074---ventilation-timer---2026-10-03): iPhone ventilation timers from verdict times, adjustable minutes and one reusable Shortcut.
 - [v0.7.3.1](CHANGELOG.md): refined moisture estimates, forecast colours and pull-to-refresh feedback; reorganised the app into native modules.
 - [v0.7.3](CHANGELOG.md): improved iPhone forecast-curve rendering and chart focus behaviour.
