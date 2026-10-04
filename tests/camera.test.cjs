@@ -7,11 +7,11 @@ const { createStorage } = require('../src/services/storage.js');
 const { element, environment, memoryStorage } = require('./helpers/browser.cjs');
 const flush = () => new Promise(setImmediate);
 
-function fixture({ deferredMedia = false, deferredReading = false, error, torch = true } = {}) {
+function fixture({ deferredMedia = false, deferredReading = false, error, torch = true, regionResult, regionError } = {}) {
   const elements = Object.fromEntries(['indoorDialog', 'cameraTitle', 'cameraInputButton', 'cameraBackButton', 'cameraPanel', 'cameraCapturePanel',
     'cameraReviewPanel', 'cameraErrorPanel', 'cameraVideo', 'cameraFlash', 'cameraCaptureStatus', 'cameraCaptureButton',
     'cameraPhoto', 'cameraTempCrop', 'cameraRhCrop', 'cameraTempBox', 'cameraRhBox', 'cameraTempDraft', 'cameraRhDraft',
-    'cameraTempError', 'cameraRhError', 'cameraConfirmButton', 'cameraReadStatus', 'cameraPhotoWrap', 'cameraSelectTemp', 'cameraSelectRh', 'cameraErrorMessage',
+    'cameraTempError', 'cameraRhError', 'cameraConfirmButton', 'cameraReadStatus', 'cameraPhotoWrap', 'cameraPendingBox', 'cameraAssignment', 'cameraAssignChoices', 'cameraAssignTemp', 'cameraAssignRh', 'cameraDiscardBox', 'cameraErrorMessage',
     'cameraErrorHelp', 'cameraErrorDetails', 'cameraManualButton', 'cameraRetryButton', 'cameraRetakeButton', 'cameraReadAgainButton'].map(name => [name, element()]));
   const canvas = () => ({ ...element(), width: 0, height: 0, getContext: () => ({ drawImage() {} }) });
   for (const name of ['cameraPhoto', 'cameraTempCrop', 'cameraRhCrop']) elements[name] = canvas();
@@ -30,7 +30,7 @@ function fixture({ deferredMedia = false, deferredReading = false, error, torch 
     navigator: { mediaDevices: { getUserMedia: async value => { requests.push(value); if(error) throw error; return deferredMedia ? mediaPromise : stream; } } } });
   const controller = createCameraController({ state, elements, beforeCamera: () => before++, returnFocus() {},
     render: () => renders.push({ ...state }), saveIndoorReadings: source => saved.push({ source, ...state }),
-    recogniseService: { cancel: () => cancelled++, locate: async () => found(await (deferredReading ? readPromise : {temperature:'22.3',humidity:'59'})), recognise: async fields => { crops.push(fields); return deferredReading ? readPromise : { temperature: '22.3', humidity: '59' }; } },
+    recogniseService: { cancel: () => cancelled++, locate: async () => found(await (deferredReading ? readPromise : {temperature:'22.3',humidity:'59'})), readRegion: async (source, region, field) => { crops.push({region,field}); if(regionError)throw regionError;if(regionResult)return regionResult;const values=await (deferredReading ? readPromise : { temperature: '22.3', humidity: '59' }); return {status:'found',field,readings:{[field]:{region,value:values[field]}}}; } },
   }, env);
   controller.initialize();
   return { elements, controller, track, requests, constraints, saved, state, renders, crops,
@@ -74,7 +74,7 @@ test('moving a detected crop invalidates only that value and re-reads on complet
   assert.equal(f.elements.cameraTempDraft.value, ''); assert.equal(f.elements.cameraRhDraft.value, '59');
   assert.equal(f.elements.cameraConfirmButton.disabled, true); f.controller.confirm(); assert.equal(f.saved.length, 0);
   await flush(); assert.equal(f.elements.cameraTempDraft.value,'22.3');
-  assert.equal(f.crops[0].humidity,null);
+  assert.equal(f.crops[0].field,'temperature');
 });
 
 test('flash constraints are video-track scoped and backgrounding releases capture', async () => {
@@ -143,4 +143,30 @@ test('invalid edited drafts cannot be saved and retake discards all pending valu
   assert.equal(f.saved.length, 0); assert.match(f.elements.cameraTempError.textContent, /10–32/);
   await f.controller.startCamera(); assert.equal(f.elements.cameraTempDraft.value, '');
   assert.equal(f.elements.cameraPhoto.width, 0); assert.equal(f.elements.cameraCapturePanel.hidden, false);
+});
+
+function pointer(field,x,y,button=false){return {pointerId:1,button:0,isPrimary:true,clientX:x,clientY:y,preventDefault(){},target:{closest:s=>s==='[data-camera-field]'&&field?{dataset:{cameraField:field}}:s==='button'&&button?{}:null}};}
+async function review(f){await f.controller.startCamera();f.controller.capturePhoto();await flush();}
+function draw(f){f.elements.cameraPhotoWrap.emit('pointerdown',pointer(null,20,180));f.elements.cameraPhotoWrap.emit('pointermove',pointer(null,100,240));f.elements.cameraPhotoWrap.emit('pointerup',pointer(null,100,240));}
+test('retake during processing settles into a clean live capture without accepting a late result',async()=>{
+ const f=fixture({deferredReading:true});await f.controller.startCamera();f.controller.capturePhoto();f.elements.cameraRetakeButton.emit('click');f.resolveReading({temperature:'31.0',humidity:'88'});await flush();
+ assert.equal(f.elements.cameraCapturePanel.hidden,false);assert.equal(f.elements.cameraTempDraft.value,'');assert.equal(f.elements.cameraPhoto.width,0);assert.equal(f.saved.length,0);
+});
+test('taps, retake hits and cancelled gestures do not re-read or clear existing drafts',async()=>{
+ const f=fixture();await review(f);const surface=f.elements.cameraPhotoWrap;
+ surface.emit('pointerdown',pointer('temperature',100,80));assert.equal(f.elements.cameraConfirmButton.disabled,true);surface.emit('pointerup',pointer('temperature',100,80));assert.equal(f.crops.length,0);assert.equal(f.elements.cameraConfirmButton.disabled,false);
+ surface.emit('pointerdown',pointer(null,380,280,true));surface.emit('pointermove',pointer(null,390,290));surface.emit('pointerup',pointer(null,390,290));assert.equal(f.crops.length,0);
+ surface.emit('pointerdown',pointer('temperature',100,80));surface.emit('pointermove',pointer(null,120,100));surface.emit('pointercancel',pointer(null,120,100));assert.equal(f.crops.length,0);assert.equal(f.elements.cameraTempDraft.value,'22.3');assert.equal(f.elements.cameraConfirmButton.disabled,false);
+});
+test('an unreadable unit asks for assignment only after drawing and allows discarding without losing readings',async()=>{
+ const f=fixture({regionResult:{status:'unassigned',field:null,readings:{}}});await review(f);draw(f);await flush();
+ assert.equal(f.elements.cameraAssignment.hidden,false);assert.equal(f.elements.cameraAssignChoices.hidden,false);assert.match(f.elements.cameraReadStatus.textContent,/Which reading/);assert.equal(f.elements.cameraConfirmButton.disabled,true);assert.equal(f.elements.cameraRhDraft.value,'59');
+ f.elements.cameraDiscardBox.emit('click');assert.equal(f.elements.cameraPendingBox.hidden,true);assert.equal(f.elements.cameraConfirmButton.disabled,false);
+});
+test('ambiguous units require tightening; contradictory units cannot swap an existing field',async()=>{
+ const both=fixture({regionResult:{status:'ambiguous',field:null}});await review(both);draw(both);await flush();assert.equal(both.elements.cameraAssignChoices.hidden,true);assert.equal(both.elements.cameraConfirmButton.disabled,true);
+ const wrong=fixture({regionResult:{status:'contradictory',field:'temperature'}});await review(wrong);wrong.elements.cameraTempBox.emit('keydown',{key:'ArrowRight',preventDefault(){}});await flush();assert.equal(wrong.elements.cameraTempDraft.value,'');assert.equal(wrong.elements.cameraRhDraft.value,'59');assert.match(wrong.elements.cameraReadStatus.textContent,/unit does not match/);
+});
+test('a worker error leaves existing unaffected readings and manual correction available',async()=>{
+ const f=fixture({regionError:new Error('worker')});await review(f);f.elements.cameraTempBox.emit('keydown',{key:'ArrowRight',preventDefault(){}});await flush();assert.equal(f.elements.cameraRhDraft.value,'59');assert.match(f.elements.cameraReadStatus.textContent,/Local recognition/);f.elements.cameraTempDraft.value='22.1';f.elements.cameraTempDraft.emit('input');f.controller.confirm();assert.equal(f.saved[0].indoorTemp,22.1);
 });

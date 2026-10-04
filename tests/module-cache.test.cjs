@@ -19,7 +19,7 @@ function graph() {
     }
     visiting.delete(file); files.add(file);
   }
-  visit('app.js'); return files;
+  visit('app.js'); visit('src/camera/worker.js'); return files;
 }
 
 function worker(base='https://example.test/dew/', workerSource=source) {

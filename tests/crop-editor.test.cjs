@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const {createCropEditor,changeCrop}=require('../src/camera/crop-editor.js');
 const {element}=require('./helpers/browser.cjs');
 function fixture(){
-  const surface=element(),boxes={temperature:element(),humidity:element()},choices={temperature:element(),humidity:element()},changes=[],commits=[];
+  const surface=element(),boxes={temperature:element(),humidity:element(),pending:element()},choices={temperature:element(),humidity:element()},changes=[],commits=[];
   let captured=null;
   Object.assign(surface,{getBoundingClientRect:()=>({left:10,top:20,width:400,height:300}),setPointerCapture:id=>captured=id,hasPointerCapture:id=>captured===id,releasePointerCapture:()=>captured=null});
   const editor=createCropEditor({surface,boxes,choices,onChange:(field,crop)=>changes.push({field,crop}),onCommit:field=>commits.push(field)});
@@ -21,10 +21,9 @@ test('a corner drag resizes the box while retaining the opposite corner',()=>{
   const crop=f.changes.at(-1).crop;assert.equal(crop.x,.1);assert.equal(crop.y,.2);assert.ok(Math.abs(crop.width-.45)<1e-9);assert.ok(Math.abs(crop.height-.4)<1e-9);
   assert.ok(changeCrop(crop,-2,-2,'se').width>=.02);
 });
-test('a missing reading gets a box only after selecting it and drawing on the image',()=>{
-  const f=fixture();f.surface.emit('pointerdown',f.event(260,80));f.surface.emit('pointermove',f.event(350,180));assert.equal(f.changes.length,0);
-  f.choices.humidity.emit('click');f.surface.emit('pointerdown',f.event(260,80));f.surface.emit('pointermove',f.event(350,180));f.surface.emit('pointerup',f.event(350,180));
-  assert.equal(f.changes.at(-1).field,'humidity');assert.equal(f.boxes.humidity.hidden,false);assert.deepEqual(f.commits,['humidity']);
+test('drawing empty image space creates an unassigned box without selecting a field',()=>{
+ const f=fixture();f.surface.emit('pointerdown',f.event(260,80));f.surface.emit('pointermove',f.event(350,180));f.surface.emit('pointerup',f.event(350,180));
+ assert.equal(f.changes.at(-1).field,'pending');assert.equal(f.boxes.pending.hidden,false);assert.deepEqual(f.commits,['pending']);
 });
 test('cancelled gestures restore the region and reset cannot resurrect an old selection',()=>{
   const f=fixture();f.surface.emit('pointerdown',f.event(100,90,'temperature'));f.surface.emit('pointermove',f.event(150,100));f.surface.emit('pointercancel',f.event(150,100));

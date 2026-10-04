@@ -7,18 +7,29 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
   const { document, navigator } = environment;
   const recognition = recogniseService || createRecognitionService(environment);
   let stream = null, track = null, active = false, session = 0, reading = false, torch = false;
-  let crops = { temperature: null, humidity: null }, captured = false, torchPending = false;
+  let crops = { temperature: null, humidity: null, pending: null }, captured = false, torchPending = false;
+  let gesturing = false, previews = {}, corrections = {}, gestureState = null;
   const fields = ['temperature', 'humidity'];
   const draft = field => field === 'temperature' ? elements.cameraTempDraft : elements.cameraRhDraft;
   const editor = createCropEditor({ surface: elements.cameraPhotoWrap,
-    boxes: { temperature: elements.cameraTempBox, humidity: elements.cameraRhBox },
-    choices: { temperature: elements.cameraSelectTemp, humidity: elements.cameraSelectRh },
+    boxes: { temperature: elements.cameraTempBox, humidity: elements.cameraRhBox, pending: elements.cameraPendingBox },
     onChange: (field, crop) => {
       cancelReading(); elements.cameraReviewPanel.setAttribute('aria-busy', 'false');
-      crops[field] = crop; draft(field).value = ''; drawCrops();
+      crops[field] = crop; if (field !== 'pending') delete previews[field]; drawCrops();
+      elements.cameraAssignment.hidden = true;
       elements.cameraReadStatus.textContent = 'Release the box to read that region again.'; validate();
     },
-    onCommit: field => void recognise([field]),
+    onCommit: field => void readRegion(field),
+    onGesture: (ongoing, field, cancelled) => {
+      gesturing = ongoing;
+      if (ongoing) gestureState = { previews: { ...previews }, assignment: elements.cameraAssignment.hidden,
+        choices: elements.cameraAssignChoices.hidden, status: elements.cameraReadStatus.textContent };
+      else if (cancelled && gestureState) {
+        previews = gestureState.previews; elements.cameraAssignment.hidden = gestureState.assignment;
+        elements.cameraAssignChoices.hidden = gestureState.choices; elements.cameraReadStatus.textContent = gestureState.status; drawCrops();
+      }
+      validate();
+    },
   });
 
   function releaseCamera() {
@@ -35,7 +46,8 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
 
   function clearPhoto() {
     captured = false;
-    crops = { temperature: null, humidity: null }; editor.reset();
+    crops = { temperature: null, humidity: null, pending: null }; previews = {}; corrections = {}; gestureState = null; gesturing = false; editor.reset();
+    elements.cameraAssignment.hidden = true;
     for (const canvas of [elements.cameraPhoto, elements.cameraTempCrop, elements.cameraRhCrop]) {
       canvas.width = 0; canvas.height = 0;
     }
@@ -104,24 +116,28 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
   }
 
   function drawCrops() {
-    for (const [field, output, box] of [
-      ['temperature', elements.cameraTempCrop, elements.cameraTempBox],
-      ['humidity', elements.cameraRhCrop, elements.cameraRhBox],
+    for (const [field, output] of [
+      ['temperature', elements.cameraTempCrop],
+      ['humidity', elements.cameraRhCrop],
     ]) {
       if (!crops[field]) { output.width = 0; output.height = 0; output.hidden = true; continue; }
       crops[field] = boundedCrop(crops[field]); output.hidden = false;
       const crop = crops[field];
-      const canvas = cropCanvas(elements.cameraPhoto, crop, document);
-      output.width = canvas.width; output.height = canvas.height;
-      output.getContext('2d').drawImage(canvas, 0, 0);
+      const preview = previews[field];
+      if (preview) {
+        output.width = preview.width; output.height = preview.height;
+        output.getContext('2d').putImageData(new environment.ImageData(preview.data, preview.width, preview.height), 0, 0);
+      } else {
+        const canvas = cropCanvas(elements.cameraPhoto, crop, document);
+        output.width = canvas.width; output.height = canvas.height; output.getContext('2d').drawImage(canvas, 0, 0);
+      }
     }
     editor.update(crops);
-    elements.cameraReadAgainButton.disabled = !fields.some(field => crops[field]);
   }
 
   function validate(showErrors = false) {
     const result = validateCameraReadings(elements.cameraTempDraft.value, elements.cameraRhDraft.value);
-    elements.cameraConfirmButton.disabled = reading || !result.valid;
+    elements.cameraConfirmButton.disabled = reading || gesturing || Boolean(crops.pending) || !result.valid;
     for (const [field, input, hint] of [['temperature', elements.cameraTempDraft, elements.cameraTempError], ['humidity', elements.cameraRhDraft, elements.cameraRhError]]) {
       const message = showErrors || input.value ? result.errors[field] || '' : '';
       hint.textContent = message; input.setAttribute('aria-invalid', String(Boolean(message)));
@@ -143,7 +159,8 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     try {
       const result = await recognition.locate(elements.cameraPhoto);
       if (!active || request !== session) return;
-      crops = result?.regions || { temperature: null, humidity: null };
+      crops = { ...result?.regions, pending: null };
+      for (const field of fields) { previews[field] = result?.readings?.[field]?.preview; corrections[field] = result?.readings?.[field]?.correction; }
       drawCrops();
       for (const field of fields) draft(field).value = result?.values?.[field] || '';
       elements.cameraReadStatus.textContent = readStatus();
@@ -154,31 +171,44 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     }
   }
 
-  async function recognise(requestedFields = fields) {
-    if (!active || !captured) return;
-    const selectedFields = requestedFields.filter(field => crops[field]);
-    if (!selectedFields.length) return;
+  async function readRegion(field, assigned = null) {
+    if (!active || !captured || !crops[field]) return;
     cancelReading(); const request = session; reading = true;
-    for (const field of selectedFields) draft(field).value = '';
-    elements.cameraReviewPanel.setAttribute('aria-busy', 'true');
-    validate();
+    const expected = field === 'pending' ? assigned : field;
+    if (expected) draft(expected).value = '';
+    elements.cameraAssignment.hidden = true;
+    elements.cameraReadStatus.textContent = 'Reading adjusted box…';
+    elements.cameraReviewPanel.setAttribute('aria-busy', 'true'); validate();
     try {
-      const result = await recognition.recognise({
-        temperature: selectedFields.includes('temperature') ? elements.cameraTempCrop : null,
-        humidity: selectedFields.includes('humidity') ? elements.cameraRhCrop : null,
-      }, status => {
-        if (active && session === request) elements.cameraReadStatus.textContent = status;
-      });
+      const result = await recognition.readRegion(elements.cameraPhoto, crops[field], expected, corrections[expected]?.angle);
       if (!active || session !== request || !result) return;
-      for (const field of selectedFields) draft(field).value = result[field] || '';
-      elements.cameraReadStatus.textContent = readStatus();
-    } catch {
-      if (!active || session !== request) return;
-      elements.cameraReadStatus.textContent = 'Recognition couldn’t finish. Connect once to prepare offline recognition, then try Read again, or enter the values below.';
-    } finally {
-      if (active && session === request) {
-        reading = false; elements.cameraReviewPanel.setAttribute('aria-busy', 'false'); validate();
+      if (result.status === 'ambiguous') {
+        elements.cameraReadStatus.textContent = 'This box contains both units. Draw a tighter box around one reading.';
+        elements.cameraAssignment.hidden = field !== 'pending'; elements.cameraAssignChoices.hidden = true;
+      } else if (result.status === 'unassigned') {
+        elements.cameraReadStatus.textContent = 'Which reading is this?';
+        elements.cameraAssignment.hidden = false; elements.cameraAssignChoices.hidden = false;
+      } else if (result.status === 'contradictory') {
+        elements.cameraReadStatus.textContent = 'The unit does not match this reading. Adjust the box or enter its value.';
+        if (field === 'pending') { elements.cameraAssignment.hidden = false; elements.cameraAssignChoices.hidden = false; }
+      } else {
+        const identified = expected || result.field;
+        if (identified && result.readings?.[identified]) {
+          const entry = result.readings[identified];
+          crops[identified] = entry.region; previews[identified] = entry.preview; corrections[identified] = entry.correction;
+          draft(identified).value = entry.value || '';
+          if (field === 'pending') crops.pending = null;
+          drawCrops(); elements.cameraReadStatus.textContent = readStatus();
+          if (assigned) draft(identified).focus();
+        }
       }
+    } catch {
+      if (active && session === request) {
+        elements.cameraReadStatus.textContent = 'Local recognition couldn’t finish. Enter the values below or adjust a box to try again.';
+        if (field === 'pending') { elements.cameraAssignment.hidden = false; elements.cameraAssignChoices.hidden = false; }
+      }
+    } finally {
+      if (active && session === request) { reading = false; elements.cameraReviewPanel.setAttribute('aria-busy', 'false'); validate(); }
     }
   }
 
@@ -211,7 +241,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
 
   function confirm() {
     const result = validate(true);
-    if (!active || reading || !captured || !result.valid) return;
+    if (!active || reading || gesturing || crops.pending || !captured || !result.valid) return;
     Object.assign(state, result.values); saveIndoorReadings('photo'); cancel(); render();
   }
 
@@ -224,13 +254,16 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     elements.cameraCaptureButton.addEventListener('click', capturePhoto);
     elements.cameraFlash.addEventListener('click', () => void toggleFlash());
     elements.cameraRetakeButton.addEventListener('click', () => void startCamera());
-    elements.cameraReadAgainButton.addEventListener('click', () => void recognise());
+    elements.cameraAssignTemp.addEventListener('click', () => void readRegion('pending', 'temperature'));
+    elements.cameraAssignRh.addEventListener('click', () => void readRegion('pending', 'humidity'));
+    elements.cameraDiscardBox.addEventListener('click', () => { cancelReading(); crops.pending = null; elements.cameraAssignment.hidden = true; elements.cameraReviewPanel.setAttribute('aria-busy', 'false'); drawCrops(); elements.cameraReadStatus.textContent = readStatus(); validate(); elements.cameraPhotoWrap.focus({ preventScroll: true }); });
     elements.cameraConfirmButton.addEventListener('click', confirm);
     elements.cameraVideo.addEventListener('loadeddata', () => {
       if (active && stream) elements.cameraCaptureButton.disabled = false;
     });
     elements.indoorDialog.addEventListener('close', () => cancel({ focus: false }));
     for (const input of [elements.cameraTempDraft, elements.cameraRhDraft]) {
+      input.addEventListener('focus', () => { input.scrollIntoView?.({ block: 'center', behavior: 'smooth' }); });
       input.addEventListener('input', () => {
         if (reading) { cancelReading(); elements.cameraReviewPanel.setAttribute('aria-busy', 'false'); elements.cameraReadStatus.textContent = 'Compare both values with the photo before confirming.'; }
         validate(true);

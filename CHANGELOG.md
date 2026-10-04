@@ -4,10 +4,13 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Identify Celsius/percent units independently from numeric strokes, add local rotation/shear and optional LCD perspective correction, and show shared contrast-normalised crop previews while retaining the original photo. Run bounded analysis in a cancellable worker.
+- Draw boxes without selecting a field; automatically read completed adjustments and provide assignment/tightening/discard recovery. Move Retake into a 44px camera icon on the photo and make Confirm the single full-width bottom action.
+
 - Find LCD digits before showing reading boxes; replace crop sliders with direct dragging, corner resizing and drawing on the full review photo. Empty photos show no boxes, and uncertain readings stay empty.
 
 - Add camera-only capture and review for the current top temperature and humidity readings, with matching camera/microphone icon buttons, live flash where supported, editable drafts, crop adjustment, partial-failure recovery and explicit confirmation before saving.
-- Read the supplied segmented LCD locally using a seven-segment decoder with pinned on-device OCR fallback. Cache recognition assets separately for offline use; discard temporary photos and preserve existing voice capture behaviour and saved-reading formats.
+- Read segmented LCDs locally with explicit review, discard temporary photos, and preserve existing voice capture behaviour and saved-reading formats.
 
 - Align fixed layout spacing, control/icon sizes and ordinary corner radii to a 4px grid; use 52px ruler fields and a 48px settings switch while preserving typography, fine strokes and flexible geometry. Prevent ruler digits from clipping by reserving text space and using 100px paired fields.
 

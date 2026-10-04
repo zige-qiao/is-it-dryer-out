@@ -2,7 +2,7 @@
 <h1>Camera recognition photo regression</h1><p id="status" role="status">Loading supplied photo…</p><canvas id="source" role="img" aria-label="Current readings fixture"></canvas><pre id="result"></pre>
 <p>This browser-only check uses a local, untracked fixture at tests/fixtures/camera-monitor.jpg. Copy the supplied photo there before running it. It is not an album-upload feature.</p>
 <script type="module">
-import { createRecognitionService, cropCanvas } from '../src/camera/recognition.js';
+import { createRecognitionService } from '../src/camera/recognition.js';
 
 const status = document.querySelector('#status');
 try {
@@ -11,11 +11,12 @@ try {
   source.getContext('2d').drawImage(image, 0, 0);
   const service = createRecognitionService(), found = await service.locate(source);
   if (!found?.regions.temperature || !found.regions.humidity) throw Error('Current digits were not located');
-  const result = await service.recognise({ temperature: cropCanvas(source, found.regions.temperature), humidity: cropCanvas(source, found.regions.humidity) }, text => status.textContent = text);
+  const result = found.values;
   const blank = document.createElement('canvas'); blank.width = 480; blank.height = 360;
   blank.getContext('2d').fillStyle = '#555'; blank.getContext('2d').fillRect(0, 0, 480, 360);
-  if (await service.locate(blank)) throw Error('Blank photo received invented regions');
-  const blankRead = await service.recognise({ temperature: blank, humidity: blank });
+  const blankResult = await service.locate(blank);
+  if (blankResult.regions.temperature || blankResult.regions.humidity) throw Error('Blank photo received invented regions');
+  const blankRead = blankResult.values;
   if (blankRead.temperature || blankRead.humidity) throw Error('Blank crop received invented values');
   const passed = result.temperature === '22.3' && result.humidity === '59';
   document.querySelector('#result').textContent = JSON.stringify(result);
