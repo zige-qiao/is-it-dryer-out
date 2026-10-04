@@ -1,6 +1,4 @@
 {
-  "name": "Is it dryer out — camera preview",
-  "short_name": "Camera preview",
   "description": "Compare indoor and outdoor moisture before opening windows.",
   "start_url": ".",
   "display": "standalone",
@@ -14,6 +12,8 @@
       "purpose": "any maskable"
     }
   ],
+  "name": "Is it dryer out — camera preview",
+  "short_name": "Camera preview",
   "id": ".",
   "scope": "."
 }

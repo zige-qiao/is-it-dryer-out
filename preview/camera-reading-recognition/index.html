@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=141" />
+    <link rel="stylesheet" href="styles.css?v=142" />
     <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
@@ -270,7 +270,7 @@
 <button class="indoor-done sheet-primary" id="indoorDoneButton" type="button">Done</button>
 <section class="camera-panel" id="cameraPanel" aria-labelledby="indoor-heading" hidden>
   <div id="cameraCapturePanel">
-    <p class="camera-instruction">Fit the current readings in the frame.</p>
+    <p class="camera-instruction">Fit the monitor display in the frame.</p>
     <div class="camera-feed">
       <video id="cameraVideo" autoplay muted playsinline aria-label="Rear camera preview"></video>
       <div class="camera-guide" aria-hidden="true"></div>
@@ -282,11 +282,17 @@
     <button id="cameraCaptureButton" type="button" class="sheet-primary" disabled>Take photo</button>
   </div>
   <div id="cameraReviewPanel" hidden>
-    <div class="camera-photo-wrap">
+    <div class="camera-photo-wrap" id="cameraPhotoWrap" aria-describedby="cameraCropHint">
       <canvas id="cameraPhoto" role="img" aria-label="Captured current readings"></canvas>
-      <div id="cameraTempBox" class="camera-reading-box" aria-hidden="true"><span>Temperature</span></div>
-      <div id="cameraRhBox" class="camera-reading-box" aria-hidden="true"><span>Humidity</span></div>
+      <div id="cameraTempBox" class="camera-reading-box" data-camera-field="temperature" role="group" tabindex="0" aria-label="Temperature selection. Arrow keys move; Shift and arrow keys resize." hidden><span>Temperature</span>
+        <button class="camera-crop-handle" data-crop-handle="nw" type="button" aria-label="Resize temperature from top left"></button><button class="camera-crop-handle" data-crop-handle="ne" type="button" aria-label="Resize temperature from top right"></button><button class="camera-crop-handle" data-crop-handle="sw" type="button" aria-label="Resize temperature from bottom left"></button><button class="camera-crop-handle" data-crop-handle="se" type="button" aria-label="Resize temperature from bottom right"></button>
+      </div>
+      <div id="cameraRhBox" class="camera-reading-box" data-camera-field="humidity" role="group" tabindex="0" aria-label="Humidity selection. Arrow keys move; Shift and arrow keys resize." hidden><span>Humidity</span>
+        <button class="camera-crop-handle" data-crop-handle="nw" type="button" aria-label="Resize humidity from top left"></button><button class="camera-crop-handle" data-crop-handle="ne" type="button" aria-label="Resize humidity from top right"></button><button class="camera-crop-handle" data-crop-handle="sw" type="button" aria-label="Resize humidity from bottom left"></button><button class="camera-crop-handle" data-crop-handle="se" type="button" aria-label="Resize humidity from bottom right"></button>
+      </div>
     </div>
+    <div class="camera-selection-actions" aria-label="Draw a reading box"><button type="button" id="cameraSelectTemp" class="secondary-button" aria-pressed="false">Temperature</button><button type="button" id="cameraSelectRh" class="secondary-button" aria-pressed="false">Humidity</button><button type="button" id="cameraReadAgainButton" class="secondary-button">Read again</button></div>
+    <p id="cameraCropHint" class="camera-status camera-crop-hint">Drag a box to move it; drag a corner to resize. To draw a box, choose a reading above, then drag on the photo.</p>
     <p id="cameraReadStatus" class="camera-status" role="status" aria-live="polite">Reading photo…</p>
     <div class="camera-reading-cards">
       <div class="camera-reading-card">
@@ -303,23 +309,6 @@
       </div>
     </div>
     <p id="cameraEditHint" class="camera-status">Tap a value to correct it.</p>
-    <details id="cameraCropControls" class="camera-crop-controls">
-      <summary>Adjust crops</summary>
-      <p>Include the small temperature decimal. Leave low and high records outside the crops.</p>
-      <fieldset><legend>Temperature crop</legend>
-        <label>Left <input type="range" min="0" max="95" value="3" data-camera-crop="temperature" data-crop-axis="x" /></label>
-        <label>Top <input type="range" min="0" max="95" value="5" data-camera-crop="temperature" data-crop-axis="y" /></label>
-        <label>Width <input type="range" min="5" max="100" value="49" data-camera-crop="temperature" data-crop-axis="width" /></label>
-        <label>Height <input type="range" min="5" max="100" value="90" data-camera-crop="temperature" data-crop-axis="height" /></label>
-      </fieldset>
-      <fieldset><legend>Humidity crop</legend>
-        <label>Left <input type="range" min="0" max="95" value="64" data-camera-crop="humidity" data-crop-axis="x" /></label>
-        <label>Top <input type="range" min="0" max="95" value="5" data-camera-crop="humidity" data-crop-axis="y" /></label>
-        <label>Width <input type="range" min="5" max="100" value="33" data-camera-crop="humidity" data-crop-axis="width" /></label>
-        <label>Height <input type="range" min="5" max="100" value="90" data-camera-crop="humidity" data-crop-axis="height" /></label>
-      </fieldset>
-    </details>
-    <button type="button" id="cameraReadAgainButton" class="secondary-button camera-read-again">Read again</button>
     <div class="camera-actions"><button id="cameraRetakeButton" type="button" class="sheet-secondary">Retake photo</button><button id="cameraConfirmButton" type="button" class="sheet-primary" disabled>Confirm readings</button></div>
   </div>
   <div id="cameraErrorPanel" hidden>
@@ -471,6 +460,6 @@
         <button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button>
       </section>
     </dialog>
-    <script src="app.js?v=141" type="module"></script>
+    <script src="app.js?v=142" type="module"></script>
   </body>
 </html>
