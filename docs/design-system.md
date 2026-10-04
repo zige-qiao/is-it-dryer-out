@@ -1,8 +1,8 @@
 # Is it dryer out — design system
 
-**Version:** 1.6 · **Updated:** 4 October 2026 · **Status:** Main implementation, unreleased after v0.7.4
+**Version:** 1.6 · **Updated:** 4 October 2026 · **Status:** v0.7.4.1
 
-This is a reusable specification for the app. The warm-grey controls and component states were implemented in v0.7.0, the revised verdict and AH chart colours shipped in v0.7.1, and the Indoor summary strip with subsequent layout and focus refinements shipped in v0.7.2. The current shared-temperature moisture comparison and time-based chart gradient are described below. Main now includes the 4px grid for fixed layout spacing, control/icon sizes and ordinary radii, along with consistent sheet dismissal and focus return. These changes are unreleased after v0.7.4. Broader typography normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
+This is a reusable specification for the app. The warm-grey controls and component states were implemented in v0.7.0, the revised verdict and AH chart colours shipped in v0.7.1, and the Indoor summary strip with subsequent layout and focus refinements shipped in v0.7.2. The current shared-temperature moisture comparison and time-based chart gradient are described below. v0.7.4.1 includes the 4px grid for fixed layout spacing, control/icon sizes and ordinary radii, along with consistent sheet dismissal and focus return. Broader typography normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
 
 Open [the visual review board](design-system.html) for colour and state specimens. This document records the rules; the board illustrates them.
 
@@ -362,7 +362,7 @@ The existence of a rule is not proof of its implementation. Before calling the s
 
 ## Revision log
 
-- 1.6 main implementation (unreleased), 4 October 2026: merged the 4px geometry harmonisation and sheet dismissal/focus refinements. Aligned fixed spacing, control/icon dimensions, ordinary radii, ruler fields and switch outer geometry; documented exceptions and reconciled the visual board with the written rules.
+- 1.6 v0.7.4.1 release, 4 October 2026: merged the 4px geometry harmonisation and sheet dismissal/focus refinements. Aligned fixed spacing, control/icon dimensions, ordinary radii, ruler fields and switch outer geometry; documented exceptions and reconciled the visual board with the written rules.
 - 1.5 v0.7.4 release, 3 October 2026: recorded clickable verdict durations, timer ruler and compact help popup, approved spacing and typography, and user-confirmed Safari/Home Screen timer handoffs.
 - 1.4 update, 30 September 2026: aligned card and chart colour semantics with shared-temperature moisture comparison and the time-based forecast gradient.
 - 1.3 v0.7.3 release, 29 September 2026: recorded the iPhone chart curve rendering and pointer versus keyboard focus behavior.

@@ -56,7 +56,7 @@ export const OPENING_SETUPS = {
   cross: { label: "Cross-ventilation", airflow: 180 },
 };
 
-export const APP_BUILD_VERSION = "v0.7.4";
+export const APP_BUILD_VERSION = "v0.7.4.1";
 
 export const VOICE_SILENCE_DURATION_MS = 1000;
 
