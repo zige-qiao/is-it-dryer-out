@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Camera flash test</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f2f0ed; color: #10231f; font: 16px/1.5 system-ui, sans-serif; }
+    main { max-width: 640px; margin: auto; padding: 20px 16px; }
+    h1 { font-size: 24px; margin: 0 0 8px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+    button { min-height: 44px; padding: 10px 16px; border: 1px solid #b6c5c1; border-radius: 6px; background: white; color: inherit; font: inherit; }
+    button:disabled { opacity: .5; }
+    button:focus-visible { outline: 2px solid #1675b5; outline-offset: 3px; }
+    video, img { display: block; width: 100%; height: auto; background: #10231f; border-radius: 6px; }
+    [hidden] { display: none !important; }
+    #status, #capabilities { overflow-wrap: anywhere; }
+    #status { font-weight: 600; }
+    h2 { font-size: 18px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Camera flash test</h1>
+    <p>Take a still photo with flash. The live feed may pause briefly, then resume.</p>
+    <div class="actions">
+      <button id="start" type="button">Start camera</button>
+      <button id="capture" type="button" disabled>Take flash photo</button>
+    </div>
+    <p id="status" role="status">Ready. Start the camera to check flash support.</p>
+    <p id="capabilities"></p>
+    <video id="video" muted playsinline aria-label="Live rear-camera feed" hidden></video>
+    <section id="result" hidden>
+      <h2>Captured photo</h2>
+      <img id="photo" alt="Still photo captured with flash requested">
+    </section>
+  </main>
+  <script type="module">
+    import { createFlashTest } from './camera-flash-test.js';
+    createFlashTest(Object.fromEntries(['start', 'capture', 'status', 'capabilities', 'video', 'result', 'photo']
+      .map(id => [id, document.getElementById(id)]))).initialize();
+  </script>
+</body>
+</html>

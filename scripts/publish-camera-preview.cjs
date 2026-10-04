@@ -40,6 +40,11 @@ function buildDeployment(baseRef = 'origin/main', previewRef = 'HEAD') {
     if (!entry) throw Error(`Missing preview asset: ${name}`);
     return entry;
   });
+  // Standalone phone diagnostics are deployed only inside the isolated preview.
+  for (const name of ['camera-flash-test.html', 'camera-flash-test.js']) {
+    const entry = root.find(item => item.name === name);
+    if (entry) preview.push(entry);
+  }
   const worker = preview.find(entry => entry.name === 'service-worker.js');
   preview = replace(preview, file('service-worker.js', previewWorker(read(worker))));
 
