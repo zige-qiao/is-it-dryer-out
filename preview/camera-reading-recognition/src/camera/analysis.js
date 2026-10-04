@@ -15,13 +15,14 @@ const asBox = (crop, width, height) => ({ x: crop.x * width, y: crop.y * height,
 export function makePreview(pixels, correction, sourceBox) {
   const matrix = correction?.matrix || IDENTITY, destination = projectBox(inverse(matrix) || IDENTITY, sourceBox);
   const corrected = warp(pixels, matrix, correction?.width || pixels.width, correction?.height || pixels.height);
-  return extract(normalise(corrected, correction?.threshold || .55), destination);
+  return extract(normalise(corrected, correction?.threshold || .55, correction?.preprocessing), destination);
 }
 
 // Each stage yields to support cancellation in browsers where workers cannot start.
 export async function analyzeImage(pixels, options = {}, checkpoint = async () => true) {
   const selection = options.region ? asBox(options.region, pixels.width, pixels.height) : null;
   const expected = options.field || null, all = [], seen = new Set();
+  const enlargement = options.refine ? Math.min(4, Math.max(1, 600 / Math.max(pixels.width, pixels.height))) : 1;
   const prepared = normalise(pixels);
   if (prepared.empty) {
     const result = { regions: { temperature: null, humidity: null }, values: { temperature: '', humidity: '' }, readings: {}, status: expected ? 'found' : 'unassigned', field: expected };
@@ -31,29 +32,34 @@ export async function analyzeImage(pixels, options = {}, checkpoint = async () =
   }
   async function tryCorrection(correction) {
     if (!await checkpoint()) return false;
+    const scale = Math.min(enlargement, 800 / Math.max(correction.width, correction.height));
+    if (scale !== 1) correction = { ...correction,
+      matrix: compose(correction.matrix, [1 / scale, 0, 0, 0, 1 / scale, 0, 0, 0, 1]),
+      width: Math.max(1, Math.round(correction.width * scale)), height: Math.max(1, Math.round(correction.height * scale)) };
     const key = JSON.stringify(correction.matrix);
     if (seen.has(key)) return true; seen.add(key);
-    const image = correction.method === 'none' ? pixels : warp(pixels, correction.matrix, correction.width, correction.height);
+    const image = correction.method === 'none' && scale === 1 ? pixels : warp(pixels, correction.matrix, correction.width, correction.height);
     const sourceBox = box => projectBox(correction.matrix, box);
-    for (const threshold of options.thresholds || [options.threshold || .55]) {
+    for (const preprocessing of options.preprocessing || ['adaptive', 'denoised', 'gentle']) for (const threshold of options.thresholds || [options.threshold || (preprocessing === 'denoised' ? .7 : .55)]) {
       if (!await checkpoint()) return false;
-      const found = detectCandidates(image, threshold);
+      const found = detectCandidates(image, threshold, preprocessing);
       const accepted = reading => !selection || overlap(sourceBox(reading.digitBounds), selection) / Math.max(1, sourceBox(reading.digitBounds).width * sourceBox(reading.digitBounds).height) >= .45;
       const readings = found.readings.filter(accepted);
       const units = found.units.filter(unit => !selection || overlap(sourceBox(unit.box), selection) > 0 || readings.some(r => r.field === unit.field && overlap(r.unitBounds, unit.box) > 0));
       const score = readings.length * 20 + units.length * 4;
-      all.push({ correction: { ...correction, threshold }, found, readings, units, score });
-      if ((selection || options.allowPartial) ? readings.length : new Set(readings.map(r => r.field)).size === 2) break;
+      all.push({ correction: { ...correction, threshold, preprocessing }, found, readings, units, score });
     }
     return true;
   }
   const basic = (angle, shear = 0) => ({ matrix: rotation(pixels.width, pixels.height, angle, shear), width: pixels.width, height: pixels.height,
     angle, shear, method: angle || shear ? 'strokes' : 'none' });
-  if (!await tryCorrection(basic(options.angle || 0))) return null;
+  if (!await tryCorrection(basic(0))) return null;
   // Stop once the requested field(s) have complete unit/numeric evidence.
-  const complete = () => all.some(c => (selection || options.allowPartial) ? c.readings.length > 0 : new Set(c.readings.map(r => r.field)).size === 2);
+  const complete = () => all.some(c => options.requiredField ? c.readings.some(r => r.field === options.requiredField) :
+    (selection || options.allowPartial) ? c.readings.length > 0 : new Set(c.readings.map(r => r.field)).size === 2);
   const straight = complete();
   if (!straight) {
+    if (options.angle && !await tryCorrection(basic(options.angle))) return null;
     for (const correction of screenCorrections(pixels)) {
       if (complete()) break; if (!await tryCorrection(correction)) return null;
       const last = all.at(-1);
@@ -64,7 +70,7 @@ export async function analyzeImage(pixels, options = {}, checkpoint = async () =
           matrix: compose(correction.matrix, rotation(correction.width, correction.height, angle, shear)), angle, shear })) return null;
       }
     }
-    const angles = [...strokeAngles(pixels), ...Array.from({ length: 11 }, (_, i) => i * 5 - 25)];
+    const angles = [...strokeAngles(pixels), ...(options.requiredField ? [] : Array.from({ length: 11 }, (_, i) => i * 5 - 25))];
     for (const angle of angles) { if (complete()) break; if (!await tryCorrection(basic(angle))) return null; }
   }
   const promising = complete() ? [] : all.filter(c => c.units.length).sort((a, b) => b.score - a.score).slice(0, 2);
@@ -89,6 +95,7 @@ export async function analyzeImage(pixels, options = {}, checkpoint = async () =
     const value = conflicts ? '' : reading.value;
     const entry = { field, value, region: cropBox(sourceBox, pixels.width, pixels.height), digitBounds: cropBox(digitBox, pixels.width, pixels.height),
       unitBounds: cropBox(unitBox, pixels.width, pixels.height), confidence: { ...reading.confidence, numeric: conflicts ? 0 : reading.confidence.numeric },
+      rejectionReason: conflicts ? 'conflicting-digits' : null,
       correction: { ...candidate.correction, sourceWidth: pixels.width, sourceHeight: pixels.height },
       preview: extract(candidate.found.prepared, selection ? projectBox(inverse(matrix), sourceBox) : reading.box) };
     result.regions[field] = entry.region; result.values[field] = value; result.readings[field] = entry;
@@ -109,18 +116,24 @@ export async function analyzeImage(pixels, options = {}, checkpoint = async () =
     if (kinds.length > 1) { result.status = 'ambiguous'; result.field = null; return result; }
     field = kinds[0] || expected;
     if (field) {
-      const best = units.find(u => u.unit.field === field), correction = best?.candidate.correction || basic(options.angle || 0);
-      const sourceBox = best ? bounds([selection, projectBox(correction.matrix, best.unit.box)], 2) : selection;
-      const binary = normalise(makePreview(pixels, correction, sourceBox)), preview = { width: binary.width, height: binary.height, data: binary.data };
-      const glyphs = locateGlyphs(binaryPixels(binary, binary.mask), true).sort((a, b) => a.x - b.x);
-      const groups = numericGroups(binary, binary.mask, glyphs)[field];
+      const best = units.find(u => u.unit.field === field);
+      // Unit-only angle guesses are not sufficient to rotate an unresolved crop.
+      const correction = { ...basic(0), preprocessing: 'gentle' };
+      const unitBox = best ? projectBox(best.candidate.correction.matrix, best.unit.box) : null;
+      const sourceBox = best ? bounds([selection, unitBox], 2) : selection;
+      const prepared = normalise(pixels, .55, 'gentle'), preview = extract(prepared, sourceBox);
+      const binary = extract(binaryPixels(prepared, prepared.mask), sourceBox);
+      const mask = Uint8Array.from({length: binary.width * binary.height}, (_, i) => binary.data[i * 4] < 128 ? 1 : 0);
+      const glyphs = locateGlyphs(binary, true).sort((a, b) => a.x - b.x);
+      const groups = numericGroups(binary, mask, glyphs)[field];
       const group = groups.sort((a, b) => b.height - a.height)[0], value = best ? '' : group?.value || '';
       const destination = projectBox(inverse(correction.matrix), sourceBox), digits = group ? bounds(group.items) : null;
       const digitBounds = digits ? cropBox(projectBox(correction.matrix, { ...digits, x: digits.x + Math.max(0, Math.floor(destination.x)),
         y: digits.y + Math.max(0, Math.floor(destination.y)) }), pixels.width, pixels.height) : null;
       result.readings[field] = { field, value, region: cropBox(sourceBox, pixels.width, pixels.height), digitBounds, confidence: { unit: best ? best.unit.confidence : 0, numeric: value ? .95 : 0,
         evidence: { unit: best?.unit.unit || 'unreadable', glyphs: group?.items.map(g => g.digit) || [], explicitAssignment: Boolean(expected) } },
-        unitBounds: best ? cropBox(projectBox(correction.matrix, best.unit.box), pixels.width, pixels.height) : null,
+        unitBounds: best ? cropBox(unitBox, pixels.width, pixels.height) : null,
+        rejectionReason: best ? 'unreadable-digits' : 'unreadable-unit-or-digits',
         correction: { ...correction, sourceWidth: pixels.width, sourceHeight: pixels.height }, preview };
       result.regions[field] = result.readings[field].region; result.values[field] = value;
     }

@@ -1,5 +1,17 @@
 const collides = (a, b, gap = 4) => a.x < b.x + b.width + gap && a.x + a.width + gap > b.x &&
   a.y < b.y + b.height + gap && a.y + a.height + gap > b.y;
+const connector = (r, b) => {
+  const x = r.x + r.width / 2, y = r.y + r.height / 2;
+  return { x, y, tx: Math.max(b.x, Math.min(b.x + b.width, x)), ty: Math.max(b.y, Math.min(b.y + b.height, y)) };
+};
+const crosses = (line, r) => {
+  let low = 0, high = 1;
+  for (const [start, delta, min, max] of [[line.x, line.tx - line.x, r.x - 2, r.x + r.width + 2], [line.y, line.ty - line.y, r.y - 2, r.y + r.height + 2]]) {
+    if (Math.abs(delta) < 1e-8) { if (start < min || start > max) return false; }
+    else { const a = (min - start) / delta, b = (max - start) / delta; low = Math.max(low, Math.min(a,b)); high = Math.min(high, Math.max(a,b)); }
+  }
+  return low <= high;
+};
 
 // Measured text sizes, independent of crop sizes. Returned positions never edit crops.
 export function placeLabels({ width, height, items, reserved = [] }) {
@@ -13,8 +25,10 @@ export function placeLabels({ width, height, items, reserved = [] }) {
       { x, y: b.y - s.height - 24 }, { x, y: b.y - s.height * 2 - 28 },
       { x, y: b.y + b.height + 24 }, { x: b.x - s.width - 24, y: b.y + (b.height - s.height) / 2 },
       { x: b.x + b.width + 24, y: b.y + (b.height - s.height) / 2 }].filter(Boolean);
-    const allowed = r => inside(r) && ![...reserved, ...handles, ...placed].some(other => collides(r, other));
-    let position = candidates.map(p => ({ ...p, ...s })).find(allowed);
+    const allowed = r => inside(r) && ![...reserved, ...handles, ...placed].some(other => collides(r, other)) &&
+      !placed.some(other => crosses(connector(r, b), other) || crosses(connector(other, items.find(i => i.field === other.field).box), r));
+    const distance = r => { const line = connector(r,b); return Math.hypot(line.tx-line.x,line.ty-line.y); };
+    let position = candidates.map(p => ({ ...p, ...s })).filter(allowed).sort((a,c) => distance(a)-distance(c))[0];
     if (!position) {
       // Stack in unused photo space when the boxes are too close for nearby names.
       for (let y = 4; y + s.height <= height - 4 && !position; y += s.height + 4)
