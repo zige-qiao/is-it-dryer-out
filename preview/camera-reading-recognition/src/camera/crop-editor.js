@@ -13,13 +13,8 @@ export function changeCrop(original, dx, dy, handle = 'move') {
   return boundedCrop({ x: left, y: top, width: right - left, height: bottom - top });
 }
 
-export function createCropEditor({ surface, boxes, choices, onChange, onCommit }) {
-  let crops = { temperature: null, humidity: null }, gesture = null, selected = null;
-  function select(field) {
-    selected = field;
-    for (const [name, choice] of Object.entries(choices)) choice.setAttribute('aria-pressed', String(name === field));
-    surface.classList.toggle('drawing-crop', Boolean(field));
-  }
+export function createCropEditor({ surface, boxes, onChange, onCommit, onGesture = () => {} }) {
+  let crops = { temperature: null, humidity: null, pending: null }, gesture = null;
   function update(next) {
     crops = { ...next };
     for (const [field, box] of Object.entries(boxes)) {
@@ -35,17 +30,17 @@ export function createCropEditor({ surface, boxes, choices, onChange, onCommit }
   function reset() {
     const previous = gesture; gesture = null;
     if (previous && surface.hasPointerCapture?.(previous.id)) surface.releasePointerCapture(previous.id);
-    select(null); update({ temperature: null, humidity: null });
+    update({ temperature: null, humidity: null, pending: null });
   }
   function initialize() {
-    for (const [field, choice] of Object.entries(choices)) choice.addEventListener('click', () => select(field));
     surface.addEventListener('pointerdown', event => {
       if (event.button !== 0 || event.isPrimary === false || gesture) return;
       const box = event.target.closest('[data-camera-field]'), handle = event.target.closest('[data-crop-handle]');
-      const field = box?.dataset.cameraField || selected;
-      if (!field) return;
+      if (event.target.closest('button') && !handle) return;
+      const field = box?.dataset.cameraField || 'pending';
       event.preventDefault(); const start = point(event);
       gesture = { id: event.pointerId, field, start, original: crops[field], handle: box ? handle?.dataset.cropHandle || 'move' : 'draw', moved: false };
+      onGesture(true, field);
       surface.setPointerCapture(event.pointerId);
     });
     surface.addEventListener('pointermove', event => {
@@ -62,7 +57,8 @@ export function createCropEditor({ surface, boxes, choices, onChange, onCommit }
       const previous = gesture; gesture = null;
       if (surface.hasPointerCapture?.(event.pointerId)) surface.releasePointerCapture(event.pointerId);
       if (cancelled) { update({ ...crops, [previous.field]: previous.original }); if (previous.moved) onChange(previous.field, previous.original); }
-      else if (previous.moved) { select(null); onCommit(previous.field); }
+      onGesture(false, previous.field, cancelled);
+      if (!cancelled && previous.moved) onCommit(previous.field);
     }
     surface.addEventListener('pointerup', event => end(event));
     surface.addEventListener('pointercancel', event => end(event, true));
@@ -72,8 +68,15 @@ export function createCropEditor({ surface, boxes, choices, onChange, onCommit }
       event.preventDefault(); const step = event.altKey ? .002 : .01;
       const dx = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0;
       const dy = event.key === 'ArrowUp' ? -step : event.key === 'ArrowDown' ? step : 0;
-      changed(field, changeCrop(crops[field], dx, dy, event.target?.dataset.cropHandle || (event.shiftKey ? 'se' : 'move'))); onCommit(field);
+      const next = changeCrop(crops[field], dx, dy, event.target?.dataset.cropHandle || (event.shiftKey ? 'se' : 'move'));
+      if (JSON.stringify(next) === JSON.stringify(crops[field])) return;
+      changed(field, next); onCommit(field);
+    });
+    surface.addEventListener('keydown', event => {
+      if (event.target !== surface || !['Enter', ' '].includes(event.key)) return;
+      event.preventDefault(); changed('pending', { x: .25, y: .25, width: .5, height: .3 });
+      onCommit('pending'); boxes.pending?.focus({ preventScroll: true });
     });
   }
-  return { initialize, update, reset, select };
+  return { initialize, update, reset };
 }

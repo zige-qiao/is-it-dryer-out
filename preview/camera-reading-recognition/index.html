@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=142" />
+    <link rel="stylesheet" href="styles.css?v=143" />
     <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
@@ -282,7 +282,7 @@
     <button id="cameraCaptureButton" type="button" class="sheet-primary" disabled>Take photo</button>
   </div>
   <div id="cameraReviewPanel" hidden>
-    <div class="camera-photo-wrap" id="cameraPhotoWrap" aria-describedby="cameraCropHint">
+    <div class="camera-photo-wrap" id="cameraPhotoWrap" tabindex="0" aria-label="Edit reading boxes on the photo" aria-describedby="cameraCropHint cameraKeyboardHint">
       <canvas id="cameraPhoto" role="img" aria-label="Captured current readings"></canvas>
       <div id="cameraTempBox" class="camera-reading-box" data-camera-field="temperature" role="group" tabindex="0" aria-label="Temperature selection. Arrow keys move; Shift and arrow keys resize." hidden><span>Temperature</span>
         <button class="camera-crop-handle" data-crop-handle="nw" type="button" aria-label="Resize temperature from top left"></button><button class="camera-crop-handle" data-crop-handle="ne" type="button" aria-label="Resize temperature from top right"></button><button class="camera-crop-handle" data-crop-handle="sw" type="button" aria-label="Resize temperature from bottom left"></button><button class="camera-crop-handle" data-crop-handle="se" type="button" aria-label="Resize temperature from bottom right"></button>
@@ -290,10 +290,15 @@
       <div id="cameraRhBox" class="camera-reading-box" data-camera-field="humidity" role="group" tabindex="0" aria-label="Humidity selection. Arrow keys move; Shift and arrow keys resize." hidden><span>Humidity</span>
         <button class="camera-crop-handle" data-crop-handle="nw" type="button" aria-label="Resize humidity from top left"></button><button class="camera-crop-handle" data-crop-handle="ne" type="button" aria-label="Resize humidity from top right"></button><button class="camera-crop-handle" data-crop-handle="sw" type="button" aria-label="Resize humidity from bottom left"></button><button class="camera-crop-handle" data-crop-handle="se" type="button" aria-label="Resize humidity from bottom right"></button>
       </div>
+      <div id="cameraPendingBox" class="camera-reading-box" data-camera-field="pending" role="group" tabindex="0" aria-label="Unassigned selection. Arrow keys move; Shift and arrow keys resize." hidden><span>Reading</span>
+        <button class="camera-crop-handle" data-crop-handle="nw" type="button" aria-label="Resize reading from top left"></button><button class="camera-crop-handle" data-crop-handle="ne" type="button" aria-label="Resize reading from top right"></button><button class="camera-crop-handle" data-crop-handle="sw" type="button" aria-label="Resize reading from bottom left"></button><button class="camera-crop-handle" data-crop-handle="se" type="button" aria-label="Resize reading from bottom right"></button>
+      </div>
+      <button id="cameraRetakeButton" class="camera-flash camera-retake" type="button" aria-label="Retake photo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h4l2-3h4l2 3h4v15H4Z"></path><circle cx="12" cy="13" r="4"></circle></svg></button>
     </div>
-    <div class="camera-selection-actions" aria-label="Draw a reading box"><button type="button" id="cameraSelectTemp" class="secondary-button" aria-pressed="false">Temperature</button><button type="button" id="cameraSelectRh" class="secondary-button" aria-pressed="false">Humidity</button><button type="button" id="cameraReadAgainButton" class="secondary-button">Read again</button></div>
-    <p id="cameraCropHint" class="camera-status camera-crop-hint">Drag a box to move it; drag a corner to resize. To draw a box, choose a reading above, then drag on the photo.</p>
+    <p id="cameraCropHint" class="camera-status camera-crop-hint">Drag on the photo to add a box including °C or %. Move a box or resize its corners; release to read.</p>
+    <p id="cameraKeyboardHint" class="visually-hidden">Enter or Space on the photo draws a box. Arrow keys move it; Shift resizes and Alt makes smaller adjustments.</p>
     <p id="cameraReadStatus" class="camera-status" role="status" aria-live="polite">Reading photo…</p>
+    <div id="cameraAssignment" class="camera-selection-actions" hidden><div id="cameraAssignChoices"><button id="cameraAssignTemp" type="button" class="secondary-button">Temperature</button><button id="cameraAssignRh" type="button" class="secondary-button">Humidity</button></div><button id="cameraDiscardBox" type="button" class="secondary-button">Discard box</button></div>
     <div class="camera-reading-cards">
       <div class="camera-reading-card">
         <label for="cameraTempDraft">Temperature</label>
@@ -309,7 +314,7 @@
       </div>
     </div>
     <p id="cameraEditHint" class="camera-status">Tap a value to correct it.</p>
-    <div class="camera-actions"><button id="cameraRetakeButton" type="button" class="sheet-secondary">Retake photo</button><button id="cameraConfirmButton" type="button" class="sheet-primary" disabled>Confirm readings</button></div>
+    <div class="camera-actions"><button id="cameraConfirmButton" type="button" class="sheet-primary" disabled>Confirm readings</button></div>
   </div>
   <div id="cameraErrorPanel" hidden>
     <p id="cameraErrorMessage"></p>
@@ -460,6 +465,6 @@
         <button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button>
       </section>
     </dialog>
-    <script src="app.js?v=142" type="module"></script>
+    <script src="app.js?v=143" type="module"></script>
   </body>
 </html>

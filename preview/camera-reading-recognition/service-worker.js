@@ -1,9 +1,9 @@
-const CACHE_NAME = "dew-camera-preview-v142";
+const CACHE_NAME = "dew-camera-preview-v143";
 const APP_FILES = [
   "./",
   "index.html",
-  "styles.css?v=142",
-  "app.js?v=142",
+  "styles.css?v=143",
+  "app.js?v=143",
   "src/config.js",
   "src/domain/humidity.js",
   "src/domain/forecast.js",
@@ -30,6 +30,11 @@ const APP_FILES = [
   "src/camera/segments.js",
   "src/camera/detection.js",
   "src/camera/crop-editor.js",
+  "src/camera/analysis.js",
+  "src/camera/geometry.js",
+  "src/camera/image.js",
+  "src/camera/units.js",
+  "src/camera/worker.js",
   "manifest.webmanifest",
   "favicon-v4.png",
 ];
@@ -52,7 +57,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
-  // Larger recognition assets are cached on first Scan, independently of the shell.
+  // Preserve previously bundled OCR resources for older diagnostics.
   const ocrRoot = new URL('vendor/tesseract/', self.location).href;
   if (event.request.url.startsWith(ocrRoot)) {
     event.respondWith(caches.open('dew-camera-preview-ocr-6.0.1-v1').then(async cache => {

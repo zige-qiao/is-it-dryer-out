@@ -1,4 +1,6 @@
 import { readSegmentedDigits } from './segments.js';
+import { components, binaryPixels, bounds, normalise } from './image.js';
+import { locateUnits } from './units.js';
 
 // Locate LCD glyphs from image evidence, without assuming left/right crop ratios.
 export function contrastMask({ data, width, height }) {
@@ -26,31 +28,16 @@ export function contrastMask({ data, width, height }) {
 function componentGlyphs(pixels, radius, binary) {
   const { width, height } = pixels;
   const mask = binary ? Uint8Array.from({ length: width * height }, (_, i) => pixels.data[i * 4] < 128 ? 1 : 0) : contrastMask(pixels);
-  const joined = new Uint8Array(mask.length);
-  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (mask[y * width + x]) {
-    for (let yy = Math.max(0, y - radius); yy <= Math.min(height - 1, y + radius); yy++)
-      for (let xx = Math.max(0, x - radius); xx <= Math.min(width - 1, x + radius); xx++) joined[yy * width + xx] = 1;
-  }
-  const glyphs = [], queue = new Int32Array(mask.length);
-  for (let p = 0; p < joined.length; p++) {
-    if (!joined[p]) continue;
-    let head = 0, tail = 1, left = width, right = 0, top = height, bottom = 0;
-    queue[0] = p; joined[p] = 0;
-    while (head < tail) {
-      const point = queue[head++], x = point % width, y = Math.floor(point / width);
-      if (mask[point]) { left = Math.min(left, x); right = Math.max(right, x); top = Math.min(top, y); bottom = Math.max(bottom, y); }
-      for (const next of [x > 0 ? point - 1 : -1, x < width - 1 ? point + 1 : -1, y > 0 ? point - width : -1, y < height - 1 ? point + width : -1]) {
-        if (next >= 0 && joined[next]) { joined[next] = 0; queue[tail++] = next; }
-      }
-    }
-    const w = right - left + 1, h = bottom - top + 1;
-    if (h < Math.max(12, height * .025) || w < 3 || w / h < .08 || w / h > 1.05) continue;
+  const glyphs = [];
+  for (const item of components(mask, width, height, radius)) {
+    const w = item.width, h = item.height;
+    if (h < Math.max(7, height * .015) || w < 2 || w / h < .06 || w / h > 1.05) continue;
     const data = new Uint8ClampedArray(w * h * 4).fill(255);
     for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      if (mask[(top + y) * width + left + x]) data.fill(0, (y * w + x) * 4, (y * w + x) * 4 + 3);
+      if (mask[(item.y + y) * width + item.x + x]) data.fill(0, (y * w + x) * 4, (y * w + x) * 4 + 3);
     }
     const digit = readSegmentedDigits({ data, width: w, height: h }, 1);
-    if (digit) glyphs.push({ digit, x: left, y: top, width: w, height: h });
+    if (digit) glyphs.push({ digit, x: item.x, y: item.y, width: w, height: h });
   }
   return glyphs;
 }
@@ -63,7 +50,9 @@ export function locateGlyphs(pixels, binary = false) {
     const existing = glyphs.find(item => item.digit === glyph.digit && Math.abs(item.x - glyph.x) < 3 && Math.abs(item.y - glyph.y) < 3 && Math.abs(item.height - glyph.height) < 3);
     if (!existing) glyphs.push(glyph);
   }
-  return glyphs;
+  // A disconnected vertical segment inside a decoded full digit is not a 1.
+  return glyphs.filter(g => !glyphs.some(other => other !== g && other.height > g.height * 1.15 &&
+    g.x >= other.x - 1 && g.y >= other.y - 1 && g.x + g.width <= other.x + other.width + 1 && g.y + g.height <= other.y + other.height + 1));
 }
 
 const right = glyph => glyph.x + glyph.width, bottom = glyph => glyph.y + glyph.height;
@@ -98,16 +87,52 @@ export function temperatureGroups(glyphs) {
   return groups.sort((a, b) => b.height - a.height);
 }
 
+export function numericGroups(pixels, mask, glyphs) {
+  const dots = components(mask, pixels.width, pixels.height);
+  return { temperature: temperatureGroups(glyphs).filter(g => Number(g.value) <= 32 && dots.some(dot => {
+    const last = g.items[1], fraction = g.items[2], h = g.height;
+    return dot.count >= 1 && dot.width <= h * .18 && dot.height <= h * .18 &&
+      dot.x >= right(last) - h * .08 && dot.x <= fraction.x + h * .08 && dot.y > bottom(last) - h * .2 && dot.y <= bottom(last) + h * .05;
+  })), humidity: digitPairs(glyphs).filter(g => Number(g.value) >= 20 && Number(g.value) <= 90) };
+}
+
+export function detectCandidates(pixels) {
+  const prepared = normalise(pixels), units = locateUnits(prepared, prepared.mask);
+  const numericMask = prepared.mask.slice();
+  for (const unit of units) for (let y = unit.box.y; y < bottom(unit.box); y++)
+    for (let x = unit.box.x; x < right(unit.box); x++) numericMask[y * pixels.width + x] = 0;
+  const glyphs = locateGlyphs(binaryPixels(pixels, numericMask), true).sort((a, b) => a.x - b.x);
+  const groups = numericGroups(pixels, numericMask, glyphs);
+  const readings = [];
+  for (const unit of units) {
+    const candidates = groups[unit.field].filter(group => {
+      const last = group.items[1], h = group.height;
+      if (unit.field === 'temperature') return unit.box.x >= right(last) - h * .12 && unit.box.x - right(last) < h * .8 &&
+        Math.abs(unit.box.y - last.y) < h * .3 && unit.box.height >= h * .15 && unit.box.height <= h * .8;
+      return unit.box.x >= right(last) - h * .12 && unit.box.x - right(last) < h * .8 &&
+        Math.abs(bottom(unit.box) - bottom(last)) < h * .3 && unit.box.height >= h * .2 && unit.box.height <= h * 1.1;
+    }).sort((a, b) => b.height - a.height || right(b.items[1]) - right(a.items[1]));
+    const group = candidates[0];
+    if (!group) continue;
+    if (unit.field === 'humidity' && temperatureGroups(glyphs).some(t => t.items[0] === group.items[0] && t.items[1] === group.items[1] &&
+      t.items[2].x >= unit.box.x && t.items[2].x < right(unit.box))) continue;
+    const digitBounds = bounds(group.items), pad = Math.max(2, group.height * .06);
+    readings.push({ field: unit.field, value: group.value, digitBounds, unitBounds: unit.box,
+      box: bounds([digitBounds, unit.box], pad), confidence: { unit: unit.confidence, numeric: .95,
+        evidence: { unit: unit.unit, glyphs: group.items.map(g => g.digit), aligned: true, decimal: unit.field === 'temperature' } }, height: group.height });
+  }
+  const dominantHeight = Math.max(0, ...groups.temperature.map(g => g.height), ...groups.humidity.map(g => g.height));
+  return { readings: readings.filter(r => r.height >= dominantHeight * .6), units, glyphs, prepared };
+}
+
 export function detectReadingRegions(pixels) {
-  const glyphs = locateGlyphs(pixels).sort((a, b) => a.x - b.x);
-  const temp = temperatureGroups(glyphs)[0];
-  if (!temp) return null;
-  const last = temp.items[1], fraction = temp.items[2];
-  const candidates = digitPairs(glyphs).filter(pair => Number(pair.value) >= 20 && Number(pair.value) <= 90 &&
-    pair.items[0].x > right(fraction) && pair.items[0].x - right(fraction) < temp.height * 1.7 &&
-    pair.height >= temp.height * .65 && pair.height <= temp.height * 1.4 && Math.abs(bottom(pair.items[0]) - bottom(last)) < temp.height * .25);
-  candidates.sort((a, b) => b.height - a.height);
-  const rh = candidates[0];
-  return { regions: { temperature: union(temp.items, pixels.width, pixels.height), humidity: rh ? union(rh.items, pixels.width, pixels.height) : null },
-    values: { temperature: temp.value, humidity: rh?.value || '' } };
+  const candidates = detectCandidates(pixels).readings.sort((a, b) => b.height - a.height);
+  if (!candidates.length) return null;
+  const regions = { temperature: null, humidity: null }, values = { temperature: '', humidity: '' };
+  for (const field of Object.keys(regions)) {
+    const reading = candidates.find(item => item.field === field);
+    if (!reading) continue;
+    regions[field] = union([reading.box], pixels.width, pixels.height); values[field] = reading.value;
+  }
+  return { regions, values };
 }
