@@ -23,6 +23,9 @@
     .auto-option { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 600; }
     .auto-option input { width: 22px; height: 22px; }
     #autoStatus { overflow-wrap: anywhere; }
+    select { display: block; width: 100%; min-height: 44px; font: inherit; margin: 6px 0; }
+    #zoom { display: block; width: 100%; min-height: 44px; }
+    #zoomStatus { overflow-wrap: anywhere; }
   </style>
 </head>
 <body>
@@ -39,6 +42,12 @@
       <button id="torch" type="button" aria-pressed="false" disabled>Torch on</button>
       <button id="pause" type="button" aria-pressed="false" disabled>Pause feed</button>
     </div>
+    <label for="zoom">Zoom: <output id="zoomValue" for="zoom">1.0× requested</output></label>
+    <input id="zoom" type="range" min="1" max="8" step="0.1" value="1" disabled aria-describedby="zoomStatus lensHelp">
+    <label for="telephoto">Telephoto camera (switch at 3×)</label>
+    <select id="telephoto" disabled><option value="-1">Start camera first</option></select>
+    <p id="zoomStatus" role="status">Start camera to check available lenses.</p>
+    <p id="lensHelp">At 3× or above, use the selected telephoto; below 3×, return to the starting camera. Cover each lens to verify it. The threshold does not establish optical magnification. No digital crop is added.</p>
     <p id="status" role="status">Ready. Start the camera to try photo capture.</p>
     <p id="capabilities"></p>
     <p>Pause freezes the preview while keeping the camera active. Torch is turned off for each photo attempt, then restored.</p>
@@ -57,8 +66,8 @@
     </section>
   </main>
   <script type="module">
-    import { createFlashTest } from './camera-flash-test.js?v=4';
-    createFlashTest(Object.fromEntries(['start', 'plain', 'capture', 'torch', 'pause', 'autoFlash', 'autoStatus', 'status', 'capabilities', 'video', 'result', 'resultMode', 'photo', 'log', 'copyLog', 'copyStatus']
+    import { createFlashTest } from './camera-flash-test.js?v=5';
+    createFlashTest(Object.fromEntries(['start', 'plain', 'capture', 'torch', 'pause', 'autoFlash', 'autoStatus', 'zoom', 'zoomValue', 'zoomStatus', 'telephoto', 'status', 'capabilities', 'video', 'result', 'resultMode', 'photo', 'log', 'copyLog', 'copyStatus']
       .map(id => [id, document.getElementById(id)]))).initialize();
   </script>
 </body>

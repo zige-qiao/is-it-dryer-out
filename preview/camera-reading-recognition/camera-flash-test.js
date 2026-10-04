@@ -1,10 +1,14 @@
 // Standalone diagnostic: never imports recognition or production camera code.
 export function createFlashTest(elements, environment = globalThis) {
-  const { start, plain, capture, torch, pause, autoFlash, autoStatus, status, capabilities, video, result, resultMode, photo, log, copyLog, copyStatus } = elements;
+  const { start, plain, capture, torch, pause, autoFlash, autoStatus, zoom, zoomValue, zoomStatus, telephoto, status, capabilities, video, result, resultMode, photo, log, copyLog, copyStatus } = elements;
   let session = 0, stream = null, imageCapture = null, busy = false, photoURL = null;
   let supportsTorch = false, torchState = false, previewPaused = false;
   let autoEnabled = autoFlash.checked, lowLight = false, darkSamples = 0, autoOwnsTorch = false;
   let sampleTimer = null, lastFrame = null, sampleCanvas = null;
+  let cameras = [], mainCameraId = '', activeCameraId = '', telephotoIndex = -1, telephotoActive = false;
+  let requestedZoom = 1, zoomBaseline = 1;
+  let streamRequest = 0;
+  const telephotoThreshold = 3;
   const brightnessThreshold = 50, sampleInterval = 500;
   const pending = new Set();
   const stale = request => request !== session || environment.document.hidden;
@@ -12,7 +16,7 @@ export function createFlashTest(elements, environment = globalThis) {
   const message = error => `${error?.name || 'Error'}: ${error?.message || 'Camera operation failed.'}`;
   const clock = () => environment.performance.now();
   const started = clock(), entries = [];
-  const header = ['Camera flash test — log v4', `Started: ${new Date().toISOString()}`,
+  const header = ['Camera flash test — log v5', `Started: ${new Date().toISOString()}`,
     `Browser: ${environment.navigator?.userAgent || 'unknown'}`,
     `Secure context: ${environment.isSecureContext !== false}`, 'No photos or camera identifiers are included.'].join('\n');
   function record(event, details = {}) {
@@ -56,7 +60,123 @@ export function createFlashTest(elements, environment = globalThis) {
     pause.setAttribute('aria-pressed', String(previewPaused));
     autoFlash.checked = autoEnabled; autoFlash.disabled = busy;
     plain.textContent = autoEnabled ? 'Auto photo' : 'Take photo';
+    zoom.disabled = busy || !live(); zoom.value = String(requestedZoom);
+    zoomValue.textContent = `${requestedZoom.toFixed(1)}× requested`;
+    telephoto.disabled = busy || !live() || !cameras.length;
+    telephoto.value = String(telephotoIndex);
     scheduleSampling();
+  }
+  async function discoverCameras(request) {
+    if (stale(request)) return;
+    mainCameraId = activeCameraId = track()?.getSettings?.().deviceId || '';
+    const option = (value, text) => {
+      const item = environment.document.createElement('option'); item.value = String(value); item.textContent = text; return item;
+    };
+    telephoto.replaceChildren(option(-1, 'Not identified / do not switch'));
+    try {
+      if (!environment.navigator.mediaDevices.enumerateDevices) throw new Error('Camera listing is unavailable.');
+      const devices = await bounded(environment.navigator.mediaDevices.enumerateDevices(), 5000, 'Camera listing');
+      if (stale(request)) return;
+      cameras = devices.filter(device => device.kind === 'videoinput' && device.deviceId && device.deviceId !== mainCameraId);
+      cameras.forEach((device, index) => telephoto.append(option(index, device.label || `Camera ${index + 1}`)));
+      // Never infer lens type from device order or zoom range. Labels are a hint
+      // only; the phone test must confirm the physical lens.
+      telephotoIndex = cameras.findIndex(device => /\btelephoto\b/i.test(device.label));
+      record('camera.list', { otherCameras: cameras.length, telephotoIdentified: telephotoIndex >= 0, canReturnToMain: Boolean(mainCameraId) });
+      zoomStatus.textContent = telephotoIndex >= 0 ? 'Telephoto label found. Switch at 3×; verify the physical lens on the phone.'
+        : 'Telephoto not identified. Select it below if exposed; otherwise zoom uses the starting camera.';
+    } catch (error) {
+      if (!stale(request)) { record('camera.list.error', { error: message(error) }); zoomStatus.textContent = `Cannot identify telephoto. ${message(error)}`; }
+    }
+  }
+  async function applyZoom(request) {
+    if (stale(request)) throw aborted();
+    const owner = track(), range = owner?.getCapabilities?.().zoom;
+    const relative = requestedZoom / (telephotoActive ? telephotoThreshold : 1);
+    if (!range || !Number.isFinite(range.min) || !Number.isFinite(range.max) || !owner?.applyConstraints) {
+      record('zoom.unavailable', { requestedZoom, telephotoActive });
+      return 'Native zoom is unavailable.';
+    }
+    const desired = Math.max(range.min, Math.min(range.max, zoomBaseline * relative));
+    const step = range.step > 0 ? range.step : 0;
+    const native = step ? Math.max(range.min, range.min + Math.floor((desired - range.min + 1e-8) / step) * step) : desired;
+    const { zoom: oldZoom, advanced: oldAdvanced, ...existing } = owner.getConstraints?.() || {};
+    const advanced = (oldAdvanced || []).map(item => { const { zoom: previous, ...rest } = item; return rest; }).filter(item => Object.keys(item).length);
+    record('zoom.request', { requestedZoom, nativeZoom: native, telephotoActive, switchThreshold: telephotoThreshold });
+    try {
+      await bounded(owner.applyConstraints({ ...existing, advanced: [...advanced, { zoom: native }] }), 5000, 'Zoom change');
+      if (stale(request)) throw aborted();
+      const actual = owner.getSettings?.().zoom;
+      const actualTorch = owner.getSettings?.().torch;
+      if (typeof actualTorch === 'boolean') torchState = actualTorch;
+      if (!Number.isFinite(actual) || Math.abs(actual - native) > Math.max(.01, step / 2)) throw new Error('Camera did not verify the requested native zoom.');
+      record('zoom.applied', { requestedZoom, nativeZoom: actual, telephotoActive });
+      return `Native zoom ${actual.toFixed(2)}×.${Math.abs(desired - zoomBaseline * relative) > .01 ? ' Camera zoom limit reached.' : ''}`;
+    } catch (error) {
+      if (!stale(request)) {
+        record('zoom.error', { error: message(error), requestedZoom, telephotoActive });
+        if (error?.name === 'TimeoutError') releaseStream();
+      }
+      throw error;
+    }
+  }
+  async function setZoom(value = Number(zoom.value)) {
+    if (busy || !live() || environment.document.hidden) { sync(); return; }
+    if (!Number.isFinite(value) || value < 1 || value > 8) { sync(); return; }
+    const request = session, wantedPause = previewPaused, wantedTorch = torchState === true, wantedAutoTorch = autoOwnsTorch;
+    requestedZoom = Math.round(value * 10) / 10; busy = true; sync();
+    const target = requestedZoom >= telephotoThreshold && telephotoIndex >= 0 && mainCameraId ? cameras[telephotoIndex].deviceId : mainCameraId;
+    const previous = { id: activeCameraId, telephoto: telephotoActive };
+    let switching = false;
+    try {
+      if (target && target !== activeCameraId) {
+        switching = true;
+        record('camera.switch.request', { to: target === mainCameraId ? 'main' : 'telephoto', requestedZoom });
+        releaseStream();
+        await openStream(request, target); await checkCapabilities(request);
+        if (stale(request)) return;
+        activeCameraId = target; telephotoActive = target !== mainCameraId;
+        record('camera.switched', { to: telephotoActive ? 'telephoto' : 'main', requestedZoom });
+      }
+      const detail = await applyZoom(request);
+      if (wantedTorch && supportsTorch && torchState !== true) {
+        try { await applyTorch(true, request); }
+        catch (error) { if (!stale(request) && wantedAutoTorch && autoEnabled) await autoFailure(error, request); throw error; }
+      }
+      if (wantedTorch && !supportsTorch) { autoOwnsTorch = false; record('torch.unavailable.afterSwitch'); }
+      if (stale(request)) return;
+      zoomStatus.textContent = `${telephotoActive ? 'Selected telephoto camera.' : 'Starting rear camera.'} ${detail} ${requestedZoom >= telephotoThreshold && !telephotoActive ? 'Telephoto unavailable or not selected.' : ''} ${wantedTorch && !supportsTorch ? 'Torch unavailable on this camera.' : ''}`;
+      status.textContent = wantedPause ? 'Preview remains paused.' : 'Live feed active.';
+    } catch (error) {
+      if (stale(request)) return;
+      record('camera.zoom.error', { error: message(error), requestedZoom });
+      if (switching || !live()) {
+        releaseStream();
+        try {
+          await openStream(request, previous.id); await checkCapabilities(request);
+          if (stale(request)) return;
+          activeCameraId = previous.id; telephotoActive = previous.telephoto;
+          await applyZoom(request);
+          if (wantedTorch && supportsTorch && (!wantedAutoTorch || autoEnabled)) await applyTorch(true, request);
+          record('camera.switch.recovered', { telephotoActive });
+        } catch (recoveryError) {
+          if (stale(request)) return;
+          record('camera.switch.recovery.error', { error: message(recoveryError) }); releaseStream();
+        }
+      }
+      zoomStatus.textContent = `Zoom/lens change failed. ${message(error)}`;
+      status.textContent = live() ? 'Camera available. Retry zoom or take a photo.' : 'Camera stopped. Tap Start camera to retry.';
+    } finally {
+      if (!stale(request)) { if (wantedPause && live()) video.pause(); busy = false; sync(); }
+    }
+  }
+  async function selectTelephoto() {
+    if (busy || !live() || environment.document.hidden) { sync(); return; }
+    const index = Number(telephoto.value);
+    if (!Number.isInteger(index) || index < -1 || index >= cameras.length) { sync(); return; }
+    telephotoIndex = index;
+    record('camera.telephoto.selected', { index, switchThreshold: telephotoThreshold });
+    await setZoom(requestedZoom);
   }
   function cancelSampling() {
     if (sampleTimer !== null) environment.clearTimeout(sampleTimer);
@@ -168,6 +288,7 @@ export function createFlashTest(elements, environment = globalThis) {
     if (sampleCanvas) { sampleCanvas.width = sampleCanvas.height = 0; sampleCanvas = null; }
     lastFrame = null;
     if (stream) record('camera.release', preview());
+    streamRequest++;
     imageCapture = null; supportsTorch = false; torchState = false;
     stream?.getTracks().forEach(track => track.stop()); stream = null;
     video.pause(); video.srcObject = null; video.hidden = true;
@@ -180,18 +301,31 @@ export function createFlashTest(elements, environment = globalThis) {
     record('test.stop', { hidden: environment.document.hidden });
     session++; [...pending].forEach(cancel => cancel());
     cancelSampling(); lowLight = false; darkSamples = 0; lastFrame = null; autoOwnsTorch = false;
+    cameras = []; mainCameraId = activeCameraId = ''; telephotoIndex = -1; telephotoActive = false; requestedZoom = zoomBaseline = 1;
+    telephoto.replaceChildren(); zoomStatus.textContent = 'Start camera to check available lenses.';
     autoStatus.textContent = autoEnabled ? 'Auto flash on. Waiting for camera.' : 'Auto flash off.';
     releaseStream(); clearPhoto(); busy = false; previewPaused = false; capabilities.textContent = '';
     status.textContent = 'Camera stopped. Tap Start camera to try again.'; sync();
   }
-  async function openStream(request) {
+  async function openStream(request, deviceId = '') {
     // Permission prompts are left to the browser. Late approval after leaving
     // the page must immediately release its own stream.
-    const acquired = await environment.navigator.mediaDevices.getUserMedia({
-      audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+    const opening = ++streamRequest;
+    const operation = environment.navigator.mediaDevices.getUserMedia({
+      audio: false, video: { ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: 'environment' } }), width: { ideal: 1920 }, height: { ideal: 1080 } },
+    }).then(acquired => {
+      if (stale(request) || opening !== streamRequest) { acquired.getTracks().forEach(track => track.stop()); throw aborted(); }
+      return acquired;
     });
+    let acquired;
+    try { acquired = deviceId ? await bounded(operation, 10000, 'Opening selected camera') : await operation; }
+    catch (error) { if (opening === streamRequest) streamRequest++; throw error; }
     if (stale(request)) { acquired.getTracks().forEach(track => track.stop()); throw aborted(); }
+    if (deviceId && acquired.getVideoTracks()[0]?.getSettings?.().deviceId !== deviceId) {
+      acquired.getTracks().forEach(track => track.stop()); throw new Error('Browser did not select the requested camera.');
+    }
     stream = acquired; video.srcObject = stream; video.hidden = false;
+    zoomBaseline = track()?.getSettings?.().zoom || 1;
     record('camera.open', { session: request, settings: settings() });
     const owner = track();
     for (const event of ['mute', 'unmute', 'ended']) owner?.addEventListener?.(event, () => {
@@ -289,6 +423,8 @@ export function createFlashTest(elements, environment = globalThis) {
       if (environment.isSecureContext === false) throw new Error('Open this test over HTTPS to use the camera.');
       if (!environment.navigator?.mediaDevices?.getUserMedia) throw new Error('Camera access is unavailable in this browser.');
       await openStream(request); await checkCapabilities(request);
+      if (stale(request)) return;
+      await discoverCameras(request);
       if (!stale(request)) status.textContent = imageCapture ? `Live feed ready. Try ${autoEnabled ? 'Auto photo' : 'Take photo'} or Try flash.` : 'Live feed ready. Still-photo capture is unavailable.';
     } catch (error) {
       if (!stale(request)) { record('camera.start.error', { error: message(error) }); releaseStream(); status.textContent = message(error); }
@@ -316,7 +452,7 @@ export function createFlashTest(elements, environment = globalThis) {
     if (stale(request)) throw aborted();
     record('preview.restart', preview());
     status.textContent = 'Restarting live feed…'; releaseStream();
-    await openStream(request); await checkCapabilities(request);
+    await openStream(request, activeCameraId); await checkCapabilities(request); await applyZoom(request);
     if (!(await previewAdvances(request))) throw new Error('Live feed did not resume. Tap Start camera to retry.');
     record('preview.reopened', preview());
   }
@@ -384,8 +520,11 @@ export function createFlashTest(elements, environment = globalThis) {
     torch.addEventListener('click', () => void toggleTorch());
     pause.addEventListener('click', () => void togglePause());
     autoFlash.addEventListener('change', () => void toggleAutoFlash());
+    zoom.addEventListener('input', () => { zoomValue.textContent = `${Number(zoom.value).toFixed(1)}× requested`; });
+    zoom.addEventListener('change', () => void setZoom());
+    telephoto.addEventListener('change', () => void selectTelephoto());
     environment.document.addEventListener('visibilitychange', () => { if (environment.document.hidden) stop(); });
     environment.addEventListener('pagehide', stop); sync();
   }
-  return { initialize, startCamera, takePhoto, toggleTorch, togglePause, toggleAutoFlash, stop, copyDiagnosticLog };
+  return { initialize, startCamera, takePhoto, toggleTorch, togglePause, toggleAutoFlash, setZoom, selectTelephoto, stop, copyDiagnosticLog };
 }
