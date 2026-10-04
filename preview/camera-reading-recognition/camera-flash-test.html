@@ -18,6 +18,8 @@
     #status, #capabilities { overflow-wrap: anywhere; }
     #status { font-weight: 600; }
     h2 { font-size: 18px; }
+    textarea { display: block; width: 100%; min-height: 240px; padding: 10px; border: 1px solid #b6c5c1; border-radius: 6px; background: white; color: inherit; font: 12px/1.5 monospace; resize: vertical; }
+    #copyStatus { min-height: 24px; }
   </style>
 </head>
 <body>
@@ -40,10 +42,17 @@
       <p id="resultMode"></p>
       <img id="photo" alt="Returned still photo">
     </section>
+    <section aria-labelledby="logHeading">
+      <h2 id="logHeading">Diagnostic log</h2>
+      <p>Copy this after testing and paste it back into the chat. It contains browser details and camera events, without photos.</p>
+      <button id="copyLog" type="button">Copy log</button>
+      <p id="copyStatus" role="status"></p>
+      <textarea id="log" aria-label="Diagnostic log" readonly spellcheck="false" wrap="off"></textarea>
+    </section>
   </main>
   <script type="module">
-    import { createFlashTest } from './camera-flash-test.js?v=2';
-    createFlashTest(Object.fromEntries(['start', 'plain', 'capture', 'torch', 'pause', 'status', 'capabilities', 'video', 'result', 'resultMode', 'photo']
+    import { createFlashTest } from './camera-flash-test.js?v=3';
+    createFlashTest(Object.fromEntries(['start', 'plain', 'capture', 'torch', 'pause', 'status', 'capabilities', 'video', 'result', 'resultMode', 'photo', 'log', 'copyLog', 'copyStatus']
       .map(id => [id, document.getElementById(id)]))).initialize();
   </script>
 </body>
