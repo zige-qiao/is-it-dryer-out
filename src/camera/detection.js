@@ -29,12 +29,13 @@ function componentGlyphs(pixels, radius, binary) {
   const { width, height } = pixels;
   const mask = binary ? Uint8Array.from({ length: width * height }, (_, i) => pixels.data[i * 4] < 128 ? 1 : 0) : contrastMask(pixels);
   const glyphs = [];
-  for (const item of components(mask, width, height, radius)) {
+  for (const item of components(mask, width, height, radius, true)) {
     const w = item.width, h = item.height;
     if (h < Math.max(7, height * .015) || w < 2 || w / h < .06 || w / h > 1.05) continue;
     const data = new Uint8ClampedArray(w * h * 4).fill(255);
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      if (mask[(item.y + y) * width + item.x + x]) data.fill(0, (y * w + x) * 4, (y * w + x) * 4 + 3);
+    for (const point of item.points) {
+      const x = point % width - item.x, y = Math.floor(point / width) - item.y;
+      data.fill(0, (y * w + x) * 4, (y * w + x) * 4 + 3);
     }
     const digit = readSegmentedDigits({ data, width: w, height: h }, 1);
     if (digit) glyphs.push({ digit, x: item.x, y: item.y, width: w, height: h });
@@ -96,11 +97,13 @@ export function numericGroups(pixels, mask, glyphs) {
   })), humidity: digitPairs(glyphs).filter(g => Number(g.value) >= 20 && Number(g.value) <= 90) };
 }
 
-export function detectCandidates(pixels) {
-  const prepared = normalise(pixels), units = locateUnits(prepared, prepared.mask);
+export function detectCandidates(pixels, threshold = .55) {
+  const prepared = normalise(pixels, threshold), units = locateUnits(prepared, prepared.mask);
   const numericMask = prepared.mask.slice();
-  for (const unit of units) for (let y = unit.box.y; y < bottom(unit.box); y++)
-    for (let x = unit.box.x; x < right(unit.box); x++) numericMask[y * pixels.width + x] = 0;
+  // Remove only the components belonging to a symbol, not its bounding rectangle.
+  // In particular, degree/C can sit above a small fractional digit.
+  for (const unit of units) for (const stroke of unit.strokes || [])
+    for (const point of stroke.points || []) numericMask[point] = 0;
   const glyphs = locateGlyphs(binaryPixels(pixels, numericMask), true).sort((a, b) => a.x - b.x);
   const groups = numericGroups(pixels, numericMask, glyphs);
   const readings = [];
@@ -121,7 +124,8 @@ export function detectCandidates(pixels) {
       box: bounds([digitBounds, unit.box], pad), confidence: { unit: unit.confidence, numeric: .95,
         evidence: { unit: unit.unit, glyphs: group.items.map(g => g.digit), aligned: true, decimal: unit.field === 'temperature' } }, height: group.height });
   }
-  const dominantHeight = Math.max(0, ...groups.temperature.map(g => g.height), ...groups.humidity.map(g => g.height));
+  // Unassociated background digits must not suppress a smaller verified LCD.
+  const dominantHeight = Math.max(0, ...readings.map(r => r.height));
   return { readings: readings.filter(r => r.height >= dominantHeight * .6), units, glyphs, prepared };
 }
 

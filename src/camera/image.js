@@ -1,5 +1,5 @@
 // Pure pixel operations, shared by the worker and its cooperative fallback.
-export function normalise(pixels) {
+export function normalise(pixels, threshold = .55) {
   const { width, height, data } = pixels, stride = width + 1;
   const gray = new Float32Array(width * height), sum = new Float64Array(stride * (height + 1)), squares = new Float64Array(sum.length);
   let minimum = 255, maximum = 0;
@@ -22,15 +22,15 @@ export function normalise(pixels) {
     const n = (r - l) * (b - t), mean = areaSum(sum, l, t, r, b) / n;
     const deviation = Math.sqrt(Math.max(0, areaSum(squares, l, t, r, b) / n - mean * mean));
     const difference = mean - gray[y * width + x];
-    const value = Math.round(255 - Math.max(0, difference) * 230 / Math.max(2 / .55, deviation));
+    const value = Math.round(255 - Math.max(0, difference) * 230 / Math.max(2 / threshold, deviation));
     const p = (y * width + x) * 4;
     output[p] = output[p + 1] = output[p + 2] = value;
-    mask[y * width + x] = difference > Math.max(2, deviation * .55) ? 1 : 0;
+    mask[y * width + x] = difference > Math.max(2, deviation * threshold) ? 1 : 0;
   }
   return { width, height, data: output, mask, empty: false };
 }
 
-export function components(mask, width, height, radius = 0) {
+export function components(mask, width, height, radius = 0, includePoints = false) {
   const joined = new Uint8Array(mask.length), queue = new Int32Array(mask.length), result = [];
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (mask[y * width + x]) {
     for (let yy = Math.max(0, y - radius); yy <= Math.min(height - 1, y + radius); yy++)
@@ -39,11 +39,12 @@ export function components(mask, width, height, radius = 0) {
   for (let p = 0; p < joined.length; p++) {
     if (!joined[p]) continue;
     let head = 0, tail = 1, left = width, right = -1, top = height, bottom = -1, count = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
-    const corners = [[width, height], [0, height], [0, 0], [width, 0]], extremes = [Infinity, -Infinity, -Infinity, Infinity];
+    const corners = [[width, height], [0, height], [0, 0], [width, 0]], extremes = [Infinity, -Infinity, -Infinity, Infinity], points = includePoints ? [] : null;
     queue[0] = p; joined[p] = 0;
     while (head < tail) {
       const point = queue[head++], x = point % width, y = Math.floor(point / width);
       if (mask[point]) {
+        points?.push(point);
         left = Math.min(left, x); right = Math.max(right, x); top = Math.min(top, y); bottom = Math.max(bottom, y);
         count++; sx += x; sy += y; sxx += x * x; syy += y * y; sxy += x * y;
         if (x + y < extremes[0]) { extremes[0] = x + y; corners[0] = [x, y]; }
@@ -56,7 +57,7 @@ export function components(mask, width, height, radius = 0) {
         if (xx >= 0 && xx < width && yy >= 0 && yy < height && joined[next]) { joined[next] = 0; queue[tail++] = next; }
       }
     }
-    if (count) result.push({ x: left, y: top, width: right - left + 1, height: bottom - top + 1, count, corners,
+    if (count) result.push({ x: left, y: top, width: right - left + 1, height: bottom - top + 1, count, corners, ...(points ? { points } : {}),
       correlation: (sxy - sx * sy / count) / Math.sqrt(Math.max(1, (sxx - sx * sx / count) * (syy - sy * sy / count))) });
   }
   return result;

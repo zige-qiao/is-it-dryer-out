@@ -106,3 +106,15 @@ test('canvas failure cancels rendering and leaves camera recovery available',asy
  const f=fixture();f.preview.getContext=()=>{throw Error('canvas unavailable');};await f.tick(100);
  await f.startup;assert.equal(f.errors,1);assert.equal(f.capture.disabled,true);assert.equal(f.timers.size,0);assert.equal(f.preview.width,0);
 });
+
+test('8x supports native, mixed and digital framing, and gestures gate capture until release',async()=>{
+ for(const native of [false,true]){const f=fixture({native});await f.tick(550);
+ for(const zoom of [1,3,5,8]){f.controls.setZoomGesture(true);f.controls.setZoom(zoom);await f.tick(120);assert.equal(f.controls.isReady(),false);assert.equal(f.capture.disabled,true);f.controls.setZoomGesture(false);assert.equal(f.controls.isReady(),true);assert.equal(f.controls.frame().width,1920/(zoom/(native?Math.min(2,zoom):1)));}
+ f.controls.stop();assert.equal(f.zoomValue.textContent,'1.0×');}
+});
+
+test('native zoom respects capability steps and uses a residual crop without doubling magnification',async()=>{
+ const f=fixture();f.controls.stop();f.track.getCapabilities=()=>({zoom:{min:1,max:4,step:.3},torch:true});
+ const started=f.controls.start(f.track);await f.tick(550);await started;f.controls.setZoom(1.8);await f.tick(100);
+ assert.ok(Math.abs(f.current.zoom-1.6)<1e-8);assert.ok(Math.abs(f.controls.frame().width-1920/(1.8/1.6))<1e-6);f.controls.stop();
+});

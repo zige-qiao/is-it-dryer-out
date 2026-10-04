@@ -45,7 +45,7 @@ test('worker input is bounded; obsolete results settle as cancelled and cannot o
  const f=workerFixture(),old=f.service.locate({width:2400,height:1200}),w=f.workers[0];assert.equal(w.message.pixels.width,800);assert.equal(w.message.pixels.height,400);assert.equal(w.opts.type,'module');
  const next=f.service.readRegion({width:400,height:300},{x:.1,y:.1,width:.4,height:.3},'temperature');assert.equal(await old,null);assert.equal(w.stopped,true);
  w.onmessage({data:{id:w.message.id,result:{values:{temperature:'31.0'}}}});
- const newer=f.workers[1];newer.onmessage({data:{id:newer.message.id,result:{values:{temperature:'22.0'}}}});assert.deepEqual(await next,{values:{temperature:'22.0'}});assert.equal(newer.stopped,true);
+ const newer=f.workers[1];newer.onmessage({data:{id:newer.message.id,result:{values:{temperature:'22.0'}}}});assert.deepEqual((await next).values,{temperature:'22.0'});assert.equal(newer.stopped,true);
 });
 test('worker errors settle the read instead of leaving pending confirmation forever',async()=>{
  const f=workerFixture(),read=f.service.locate({width:400,height:300});f.workers[0].onerror();await assert.rejects(read,/could not start/);assert.equal(f.workers[0].stopped,true);

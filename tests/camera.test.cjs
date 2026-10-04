@@ -22,7 +22,7 @@ function fixture({ deferredMedia = false, deferredReading = false, error, torch 
   Object.assign(elements.cameraVideo, { videoWidth: 1920, videoHeight: 1080, play: async () => {}, getBoundingClientRect: () => ({ width: 360, height: 270 }) });
   const track = { stopped: 0, stop() { this.stopped++; }, getCapabilities: () => ({ torch }), applyConstraints: async value => { constraints.push(value); } };
   const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
-  const requests = [], constraints = [], saved = [], state = { indoorTemp: 24, indoorRh: 58 }, renders = [], crops = [];
+  const requests = [], constraints = [], saved = [], state = { indoorTemp: 24, indoorRh: 58 }, renders = [], crops = [], sources = [];
   let resolveMedia, resolveReading, cancelled = 0, before = 0;
   const mediaPromise = new Promise(resolve => resolveMedia = resolve);
   const readPromise = new Promise(resolve => resolveReading = resolve);
@@ -33,10 +33,10 @@ function fixture({ deferredMedia = false, deferredReading = false, error, torch 
     navigator: { mediaDevices: { getUserMedia: async value => { requests.push(value); if(error) throw error; return deferredMedia ? mediaPromise : stream; } } } });
   const controller = createCameraController({ state, elements, beforeCamera: () => before++, returnFocus() {},
     render: () => renders.push({ ...state }), saveIndoorReadings: source => saved.push({ source, ...state }),
-    recogniseService: { cancel: () => cancelled++, locate: async () => found(await (deferredReading ? readPromise : {temperature:'22.3',humidity:'59'})), readRegion: async (source, region, field) => { crops.push({region,field}); if(regionError)throw regionError;if(regionResult)return regionResult;const values=await (deferredReading ? readPromise : { temperature: '22.3', humidity: '59' }); return {status:'found',field,readings:{[field]:{region,value:values[field]}}}; } },
+    recogniseService: { cancel: () => cancelled++, locate: async source => { sources.push(source); return found(await (deferredReading ? readPromise : {temperature:'22.3',humidity:'59'})); }, readRegion: async (source, region, field) => { sources.push(source); crops.push({region,field}); if(regionError)throw regionError;if(regionResult)return regionResult;const values=await (deferredReading ? readPromise : { temperature: '22.3', humidity: '59' }); return {status:'found',field,readings:{[field]:{region,value:values[field]}}}; } },
   }, env);
   controller.initialize(); fixtures.push({controller});
-  return { elements, controller, track, requests, constraints, saved, state, renders, crops,
+  return { elements, controller, track, requests, constraints, saved, state, renders, crops, sources,
     resolveMedia: () => resolveMedia(stream), resolveReading, get cancelled() { return cancelled; }, get before() { return before; } };
 }
 
@@ -196,6 +196,14 @@ test('moving a box shows information rather than a ready or processing status',a
  surface.emit('pointerdown',pointer('temperature',100,80));surface.emit('pointermove',pointer(null,120,100));
  assert.equal(f.elements.cameraReadStatus.dataset.state,'info');assert.equal(f.elements.cameraConfirmButton.disabled,true);
  surface.emit('pointercancel',pointer(null,120,100));assert.equal(f.elements.cameraReadStatus.dataset.state,'ready');
+});
+
+test('recognition retains a native framed source privately and releases it on every exit',async()=>{
+ for(const action of ['cancel','confirm','handleHidden','startCamera']){
+  const f=fixture();await review(f);const original=f.sources[0];assert.notEqual(original,f.elements.cameraPhoto);assert.equal(original.width,1920);assert.equal(original.height,960);
+  f.elements.cameraTempBox.emit('keydown',{key:'ArrowRight',preventDefault(){}});await flush();assert.equal(f.sources[1],original);
+  await f.controller[action]();assert.equal(original.width,0);assert.equal(original.height,0);
+ }
 });
 
 test('review status changes text and icon together and editing help is hidden on returning to manual entry',async()=>{

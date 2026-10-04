@@ -9,7 +9,7 @@ export function readSegmentedDigits({ data, width, height }, maxDigits = 3) {
   const ink = (x, y) => data[(y * width + x) * 4] < 128;
   const columns = Array.from({ length: width }, (_, x) => {
     let count = 0; for (let y = 0; y < height; y++) if (ink(x, y)) count++;
-    return count >= Math.max(3, height * .035);
+    return count >= Math.max(2, height * .02);
   });
   const runs = [];
   let start = -1, last = -1;
@@ -24,6 +24,8 @@ export function readSegmentedDigits({ data, width, height }, maxDigits = 3) {
     return { left, right, top, bottom, width: right - left + 1, height: bottom - top + 1 };
   }).filter(glyph => glyph.height >= height * .45 && glyph.width >= 3);
   if (!glyphs.length || glyphs.length > maxDigits) return '';
+  // A faint top stroke of 7 must not disappear and leave a plausible narrow 1.
+  if (maxDigits === 1 && width / height > .35 && glyphs[0].width < width * .6) return '';
   let result = '';
   for (const glyph of glyphs) {
     const density = (x1, y1, x2, y2) => {

@@ -3,6 +3,7 @@ import { createRecognitionService, cropCanvas } from './recognition.js';
 import { createCropEditor } from './crop-editor.js';
 import { createCaptureControls } from './capture.js';
 import { createCameraHelp } from './help.js';
+import { createZoomRuler } from './zoom-ruler.js';
 
 export function createCameraController({ elements, beforeCamera, saveIndoorReadings, state, render,
   recogniseService, returnFocus } = {}, environment = globalThis) {
@@ -12,12 +13,16 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
   let crops = { temperature: null, humidity: null, pending: null }, captured = false;
   let gesturing = false, previews = {}, corrections = {}, gestureState = null;
   let statusKind = 'ready';
+  let originalPhoto = null;
   const help = createCameraHelp({ button: elements.cameraHelpButton, content: elements.cameraCropHint, dialog: elements.indoorDialog }, document);
   const captureControls = createCaptureControls({ video: elements.cameraVideo, preview: elements.cameraPreview, feed: elements.cameraFeed,
     flash: elements.cameraFlash, zoomControl: elements.cameraZoomControl, zoomInput: elements.cameraZoom,
     zoomValue: elements.cameraZoomValue, status: elements.cameraCaptureStatus, capture: elements.cameraCaptureButton,
+    onZoomSync: () => zoomRuler.render(),
     onError: error => { if (active && !captured) { releaseCamera(); showError(error, true); } },
   }, environment);
+  const zoomRuler = createZoomRuler({ input: elements.cameraZoom,
+    onValue: value => captureControls.setZoom(value), onGesture: value => captureControls.setZoomGesture(value) }, environment);
   function setReviewStatus(kind, text) {
     statusKind = kind; elements.cameraReadStatus.dataset.state = kind;
     elements.cameraReadStatusText.textContent = text;
@@ -43,9 +48,10 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
       }
       validate();
     },
-  });
+  }, environment);
 
   function releaseCamera() {
+    zoomRuler.stop();
     captureControls.stop();
     stream?.getTracks().forEach(track => track.stop());
     stream = null; track = null;
@@ -59,6 +65,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
   function cancelReading() { session++; recognition.cancel(); reading = false; }
 
   function clearPhoto() {
+    if (originalPhoto) { originalPhoto.width = originalPhoto.height = 0; originalPhoto = null; }
     captured = false;
     crops = { temperature: null, humidity: null, pending: null }; previews = {}; corrections = {}; gestureState = null; gesturing = false; editor.reset();
     elements.cameraAssignment.hidden = true;
@@ -161,7 +168,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     elements.cameraReviewPanel.setAttribute('aria-busy', 'true');
     setReviewStatus('processing', 'Reading numbers…'); validate();
     try {
-      const result = await recognition.locate(elements.cameraPhoto);
+      const result = await recognition.locate(originalPhoto || elements.cameraPhoto);
       if (!active || request !== session) return;
       crops = { ...result?.regions, pending: null };
       for (const field of fields) { previews[field] = result?.readings?.[field]?.preview; corrections[field] = result?.readings?.[field]?.correction; }
@@ -184,7 +191,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     setReviewStatus('processing', 'Reading box…');
     elements.cameraReviewPanel.setAttribute('aria-busy', 'true'); validate();
     try {
-      const result = await recognition.readRegion(elements.cameraPhoto, crops[field], expected, corrections[expected]?.angle);
+      const result = await recognition.readRegion(originalPhoto || elements.cameraPhoto, crops[field], expected, corrections[expected]?.angle);
       if (!active || session !== request || !result) return;
       if (result.status === 'ambiguous') {
         setReviewStatus('attention', 'Both units found. Make the box smaller.');
@@ -221,6 +228,10 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     if (!active || !stream || !video.videoWidth || !video.videoHeight || !captureControls.isReady()) return;
     const { x, y, width, height } = captureControls.frame();
     const canvas = elements.cameraPhoto;
+    originalPhoto = document.createElement('canvas');
+    const originalScale = Math.min(1, 4096 / Math.max(width, height));
+    originalPhoto.width = Math.max(1, Math.round(width * originalScale)); originalPhoto.height = Math.max(1, Math.round(height * originalScale));
+    originalPhoto.getContext('2d').drawImage(video, x, y, width, height, 0, 0, originalPhoto.width, originalPhoto.height);
     const downscale = Math.min(1, 1600 / width);
     canvas.width = Math.round(width * downscale); canvas.height = Math.round(height * downscale);
     canvas.getContext('2d').drawImage(video, x, y, width, height, 0, 0, canvas.width, canvas.height);
@@ -246,6 +257,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
 
   function initialize() {
     help.initialize();
+    zoomRuler.initialize();
     editor.initialize();
     elements.cameraInputButton.addEventListener('click', () => void startCamera());
     elements.cameraBackButton.addEventListener('click', () => cancel());
@@ -253,7 +265,6 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     elements.cameraRetryButton.addEventListener('click', () => void startCamera());
     elements.cameraCaptureButton.addEventListener('click', capturePhoto);
     elements.cameraFlash.addEventListener('click', () => void toggleFlash());
-    elements.cameraZoom.addEventListener('input', () => captureControls.setZoom(elements.cameraZoom.value));
     elements.cameraRetakeButton.addEventListener('click', () => void startCamera());
     elements.cameraAssignTemp.addEventListener('click', () => void readRegion('pending', 'temperature'));
     elements.cameraAssignRh.addEventListener('click', () => void readRegion('pending', 'humidity'));

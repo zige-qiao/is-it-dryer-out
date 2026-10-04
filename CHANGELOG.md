@@ -4,6 +4,10 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Preserve native captured pixels for regional recognition before resizing, add a softer threshold and connected-stroke decoding for small fractions, and map normalised previews and unit-inclusive boxes back to the original photo.
+- Replace camera zoom with a high-contrast 1×–8× ruler that stops on release, supports keyboard adjustment, and gates capture while dragging or framing settles. Respect native zoom steps and retain residual digital cropping.
+- Prevent full reading labels from overlapping, keep them away from handles and Retake, and connect displaced names to their boxes.
+
 - Centre camera startup/settling messages inside the live preview, size selection labels to their full text, suppress review-body elastic overscroll while retaining scrolling, and use readable semantic green for review-ready text.
 - Use a 2:1 canvas camera preview and the same displayed crop for capture, with rendering capped at 30 fps and 1280 pixels. Block capture until updated zoom/framing has rendered.
 - Box the zoom controls and reading status, distinguish processing/review/attention/failure with semantic colours and icons, and move capture guidance into title help. Hide capture status when ready.
