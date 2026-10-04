@@ -4,6 +4,10 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Capture proper still photos with explicit flash-off or flash requests according to torch selection; process only the returned image, bound capture/decode waits and discard cancelled results without a video screenshot fallback.
+- Shorten camera zoom ruler travel and add bounded momentum with reduced-motion support; keep capture gated until gestures and framing settle.
+- Combine small-crop enlargement and straightening in one resampling pass, retry the missing unit within a verified display proposal, compare bounded preprocessing variants, avoid repeated contrast processing and weak rotations of unresolved manual crops, favour short label connectors and correct the Retake camera artwork.
+
 - Preserve native captured pixels for regional recognition before resizing, add a softer threshold and connected-stroke decoding for small fractions, and map normalised previews and unit-inclusive boxes back to the original photo.
 - Replace camera zoom with a high-contrast 1×–8× ruler that stops on release, supports keyboard adjustment, and gates capture while dragging or framing settles. Respect native zoom steps and retain residual digital cropping.
 - Prevent full reading labels from overlapping, keep them away from handles and Retake, and connect displaced names to their boxes.

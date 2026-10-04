@@ -15,7 +15,9 @@ export function createRecognitionService(environment = globalThis) {
   const { document } = environment;
   function pixels(source, region = { x: 0, y: 0, width: 1, height: 1 }, refine = false) {
     const width = source.width * region.width, height = source.height * region.height;
-    const scale = Math.min(refine ? 4 : 1, (refine ? Math.max(600, Math.min(800, Math.max(width, height))) : 800) / Math.max(width, height));
+    // Keep small native crops intact. The worker combines any enlargement and
+    // geometric correction in one resampling pass instead of blurring twice.
+    const scale = Math.min(1, 800 / Math.max(width, height));
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(width * scale)); canvas.height = Math.max(1, Math.round(height * scale));
     const context = canvas.getContext('2d', { willReadFrequently: true });
@@ -67,16 +69,25 @@ export function createRecognitionService(environment = globalThis) {
             const crop = boundedRegion({ x: b.x * source.width, y: b.y * source.height, width: b.width * source.width, height: b.height * source.height }, source.width, source.height, b.height * source.height * .35);
             const image = pixels(source, crop, true);
             const selection = { x: (b.x - crop.x) / crop.width, y: (b.y - crop.y) / crop.height, width: b.width / crop.width, height: b.height / crop.height };
-            const result = await request(image, { ...options, region: selection });
+            const result = await request(image, { ...options, region: selection, refine: true });
             finish(mapRegionalResult(result, crop, image, sourceSize)); return;
           }
           const overview = pixels(source), proposals = await request(overview, {}, 'propose');
           if (!alive()) return;
           const results = [];
           for (const proposal of proposals || []) {
-            const image = pixels(source, proposal.region, true), result = await request(image, { allowPartial: true });
+            const image = pixels(source, proposal.region, true), result = await request(image, { allowPartial: true, refine: true });
             if (!alive()) return;
             results.push(mapRegionalResult(result, proposal.region, image, sourceSize));
+            // A verified reading anchors this display proposal. Search it once
+            // for the other unit/digit group, without assuming its position or value.
+            const identified = ['temperature', 'humidity'].filter(field => result?.values?.[field]);
+            if (identified.length === 1 && now() < deadline - 5000) {
+              const missing = identified[0] === 'temperature' ? 'humidity' : 'temperature';
+              const neighbour = await request(image, { allowPartial: true, refine: true, requiredField: missing });
+              if (!alive()) return;
+              results.push(mapRegionalResult(neighbour, proposal.region, image, sourceSize));
+            }
             const merged = mergeResults(results);
             if (merged.values.temperature && merged.values.humidity) { finish(merged); return; }
           }

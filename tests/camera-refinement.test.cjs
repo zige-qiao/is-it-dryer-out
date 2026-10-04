@@ -33,7 +33,7 @@ test('worker requests crop original source pixels before resizing and share one 
  const env={Worker,setTimeout,clearTimeout,document:{createElement(){const c={width:0,height:0};c.getContext=()=>({drawImage(...args){draws.push(args);},getImageData(){return {width:c.width,height:c.height,data:new Uint8ClampedArray(c.width*c.height*4)}}});return c;}}};
  const service=createRecognitionService(env),source={width:3200,height:1600},read=service.locate(source),w=workers[0];assert.equal(w.message.kind,'propose');
  w.onmessage({data:{id:w.message.id,result:[{region:{x:.2,y:.3,width:.1,height:.1}}]}});await new Promise(r=>setImmediate(r));
- assert.deepEqual(draws[1].slice(1,5),[640,480,320,160]);assert.equal(w.message.pixels.width,600);assert.equal(workers.length,1);
+ assert.deepEqual(draws[1].slice(1,5),[640,480,320,160]);assert.equal(w.message.pixels.width,320);assert.equal(w.message.options.refine,true);assert.equal(workers.length,1);
  service.cancel();assert.equal(await read,null);assert.equal(w.stopped,true);
 });
 test('full labels avoid each other, photo edges, handles and retake without moving crop coordinates',()=>{
@@ -51,7 +51,7 @@ test('zoom ruler stops on release, ignores taps and vertical swipes, and keeps t
  const pointer=(x,y)=>({button:0,isPrimary:true,pointerId:1,clientX:x,clientY:y,preventDefault(){}});
  surface.emit('pointerdown',pointer(200,0));surface.emit('pointerup',pointer(200,0));assert.equal(values.length,0);
  surface.emit('pointerdown',pointer(200,0));surface.emit('pointermove',pointer(198,20));surface.emit('pointerup',pointer(198,20));assert.equal(values.length,0);
- surface.emit('pointerdown',pointer(200,0));surface.emit('pointermove',pointer(120,0));surface.emit('pointerup',pointer(120,0));assert.equal(input.value,'2');assert.deepEqual(gestures,[true,false]);
+ surface.emit('pointerdown',pointer(200,0));surface.emit('pointermove',pointer(120,0));surface.emit('pointerup',pointer(120,0));assert.equal(input.value,'3.2');assert.deepEqual(gestures,[true,false]);
  surface.emit('pointerdown',pointer(200,0));surface.emit('pointermove',pointer(-600,0));surface.emit('pointercancel',pointer(-600,0));assert.equal(input.value,'8');assert.match(ticks.innerHTML,/ruler-tick-major/);
  surface.emit('pointermove',pointer(2000,0));assert.equal(input.value,'8');input.value='5.1';input.emit('input');assert.equal(values.at(-1),'5.1');
 });
@@ -62,4 +62,17 @@ test('regional refinement cannot extend the original timeout and cancellation st
  const env={Worker,setTimeout(fn,delay){assert.equal(delay,15000);timeout=fn;return 1;},clearTimeout(){},document:{createElement(){const c={width:0,height:0};c.getContext=()=>({drawImage(){},getImageData(){return {width:c.width,height:c.height,data:new Uint8ClampedArray(c.width*c.height*4)}}});return c;}}};
  const read=createRecognitionService(env).locate({width:2400,height:1200});worker.onmessage({data:{id:worker.message.id,result:[{region:{x:.2,y:.2,width:.2,height:.2}}]}});await new Promise(r=>setImmediate(r));assert.equal(posts,2);
  timeout();await assert.rejects(read,/timed out/);assert.equal(worker.stopped,true);
+});
+
+
+test('zoom momentum travels after release, gates capture, and stops on interruption or reduced motion',()=>{
+ const input=element(),surface=element(),ticks=element(),gestures=[];let time=0,id=0;const frames=new Map();
+ Object.assign(input,{value:'1',disabled:false,closest:()=>surface});Object.assign(surface,{clientWidth:320,querySelector:()=>ticks,setPointerCapture(){},hasPointerCapture:()=>false});
+ const env={performance:{now:()=>time},requestAnimationFrame:fn=>{frames.set(++id,fn);return id;},cancelAnimationFrame:id=>frames.delete(id),matchMedia:()=>({matches:false})};
+ const ruler=createZoomRuler({input,onValue:v=>input.value=String(v),onGesture:v=>gestures.push(v)},env);ruler.initialize();
+ const event=x=>({button:0,isPrimary:true,pointerId:1,clientX:x,clientY:0,preventDefault(){}});
+ surface.emit('pointerdown',event(250));time=30;surface.emit('pointermove',event(230));time=60;surface.emit('pointermove',event(190));surface.emit('pointerup',event(190));assert.deepEqual(gestures,[true]);const released=Number(input.value);
+ time=200;const fn=[...frames.values()][0];frames.clear();fn();assert.ok(Number(input.value)>released);assert.equal(frames.size,1);
+ input.emit('keydown');assert.equal(frames.size,0);assert.deepEqual(gestures,[true,false]);
+ env.matchMedia=()=>({matches:true});input.value='1';time=300;surface.emit('pointerdown',event(280));time=340;surface.emit('pointermove',event(24));surface.emit('pointerup',event(24));assert.equal(input.value,'8');assert.equal(frames.size,0);assert.equal(gestures.at(-1),false);
 });

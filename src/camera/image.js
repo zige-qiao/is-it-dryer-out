@@ -1,5 +1,6 @@
 // Pure pixel operations, shared by the worker and its cooperative fallback.
-export function normalise(pixels, threshold = .55) {
+export function normalise(pixels, threshold = .55, variant = 'adaptive') {
+  if (variant === 'denoised') pixels = denoise(pixels);
   const { width, height, data } = pixels, stride = width + 1;
   const gray = new Float32Array(width * height), sum = new Float64Array(stride * (height + 1)), squares = new Float64Array(sum.length);
   let minimum = 255, maximum = 0;
@@ -15,19 +16,41 @@ export function normalise(pixels, threshold = .55) {
   }
   const output = new Uint8ClampedArray(data.length).fill(255), mask = new Uint8Array(width * height);
   if (maximum - minimum < 4) return { width, height, data: output, mask, empty: true };
-  const radius = Math.max(8, Math.round(width / 60));
+  const radius = Math.max(8, Math.round(width / (variant === 'gentle' ? 24 : 60)));
   const areaSum = (table, l, t, r, b) => table[b * stride + r] - table[t * stride + r] - table[b * stride + l] + table[t * stride + l];
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
     const l = Math.max(0, x - radius), r = Math.min(width, x + radius + 1), t = Math.max(0, y - radius), b = Math.min(height, y + radius + 1);
     const n = (r - l) * (b - t), mean = areaSum(sum, l, t, r, b) / n;
     const deviation = Math.sqrt(Math.max(0, areaSum(squares, l, t, r, b) / n - mean * mean));
     const difference = mean - gray[y * width + x];
-    const value = Math.round(255 - Math.max(0, difference) * 230 / Math.max(2 / threshold, deviation));
+    const floor = variant === 'gentle' ? 5 : 2;
+    const value = Math.round(255 - Math.max(0, difference) * 230 / Math.max(floor / threshold, deviation));
     const p = (y * width + x) * 4;
     output[p] = output[p + 1] = output[p + 2] = value;
-    mask[y * width + x] = difference > Math.max(2, deviation * threshold) ? 1 : 0;
+    mask[y * width + x] = difference > Math.max(floor, deviation * threshold) ? 1 : 0;
   }
   return { width, height, data: output, mask, empty: false };
+}
+
+// Small bilateral neighbourhood: average sensor noise without joining adjacent
+// segments or erasing the edge of a decimal point.
+function denoise({ width, height, data }) {
+  const output = data.slice();
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const p = (y * width + x) * 4;
+    for (let channel = 0; channel < 3; channel++) {
+      let sum = 0, weights = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const xx = x + dx, yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= width || yy >= height) continue;
+        const value = data[(yy * width + xx) * 4 + channel], difference = value - data[p + channel];
+        const weight = Math.exp(-difference * difference / 128) / (1 + dx * dx + dy * dy);
+        sum += value * weight; weights += weight;
+      }
+      output[p + channel] = sum / weights;
+    }
+  }
+  return { width, height, data: output };
 }
 
 export function components(mask, width, height, radius = 0, includePoints = false) {

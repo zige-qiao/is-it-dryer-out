@@ -47,7 +47,8 @@ export function locateGlyphs(pixels, binary = false) {
   const glyphs = [];
   // A second pass joins tiny LCD segment gaps. Keep the unjoined pass as well
   // so a small decimal is not merged with the Celsius symbol above it.
-  for (const glyph of [...componentGlyphs(pixels, 0, binary), ...componentGlyphs(pixels, 1, binary), ...(binary ? componentGlyphs(pixels, 2, true) : [])]) {
+  const join = Math.max(2, Math.min(4, Math.round(Math.max(pixels.width, pixels.height) / 180)));
+  for (const glyph of [...componentGlyphs(pixels, 0, binary), ...componentGlyphs(pixels, 1, binary), ...(binary ? componentGlyphs(pixels, join, true) : [])]) {
     const existing = glyphs.find(item => item.digit === glyph.digit && Math.abs(item.x - glyph.x) < 3 && Math.abs(item.y - glyph.y) < 3 && Math.abs(item.height - glyph.height) < 3);
     if (!existing) glyphs.push(glyph);
   }
@@ -97,8 +98,8 @@ export function numericGroups(pixels, mask, glyphs) {
   })), humidity: digitPairs(glyphs).filter(g => Number(g.value) >= 20 && Number(g.value) <= 90) };
 }
 
-export function detectCandidates(pixels, threshold = .55) {
-  const prepared = normalise(pixels, threshold), units = locateUnits(prepared, prepared.mask);
+export function detectCandidates(pixels, threshold = .55, variant = 'adaptive') {
+  const prepared = normalise(pixels, threshold, variant), units = locateUnits(prepared, prepared.mask);
   const numericMask = prepared.mask.slice();
   // Remove only the components belonging to a symbol, not its bounding rectangle.
   // In particular, degree/C can sit above a small fractional digit.

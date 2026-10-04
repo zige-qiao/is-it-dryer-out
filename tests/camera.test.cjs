@@ -29,22 +29,22 @@ function fixture({ deferredMedia = false, deferredReading = false, error, torch 
   Object.assign(elements.cameraPhotoWrap, { getBoundingClientRect: () => ({ left:0, top:0, width:400, height:300 }), setPointerCapture() {}, hasPointerCapture: () => false });
   const regions = { temperature:{x:.1,y:.2,width:.35,height:.2}, humidity:{x:.55,y:.2,width:.25,height:.2} };
   const found = values => ({ regions:{temperature:values.temperature?regions.temperature:null,humidity:values.humidity?regions.humidity:null}, values });
-  const env = environment({ isSecureContext: true, document: { createElement: canvas, querySelectorAll: () => [] },
+  const env = environment({ isSecureContext: true, ImageCapture: class { async takePhoto(options) { return {size:1,options}; } }, createImageBitmap: async blob => ({width:3840,height:2160,blob,close(){}}), document: { createElement: canvas, querySelectorAll: () => [] },
     navigator: { mediaDevices: { getUserMedia: async value => { requests.push(value); if(error) throw error; return deferredMedia ? mediaPromise : stream; } } } });
   const controller = createCameraController({ state, elements, beforeCamera: () => before++, returnFocus() {},
     render: () => renders.push({ ...state }), saveIndoorReadings: source => saved.push({ source, ...state }),
     recogniseService: { cancel: () => cancelled++, locate: async source => { sources.push(source); return found(await (deferredReading ? readPromise : {temperature:'22.3',humidity:'59'})); }, readRegion: async (source, region, field) => { sources.push(source); crops.push({region,field}); if(regionError)throw regionError;if(regionResult)return regionResult;const values=await (deferredReading ? readPromise : { temperature: '22.3', humidity: '59' }); return {status:'found',field,readings:{[field]:{region,value:values[field]}}}; } },
   }, env);
   controller.initialize(); fixtures.push({controller});
-  return { elements, controller, track, requests, constraints, saved, state, renders, crops, sources,
+  return { elements, controller, track, requests, constraints, saved, state, renders, crops, sources, env,
     resolveMedia: () => resolveMedia(stream), resolveReading, get cancelled() { return cancelled; }, get before() { return before; } };
 }
 
-test('camera uses video only, keeps readings as drafts, and saves both only after confirmation', async () => {
+test('camera uses a decoded still photo, keeps readings as drafts, and saves both only after confirmation', async () => {
   const f = fixture(); await f.controller.startCamera();
   assert.equal(f.requests[0].audio, false); assert.equal(f.requests[0].video.facingMode.ideal, 'environment');
-  assert.equal(f.before, 1); f.controller.capturePhoto(); await flush();
-  assert.deepEqual(f.elements.cameraPhoto.draws[0].slice(1,5),f.elements.cameraPreview.draws.at(-1).slice(1,5));
+  assert.equal(f.before, 1); await f.controller.capturePhoto(); await flush();
+  const still=f.sources[0].draws[0][0]; assert.notEqual(still,f.elements.cameraVideo); assert.deepEqual(still.blob.options,{fillLightMode:'off'}); assert.equal(f.elements.cameraPhoto.draws[0][0],f.sources[0]);
   assert.equal(f.elements.cameraPhoto.width,1600);assert.equal(f.elements.cameraPhoto.height,800);
   assert.equal(f.track.stopped, 1); assert.deepEqual(f.state, { indoorTemp: 24, indoorRh: 58 });
   assert.equal(f.elements.cameraTempDraft.value, '22.3'); assert.equal(f.saved.length, 0);
@@ -59,13 +59,13 @@ test('late camera permission completion after cancellation releases its own stre
 });
 
 test('cancelled recognition cannot replace a newer camera view or save readings', async () => {
-  const f = fixture({ deferredReading: true }); await f.controller.startCamera(); f.controller.capturePhoto();
+  const f = fixture({ deferredReading: true }); await f.controller.startCamera(); await f.controller.capturePhoto();
   f.controller.cancel(); f.resolveReading({ temperature: '31.0', humidity: '88' }); await flush();
   assert.equal(f.elements.cameraTempDraft.value, ''); assert.deepEqual(f.state, { indoorTemp: 24, indoorRh: 58 }); assert.equal(f.saved.length, 0);
 });
 
 test('editing while OCR is pending cancels the attempt and preserves the correction', async () => {
-  const f = fixture({ deferredReading: true }); await f.controller.startCamera(); f.controller.capturePhoto();
+  const f = fixture({ deferredReading: true }); await f.controller.startCamera(); await f.controller.capturePhoto();
   f.elements.cameraTempDraft.value = '21.8'; f.elements.cameraTempDraft.emit('input');
   f.elements.cameraRhDraft.value = '60'; f.elements.cameraRhDraft.emit('input');
   f.resolveReading({ temperature: '31.0', humidity: '88' }); await flush();
@@ -74,7 +74,7 @@ test('editing while OCR is pending cancels the attempt and preserves the correct
 });
 
 test('moving a detected crop invalidates only that value and re-reads on completion', async () => {
-  const f = fixture(); await f.controller.startCamera(); f.controller.capturePhoto(); await flush();
+  const f = fixture(); await f.controller.startCamera(); await f.controller.capturePhoto(); await flush();
   f.elements.cameraTempBox.emit('keydown',{key:'ArrowRight',preventDefault(){}});
   assert.equal(f.elements.cameraTempDraft.value, ''); assert.equal(f.elements.cameraRhDraft.value, '59');
   assert.equal(f.elements.cameraConfirmButton.disabled, true); f.controller.confirm(); assert.equal(f.saved.length, 0);
@@ -125,7 +125,7 @@ test('photo origin is temporary metadata and manual/voice saves clear it', () =>
 });
 
 test('partial recognition leaves the missing value empty and confirmation disabled', async () => {
-  const f = fixture({ deferredReading: true }); await f.controller.startCamera(); f.controller.capturePhoto();
+  const f = fixture({ deferredReading: true }); await f.controller.startCamera(); await f.controller.capturePhoto();
   f.resolveReading({ temperature: '22.3', humidity: '' }); await flush();
   assert.equal(f.elements.cameraTempDraft.value, '22.3'); assert.equal(f.elements.cameraRhDraft.value, '');
   assert.equal(f.elements.cameraConfirmButton.disabled, true); f.controller.confirm(); assert.equal(f.saved.length, 0);
@@ -134,7 +134,7 @@ test('partial recognition leaves the missing value empty and confirmation disabl
 });
 
 test('blank detection leaves both boxes and thumbnails hidden instead of inventing crops',async()=>{
-  const f=fixture({deferredReading:true}); await f.controller.startCamera();f.controller.capturePhoto();
+  const f=fixture({deferredReading:true}); await f.controller.startCamera();await f.controller.capturePhoto();
   f.resolveReading({temperature:'',humidity:''});await flush();
   assert.equal(f.elements.cameraTempBox.hidden,true);assert.equal(f.elements.cameraRhBox.hidden,true);
   assert.equal(f.elements.cameraTempCrop.width,0);assert.equal(f.elements.cameraRhCrop.width,0);
@@ -143,7 +143,7 @@ test('blank detection leaves both boxes and thumbnails hidden instead of inventi
 });
 
 test('invalid edited drafts cannot be saved and retake discards all pending values', async () => {
-  const f = fixture(); await f.controller.startCamera(); f.controller.capturePhoto(); await flush();
+  const f = fixture(); await f.controller.startCamera(); await f.controller.capturePhoto(); await flush();
   f.elements.cameraTempDraft.value = '223'; f.elements.cameraTempDraft.emit('input'); f.controller.confirm();
   assert.equal(f.saved.length, 0); assert.match(f.elements.cameraTempError.textContent, /10–32/);
   await f.controller.startCamera(); assert.equal(f.elements.cameraTempDraft.value, '');
@@ -151,10 +151,10 @@ test('invalid edited drafts cannot be saved and retake discards all pending valu
 });
 
 function pointer(field,x,y,button=false){return {pointerId:1,button:0,isPrimary:true,clientX:x,clientY:y,preventDefault(){},target:{closest:s=>s==='[data-camera-field]'&&field?{dataset:{cameraField:field}}:s==='button'&&button?{}:null}};}
-async function review(f){await f.controller.startCamera();f.controller.capturePhoto();await flush();}
+async function review(f){await f.controller.startCamera();await f.controller.capturePhoto();await flush();}
 function draw(f){f.elements.cameraPhotoWrap.emit('pointerdown',pointer(null,20,180));f.elements.cameraPhotoWrap.emit('pointermove',pointer(null,100,240));f.elements.cameraPhotoWrap.emit('pointerup',pointer(null,100,240));}
 test('retake during processing settles into a clean live capture without accepting a late result',async()=>{
- const f=fixture({deferredReading:true});await f.controller.startCamera();f.controller.capturePhoto();f.elements.cameraRetakeButton.emit('click');f.resolveReading({temperature:'31.0',humidity:'88'});await flush();
+ const f=fixture({deferredReading:true});await f.controller.startCamera();await f.controller.capturePhoto();f.elements.cameraRetakeButton.emit('click');f.resolveReading({temperature:'31.0',humidity:'88'});await flush();
  assert.equal(f.elements.cameraCapturePanel.hidden,false);assert.equal(f.elements.cameraTempDraft.value,'');assert.equal(f.elements.cameraPhoto.width,0);assert.equal(f.saved.length,0);
 });
 test('taps, retake hits and cancelled gestures do not re-read or clear existing drafts',async()=>{
@@ -180,7 +180,7 @@ test('capture help switches content and closes when taking a photo or retaking',
  const f=fixture();await f.controller.startCamera();assert.equal(f.elements.cameraHelpButton.hidden,false);
  assert.equal(f.elements.cameraHelpButton.getAttribute('aria-label'),'Camera help');assert.equal(f.elements.cameraCaptureHint.hidden,false);assert.equal(f.elements.cameraReviewHint.hidden,true);
  assert.equal(f.elements.cameraCaptureStatus.hidden,true);f.elements.cameraHelpButton.emit('click');assert.equal(f.elements.cameraCropHint.hidden,false);
- f.controller.capturePhoto();await flush();assert.equal(f.elements.cameraCropHint.hidden,true);assert.equal(f.elements.cameraCaptureHint.hidden,true);assert.equal(f.elements.cameraReviewHint.hidden,false);
+ await f.controller.capturePhoto();await flush();assert.equal(f.elements.cameraCropHint.hidden,true);assert.equal(f.elements.cameraCaptureHint.hidden,true);assert.equal(f.elements.cameraReviewHint.hidden,false);
  f.elements.cameraHelpButton.emit('click');await f.controller.startCamera();assert.equal(f.elements.cameraCropHint.hidden,true);assert.equal(f.elements.cameraReviewHint.hidden,true);
 });
 
@@ -200,17 +200,31 @@ test('moving a box shows information rather than a ready or processing status',a
 
 test('recognition retains a native framed source privately and releases it on every exit',async()=>{
  for(const action of ['cancel','confirm','handleHidden','startCamera']){
-  const f=fixture();await review(f);const original=f.sources[0];assert.notEqual(original,f.elements.cameraPhoto);assert.equal(original.width,1920);assert.equal(original.height,960);
+  const f=fixture();await review(f);const original=f.sources[0];assert.notEqual(original,f.elements.cameraPhoto);assert.equal(original.width,3840);assert.equal(original.height,1920);
   f.elements.cameraTempBox.emit('keydown',{key:'ArrowRight',preventDefault(){}});await flush();assert.equal(f.sources[1],original);
   await f.controller[action]();assert.equal(original.width,0);assert.equal(original.height,0);
  }
 });
 
 test('review status changes text and icon together and editing help is hidden on returning to manual entry',async()=>{
- const f=fixture({deferredReading:true});await f.controller.startCamera();f.controller.capturePhoto();
+ const f=fixture({deferredReading:true});await f.controller.startCamera();await f.controller.capturePhoto();
  assert.equal(f.elements.cameraReadStatus.dataset.state,'processing');assert.equal(f.elements.cameraReadStatusText.textContent,'Reading numbers…');
  assert.equal(f.elements.cameraHelpButton.hidden,false);f.resolveReading({temperature:'22.3',humidity:'59'});await flush();
  assert.equal(f.elements.cameraReadStatus.dataset.state,'ready');assert.equal(f.elements.cameraReadStatusText.textContent,'Review both values.');
  f.elements.cameraHelpButton.emit('click');assert.equal(f.elements.cameraCropHint.hidden,false);
  f.controller.cancel();assert.equal(f.elements.cameraHelpButton.hidden,true);assert.equal(f.elements.cameraCropHint.hidden,true);
+});
+
+
+test('torch selection requests a flash still after extinguishing continuous light',async()=>{
+ const f=fixture();await f.controller.startCamera();await f.controller.toggleFlash();await flush();
+ await new Promise(r=>setTimeout(r,50));await f.controller.capturePhoto();await flush();
+ assert.deepEqual(f.sources[0].draws[0][0].blob.options,{fillLightMode:'flash'});
+ assert.equal(f.constraints.at(-1).advanced.at(-1).torch,false);
+});
+test('a pending still disables all framing controls and cancellation prevents late photo review',async()=>{
+ const f=fixture();let resolve,count=0;f.env.ImageCapture=class{takePhoto(){count++;return new Promise(r=>resolve=r);}};
+ await f.controller.startCamera();const shot=f.controller.capturePhoto();await flush();
+ assert.equal(f.elements.cameraCaptureButton.disabled,true);assert.equal(f.elements.cameraZoom.disabled,true);assert.equal(f.elements.cameraFlash.disabled,true);assert.equal(f.elements.cameraCaptureStatus.textContent,'Taking photo…');
+ await f.controller.capturePhoto();assert.equal(count,1);f.controller.cancel();resolve({size:1});await shot;assert.equal(f.sources.length,0);assert.equal(f.elements.cameraPhoto.width,0);
 });

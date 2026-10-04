@@ -13,7 +13,7 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
   let baseline = 1, nativeZoom = 1, nativeRange = null, desired = 1, digital = 1;
   let torch = false, desiredTorch = false, supportsTorch = false, pending = false, applying = false;
   let revision = 0, appliedRevision = 0, lastApply = -Infinity, controlTimer = null, startupResolve = null, waiters = [];
-  let displayed = null, lastDraw = -Infinity, zoomGesturing = false;
+  let displayed = null, lastDraw = -Infinity, zoomGesturing = false, capturing = false;
   const settings = () => owner?.getSettings?.() || {};
 
   function captureStatus(text) { status.textContent = text; status.hidden = !text; }
@@ -42,9 +42,9 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
     digital = Math.max(1, desired / nativeZoom);
     zoomInput.value = String(desired); zoomValue.textContent = `${desired.toFixed(1)}×`;
     zoomInput.setAttribute('aria-valuetext', `${desired.toFixed(1)} times zoom`);
-    zoomInput.disabled = !ready; capture.disabled = !ready || pending || zoomGesturing || !currentFrame();
+    zoomInput.disabled = !ready || capturing; capture.disabled = !ready || capturing || pending || zoomGesturing || !currentFrame();
     onZoomSync();
-    flash.disabled = !ready || pending;
+    flash.disabled = !ready || pending || capturing;
     flash.setAttribute('aria-pressed', String(torch));
     flash.setAttribute('aria-label', torch ? 'Turn flash off' : 'Turn flash on');
   }
@@ -86,7 +86,7 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
         if (!ready) {
           lockBaseline(); geometry = signature(metadata); ready = true; revealed = true; update = true;
           preview.classList.remove('camera-starting'); zoomControl.hidden = false;
-          captureStatus(''); resolveStartup();
+          if (!capturing) captureStatus(''); resolveStartup();
         }
       } else if (!revealed && time - first >= 1500) {
         revealed = true; preview.classList.remove('camera-starting');
@@ -112,7 +112,7 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
     first = null; changed = samples = 0; geometry = ''; lastMetadata = {}; ready = revealed = baselineLocked = false;
     baseline = nativeZoom = desired = digital = 1; nativeRange = null;
     torch = desiredTorch = supportsTorch = pending = applying = false; revision = appliedRevision = 0; lastApply = -Infinity;
-    displayed = null; lastDraw = -Infinity; zoomGesturing = false; preview.width = preview.height = 0;
+    displayed = null; lastDraw = -Infinity; zoomGesturing = capturing = false; preview.width = preview.height = 0;
     zoomControl.hidden = true; flash.hidden = true; preview.classList.add('camera-starting'); sync();
   }
   async function start(track) {
@@ -158,6 +158,8 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
             if (!Number.isFinite(actual) || actual < baseline || actual > baseline * requestedZoom + .01) throw new Error('Unverified zoom');
             nativeZoom = actual / baseline;
           }
+          const actualTorch = settings().torch;
+          if (supportsTorch && typeof actualTorch === 'boolean' && actualTorch !== light) throw new Error('Unverified torch');
           torch = light;
         } catch {
           if (owner !== track || generation !== request) return;
@@ -184,16 +186,21 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
     }
   }
   function setZoom(value) {
-    if (!owner || !ready) return;
+    if (!owner || !ready || capturing) return;
     const next = Math.round(Math.max(1, Math.min(8, Number(value) || 1)) * 10) / 10;
     if (next === desired) { sync(); return; }
     desired = next;
     revision++; pending = true; sync(); schedule();
   }
   function toggleFlash() {
-    if (!owner || !ready || !supportsTorch) return Promise.resolve();
-    desiredTorch = !desiredTorch; revision++; pending = true; sync(); schedule();
-    return new Promise(resolve => waiters.push(resolve));
+    if (capturing) return Promise.resolve();
+    return setTorch(!desiredTorch).catch(() => {});
+  }
+  async function setTorch(value) {
+    if (!owner || !ready || !supportsTorch || value === torch && !pending) return;
+    desiredTorch = value; revision++; pending = true; sync(); schedule();
+    await new Promise(resolve => waiters.push(resolve));
+    if (owner && torch !== value) throw new Error('Camera lighting could not change. Try again.');
   }
   function frame() {
     return displayed ? { ...displayed.crop } : null;
@@ -202,7 +209,10 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
     if (ready && signature(lastMetadata) !== geometry) {
       ready = false; changed = now(); samples = 0; captureStatus('Camera framing is still settling.'); sync();
     }
-    return ready && !pending && !zoomGesturing && Boolean(currentFrame());
+    return ready && !capturing && !pending && !zoomGesturing && Boolean(currentFrame());
   }
-  return { start, stop, setZoom, toggleFlash, frame, isReady, setZoomGesture: value => { zoomGesturing = value; sync(); } };
+  return { start, stop, setZoom, toggleFlash, setTorch, frame, isReady,
+    snapshot: () => ({ flash: torch, digital, aspect: feed.getBoundingClientRect().width / feed.getBoundingClientRect().height }),
+    setCapturing: value => { capturing = value; captureStatus(value ? 'Taking photo…' : ''); sync(); },
+    setZoomGesture: value => { zoomGesturing = value; sync(); } };
 }

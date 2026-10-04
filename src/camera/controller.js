@@ -4,6 +4,7 @@ import { createCropEditor } from './crop-editor.js';
 import { createCaptureControls } from './capture.js';
 import { createCameraHelp } from './help.js';
 import { createZoomRuler } from './zoom-ruler.js';
+import { createStillPhoto } from './still-photo.js';
 
 export function createCameraController({ elements, beforeCamera, saveIndoorReadings, state, render,
   recogniseService, returnFocus } = {}, environment = globalThis) {
@@ -14,6 +15,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
   let gesturing = false, previews = {}, corrections = {}, gestureState = null;
   let statusKind = 'ready';
   let originalPhoto = null;
+  const stillPhoto = createStillPhoto(environment);
   const help = createCameraHelp({ button: elements.cameraHelpButton, content: elements.cameraCropHint, dialog: elements.indoorDialog }, document);
   const captureControls = createCaptureControls({ video: elements.cameraVideo, preview: elements.cameraPreview, feed: elements.cameraFeed,
     flash: elements.cameraFlash, zoomControl: elements.cameraZoomControl, zoomInput: elements.cameraZoom,
@@ -51,6 +53,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
   }, environment);
 
   function releaseCamera() {
+    stillPhoto.cancel();
     zoomRuler.stop();
     captureControls.stop();
     stream?.getTracks().forEach(track => track.stop());
@@ -122,7 +125,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     }
   }
 
-  const toggleFlash = () => captureControls.toggleFlash();
+  const toggleFlash = () => captureControls.toggleFlash().catch(() => {});
 
   function drawCrops() {
     for (const [field, output] of [
@@ -223,20 +226,31 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     }
   }
 
-  function capturePhoto() {
+  async function capturePhoto() {
     const video = elements.cameraVideo;
     if (!active || !stream || !video.videoWidth || !video.videoHeight || !captureControls.isReady()) return;
-    const { x, y, width, height } = captureControls.frame();
-    const canvas = elements.cameraPhoto;
-    originalPhoto = document.createElement('canvas');
-    const originalScale = Math.min(1, 4096 / Math.max(width, height));
-    originalPhoto.width = Math.max(1, Math.round(width * originalScale)); originalPhoto.height = Math.max(1, Math.round(height * originalScale));
-    originalPhoto.getContext('2d').drawImage(video, x, y, width, height, 0, 0, originalPhoto.width, originalPhoto.height);
-    const downscale = Math.min(1, 1600 / width);
-    canvas.width = Math.round(width * downscale); canvas.height = Math.round(height * downscale);
-    canvas.getContext('2d').drawImage(video, x, y, width, height, 0, 0, canvas.width, canvas.height);
-    releaseCamera(); captured = true; drawCrops();
-    view('review'); void detect();
+    const request = session, owner = track, framing = captureControls.snapshot();
+    captureControls.setCapturing(true);
+    try {
+      const photo = await stillPhoto.take(owner, framing, () => captureControls.setTorch(false));
+      if (!active || request !== session || owner !== track) { photo.width = photo.height = 0; return; }
+      originalPhoto = photo;
+      const canvas = elements.cameraPhoto, scale = Math.min(1, 1600 / Math.max(photo.width, photo.height));
+      canvas.width = Math.max(1, Math.round(photo.width * scale)); canvas.height = Math.max(1, Math.round(photo.height * scale));
+      canvas.getContext('2d').drawImage(photo, 0, 0, canvas.width, canvas.height);
+      releaseCamera(); captured = true; drawCrops(); view('review'); void detect();
+    } catch (error) {
+      if (!active || request !== session || owner !== track) return;
+      if (error.name === 'TimeoutError' || owner.readyState === 'ended') {
+        releaseCamera(); showError({ name: 'NotReadableError' }, true); return;
+      }
+      try { await stillPhoto.restore(async () => { await captureControls.setTorch(framing.flash); if (active && request === session && owner === track) await video.play(); }); }
+      catch { if (active && request === session && owner === track) { releaseCamera(); showError({ name: 'NotReadableError' }, true); } return; }
+      if (!active || request !== session || owner !== track) return;
+      captureControls.setCapturing(false);
+      elements.cameraCaptureStatus.textContent = error.message || 'Photo failed. Try again.';
+      elements.cameraCaptureStatus.hidden = false;
+    }
   }
 
   function cancel({ focus = true } = {}) {

@@ -61,3 +61,9 @@ test('a missing decimal is not invented and an explicitly assigned blank crop re
  const r=await analyzeImage(p);assert.equal(r.values.temperature,'');
  const blank=await analyzeImage(image(),{field:'temperature',region:{x:.1,y:.1,width:.5,height:.5}});assert.equal(blank.field,'temperature');assert.equal(blank.readings.temperature.value,'');assert.ok(blank.readings.temperature.preview.width>0);
 });
+
+test('small native crops combine enlargement and correction while retaining mapped units and matching previews',async()=>{
+ const p=warp(monitor(55,120,80),[2,0,0,0,2,0,0,0,1],300,210),r=await analyzeImage(p,{refine:true});
+ assert.deepEqual(r.values,{temperature:'22.3',humidity:'59'});
+ for(const field of ['temperature','humidity']){const e=r.readings[field];assert.ok(e.correction.width<=800);assert.ok(e.unitBounds.x+e.unitBounds.width<=1);assert.ok(e.correction.matrix[0]<1);const preview=require('../src/camera/analysis.js').makePreview(p,e.correction,{x:e.region.x*p.width,y:e.region.y*p.height,width:e.region.width*p.width,height:e.region.height*p.height});assert.deepEqual(e.preview,preview);}
+});
