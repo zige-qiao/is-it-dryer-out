@@ -4,7 +4,7 @@ const { createFlashTest } = require('../camera-flash-test.js');
 const { element, environment } = require('./helpers/browser.cjs');
 
 function fixture(options = {}) {
-  const elements = Object.fromEntries(['start', 'plain', 'capture', 'torch', 'pause', 'status', 'capabilities', 'video', 'result', 'resultMode', 'photo'].map(id => [id, element()]));
+  const elements = Object.fromEntries(['start', 'plain', 'capture', 'torch', 'pause', 'status', 'capabilities', 'video', 'result', 'resultMode', 'photo', 'log', 'copyLog', 'copyStatus'].map(id => [id, element()]));
   const tracks = [], requests = [], shots = [], changes = [], revoked = [], timers = new Map();
   let now = 0, id = 0, time = 0, advancing = true;
   const document = element(); document.hidden = false;
@@ -19,13 +19,13 @@ function fixture(options = {}) {
   const env = environment({
     document, isSecureContext: options.secure !== false,
     addEventListener: window.addEventListener.bind(window),
-    navigator: { mediaDevices: { async getUserMedia(value) {
+    navigator: { userAgent: 'iPhone diagnostic test browser', clipboard: options.clipboard, mediaDevices: { async getUserMedia(value) {
       requests.push(value);
       const state = { torch: false };
       const track = {
         readyState: 'live', stop() { this.readyState = 'ended'; this.stopped = true; state.torch = false; },
         getCapabilities: () => ({ torch: options.torch !== false }),
-        getSettings: () => ({ ...state }),
+        getSettings: () => ({ ...state, deviceId: 'private-device', groupId: 'private-group' }),
         getConstraints: () => ({ width: { ideal: 1920 }, advanced: [{ zoom: 2, torch: state.torch }] }),
         async applyConstraints(value) {
           const on = value.advanced.at(-1).torch; changes.push({ on, value, track: this });
@@ -221,4 +221,34 @@ test('torch timeout releases its owner and prevents subsequent photos until rest
   assert.equal(f.tracks[0].stopped, true); assert.equal(f.shots.length, 0);
   assert.equal(f.elements.capture.disabled, true); assert.equal(f.elements.start.disabled, false);
   assert.match(f.elements.status.textContent, /Torch change timed out/);
+});
+
+test('copyable diagnostic records flash request, torch isolation, photo result and recovery without image data or device identifiers', async () => {
+  let copied;
+  const f = fixture({ modes: [], clipboard: { async writeText(text) { copied = text; } } });
+  await f.finish(f.controller.startCamera()); await f.finish(f.controller.toggleTorch()); await f.controller.togglePause();
+  await f.finish(f.controller.takePhoto('flash')); await f.controller.copyDiagnosticLog();
+  assert.equal(copied, f.elements.log.value); assert.match(copied, /log v3.*\nStarted:.*\nBrowser: iPhone diagnostic test browser/);
+  assert.match(copied, /photo.capabilities.*"fillLightMode":\[\]/);
+  assert.match(copied, /photo.request.*"fillLightMode":"flash".*"torch":false/);
+  assert.match(copied, /photo.returned.*"type":"image\/jpeg"/); assert.match(copied, /photo.complete.*"previewPaused":true/);
+  assert.doesNotMatch(copied, /private-device|private-group|deviceId|groupId|blob:photo|data:image/);
+  assert.match(f.elements.copyStatus.textContent, /Log copied/);
+});
+
+test('clipboard rejection selects the log for manual copying without changing camera state', async () => {
+  const f = fixture({ clipboard: { async writeText() { throw Error('denied'); } } });
+  let selected = false; f.elements.log.select = () => selected = true;
+  await f.finish(f.controller.startCamera()); const status = f.elements.status.textContent;
+  await f.controller.copyDiagnosticLog(); assert.equal(selected, true);
+  assert.match(f.elements.copyStatus.textContent, /Log selected/); assert.equal(f.elements.status.textContent, status);
+  assert.equal(f.tracks[0].readyState, 'live');
+});
+
+test('logs retain failed requests and camera release after backgrounding', async () => {
+  const f = fixture({ photoError: true }); await f.finish(f.controller.startCamera()); await f.finish(f.controller.takePhoto('flash'));
+  f.document.hidden = true; f.document.emit('visibilitychange');
+  assert.match(f.elements.log.value, /photo.error.*Error: capture failed/);
+  assert.match(f.elements.log.value, /test.stop.*"hidden":true/); assert.match(f.elements.log.value, /camera.release/);
+  assert.equal(f.elements.result.hidden, true);
 });
