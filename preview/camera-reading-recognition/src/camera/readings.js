@@ -1,14 +1,15 @@
+import { INDOOR_LIMITS } from '../config.js';
 // Camera drafts are independent of saved app state. Never clamp an OCR result.
 export function validateCameraReadings(temperature, humidity) {
   const tempText = String(temperature ?? '').trim();
   const rhText = String(humidity ?? '').trim();
   const indoorTemp = Number(tempText), indoorRh = Number(rhText);
   const errors = {};
-  if (!/^\d+(?:\.\d)?$/.test(tempText) || !Number.isFinite(indoorTemp) || indoorTemp < 10 || indoorTemp > 32) {
-    errors.temperature = 'Enter 10–32°C, with at most one decimal place.';
+  if (!/^\d+(?:\.\d)?$/.test(tempText) || !Number.isFinite(indoorTemp) || indoorTemp < INDOOR_LIMITS.temperature.min || indoorTemp > INDOOR_LIMITS.temperature.max) {
+    errors.temperature = 'Enter 10–45°C, with at most one decimal place.';
   }
-  if (!/^\d+$/.test(rhText) || !Number.isInteger(indoorRh) || indoorRh < 20 || indoorRh > 90) {
-    errors.humidity = 'Enter a whole number from 20–90%.';
+  if (!/^\d+$/.test(rhText) || !Number.isInteger(indoorRh) || indoorRh < INDOOR_LIMITS.humidity.min || indoorRh > INDOOR_LIMITS.humidity.max) {
+    errors.humidity = 'Enter a whole number from 10–90%.';
   }
   return { values: { indoorTemp, indoorRh }, errors, valid: Object.keys(errors).length === 0 };
 }

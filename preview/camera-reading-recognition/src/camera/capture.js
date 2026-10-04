@@ -10,13 +10,18 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
   let owner = null, generation = 0, timer = null, frameCallback = null, watchdog = null, deadline = null;
   let first = null, changed = 0, samples = 0, geometry = '', ready = false, revealed = false, baselineLocked = false;
   let lastMetadata = {};
-  let baseline = 1, nativeZoom = 1, nativeRange = null, desired = 1, digital = 1;
+  let lensBase = 1, baseline = 1, nativeZoom = 1, nativeRange = null, desired = 1, digital = 1;
   let torch = false, desiredTorch = false, supportsTorch = false, pending = false, applying = false;
   let revision = 0, appliedRevision = 0, lastApply = -Infinity, controlTimer = null, startupResolve = null, waiters = [];
+  let statusTimer = null;
   let displayed = null, lastDraw = -Infinity, zoomGesturing = false, capturing = false;
   const settings = () => owner?.getSettings?.() || {};
 
-  function captureStatus(text) { status.textContent = text; status.hidden = !text; }
+  function captureStatus(text, duration = 0) {
+    environment.clearTimeout(statusTimer); statusTimer = null;
+    status.textContent = text; status.hidden = !text;
+    if (duration) statusTimer = environment.setTimeout(() => captureStatus(''), duration);
+  }
   function currentFrame() {
     return displayed && displayed.geometry === geometry && displayed.revision === revision &&
       displayed.sourceWidth === video.videoWidth && displayed.sourceHeight === video.videoHeight;
@@ -104,19 +109,19 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
     else timer = environment.setTimeout(() => { if (generation === request && owner === track) sample(); }, 1000 / 30);
   }
   function stop() {
-    generation++; owner = null;
+    generation++; owner = null; environment.clearTimeout(statusTimer); statusTimer = null;
     environment.clearTimeout(timer); environment.clearTimeout(watchdog); environment.clearTimeout(controlTimer); environment.clearTimeout(deadline);
     if (frameCallback !== null) video.cancelVideoFrameCallback?.(frameCallback);
     timer = frameCallback = watchdog = controlTimer = deadline = null;
     resolveStartup(); waiters.splice(0).forEach(resolve => resolve());
     first = null; changed = samples = 0; geometry = ''; lastMetadata = {}; ready = revealed = baselineLocked = false;
-    baseline = nativeZoom = desired = digital = 1; nativeRange = null;
+    lensBase = baseline = nativeZoom = desired = digital = 1; nativeRange = null;
     torch = desiredTorch = supportsTorch = pending = applying = false; revision = appliedRevision = 0; lastApply = -Infinity;
     displayed = null; lastDraw = -Infinity; zoomGesturing = capturing = false; preview.width = preview.height = 0;
     zoomControl.hidden = true; flash.hidden = true; preview.classList.add('camera-starting'); sync();
   }
-  async function start(track) {
-    stop(); owner = track; captureStatus('Starting camera…'); supportsTorch = Boolean(track.getCapabilities?.().torch); flash.hidden = !supportsTorch; zoomControl.hidden = false;
+  async function start(track, { base = 1, zoom = 1 } = {}) {
+    const gesture = zoomGesturing; stop(); zoomGesturing = gesture; lensBase = base; nativeZoom = base; desired = zoom; owner = track; captureStatus('Starting camera…'); supportsTorch = Boolean(track.getCapabilities?.().torch); flash.hidden = !supportsTorch; zoomControl.hidden = false;
     const request = generation;
     const startup = new Promise(resolve => startupResolve = resolve);
     watchdog = environment.setTimeout(() => {
@@ -145,7 +150,7 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
     const track = owner, request = generation, version = revision, light = desiredTorch, requestedZoom = desired;
     // Round down to a supported step: residual software zoom supplies the rest.
     const step = nativeRange?.step || 0;
-    const limit = nativeRange ? Math.min(nativeRange.max, baseline * requestedZoom) : null;
+    const limit = nativeRange ? Math.min(nativeRange.max, baseline * requestedZoom / lensBase) : null;
     const target = limit === null ? null : step > 0 ? Math.max(nativeRange.min, nativeRange.min + Math.floor((limit - nativeRange.min + 1e-8) / step) * step) : limit;
     applying = true; lastApply = now();
     try {
@@ -155,8 +160,8 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
           if (owner !== track || generation !== request) return;
           if (target !== null) {
             const actual = settings().zoom;
-            if (!Number.isFinite(actual) || actual < baseline || actual > baseline * requestedZoom + .01) throw new Error('Unverified zoom');
-            nativeZoom = actual / baseline;
+            if (!Number.isFinite(actual) || actual < baseline || actual > baseline * requestedZoom / lensBase + .01) throw new Error('Unverified zoom');
+            nativeZoom = lensBase * actual / baseline;
           }
           const actualTorch = settings().torch;
           if (supportsTorch && typeof actualTorch === 'boolean' && actualTorch !== light) throw new Error('Unverified torch');
@@ -168,9 +173,9 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
             try { await track.applyConstraints(constraints(baseline, light)); } catch { /* Keep live capture available. */ }
             if (owner !== track || generation !== request) return;
             const actual = settings().zoom;
-            nativeZoom = Number.isFinite(actual) && actual >= baseline ? actual / baseline : 1;
+            nativeZoom = Number.isFinite(actual) && actual >= baseline ? lensBase * actual / baseline : lensBase;
             nativeRange = null;
-            if (nativeZoom > desired) { baseline *= nativeZoom; nativeZoom = 1; }
+            if (nativeZoom > desired) { baseline *= nativeZoom / lensBase; nativeZoom = lensBase; }
           }
           const actualTorch = settings().torch;
           if (typeof actualTorch === 'boolean') torch = actualTorch;
@@ -185,10 +190,10 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
       }
     }
   }
-  function setZoom(value) {
+  function setZoom(value, force = false) {
     if (!owner || !ready || capturing) return;
     const next = Math.round(Math.max(1, Math.min(8, Number(value) || 1)) * 10) / 10;
-    if (next === desired) { sync(); return; }
+    if (next === desired && !force) { sync(); return; }
     desired = next;
     revision++; pending = true; sync(); schedule();
   }
@@ -212,7 +217,10 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
     return ready && !capturing && !pending && !zoomGesturing && Boolean(currentFrame());
   }
   return { start, stop, setZoom, toggleFlash, setTorch, frame, isReady,
-    snapshot: () => ({ flash: torch, digital, aspect: feed.getBoundingClientRect().width / feed.getBoundingClientRect().height }),
-    setCapturing: value => { capturing = value; captureStatus(value ? 'Taking photo…' : ''); sync(); },
+    snapshot: () => ({ flash: torch, supportsTorch, digital, aspect: feed.getBoundingClientRect().width / feed.getBoundingClientRect().height }),
+    settled: () => ready && !pending && !capturing && !zoomGesturing && Boolean(currentFrame()),
+    waitIdle: () => pending ? new Promise(resolve => waiters.push(resolve)) : Promise.resolve(),
+    notify: captureStatus,
+    setCapturing: value => { capturing = value; captureStatus(value ? 'Hold still — taking photo…' : ''); sync(); },
     setZoomGesture: value => { zoomGesturing = value; sync(); } };
 }

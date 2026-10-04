@@ -29,7 +29,7 @@ export function createStillPhoto(environment = globalThis) {
       }, error => finish(error));
     });
   }
-  async function take(track, { flash, digital, aspect }, prepare = async () => {}) {
+  async function take(track, { flash, fillLightMode, digital, aspect }, prepare = async () => {}) {
     const request = generation;
     const Capture = environment.ImageCapture;
     if (!Capture || typeof Capture.prototype?.takePhoto !== 'function') {
@@ -37,7 +37,7 @@ export function createStillPhoto(environment = globalThis) {
     }
     const capture = new Capture(track);
     await bounded(prepare, 5000, request);
-    const blob = await bounded(() => capture.takePhoto({ fillLightMode: flash ? 'flash' : 'off' }), 10000, request);
+    const blob = await bounded(() => fillLightMode === 'default' ? capture.takePhoto() : capture.takePhoto({ fillLightMode: fillLightMode || (flash ? 'flash' : 'off') }), 10000, request);
     if (!blob?.size) throw new Error('The camera returned an empty photo. Try again.');
     let image;
     if (environment.createImageBitmap) {

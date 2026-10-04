@@ -1,6 +1,31 @@
+import { INDOOR_LIMITS } from '../config.js';
 import { readSegmentedDigits } from './segments.js';
 import { components, binaryPixels, bounds, normalise } from './image.js';
 import { locateUnits } from './units.js';
+
+const SEGMENT_PATTERNS = ['1111110', '0110000', '1101101', '1111001', '0110011', '1011011', '1011111', '1110000', '1111111', '1111011'];
+export function grayscaleConfidence(pixels, glyph) {
+  // A full-width glyph cannot be a narrow LCD one. Thresholding can leave
+  // only a vertical fragment of a five while its other strokes define bounds.
+  if (glyph.digit === '1') return glyph.width / glyph.height < .3 ? .9 : 0;
+  const at = (x, y) => {
+    const xx = Math.max(0, Math.min(pixels.width - 1, Math.round(glyph.x + glyph.width * x)));
+    const yy = Math.max(0, Math.min(pixels.height - 1, Math.round(glyph.y + glyph.height * y)));
+    const p = (yy * pixels.width + xx) * 4;
+    return .299 * pixels.data[p] + .587 * pixels.data[p + 1] + .114 * pixels.data[p + 2];
+  };
+  const background = [(at(.4, .27) + at(.6, .27)) / 2, (at(.4, .73) + at(.6, .73)) / 2];
+  const locations = [[.5, .05], [.9, .27], [.9, .73], [.5, .95], [.1, .73], [.1, .27], [.5, .5]];
+  const evidence = locations.map(([x, y], i) => {
+    const b = i === 6 ? (background[0] + background[1]) / 2 : background[y < .5 ? 0 : 1];
+    const horizontal = i === 0 || i === 3 || i === 6;
+    const contrast = [-.12, -.06, 0, .06, .12].map(d => b - at(x + (horizontal ? d : 0), y + (horizontal ? 0 : d)));
+    return contrast.filter(d => d >= 8).length / contrast.length;
+  });
+  const pattern = SEGMENT_PATTERNS[Number(glyph.digit)];
+  if (!pattern || evidence.some((value, i) => pattern[i] === '1' ? value < .4 : value > .2)) return 0;
+  return evidence.reduce((sum, value, i) => sum + (pattern[i] === '1' ? value : 1 - value), 0) / 7;
+}
 
 // Locate LCD glyphs from image evidence, without assuming left/right crop ratios.
 export function contrastMask({ data, width, height }) {
@@ -33,9 +58,10 @@ function componentGlyphs(pixels, radius, binary) {
     const w = item.width, h = item.height;
     if (h < Math.max(7, height * .015) || w < 2 || w / h < .06 || w / h > 1.05) continue;
     const data = new Uint8ClampedArray(w * h * 4).fill(255);
-    for (const point of item.points) {
-      const x = point % width - item.x, y = Math.floor(point / width) - item.y;
-      data.fill(0, (y * w + x) * 4, (y * w + x) * 4 + 3);
+    // Components locate the bounds; disconnected strokes inside them still
+    // belong to the glyph (notably the middle bar of an eight).
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (mask[(item.y + y) * width + item.x + x]) data.fill(0, (y * w + x) * 4, (y * w + x) * 4 + 3);
     }
     const digit = readSegmentedDigits({ data, width: w, height: h }, 1);
     if (digit) glyphs.push({ digit, x: item.x, y: item.y, width: w, height: h });
@@ -49,11 +75,12 @@ export function locateGlyphs(pixels, binary = false) {
   // so a small decimal is not merged with the Celsius symbol above it.
   const join = Math.max(2, Math.min(4, Math.round(Math.max(pixels.width, pixels.height) / 180)));
   for (const glyph of [...componentGlyphs(pixels, 0, binary), ...componentGlyphs(pixels, 1, binary), ...(binary ? componentGlyphs(pixels, join, true) : [])]) {
-    const existing = glyphs.find(item => item.digit === glyph.digit && Math.abs(item.x - glyph.x) < 3 && Math.abs(item.y - glyph.y) < 3 && Math.abs(item.height - glyph.height) < 3);
+    const existing = glyphs.find(item => Math.abs(item.x - glyph.x) < 3 && Math.abs(item.y - glyph.y) < 3 && Math.abs(item.width - glyph.width) < 3 && Math.abs(item.height - glyph.height) < 3);
     if (!existing) glyphs.push(glyph);
+    else if (existing.digit !== glyph.digit) existing.digit = ''; // Conflicting geometry is not a second physical digit.
   }
   // A disconnected vertical segment inside a decoded full digit is not a 1.
-  return glyphs.filter(g => !glyphs.some(other => other !== g && other.height > g.height * 1.15 &&
+  return glyphs.filter(g => g.digit && !glyphs.some(other => other !== g && other.height > g.height * 1.15 &&
     g.x >= other.x - 1 && g.y >= other.y - 1 && g.x + g.width <= other.x + other.width + 1 && g.y + g.height <= other.y + other.height + 1));
 }
 
@@ -80,7 +107,7 @@ export function digitPairs(glyphs) {
 
 export function temperatureGroups(glyphs) {
   const pairs = digitPairs(glyphs), groups = [];
-  for (const temp of pairs.filter(pair => Number(pair.value) >= 10 && Number(pair.value) <= 32)) {
+  for (const temp of pairs.filter(pair => Number(pair.value) >= 10 && Number(pair.value) <= INDOOR_LIMITS.temperature.max)) {
     const last = temp.items[1];
     const fractions = glyphs.filter(glyph => glyph.x >= right(last) && glyph.x - right(last) < temp.height * .65 &&
       glyph.height >= temp.height * .3 && glyph.height <= temp.height * .75 && Math.abs(bottom(glyph) - bottom(last)) < temp.height * .2);
@@ -91,11 +118,11 @@ export function temperatureGroups(glyphs) {
 
 export function numericGroups(pixels, mask, glyphs) {
   const dots = components(mask, pixels.width, pixels.height);
-  return { temperature: temperatureGroups(glyphs).filter(g => Number(g.value) <= 32 && dots.some(dot => {
+  return { temperature: temperatureGroups(glyphs).filter(g => Number(g.value) <= INDOOR_LIMITS.temperature.max && dots.some(dot => {
     const last = g.items[1], fraction = g.items[2], h = g.height;
     return dot.count >= 1 && dot.width <= h * .18 && dot.height <= h * .18 &&
       dot.x >= right(last) - h * .08 && dot.x <= fraction.x + h * .08 && dot.y > bottom(last) - h * .2 && dot.y <= bottom(last) + h * .05;
-  })), humidity: digitPairs(glyphs).filter(g => Number(g.value) >= 20 && Number(g.value) <= 90) };
+  })), humidity: digitPairs(glyphs).filter(g => Number(g.value) >= INDOOR_LIMITS.humidity.min && Number(g.value) <= 90) };
 }
 
 export function detectCandidates(pixels, threshold = .55, variant = 'adaptive') {
@@ -105,7 +132,11 @@ export function detectCandidates(pixels, threshold = .55, variant = 'adaptive') 
   // In particular, degree/C can sit above a small fractional digit.
   for (const unit of units) for (const stroke of unit.strokes || [])
     for (const point of stroke.points || []) numericMask[point] = 0;
-  const glyphs = locateGlyphs(binaryPixels(pixels, numericMask), true).sort((a, b) => a.x - b.x);
+  const glyphs = locateGlyphs(binaryPixels(pixels, numericMask), true).map(glyph => {
+    if (glyph.digit !== '0' && glyph.digit !== '8') return glyph;
+    const evidence = middleBar(pixels, glyph);
+    return { ...glyph, digit: evidence === null ? '' : evidence ? '8' : '0' };
+  }).filter(g => g.digit).map(g => ({ ...g, confidence: grayscaleConfidence(pixels, g) })).filter(g => g.confidence > 0).sort((a, b) => a.x - b.x);
   const groups = numericGroups(pixels, numericMask, glyphs);
   const readings = [];
   for (const unit of units) {
@@ -122,12 +153,48 @@ export function detectCandidates(pixels, threshold = .55, variant = 'adaptive') 
       t.items[2].x >= unit.box.x && t.items[2].x < right(unit.box))) continue;
     const digitBounds = bounds(group.items), pad = Math.max(2, group.height * .06);
     readings.push({ field: unit.field, value: group.value, digitBounds, unitBounds: unit.box,
-      box: bounds([digitBounds, unit.box], pad), confidence: { unit: unit.confidence, numeric: .95,
+      box: bounds([digitBounds, unit.box], pad), confidence: { unit: unit.confidence, numeric: Math.min(...group.items.map(g => g.confidence)),
         evidence: { unit: unit.unit, glyphs: group.items.map(g => g.digit), aligned: true, decimal: unit.field === 'temperature' } }, height: group.height });
   }
-  // Unassociated background digits must not suppress a smaller verified LCD.
-  const dominantHeight = Math.max(0, ...readings.map(r => r.height));
-  return { readings: readings.filter(r => r.height >= dominantHeight * .6), units, glyphs, prepared };
+  const band = principalBand(numericMask, pixels.width, pixels.height, units);
+  const dominantHeight = Math.max(band?.height || 0, ...readings.map(r => r.height));
+  return { readings: readings.filter(r => r.height >= dominantHeight * .6), units, glyphs, prepared,
+    currentBand: band && { ...band, x: band.x / pixels.width, y: band.y / pixels.height, width: band.width / pixels.width, height: band.height / pixels.height } };
+}
+
+// Compare a coherent middle stroke with both empty interiors. Grayscale
+// survives blur and avoids interpreting threshold speckle as an active bar.
+export function middleBar(pixels, glyph) {
+  const { data, width } = pixels;
+  const luminance = (x, y) => { const p = (y * width + x) * 4; return .299 * data[p] + .587 * data[p + 1] + .114 * data[p + 2]; };
+  const sample = (x, y) => luminance(Math.min(pixels.width - 1, Math.max(0, Math.round(glyph.x + glyph.width * x))),
+    Math.min(pixels.height - 1, Math.max(0, Math.round(glyph.y + glyph.height * y))));
+  const differences = [];
+  for (let x = .3; x <= .7; x += .04) {
+    const background = (sample(x, .27) + sample(x, .73)) / 2;
+    const bar = Math.min(sample(x, .46), sample(x, .5), sample(x, .54));
+    differences.push(background - bar);
+  }
+  const lit = differences.filter(d => d >= 8).length / differences.length;
+  if (lit >= .75) return true;
+  if (lit <= .2 && differences.reduce((a, b) => a + b, 0) / differences.length < 5) return false;
+  return null;
+}
+
+// Undecoded, digit-shaped strokes can establish the main LCD band. A paired
+// band must share height/baseline and lie next to a detected unit; random scene
+// components cannot suppress another monitor's verified readings.
+function principalBand(mask, width, height, units) {
+  const strokes = components(mask, width, height, Math.max(1, Math.min(3, Math.round(width / 240))))
+    .filter(c => c.x > 1 && c.y > 1 && right(c) < width - 1 && bottom(c) < height - 1 && c.height >= 10 && c.width / c.height >= .12 && c.width / c.height <= .95 && c.count / (c.width * c.height) < .8);
+  const bands = [];
+  for (const a of strokes) for (const b of strokes) {
+    const h = Math.max(a.height, b.height), gap = b.x - right(a);
+    if (gap < 0 || gap > h * .9 || Math.min(a.height, b.height) < h * .7 || Math.abs(bottom(a) - bottom(b)) > h * .18) continue;
+    const box = bounds([a, b]);
+    if (units.some(u => u.box.x >= right(b) - h * .15 && u.box.x <= right(b) + h * 1.1 && u.box.y >= a.y - h * .3 && u.box.y <= bottom(a))) bands.push(box);
+  }
+  return bands.sort((a, b) => b.height - a.height)[0] || null;
 }
 
 export function detectReadingRegions(pixels) {

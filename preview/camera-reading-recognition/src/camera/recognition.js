@@ -36,12 +36,14 @@ export function createRecognitionService(environment = globalThis) {
     const alive = () => id === generation && now() < deadline;
     const candidate = environment.Worker ? new environment.Worker(new URL('./worker.js', import.meta.url), { type: 'module' }) : null;
     worker = candidate;
-    let receive, rejectStage;
-    const request = async (image, opts, kind = 'analyze') => {
+    let receive, rejectStage, stageMap = value => value, partial = null;
+    const results = [];
+    const request = async (image, opts, kind = 'analyze', map = value => value) => {
+      stageMap = map; partial = null;
       if (!alive()) return null;
       if (!candidate) return processImage({ pixels: image, options: opts, kind }, async () => {
         await new Promise(resolve => environment.setTimeout(resolve, 0)); return alive();
-      });
+      }, result => { if (id === generation) partial = map(result); });
       return new Promise((resolve, reject) => {
         receive = resolve; rejectStage = reject;
         try { candidate.postMessage({ id, pixels: image, options: opts, kind }); } catch (error) { reject(error); }
@@ -54,10 +56,11 @@ export function createRecognitionService(environment = globalThis) {
         receive?.(null); receive = null;
         if (error) reject(error); else resolve(result);
       };
-      pending = { resolve: () => { receive?.(null); resolve(null); }, timer: environment.setTimeout(() => finish(null, new Error('Local recognition timed out.')), 15000) };
+      pending = { resolve: () => { receive?.(null); resolve(null); }, timer: environment.setTimeout(() => { const result = mergeResults([...results, partial].filter(Boolean)); result.rejectionReason = 'timeout'; if (Object.values(result.values).some(Boolean)) finish(result); else finish(null, Object.assign(new Error('Recognition timed out. Enter values manually.'), { name: 'TimeoutError' })); }, 15000) };
       if (candidate) {
         candidate.onmessage = event => {
           if (id !== generation || event.data.id !== id) return;
+          if (event.data.progress) { partial = stageMap(event.data.progress); return; }
           if (event.data.error) rejectStage?.(new Error(event.data.error)); else receive?.(event.data.result);
         };
         candidate.onerror = () => finish(null, new Error('Local recognition could not start.'));
@@ -69,14 +72,22 @@ export function createRecognitionService(environment = globalThis) {
             const crop = boundedRegion({ x: b.x * source.width, y: b.y * source.height, width: b.width * source.width, height: b.height * source.height }, source.width, source.height, b.height * source.height * .35);
             const image = pixels(source, crop, true);
             const selection = { x: (b.x - crop.x) / crop.width, y: (b.y - crop.y) / crop.height, width: b.width / crop.width, height: b.height / crop.height };
-            const result = await request(image, { ...options, region: selection, refine: true });
+            const result = await request(image, { ...options, region: selection, refine: true }, 'analyze', value => mapRegionalResult(value, crop, image, sourceSize));
             finish(mapRegionalResult(result, crop, image, sourceSize)); return;
           }
-          const overview = pixels(source), proposals = await request(overview, {}, 'propose');
+          const overview = pixels(source);
+          // A close-up may already contain both current readings. Avoid spending
+          // the deadline refining smaller proposals before checking it directly.
+          const direct = await request(overview, { allowPartial: true, quick: true });
           if (!alive()) return;
-          const results = [];
+          results.push(direct);
+          if (direct?.values?.temperature && direct?.values?.humidity) { finish(direct); return; }
+          const proposals = await request(overview, {}, 'propose');
+          if (!alive()) return;
+
           for (const proposal of proposals || []) {
-            const image = pixels(source, proposal.region, true), result = await request(image, { allowPartial: true, refine: true });
+            if (proposal.currentBand) results.push({ currentBand: proposal.currentBand });
+            const image = pixels(source, proposal.region, true), result = await request(image, { allowPartial: true, refine: true }, 'analyze', value => mapRegionalResult(value, proposal.region, image, sourceSize));
             if (!alive()) return;
             results.push(mapRegionalResult(result, proposal.region, image, sourceSize));
             // A verified reading anchors this display proposal. Search it once
@@ -84,14 +95,14 @@ export function createRecognitionService(environment = globalThis) {
             const identified = ['temperature', 'humidity'].filter(field => result?.values?.[field]);
             if (identified.length === 1 && now() < deadline - 5000) {
               const missing = identified[0] === 'temperature' ? 'humidity' : 'temperature';
-              const neighbour = await request(image, { allowPartial: true, refine: true, requiredField: missing });
+              const neighbour = await request(image, { allowPartial: true, refine: true, requiredField: missing }, 'analyze', value => mapRegionalResult(value, proposal.region, image, sourceSize));
               if (!alive()) return;
               results.push(mapRegionalResult(neighbour, proposal.region, image, sourceSize));
             }
             const merged = mergeResults(results);
             if (merged.values.temperature && merged.values.humidity) { finish(merged); return; }
           }
-          if (!results.length) results.push(await request(overview, {}));
+          if (!results.some(r => r?.readings)) results.push(await request(overview, {}));
           finish(mergeResults(results));
         } catch (error) { finish(null, error); }
       })();

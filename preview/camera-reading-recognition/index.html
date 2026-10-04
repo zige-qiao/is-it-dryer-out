@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=148" />
+    <link rel="stylesheet" href="styles.css?v=149" />
     <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
@@ -192,6 +192,7 @@
       <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close settings" title="Close">&times;</button>
     </div>
     <label class="settings-toggle"><span>Show Indoor summary</span><input id="showIndoorSummary" type="checkbox" role="switch" /><span class="settings-switch" aria-hidden="true"></span></label>
+    <label class="settings-toggle"><span>Auto flash</span><input id="autoFlash" type="checkbox" role="switch" checked /><span class="settings-switch" aria-hidden="true"></span></label>
     <label class="settings-toggle"><span>Open Indoor readings on launch</span><input id="openIndoorOnLaunch" type="checkbox" role="switch" checked /><span class="settings-switch" aria-hidden="true"></span></label>
   </div>
 </dialog>
@@ -200,7 +201,7 @@
 <div class="sheet-handle" aria-hidden="true"><span></span></div>
 <section class="inputs-panel" aria-labelledby="indoor-heading">
   <div class="section-heading">
-    <div class="indoor-title"><div class="camera-title-row"><h2 id="indoor-heading" tabindex="-1">Indoor readings</h2><button id="cameraHelpButton" class="camera-help-button" type="button" aria-label="Reading box help" aria-expanded="false" aria-controls="cameraCropHint" aria-describedby="cameraCropHint" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 16h.01"></path></svg></button></div><div id="cameraCropHint" class="camera-help-content" role="tooltip" hidden><span id="cameraCaptureHint" hidden>Fit the monitor display in the frame. Keep the digits sharp and avoid reflections. Drag the zoom ruler to fill the frame. Higher digital zoom enlarges existing pixels; moving closer preserves more detail.</span><span id="cameraReviewHint">Drag on the photo to add a box including °C or %. Move a box or resize its corners; release to read. <span id="cameraEditHint">Tap a value to correct it.</span></span></div><p id="indoorLastSet" hidden></p></div>
+    <div class="indoor-title"><div class="camera-title-row"><h2 id="indoor-heading" tabindex="-1">Indoor readings</h2><button id="cameraHelpButton" class="camera-help-button" type="button" aria-label="Reading box help" aria-expanded="false" aria-controls="cameraCropHint" aria-describedby="cameraCropHint" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 16h.01"></path></svg></button></div><div id="cameraCropHint" class="camera-help-content" role="region" aria-label="Camera help" hidden><span id="cameraCaptureHint" hidden>Keep the monitor display visible. Keep the digits sharp and avoid reflections. Drag the zoom ruler to fill the frame. Higher digital zoom enlarges existing pixels; moving closer preserves more detail. <span class="camera-auto-help">Auto flash turns on lighting in low light. Change it in <a id="cameraAutoFlashSettings" href="#autoFlash">Settings</a>.</span></span><span id="cameraReviewHint">Drag on the photo to add a box including °C or %. Move a box or resize its corners; release to read. <span id="cameraEditHint">Tap a value to correct it.</span></span></div><p id="indoorLastSet" hidden></p></div>
     <div class="sheet-heading-actions">
     <button class="indoor-speak-button indoor-icon-button" type="button" id="cameraInputButton" aria-label="Scan indoor readings" title="Scan indoor readings" aria-controls="cameraPanel">
       <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
@@ -215,21 +216,21 @@
   <div class="control ruler-control">
     <label for="indoorTemp">Temperature</label>
     <label class="reading-field ruler-value" for="indoorTempInput">
-      <input id="indoorTempInput" type="number" min="10" max="32" step="0.1" value="24" inputmode="decimal" aria-label="Indoor temperature" /><span aria-hidden="true">°C</span>
+      <input id="indoorTempInput" type="number" min="10" max="45" step="0.1" value="24" inputmode="decimal" aria-label="Indoor temperature" /><span aria-hidden="true">°C</span>
     </label>
     <div class="reading-ruler" data-ruler="indoorTemp" data-major-interval="1" data-tick-spacing="8" data-unit="degrees Celsius">
       <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
-      <input id="indoorTemp" type="range" min="10" max="32" step="0.1" value="24" aria-describedby="rulerHelp" />
+      <input id="indoorTemp" type="range" min="10" max="45" step="0.1" value="24" aria-describedby="rulerHelp" />
     </div>
   </div>
   <div class="control ruler-control">
     <label for="indoorRh">Relative humidity</label>
     <label class="reading-field ruler-value" for="indoorRhInput">
-      <input id="indoorRhInput" type="number" min="20" max="90" step="1" value="58" inputmode="numeric" aria-label="Indoor relative humidity" /><span aria-hidden="true">%</span>
+      <input id="indoorRhInput" type="number" min="10" max="90" step="1" value="58" inputmode="numeric" aria-label="Indoor relative humidity" /><span aria-hidden="true">%</span>
     </label>
     <div class="reading-ruler" data-ruler="indoorRh" data-major-interval="5" data-tick-spacing="16" data-unit="percent">
       <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
-      <input id="indoorRh" type="range" min="20" max="90" step="1" value="58" aria-describedby="rulerHelp" />
+      <input id="indoorRh" type="range" min="10" max="90" step="1" value="58" aria-describedby="rulerHelp" />
     </div>
   </div>
   <p id="rulerHelp" class="ruler-help">Drag the ruler or use arrow keys to adjust. Tap the number to type.</p>
@@ -273,11 +274,12 @@
     <div class="camera-feed" id="cameraFeed">
       <video id="cameraVideo" autoplay muted playsinline aria-hidden="true"></video>
       <canvas id="cameraPreview" class="camera-starting" role="img" aria-label="Rear camera preview"></canvas>
-      <div class="camera-guide" aria-hidden="true"></div>
-      <p id="cameraCaptureStatus" class="camera-status" role="status">Starting camera…</p>
+      <div class="camera-preview-controls">
+      <p id="cameraCaptureStatus" class="camera-status" role="status" aria-live="polite" aria-atomic="true">Starting camera…</p>
       <button id="cameraFlash" class="camera-flash" type="button" aria-label="Turn flash on" aria-pressed="false" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h8l-1 8 11-12h-8l1-8Z"></path></svg>
       </button>
+      </div>
     </div>
     <div class="camera-zoom" id="cameraZoomControl" hidden>
       <div class="camera-zoom-heading"><label for="cameraZoom">Zoom</label><output id="cameraZoomValue" for="cameraZoom">1.0×</output></div>
@@ -306,13 +308,13 @@
       <div class="camera-reading-card">
         <label for="cameraTempDraft">Temperature</label>
         <canvas id="cameraTempCrop" role="img" aria-label="Temperature image crop"></canvas>
-        <div class="camera-draft-field"><input id="cameraTempDraft" type="number" min="10" max="32" step="0.1" inputmode="decimal" aria-describedby="cameraEditHint cameraTempError" /><span aria-hidden="true">°C</span></div>
+        <div class="camera-draft-field"><input id="cameraTempDraft" type="number" min="10" max="45" step="0.1" inputmode="decimal" aria-describedby="cameraEditHint cameraTempError" /><span aria-hidden="true">°C</span></div>
         <p id="cameraTempError" class="camera-field-error"></p>
       </div>
       <div class="camera-reading-card">
         <label for="cameraRhDraft">Relative humidity</label>
         <canvas id="cameraRhCrop" role="img" aria-label="Humidity image crop"></canvas>
-        <div class="camera-draft-field"><input id="cameraRhDraft" type="number" min="20" max="90" step="1" inputmode="numeric" aria-describedby="cameraEditHint cameraRhError" /><span aria-hidden="true">%</span></div>
+        <div class="camera-draft-field"><input id="cameraRhDraft" type="number" min="10" max="90" step="1" inputmode="numeric" aria-describedby="cameraEditHint cameraRhError" /><span aria-hidden="true">%</span></div>
         <p id="cameraRhError" class="camera-field-error"></p>
       </div>
     </div>
@@ -467,6 +469,6 @@
         <button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button>
       </section>
     </dialog>
-    <script src="app.js?v=148" type="module"></script>
+    <script src="app.js?v=149" type="module"></script>
   </body>
 </html>

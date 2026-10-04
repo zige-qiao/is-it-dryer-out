@@ -4,9 +4,12 @@ export function createCameraHelp({ button, content, dialog }, document) {
   function close() { pinned = false; show(false); }
   function initialize() {
     button.addEventListener('pointerenter', () => show(true));
-    button.addEventListener('pointerleave', () => { if (!pinned && document.activeElement !== button) show(false); });
+    button.addEventListener('pointerleave', event => { if (!pinned && document.activeElement !== button && !content.contains?.(event.relatedTarget)) show(false); });
+    content.addEventListener('pointerleave', event => { if (!pinned && !content.contains?.(document.activeElement) && event.relatedTarget !== button) show(false); });
+    content.addEventListener('focusin', () => show(true));
+    content.addEventListener('focusout', event => { if (!pinned && event.relatedTarget !== button && !content.contains?.(event.relatedTarget)) show(false); });
     button.addEventListener('focus', () => show(true));
-    button.addEventListener('blur', () => { if (!pinned) show(false); });
+    button.addEventListener('blur', event => { if (!pinned && !content.contains?.(event.relatedTarget)) show(false); });
     button.addEventListener('click', () => { pinned = !pinned; show(pinned); });
     dialog.addEventListener('pointerdown', event => {
       if (event.target !== button && !button.contains?.(event.target) && !content.contains?.(event.target)) close();

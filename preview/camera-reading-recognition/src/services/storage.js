@@ -1,3 +1,4 @@
+import { INDOOR_LIMITS } from '../config.js';
 import { numberInRange } from '../domain/humidity.js';
 import { STORAGE_KEY, PLAN_STORAGE_KEY, UI_PREFERENCES_STORAGE_KEY, LOCATION_STORAGE_KEY, LOCATION_HISTORY_STORAGE_KEY, LOCATION_REQUESTED_STORAGE_KEY, ROOM_PRESETS, OPENING_SETUPS } from '../config.js';
 
@@ -48,8 +49,8 @@ export function createStorage({
     if (!saved) return;
     try {
       const parsed = JSON.parse(saved);
-      state.indoorTemp = numberInRange(parsed.indoorTemp, 10, 32, state.indoorTemp);
-      state.indoorRh = numberInRange(parsed.indoorRh, 20, 90, state.indoorRh);
+      state.indoorTemp = numberInRange(parsed.indoorTemp, INDOOR_LIMITS.temperature.min, INDOOR_LIMITS.temperature.max, state.indoorTemp);
+      state.indoorRh = numberInRange(parsed.indoorRh, INDOOR_LIMITS.humidity.min, INDOOR_LIMITS.humidity.max, state.indoorRh);
       state.indoorLastSet = Number.isFinite(parsed.indoorLastSet) && parsed.indoorLastSet > 0 && parsed.indoorLastSet <= Date.now() ? parsed.indoorLastSet : null;
     } catch {
       localStorage.removeItem(STORAGE_KEY);
@@ -84,6 +85,7 @@ export function createStorage({
     try {
       const saved = JSON.parse(localStorage.getItem(UI_PREFERENCES_STORAGE_KEY));
       if (typeof saved?.showIndoorSummary === 'boolean') uiPreferences.showIndoorSummary = saved.showIndoorSummary;
+      if (typeof saved?.autoFlash === 'boolean') uiPreferences.autoFlash = saved.autoFlash;
       if (typeof saved?.openIndoorOnLaunch === 'boolean') uiPreferences.openIndoorOnLaunch = saved.openIndoorOnLaunch;
     } catch { /* Keep the defaults if browser storage is unavailable or invalid. */ }
     applyUiPreferences();

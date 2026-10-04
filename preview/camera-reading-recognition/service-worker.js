@@ -1,9 +1,9 @@
-const CACHE_NAME = "dew-camera-preview-v148";
+const CACHE_NAME = "dew-camera-preview-v149";
 const APP_FILES = [
   "./",
   "index.html",
-  "styles.css?v=148",
-  "app.js?v=148",
+  "styles.css?v=149",
+  "app.js?v=149",
   "src/config.js",
   "src/domain/humidity.js",
   "src/domain/forecast.js",
@@ -27,6 +27,7 @@ const APP_FILES = [
   "src/voice/controller.js",
   "src/camera/controller.js",
   "src/camera/capture.js",
+  "src/camera/device-session.js",
   "src/camera/still-photo.js",
   "src/camera/zoom-ruler.js",
   "src/camera/labels.js",

@@ -59,8 +59,11 @@ export function proposeRegions(pixels) {
   for (const unit of softer.units) if (!evidence.units.some(u => u.field === unit.field && intersection(u.box, unit.box) > Math.min(u.box.width * u.box.height, unit.box.width * unit.box.height) * .7)) evidence.units.push(unit);
   for (const glyph of softer.glyphs) if (!evidence.glyphs.some(g => g.digit === glyph.digit && intersection(g, glyph) > Math.min(g.width * g.height, glyph.width * glyph.height) * .8)) evidence.glyphs.push(glyph);
   const pairs = digitPairs(evidence.glyphs);
+  const currentBand = [evidence.currentBand, softer.currentBand].filter(Boolean).sort((a, b) => b.height - a.height)[0] || null;
+  const band = currentBand && { x: currentBand.x * width, y: currentBand.y * height, width: currentBand.width * width, height: currentBand.height * height };
   for (const proposal of raw) {
     const contains = b => intersection(proposal.box, b) / (b.width * b.height) > .7;
+    if (band && contains(band)) proposal.score += 40;
     proposal.score += evidence.units.filter(u => contains(u.box)).length * 8 + pairs.filter(g => contains(bounds(g.items))).length * 2;
   }
   const supplemental = [];
@@ -72,7 +75,7 @@ export function proposeRegions(pixels) {
       supplemental.push({ box, score: 8, kind: 'unit' });
   }
   for (const p of pairs) {
-    if (p.height < 10 || p.items.every(g => g.digit === '1')) continue;
+    if (p.height < Math.max(10, (band?.height || 0) * .6) || p.items.every(g => g.digit === '1')) continue;
     const b = bounds(p.items), related = evidence.units.some(u => u.box.x >= b.x + b.width - p.height * .2 &&
       u.box.x <= b.x + b.width + p.height * 1.3 && u.box.y >= b.y - p.height * .3 && u.box.y <= b.y + p.height);
     supplemental.push({ box: { x: b.x - p.height * .25, y: b.y - p.height * .25,
@@ -85,7 +88,8 @@ export function proposeRegions(pixels) {
       const overlap = intersection(region, r.region), a = region.width * region.height, b = r.region.width * r.region.height;
       return overlap / (a + b - overlap) > .7 || (r.kind === proposal.kind && overlap / Math.min(a, b) > .85);
     })) continue;
-    result.push({ region, kind: proposal.kind }); if (result.length === 4) break;
+    if (band && proposal.kind !== 'display' && intersection(proposal.box, band) === 0) continue;
+    result.push({ region, kind: proposal.kind, currentBand }); if (result.length === 4) break;
   }
   return result;
 }
@@ -94,7 +98,7 @@ export function proposeRegions(pixels) {
 export function mapRegionalResult(result, crop, pixels, source) {
   if (!result) return result;
   const map = b => b && ({ x: crop.x + b.x * crop.width, y: crop.y + b.y * crop.height, width: b.width * crop.width, height: b.height * crop.height });
-  const mapped = { ...result, regions: {}, readings: {} };
+  const mapped = { ...result, currentBand: map(result.currentBand), regions: {}, readings: {} };
   const matrix = [crop.width * source.width / pixels.width, 0, crop.x * source.width, 0,
     crop.height * source.height / pixels.height, crop.y * source.height, 0, 0, 1];
   for (const field of ['temperature', 'humidity']) {
@@ -109,12 +113,12 @@ export function mapRegionalResult(result, crop, pixels, source) {
 
 export function mergeResults(results) {
   const output = { regions: { temperature: null, humidity: null }, values: { temperature: '', humidity: '' }, readings: {}, status: 'unassigned', field: null };
-  const dominant = Math.max(0, ...results.flatMap(r => Object.values(r?.readings || {}).map(e => e.digitBounds?.height || 0)));
+  const dominant = Math.max(0, ...results.map(r => r?.currentBand?.height || 0), ...results.flatMap(r => Object.values(r?.readings || {}).map(e => e.digitBounds?.height || 0)));
   for (const field of ['temperature', 'humidity']) {
     const entries = results.map(r => r?.readings?.[field]).filter(e => e && (!e.digitBounds || e.digitBounds.height >= dominant * .6));
     const best = entries.find(e => e.value) || entries[0]; if (!best) continue;
     const conflict = entries.some(e => e.value && best.value && e.value !== best.value);
-    output.readings[field] = conflict ? { ...best, value: '', confidence: { ...best.confidence, numeric: 0 } } : best;
+    output.readings[field] = conflict ? { ...best, value: '', rejectionReason: 'conflicting-digits', confidence: { ...best.confidence, numeric: 0 } } : best;
     output.regions[field] = best.region; output.values[field] = conflict ? '' : best.value;
   }
   if (Object.keys(output.readings).length) output.status = 'found';

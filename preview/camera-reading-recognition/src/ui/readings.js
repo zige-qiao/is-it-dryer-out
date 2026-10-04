@@ -1,3 +1,4 @@
+import { INDOOR_LIMITS } from '../config.js';
 import { clamp } from '../domain/humidity.js';
 import { rulerValueFromDrag } from './ruler.js';
 
@@ -28,8 +29,8 @@ export function createReadingControls({
 
   function bindSteppers() {
     const settings = {
-      indoorTemp: { min: 10, max: 32, step: 0.1, save: saveIndoorReadings },
-      indoorRh: { min: 20, max: 90, step: 1, save: saveIndoorReadings },
+      indoorTemp: { ...INDOOR_LIMITS.temperature, save: saveIndoorReadings },
+      indoorRh: { ...INDOOR_LIMITS.humidity, save: saveIndoorReadings },
       targetRh: { min: 40, max: 65, step: 1, save: savePlanSettings },
       minTemp: { min: 16, max: 26, step: 1, save: savePlanSettings },
     };

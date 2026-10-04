@@ -15,7 +15,7 @@ import { createEvents } from './src/ui/events.js';
 import { createTimerController, isAppleMobile } from './src/ui/timer.js';
 import { DEFAULT_LOCATION, DEFAULT_PRESSURE_HPA, DEFAULT_TIMEZONE, WEATHER_REFRESH_INTERVAL_MS } from './src/config.js';
 
-const uiPreferences = { showIndoorSummary: false, openIndoorOnLaunch: true };
+const uiPreferences = { showIndoorSummary: false, openIndoorOnLaunch: true, autoFlash: true };
 
 const state = {
   indoorReadingSource: null,
@@ -59,7 +59,7 @@ const elements = {
     'cameraRhError', 'cameraRetakeButton', 'cameraPendingBox', 'cameraAssignment', 'cameraAssignChoices', 'cameraAssignTemp', 'cameraAssignRh', 'cameraDiscardBox',
     'cameraConfirmButton', 'cameraPhotoWrap', 'cameraErrorMessage', 'cameraErrorHelp', 'cameraErrorDetails',
     'cameraManualButton', 'cameraRetryButton', 'cameraFeed', 'cameraZoomControl', 'cameraZoom', 'cameraZoomValue',
-    'cameraHelpButton', 'cameraCropHint', 'cameraCaptureHint', 'cameraReviewHint', 'cameraReadStatusText'].map(id => [id, document.querySelector('#' + id)])),
+    'cameraAutoFlashSettings', 'cameraHelpButton', 'cameraCropHint', 'cameraCaptureHint', 'cameraReviewHint', 'cameraReadStatusText'].map(id => [id, document.querySelector('#' + id)])),
   timerDialog: document.querySelector('#timerDialog'),
   timerDialogTitle: document.querySelector('#timerDialogTitle'),
   timerMinutes: document.querySelector('#timerMinutes'),
@@ -84,6 +84,7 @@ const elements = {
   indoorSummaryTemp: document.querySelector("#indoorSummaryTemp"),
   indoorSummaryRh: document.querySelector("#indoorSummaryRh"),
   settingsButton: document.querySelector("#settingsButton"),
+  autoFlash: document.querySelector("#autoFlash"),
   settingsDialog: document.querySelector("#settingsDialog"),
   settingsDialogTitle: document.querySelector("#settingsDialogTitle"),
   showIndoorSummary: document.querySelector("#showIndoorSummary"),
@@ -170,7 +171,12 @@ const storage = createStorage({
   applyUiPreferences: (...args) => events.applyUiPreferences(...args),
 });
 const cameraController = createCameraController({
-  state, elements,
+  state, elements, uiPreferences,
+  openFlashSettings: () => {
+    elements.settingsButton.click();
+    dialogs.rememberSheetFocus(elements.settingsDialog, elements.cameraHelpButton, elements.cameraHelpButton);
+    elements.autoFlash.focus({ preventScroll: true });
+  },
   beforeCamera: () => {
     dialogs.rememberSheetFocus(elements.cameraPanel, elements.cameraInputButton, elements.cameraTitle);
     if (!elements.voiceDialog.hidden) voiceController.closeVoiceDialog();

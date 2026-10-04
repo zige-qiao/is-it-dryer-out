@@ -4,10 +4,11 @@ import { createCropEditor } from './crop-editor.js';
 import { createCaptureControls } from './capture.js';
 import { createCameraHelp } from './help.js';
 import { createZoomRuler } from './zoom-ruler.js';
+import { createDeviceSession } from './device-session.js';
 import { createStillPhoto } from './still-photo.js';
 
 export function createCameraController({ elements, beforeCamera, saveIndoorReadings, state, render,
-  recogniseService, returnFocus } = {}, environment = globalThis) {
+  recogniseService, returnFocus, uiPreferences = { autoFlash: true }, openFlashSettings = () => {} } = {}, environment = globalThis) {
   const { document, navigator } = environment;
   const recognition = recogniseService || createRecognitionService(environment);
   let stream = null, track = null, active = false, session = 0, reading = false;
@@ -24,7 +25,9 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     onError: error => { if (active && !captured) { releaseCamera(); showError(error, true); } },
   }, environment);
   const zoomRuler = createZoomRuler({ input: elements.cameraZoom,
-    onValue: value => captureControls.setZoom(value), onGesture: value => captureControls.setZoomGesture(value) }, environment);
+    onValue: value => devices.setZoom(value), onGesture: value => captureControls.setZoomGesture(value) }, environment);
+  const devices = createDeviceSession({ video: elements.cameraVideo, controls: captureControls, preferences: uiPreferences,
+    onStream: value => { stream = value; track = value.getVideoTracks()[0]; }, settingsOpen: () => Boolean(elements.settingsDialog?.open) }, environment);
   function setReviewStatus(kind, text) {
     statusKind = kind; elements.cameraReadStatus.dataset.state = kind;
     elements.cameraReadStatusText.textContent = text;
@@ -55,8 +58,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
   function releaseCamera() {
     stillPhoto.cancel();
     zoomRuler.stop();
-    captureControls.stop();
-    stream?.getTracks().forEach(track => track.stop());
+    devices.stop();
     stream = null; track = null;
     elements.cameraVideo.srcObject = null;
     elements.cameraFlash.hidden = true;
@@ -110,22 +112,15 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     if (environment.isSecureContext === false || !navigator?.mediaDevices?.getUserMedia) {
       showError({ name: 'NotFoundError' }, environment.isSecureContext !== false); return;
     }
-    let acquired = null;
     try {
-      acquired = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } } });
-      if (!active || session !== request) { acquired.getTracks().forEach(track => track.stop()); return; }
-      stream = acquired; track = stream.getVideoTracks()[0];
-      elements.cameraVideo.srcObject = stream;
-      await elements.cameraVideo.play();
-      if (!active || session !== request) return;
-      await captureControls.start(track);
+      await devices.start();
     } catch (error) {
-      if (!active || session !== request) { acquired?.getTracks().forEach(track => track.stop()); return; }
+      if (!active || session !== request) return;
       releaseCamera(); showError(error, true);
     }
   }
 
-  const toggleFlash = () => captureControls.toggleFlash().catch(() => {});
+  const toggleFlash = () => devices.toggleFlash().catch(() => {});
 
   function drawCrops() {
     for (const [field, output] of [
@@ -178,8 +173,9 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
       drawCrops();
       for (const field of fields) draft(field).value = result?.values?.[field] || '';
       readStatus();
-    } catch {
-      if (active && request === session) setReviewStatus('error', 'Reading failed. Enter values manually.');
+      if (result?.rejectionReason === 'timeout') setReviewStatus('attention', 'Reading timed out. Check the detected value and enter the missing value.');
+    } catch (error) {
+      if (active && request === session) setReviewStatus('error', error?.name === 'TimeoutError' ? 'Reading timed out. Enter values manually.' : 'Reading failed. Enter values manually.');
     } finally {
       if (active && request === session) { reading = false; elements.cameraReviewPanel.setAttribute('aria-busy', 'false'); validate(); }
     }
@@ -216,9 +212,9 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
           if (assigned) draft(identified).focus();
         }
       }
-    } catch {
+    } catch (error) {
       if (active && session === request) {
-        setReviewStatus('error', 'Reading failed. Enter values manually.');
+        setReviewStatus('error', error?.name === 'TimeoutError' ? 'Reading timed out. Enter values manually.' : 'Reading failed. Enter values manually.');
         if (field === 'pending') { elements.cameraAssignment.hidden = false; elements.cameraAssignChoices.hidden = false; }
       }
     } finally {
@@ -228,8 +224,8 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
 
   async function capturePhoto() {
     const video = elements.cameraVideo;
-    if (!active || !stream || !video.videoWidth || !video.videoHeight || !captureControls.isReady()) return;
-    const request = session, owner = track, framing = captureControls.snapshot();
+    if (!active || !stream || !video.videoWidth || !video.videoHeight || devices.busy() || !captureControls.isReady()) return;
+    const request = session, owner = track, framing = { ...captureControls.snapshot(), fillLightMode: devices.captureMode() };
     captureControls.setCapturing(true);
     try {
       const photo = await stillPhoto.take(owner, framing, () => captureControls.setTorch(false));
@@ -271,6 +267,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
 
   function initialize() {
     help.initialize();
+    elements.cameraAutoFlashSettings?.addEventListener('click', event => { event.preventDefault(); help.close(); openFlashSettings(); });
     zoomRuler.initialize();
     editor.initialize();
     elements.cameraInputButton.addEventListener('click', () => void startCamera());

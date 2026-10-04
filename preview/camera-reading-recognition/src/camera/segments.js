@@ -46,9 +46,18 @@ export function readSegmentedDigits({ data, width, height }, maxDigits = 3) {
       [.28, .87, .72, .98], [.02, .61, .20, .81], [.02, .19, .20, .39], [.28, .445, .72, .555]];
     const densities = zones.map(zone => density(...zone));
     // Reject an uncertain segment instead of choosing a plausible number.
-    if (densities.some(value => value > .18 && value < .36)) return '';
     const pattern = densities.map(value => value >= .36 ? '1' : '0').join('');
-    const digit = DIGITS.get(pattern); if (!digit) return '';
+    let digit = DIGITS.get(pattern);
+    if (densities.some(value => value > .18 && value < .36) || !digit) {
+      // Soft template distances tolerate a blurred edge, but require both
+      // negative evidence and a clear margin over the competing template.
+      const matches = [...DIGITS].map(([pattern, value]) => ({ value,
+        score: densities.reduce((sum, density, i) => sum + (density - Number(pattern[i])) ** 2, 0) / 7,
+      })).sort((a, b) => a.score - b.score);
+      if (matches[0].score > .16 || matches[1].score - matches[0].score < .045) return '';
+      digit = matches[0].value;
+    }
+    if (!digit) return '';
     result += digit;
   }
   return result;
