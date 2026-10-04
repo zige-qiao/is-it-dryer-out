@@ -4,6 +4,7 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Centre camera startup/settling messages inside the live preview, size selection labels to their full text, suppress review-body elastic overscroll while retaining scrolling, and use readable semantic green for review-ready text.
 - Use a 2:1 canvas camera preview and the same displayed crop for capture, with rendering capped at 30 fps and 1280 pixels. Block capture until updated zoom/framing has rendered.
 - Box the zoom controls and reading status, distinguish processing/review/attention/failure with semantic colours and icons, and move capture guidance into title help. Hide capture status when ready.
 - Add 1×–3× live-camera zoom with verified native control and digital fallback, shared preview/capture framing, serialized flash updates, and a cancellable startup-settling check.

@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=145" />
+    <link rel="stylesheet" href="styles.css?v=146" />
     <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
@@ -274,12 +274,12 @@
       <video id="cameraVideo" autoplay muted playsinline aria-hidden="true"></video>
       <canvas id="cameraPreview" class="camera-starting" role="img" aria-label="Rear camera preview"></canvas>
       <div class="camera-guide" aria-hidden="true"></div>
+      <p id="cameraCaptureStatus" class="camera-status" role="status">Starting camera…</p>
       <button id="cameraFlash" class="camera-flash" type="button" aria-label="Turn flash on" aria-pressed="false" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h8l-1 8 11-12h-8l1-8Z"></path></svg>
       </button>
     </div>
     <div class="camera-zoom" id="cameraZoomControl" hidden><label for="cameraZoom">Zoom</label><input id="cameraZoom" type="range" min="1" max="3" step="0.1" value="1" aria-valuetext="1.0 times zoom" disabled /><output id="cameraZoomValue" for="cameraZoom">1.0×</output></div>
-    <p id="cameraCaptureStatus" class="camera-status" role="status">Starting camera…</p>
     <button id="cameraCaptureButton" type="button" class="sheet-primary" disabled>Take photo</button>
   </div>
   <div id="cameraReviewPanel" hidden>
@@ -464,6 +464,6 @@
         <button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button>
       </section>
     </dialog>
-    <script src="app.js?v=145" type="module"></script>
+    <script src="app.js?v=146" type="module"></script>
   </body>
 </html>
