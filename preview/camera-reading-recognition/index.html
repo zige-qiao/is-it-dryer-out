@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=143" />
+    <link rel="stylesheet" href="styles.css?v=144" />
     <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
@@ -200,7 +200,7 @@
 <div class="sheet-handle" aria-hidden="true"><span></span></div>
 <section class="inputs-panel" aria-labelledby="indoor-heading">
   <div class="section-heading">
-    <div class="indoor-title"><h2 id="indoor-heading" tabindex="-1">Indoor readings</h2><p id="indoorLastSet" hidden></p></div>
+    <div class="indoor-title"><div class="camera-title-row"><h2 id="indoor-heading" tabindex="-1">Indoor readings</h2><button id="cameraHelpButton" class="camera-help-button" type="button" aria-label="Reading box help" aria-expanded="false" aria-controls="cameraCropHint" aria-describedby="cameraCropHint" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 16h.01"></path></svg></button></div><div id="cameraCropHint" class="camera-help-content" role="tooltip" hidden>Drag on the photo to add a box including °C or %. Move a box or resize its corners; release to read. <span id="cameraEditHint">Tap a value to correct it.</span></div><p id="indoorLastSet" hidden></p></div>
     <div class="sheet-heading-actions">
     <button class="indoor-speak-button indoor-icon-button" type="button" id="cameraInputButton" aria-label="Scan indoor readings" title="Scan indoor readings" aria-controls="cameraPanel">
       <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
@@ -208,7 +208,7 @@
     <button class="indoor-speak-button indoor-icon-button" type="button" id="voiceInputButton" aria-label="Update indoor readings by voice" title="Update indoor readings by voice" hidden>
       <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></svg>
     </button>
-    <button class="secondary-button camera-back" type="button" id="cameraBackButton" hidden>Back</button>
+    <button class="camera-back" type="button" id="cameraBackButton" aria-label="Back to indoor readings" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"></path></svg><span>Back</span></button>
     <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close indoor readings" title="Close">&times;</button>
     </div>
   </div>
@@ -271,13 +271,14 @@
 <section class="camera-panel" id="cameraPanel" aria-labelledby="indoor-heading" hidden>
   <div id="cameraCapturePanel">
     <p class="camera-instruction">Fit the monitor display in the frame.</p>
-    <div class="camera-feed">
-      <video id="cameraVideo" autoplay muted playsinline aria-label="Rear camera preview"></video>
+    <div class="camera-feed" id="cameraFeed">
+      <video id="cameraVideo" class="camera-starting" autoplay muted playsinline aria-label="Rear camera preview"></video>
       <div class="camera-guide" aria-hidden="true"></div>
       <button id="cameraFlash" class="camera-flash" type="button" aria-label="Turn flash on" aria-pressed="false" hidden>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h8l-1 8 11-12h-8l1-8Z"></path></svg>
       </button>
     </div>
+    <div class="camera-zoom" id="cameraZoomControl" hidden><label for="cameraZoom">Zoom</label><input id="cameraZoom" type="range" min="1" max="3" step="0.1" value="1" aria-valuetext="1.0 times zoom" disabled /><output id="cameraZoomValue" for="cameraZoom">1.0×</output></div>
     <p id="cameraCaptureStatus" class="camera-status" role="status">Starting camera…</p>
     <button id="cameraCaptureButton" type="button" class="sheet-primary" disabled>Take photo</button>
   </div>
@@ -295,9 +296,8 @@
       </div>
       <button id="cameraRetakeButton" class="camera-flash camera-retake" type="button" aria-label="Retake photo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h4l2-3h4l2 3h4v15H4Z"></path><circle cx="12" cy="13" r="4"></circle></svg></button>
     </div>
-    <p id="cameraCropHint" class="camera-status camera-crop-hint">Drag on the photo to add a box including °C or %. Move a box or resize its corners; release to read.</p>
     <p id="cameraKeyboardHint" class="visually-hidden">Enter or Space on the photo draws a box. Arrow keys move it; Shift resizes and Alt makes smaller adjustments.</p>
-    <p id="cameraReadStatus" class="camera-status" role="status" aria-live="polite">Reading photo…</p>
+    <div id="cameraReadStatus" class="camera-reading-status" data-state="processing" role="status" aria-live="polite"><svg viewBox="0 0 24 24" aria-hidden="true"><g class="camera-status-progress"><path d="M20 12a8 8 0 1 1-8-8"></path></g><g class="camera-status-info"><circle cx="12" cy="12" r="8"></circle><path d="M12 11v6M12 7h.01"></path></g><g class="camera-status-warning"><path d="m12 3 10 18H2Z M12 9v5M12 17h.01"></path></g></svg><span id="cameraReadStatusText">Reading numbers…</span></div>
     <div id="cameraAssignment" class="camera-selection-actions" hidden><div id="cameraAssignChoices"><button id="cameraAssignTemp" type="button" class="secondary-button">Temperature</button><button id="cameraAssignRh" type="button" class="secondary-button">Humidity</button></div><button id="cameraDiscardBox" type="button" class="secondary-button">Discard box</button></div>
     <div class="camera-reading-cards">
       <div class="camera-reading-card">
@@ -313,7 +313,6 @@
         <p id="cameraRhError" class="camera-field-error"></p>
       </div>
     </div>
-    <p id="cameraEditHint" class="camera-status">Tap a value to correct it.</p>
     <div class="camera-actions"><button id="cameraConfirmButton" type="button" class="sheet-primary" disabled>Confirm readings</button></div>
   </div>
   <div id="cameraErrorPanel" hidden>
@@ -465,6 +464,6 @@
         <button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button>
       </section>
     </dialog>
-    <script src="app.js?v=143" type="module"></script>
+    <script src="app.js?v=144" type="module"></script>
   </body>
 </html>
