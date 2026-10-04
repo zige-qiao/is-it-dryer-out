@@ -2369,10 +2369,18 @@ body.pull-result.pull-failed .pull-refresh-result-icon::after { content: '!'; }
 .camera-help-button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
 .camera-help-button:hover, .camera-help-button[aria-expanded="true"] { background: var(--surface-control); }
 .camera-help-content { position: absolute; top: calc(100% + 4px); left: 0; z-index: 6; box-sizing: border-box; width: min(300px, calc(100vw - 48px)); padding: var(--space-12); border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--surface-panel); color: var(--ink-main); font-size: 14px; line-height: 1.5; box-shadow: 0 4px 12px rgb(0 0 0 / .08); }
-.camera-zoom { display: flex; align-items: center; gap: var(--space-12); box-sizing: border-box; width: 100%; min-height: 44px; margin-top: var(--space-12); padding: var(--space-12); border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--surface-control); font-size: 14px; color: var(--ink-muted); }
-.camera-zoom input { min-width: 0; flex: 1; height: 44px; margin: 0; }
-.camera-zoom input:focus-visible { outline: 2px solid var(--ink-main); outline-offset: 2px; border-radius: 8px; }
-.camera-zoom output { flex: 0 0 3em; text-align: right; font-variant-numeric: tabular-nums; }
+.camera-zoom { box-sizing: border-box; width: 100%; margin-top: var(--space-12); padding: var(--space-12); border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--surface-control); font-size: 14px; color: var(--ink-main); }
+.camera-zoom-heading { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.camera-zoom output { text-align: right; font-variant-numeric: tabular-nums; font-weight: 650; }
+.camera-zoom-ruler .ruler-tick { background: var(--border-control); }
+.camera-zoom-ruler .ruler-tick-major { background: var(--ink-main); }
+.camera-zoom-ruler .ruler-tick-major span { color: var(--ink-main); }
+.camera-zoom-ruler[aria-disabled="true"] { cursor: default; }
+.camera-zoom-ruler::after { display: none; }
+@media (forced-colors: active) {
+  .camera-zoom-ruler .ruler-tick, .camera-zoom-ruler .ruler-tick-major { background: CanvasText; }
+  .camera-zoom-ruler .ruler-tick-major span { color: CanvasText; }
+}
 .camera-feed { position: relative; aspect-ratio: 2 / 1; border-radius: 16px; overflow: hidden; background: #202725; }
 .camera-feed video, .camera-feed canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
 .camera-feed video { opacity: 0; pointer-events: none; }
@@ -2392,7 +2400,8 @@ body.pull-result.pull-failed .pull-refresh-result-icon::after { content: '!'; }
 #cameraPhoto { display: block; width: 100%; height: auto; border-radius: 12px; }
 .camera-reading-box { position: absolute; border: 2px solid #fff; border-radius: 8px; box-shadow: 0 0 0 1px #403c3770; cursor: move; touch-action: none; }
 .camera-reading-box:focus-visible { outline: 3px solid var(--ink-main); outline-offset: 4px; }
-.camera-reading-box span { position: absolute; top: -2px; left: 8px; width: max-content; white-space: nowrap; border-radius: 4px; padding: 2px 4px; background: var(--surface-panel); color: var(--ink-main); font-size: 11px; font-weight: 650; transform: translateY(-100%); cursor: move; z-index: 2; }
+.camera-reading-box span { position: absolute; top: -24px; left: 8px; width: max-content; white-space: nowrap; border-radius: 4px; padding: 2px 4px; background: var(--surface-panel); color: var(--ink-main); font-size: 11px; font-weight: 650; cursor: move; z-index: 2; }
+.camera-label-connector { position: absolute; height: 1px; background: #fff; box-shadow: 0 0 1px #403c37; transform-origin: left center; pointer-events: none; }
 .camera-crop-handle { position: absolute; width: 40px; height: 40px; border: 0; padding: 0; background: transparent; transform: translate(-50%, -50%); cursor: nwse-resize; }
 .camera-crop-handle::after { content: ''; position: absolute; left: 14px; top: 14px; width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 1px solid #403c37; }
 .camera-crop-handle[data-crop-handle="nw"] { left: 0; top: 0; }

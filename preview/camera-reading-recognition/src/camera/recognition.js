@@ -1,4 +1,5 @@
-import { analyzeImage } from './analysis.js';
+import { processImage } from './worker.js';
+import { boundedRegion, mapRegionalResult, mergeResults } from './regions.js';
 
 export function cropCanvas(source, crop, document = globalThis.document) {
   const canvas = document.createElement('canvas');
@@ -12,13 +13,15 @@ export function cropCanvas(source, crop, document = globalThis.document) {
 export function createRecognitionService(environment = globalThis) {
   let generation = 0, worker = null, pending = null;
   const { document } = environment;
-  function pixels(source) {
-    const scale = Math.min(1, 800 / Math.max(source.width, source.height));
+  function pixels(source, region = { x: 0, y: 0, width: 1, height: 1 }, refine = false) {
+    const width = source.width * region.width, height = source.height * region.height;
+    const scale = Math.min(refine ? 4 : 1, (refine ? Math.max(600, Math.min(800, Math.max(width, height))) : 800) / Math.max(width, height));
     const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(source.width * scale)); canvas.height = Math.max(1, Math.round(source.height * scale));
+    canvas.width = Math.max(1, Math.round(width * scale)); canvas.height = Math.max(1, Math.round(height * scale));
     const context = canvas.getContext('2d', { willReadFrequently: true });
-    context.drawImage(source, 0, 0, canvas.width, canvas.height);
+    context.drawImage(source, source.width * region.x, source.height * region.y, width, height, 0, 0, canvas.width, canvas.height);
     const image = context.getImageData(0, 0, canvas.width, canvas.height);
+    canvas.width = canvas.height = 0;
     return { width: image.width, height: image.height, data: image.data };
   }
   function cancel() {
@@ -26,26 +29,61 @@ export function createRecognitionService(environment = globalThis) {
     if (pending) { environment.clearTimeout(pending.timer); pending.resolve(null); pending = null; }
   }
   async function analyze(source, options = {}) {
-    cancel(); const id = generation, image = pixels(source);
-    if (environment.Worker) {
-      const candidate = new environment.Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
-      worker = candidate;
-      return new Promise((resolve, reject) => {
-        const finish = (result, error) => {
-          if (worker !== candidate) return;
-          candidate.terminate(); worker = null; environment.clearTimeout(pending.timer); pending = null;
-          if (error) reject(error); else resolve(result);
-        };
-        pending = { resolve, timer: environment.setTimeout(() => finish(null, new Error('Local recognition timed out.')), 15000) };
-        candidate.onmessage = event => { if (event.data.id === id) finish(event.data.result, event.data.error ? new Error(event.data.error) : null); };
-        candidate.onerror = () => finish(null, new Error('Local recognition could not start.'));
-        try { candidate.postMessage({ id, pixels: image, options }); }
-        catch (error) { finish(null, error); }
+    cancel(); const id = generation, sourceSize = { width: source.width, height: source.height };
+    const now = () => environment.performance?.now() ?? Date.now(), deadline = now() + 15000;
+    const alive = () => id === generation && now() < deadline;
+    const candidate = environment.Worker ? new environment.Worker(new URL('./worker.js', import.meta.url), { type: 'module' }) : null;
+    worker = candidate;
+    let receive, rejectStage;
+    const request = async (image, opts, kind = 'analyze') => {
+      if (!alive()) return null;
+      if (!candidate) return processImage({ pixels: image, options: opts, kind }, async () => {
+        await new Promise(resolve => environment.setTimeout(resolve, 0)); return alive();
       });
-    }
-    return analyzeImage(image, options, async () => {
-      await new Promise(resolve => environment.setTimeout(resolve, 0));
-      return id === generation;
+      return new Promise((resolve, reject) => {
+        receive = resolve; rejectStage = reject;
+        try { candidate.postMessage({ id, pixels: image, options: opts, kind }); } catch (error) { reject(error); }
+      });
+    };
+    return new Promise((resolve, reject) => {
+      const finish = (result, error) => {
+        if (id !== generation || !pending) return;
+        candidate?.terminate(); worker = null; environment.clearTimeout(pending.timer); pending = null;
+        receive?.(null); receive = null;
+        if (error) reject(error); else resolve(result);
+      };
+      pending = { resolve: () => { receive?.(null); resolve(null); }, timer: environment.setTimeout(() => finish(null, new Error('Local recognition timed out.')), 15000) };
+      if (candidate) {
+        candidate.onmessage = event => {
+          if (id !== generation || event.data.id !== id) return;
+          if (event.data.error) rejectStage?.(new Error(event.data.error)); else receive?.(event.data.result);
+        };
+        candidate.onerror = () => finish(null, new Error('Local recognition could not start.'));
+      }
+      void (async () => {
+        try {
+          if (options.region) {
+            const b = options.region;
+            const crop = boundedRegion({ x: b.x * source.width, y: b.y * source.height, width: b.width * source.width, height: b.height * source.height }, source.width, source.height, b.height * source.height * .35);
+            const image = pixels(source, crop, true);
+            const selection = { x: (b.x - crop.x) / crop.width, y: (b.y - crop.y) / crop.height, width: b.width / crop.width, height: b.height / crop.height };
+            const result = await request(image, { ...options, region: selection });
+            finish(mapRegionalResult(result, crop, image, sourceSize)); return;
+          }
+          const overview = pixels(source), proposals = await request(overview, {}, 'propose');
+          if (!alive()) return;
+          const results = [];
+          for (const proposal of proposals || []) {
+            const image = pixels(source, proposal.region, true), result = await request(image, { allowPartial: true });
+            if (!alive()) return;
+            results.push(mapRegionalResult(result, proposal.region, image, sourceSize));
+            const merged = mergeResults(results);
+            if (merged.values.temperature && merged.values.humidity) { finish(merged); return; }
+          }
+          if (!results.length) results.push(await request(overview, {}));
+          finish(mergeResults(results));
+        } catch (error) { finish(null, error); }
+      })();
     });
   }
   return { locate: source => analyze(source), readRegion: (source, region, field, angle) => analyze(source, { region, field, angle }), cancel };

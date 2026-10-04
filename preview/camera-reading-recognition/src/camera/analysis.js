@@ -15,7 +15,7 @@ const asBox = (crop, width, height) => ({ x: crop.x * width, y: crop.y * height,
 export function makePreview(pixels, correction, sourceBox) {
   const matrix = correction?.matrix || IDENTITY, destination = projectBox(inverse(matrix) || IDENTITY, sourceBox);
   const corrected = warp(pixels, matrix, correction?.width || pixels.width, correction?.height || pixels.height);
-  return extract(normalise(corrected), destination);
+  return extract(normalise(corrected, correction?.threshold || .55), destination);
 }
 
 // Each stage yields to support cancellation in browsers where workers cannot start.
@@ -34,19 +34,24 @@ export async function analyzeImage(pixels, options = {}, checkpoint = async () =
     const key = JSON.stringify(correction.matrix);
     if (seen.has(key)) return true; seen.add(key);
     const image = correction.method === 'none' ? pixels : warp(pixels, correction.matrix, correction.width, correction.height);
-    const found = detectCandidates(image), sourceBox = box => projectBox(correction.matrix, box);
-    const accepted = reading => !selection || overlap(sourceBox(reading.digitBounds), selection) / Math.max(1, sourceBox(reading.digitBounds).width * sourceBox(reading.digitBounds).height) >= .45;
-    const readings = found.readings.filter(accepted);
-    const units = found.units.filter(unit => !selection || overlap(sourceBox(unit.box), selection) > 0 || readings.some(r => r.field === unit.field && overlap(r.unitBounds, unit.box) > 0));
-    const score = readings.length * 20 + units.length * 4;
-    all.push({ correction, found, readings, units, score });
+    const sourceBox = box => projectBox(correction.matrix, box);
+    for (const threshold of options.thresholds || [options.threshold || .55]) {
+      if (!await checkpoint()) return false;
+      const found = detectCandidates(image, threshold);
+      const accepted = reading => !selection || overlap(sourceBox(reading.digitBounds), selection) / Math.max(1, sourceBox(reading.digitBounds).width * sourceBox(reading.digitBounds).height) >= .45;
+      const readings = found.readings.filter(accepted);
+      const units = found.units.filter(unit => !selection || overlap(sourceBox(unit.box), selection) > 0 || readings.some(r => r.field === unit.field && overlap(r.unitBounds, unit.box) > 0));
+      const score = readings.length * 20 + units.length * 4;
+      all.push({ correction: { ...correction, threshold }, found, readings, units, score });
+      if ((selection || options.allowPartial) ? readings.length : new Set(readings.map(r => r.field)).size === 2) break;
+    }
     return true;
   }
   const basic = (angle, shear = 0) => ({ matrix: rotation(pixels.width, pixels.height, angle, shear), width: pixels.width, height: pixels.height,
     angle, shear, method: angle || shear ? 'strokes' : 'none' });
   if (!await tryCorrection(basic(options.angle || 0))) return null;
   // Stop once the requested field(s) have complete unit/numeric evidence.
-  const complete = () => all.some(c => selection ? c.readings.length > 0 : new Set(c.readings.map(r => r.field)).size === 2);
+  const complete = () => all.some(c => (selection || options.allowPartial) ? c.readings.length > 0 : new Set(c.readings.map(r => r.field)).size === 2);
   const straight = complete();
   if (!straight) {
     for (const correction of screenCorrections(pixels)) {

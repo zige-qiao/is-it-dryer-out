@@ -1,4 +1,5 @@
 import { boundedCrop } from './readings.js';
+import { createLabelLayout } from './labels.js';
 
 export function changeCrop(original, dx, dy, handle = 'move') {
   const min = .02;
@@ -13,7 +14,8 @@ export function changeCrop(original, dx, dy, handle = 'move') {
   return boundedCrop({ x: left, y: top, width: right - left, height: bottom - top });
 }
 
-export function createCropEditor({ surface, boxes, onChange, onCommit, onGesture = () => {} }) {
+export function createCropEditor({ surface, boxes, onChange, onCommit, onGesture = () => {} }, environment = globalThis) {
+  const labels = createLabelLayout(surface, boxes, environment);
   let crops = { temperature: null, humidity: null, pending: null }, gesture = null;
   function update(next) {
     crops = { ...next };
@@ -21,6 +23,7 @@ export function createCropEditor({ surface, boxes, onChange, onCommit, onGesture
       const crop = crops[field]; box.hidden = !crop;
       if (crop) Object.assign(box.style, { left: `${crop.x * 100}%`, top: `${crop.y * 100}%`, width: `${crop.width * 100}%`, height: `${crop.height * 100}%` });
     }
+    labels.render(crops);
   }
   function changed(field, crop) { update({ ...crops, [field]: crop }); onChange(field, crop); }
   function point(event) {
@@ -28,11 +31,13 @@ export function createCropEditor({ surface, boxes, onChange, onCommit, onGesture
     return { x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)), y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)) };
   }
   function reset() {
+    labels.reset();
     const previous = gesture; gesture = null;
     if (previous && surface.hasPointerCapture?.(previous.id)) surface.releasePointerCapture(previous.id);
     update({ temperature: null, humidity: null, pending: null });
   }
   function initialize() {
+    labels.initialize();
     surface.addEventListener('pointerdown', event => {
       if (event.button !== 0 || event.isPrimary === false || gesture) return;
       const box = event.target.closest('[data-camera-field]'), handle = event.target.closest('[data-crop-handle]');

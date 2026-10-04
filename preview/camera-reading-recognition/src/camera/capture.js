@@ -5,7 +5,7 @@ export function visibleFrame(width, height, viewWidth, viewHeight, zoom = 1) {
   return { x: (width - w) / 2, y: (height - h) / 2, width: w, height: h };
 }
 
-export function createCaptureControls({ video, preview, feed, flash, zoomControl, zoomInput, zoomValue, status, capture, onError }, environment = globalThis) {
+export function createCaptureControls({ video, preview, feed, flash, zoomControl, zoomInput, zoomValue, status, capture, onError, onZoomSync = () => {} }, environment = globalThis) {
   const now = () => environment.performance.now();
   let owner = null, generation = 0, timer = null, frameCallback = null, watchdog = null, deadline = null;
   let first = null, changed = 0, samples = 0, geometry = '', ready = false, revealed = false, baselineLocked = false;
@@ -13,7 +13,7 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
   let baseline = 1, nativeZoom = 1, nativeRange = null, desired = 1, digital = 1;
   let torch = false, desiredTorch = false, supportsTorch = false, pending = false, applying = false;
   let revision = 0, appliedRevision = 0, lastApply = -Infinity, controlTimer = null, startupResolve = null, waiters = [];
-  let displayed = null, lastDraw = -Infinity;
+  let displayed = null, lastDraw = -Infinity, zoomGesturing = false;
   const settings = () => owner?.getSettings?.() || {};
 
   function captureStatus(text) { status.textContent = text; status.hidden = !text; }
@@ -42,7 +42,8 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
     digital = Math.max(1, desired / nativeZoom);
     zoomInput.value = String(desired); zoomValue.textContent = `${desired.toFixed(1)}×`;
     zoomInput.setAttribute('aria-valuetext', `${desired.toFixed(1)} times zoom`);
-    zoomInput.disabled = !ready; capture.disabled = !ready || pending || !currentFrame();
+    zoomInput.disabled = !ready; capture.disabled = !ready || pending || zoomGesturing || !currentFrame();
+    onZoomSync();
     flash.disabled = !ready || pending;
     flash.setAttribute('aria-pressed', String(torch));
     flash.setAttribute('aria-label', torch ? 'Turn flash off' : 'Turn flash on');
@@ -111,7 +112,7 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
     first = null; changed = samples = 0; geometry = ''; lastMetadata = {}; ready = revealed = baselineLocked = false;
     baseline = nativeZoom = desired = digital = 1; nativeRange = null;
     torch = desiredTorch = supportsTorch = pending = applying = false; revision = appliedRevision = 0; lastApply = -Infinity;
-    displayed = null; lastDraw = -Infinity; preview.width = preview.height = 0;
+    displayed = null; lastDraw = -Infinity; zoomGesturing = false; preview.width = preview.height = 0;
     zoomControl.hidden = true; flash.hidden = true; preview.classList.add('camera-starting'); sync();
   }
   async function start(track) {
@@ -142,7 +143,10 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
   async function apply() {
     if (!owner || applying) return;
     const track = owner, request = generation, version = revision, light = desiredTorch, requestedZoom = desired;
-    const target = nativeRange ? Math.min(nativeRange.max, baseline * requestedZoom) : null;
+    // Round down to a supported step: residual software zoom supplies the rest.
+    const step = nativeRange?.step || 0;
+    const limit = nativeRange ? Math.min(nativeRange.max, baseline * requestedZoom) : null;
+    const target = limit === null ? null : step > 0 ? Math.max(nativeRange.min, nativeRange.min + Math.floor((limit - nativeRange.min + 1e-8) / step) * step) : limit;
     applying = true; lastApply = now();
     try {
       if (target !== null || light !== torch) {
@@ -181,7 +185,9 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
   }
   function setZoom(value) {
     if (!owner || !ready) return;
-    desired = Math.round(Math.max(1, Math.min(3, Number(value) || 1)) * 10) / 10;
+    const next = Math.round(Math.max(1, Math.min(8, Number(value) || 1)) * 10) / 10;
+    if (next === desired) { sync(); return; }
+    desired = next;
     revision++; pending = true; sync(); schedule();
   }
   function toggleFlash() {
@@ -196,7 +202,7 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
     if (ready && signature(lastMetadata) !== geometry) {
       ready = false; changed = now(); samples = 0; captureStatus('Camera framing is still settling.'); sync();
     }
-    return ready && !pending && Boolean(currentFrame());
+    return ready && !pending && !zoomGesturing && Boolean(currentFrame());
   }
-  return { start, stop, setZoom, toggleFlash, frame, isReady };
+  return { start, stop, setZoom, toggleFlash, frame, isReady, setZoomGesture: value => { zoomGesturing = value; sync(); } };
 }

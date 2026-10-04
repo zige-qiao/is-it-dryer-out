@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=146" />
+    <link rel="stylesheet" href="styles.css?v=147" />
     <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
@@ -200,7 +200,7 @@
 <div class="sheet-handle" aria-hidden="true"><span></span></div>
 <section class="inputs-panel" aria-labelledby="indoor-heading">
   <div class="section-heading">
-    <div class="indoor-title"><div class="camera-title-row"><h2 id="indoor-heading" tabindex="-1">Indoor readings</h2><button id="cameraHelpButton" class="camera-help-button" type="button" aria-label="Reading box help" aria-expanded="false" aria-controls="cameraCropHint" aria-describedby="cameraCropHint" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 16h.01"></path></svg></button></div><div id="cameraCropHint" class="camera-help-content" role="tooltip" hidden><span id="cameraCaptureHint" hidden>Fit the monitor display in the frame. Keep the digits sharp and avoid reflections.</span><span id="cameraReviewHint">Drag on the photo to add a box including °C or %. Move a box or resize its corners; release to read. <span id="cameraEditHint">Tap a value to correct it.</span></span></div><p id="indoorLastSet" hidden></p></div>
+    <div class="indoor-title"><div class="camera-title-row"><h2 id="indoor-heading" tabindex="-1">Indoor readings</h2><button id="cameraHelpButton" class="camera-help-button" type="button" aria-label="Reading box help" aria-expanded="false" aria-controls="cameraCropHint" aria-describedby="cameraCropHint" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 16h.01"></path></svg></button></div><div id="cameraCropHint" class="camera-help-content" role="tooltip" hidden><span id="cameraCaptureHint" hidden>Fit the monitor display in the frame. Keep the digits sharp and avoid reflections. Drag the zoom ruler to fill the frame. Higher digital zoom enlarges existing pixels; moving closer preserves more detail.</span><span id="cameraReviewHint">Drag on the photo to add a box including °C or %. Move a box or resize its corners; release to read. <span id="cameraEditHint">Tap a value to correct it.</span></span></div><p id="indoorLastSet" hidden></p></div>
     <div class="sheet-heading-actions">
     <button class="indoor-speak-button indoor-icon-button" type="button" id="cameraInputButton" aria-label="Scan indoor readings" title="Scan indoor readings" aria-controls="cameraPanel">
       <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
@@ -279,7 +279,10 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h8l-1 8 11-12h-8l1-8Z"></path></svg>
       </button>
     </div>
-    <div class="camera-zoom" id="cameraZoomControl" hidden><label for="cameraZoom">Zoom</label><input id="cameraZoom" type="range" min="1" max="3" step="0.1" value="1" aria-valuetext="1.0 times zoom" disabled /><output id="cameraZoomValue" for="cameraZoom">1.0×</output></div>
+    <div class="camera-zoom" id="cameraZoomControl" hidden>
+      <div class="camera-zoom-heading"><label for="cameraZoom">Zoom</label><output id="cameraZoomValue" for="cameraZoom">1.0×</output></div>
+      <div class="reading-ruler camera-zoom-ruler"><div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span><input id="cameraZoom" class="ruler-input" type="range" min="1" max="8" step="0.1" value="1" aria-label="Zoom" aria-valuetext="1.0 times zoom" disabled /></div>
+    </div>
     <button id="cameraCaptureButton" type="button" class="sheet-primary" disabled>Take photo</button>
   </div>
   <div id="cameraReviewPanel" hidden>
@@ -464,6 +467,6 @@
         <button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button>
       </section>
     </dialog>
-    <script src="app.js?v=146" type="module"></script>
+    <script src="app.js?v=147" type="module"></script>
   </body>
 </html>
