@@ -4,6 +4,9 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Add 1×–3× live-camera zoom with verified native control and digital fallback, shared preview/capture framing, serialized flash updates, and a cancellable startup-settling check.
+- Replace the Back pill with a chevron/text action, move editing/correction guidance into title help, and show concise reading status with progress/info/warning icons.
+
 - Identify Celsius/percent units independently from numeric strokes, add local rotation/shear and optional LCD perspective correction, and show shared contrast-normalised crop previews while retaining the original photo. Run bounded analysis in a cancellable worker.
 - Draw boxes without selecting a field; automatically read completed adjustments and provide assignment/tightening/discard recovery. Move Retake into a 44px camera icon on the photo and make Confirm the single full-width bottom action.
 

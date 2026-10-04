@@ -6,16 +6,19 @@ const { readSegmentedDigits } = require('../src/camera/segments.js');
 const { createStorage } = require('../src/services/storage.js');
 const { element, environment, memoryStorage } = require('./helpers/browser.cjs');
 const flush = () => new Promise(setImmediate);
+const fixtures = [];
+test.afterEach(() => { fixtures.splice(0).forEach(f => f.controller.cancel()); });
 
 function fixture({ deferredMedia = false, deferredReading = false, error, torch = true, regionResult, regionError } = {}) {
   const elements = Object.fromEntries(['indoorDialog', 'cameraTitle', 'cameraInputButton', 'cameraBackButton', 'cameraPanel', 'cameraCapturePanel',
     'cameraReviewPanel', 'cameraErrorPanel', 'cameraVideo', 'cameraFlash', 'cameraCaptureStatus', 'cameraCaptureButton',
     'cameraPhoto', 'cameraTempCrop', 'cameraRhCrop', 'cameraTempBox', 'cameraRhBox', 'cameraTempDraft', 'cameraRhDraft',
     'cameraTempError', 'cameraRhError', 'cameraConfirmButton', 'cameraReadStatus', 'cameraPhotoWrap', 'cameraPendingBox', 'cameraAssignment', 'cameraAssignChoices', 'cameraAssignTemp', 'cameraAssignRh', 'cameraDiscardBox', 'cameraErrorMessage',
-    'cameraErrorHelp', 'cameraErrorDetails', 'cameraManualButton', 'cameraRetryButton', 'cameraRetakeButton', 'cameraReadAgainButton'].map(name => [name, element()]));
+    'cameraErrorHelp', 'cameraErrorDetails', 'cameraManualButton', 'cameraRetryButton', 'cameraRetakeButton', 'cameraReadAgainButton', 'cameraFeed', 'cameraZoomControl', 'cameraZoom', 'cameraZoomValue', 'cameraHelpButton', 'cameraCropHint', 'cameraReadStatusText'].map(name => [name, element()]));
   const canvas = () => ({ ...element(), width: 0, height: 0, getContext: () => ({ drawImage() {} }) });
   for (const name of ['cameraPhoto', 'cameraTempCrop', 'cameraRhCrop']) elements[name] = canvas();
   elements.indoorDialog.open = true;
+  elements.cameraFeed.getBoundingClientRect = () => ({width:360,height:270});
   Object.assign(elements.cameraVideo, { videoWidth: 1920, videoHeight: 1080, play: async () => {}, getBoundingClientRect: () => ({ width: 360, height: 270 }) });
   const track = { stopped: 0, stop() { this.stopped++; }, getCapabilities: () => ({ torch }), applyConstraints: async value => { constraints.push(value); } };
   const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
@@ -32,7 +35,7 @@ function fixture({ deferredMedia = false, deferredReading = false, error, torch 
     render: () => renders.push({ ...state }), saveIndoorReadings: source => saved.push({ source, ...state }),
     recogniseService: { cancel: () => cancelled++, locate: async () => found(await (deferredReading ? readPromise : {temperature:'22.3',humidity:'59'})), readRegion: async (source, region, field) => { crops.push({region,field}); if(regionError)throw regionError;if(regionResult)return regionResult;const values=await (deferredReading ? readPromise : { temperature: '22.3', humidity: '59' }); return {status:'found',field,readings:{[field]:{region,value:values[field]}}}; } },
   }, env);
-  controller.initialize();
+  controller.initialize(); fixtures.push({controller});
   return { elements, controller, track, requests, constraints, saved, state, renders, crops,
     resolveMedia: () => resolveMedia(stream), resolveReading, get cancelled() { return cancelled; }, get before() { return before; } };
 }
@@ -125,7 +128,7 @@ test('partial recognition leaves the missing value empty and confirmation disabl
   assert.equal(f.elements.cameraTempDraft.value, '22.3'); assert.equal(f.elements.cameraRhDraft.value, '');
   assert.equal(f.elements.cameraConfirmButton.disabled, true); f.controller.confirm(); assert.equal(f.saved.length, 0);
   assert.equal(f.elements.cameraRhBox.hidden,true);
-  assert.match(f.elements.cameraReadStatus.textContent, /One reading/);
+  assert.equal(f.elements.cameraReadStatusText.textContent, 'Humidity needs attention.');
 });
 
 test('blank detection leaves both boxes and thumbnails hidden instead of inventing crops',async()=>{
@@ -133,7 +136,7 @@ test('blank detection leaves both boxes and thumbnails hidden instead of inventi
   f.resolveReading({temperature:'',humidity:''});await flush();
   assert.equal(f.elements.cameraTempBox.hidden,true);assert.equal(f.elements.cameraRhBox.hidden,true);
   assert.equal(f.elements.cameraTempCrop.width,0);assert.equal(f.elements.cameraRhCrop.width,0);
-  assert.equal(f.crops.length,0);assert.match(f.elements.cameraReadStatus.textContent,/No readings found/);
+  assert.equal(f.crops.length,0);assert.match(f.elements.cameraReadStatusText.textContent,/No readings found/);
   assert.equal(f.elements.cameraTempError.textContent,'');assert.equal(f.elements.cameraConfirmButton.disabled,true);
 });
 
@@ -160,13 +163,22 @@ test('taps, retake hits and cancelled gestures do not re-read or clear existing 
 });
 test('an unreadable unit asks for assignment only after drawing and allows discarding without losing readings',async()=>{
  const f=fixture({regionResult:{status:'unassigned',field:null,readings:{}}});await review(f);draw(f);await flush();
- assert.equal(f.elements.cameraAssignment.hidden,false);assert.equal(f.elements.cameraAssignChoices.hidden,false);assert.match(f.elements.cameraReadStatus.textContent,/Which reading/);assert.equal(f.elements.cameraConfirmButton.disabled,true);assert.equal(f.elements.cameraRhDraft.value,'59');
+ assert.equal(f.elements.cameraAssignment.hidden,false);assert.equal(f.elements.cameraAssignChoices.hidden,false);assert.match(f.elements.cameraReadStatusText.textContent,/Which reading/);assert.equal(f.elements.cameraConfirmButton.disabled,true);assert.equal(f.elements.cameraRhDraft.value,'59');
  f.elements.cameraDiscardBox.emit('click');assert.equal(f.elements.cameraPendingBox.hidden,true);assert.equal(f.elements.cameraConfirmButton.disabled,false);
 });
 test('ambiguous units require tightening; contradictory units cannot swap an existing field',async()=>{
  const both=fixture({regionResult:{status:'ambiguous',field:null}});await review(both);draw(both);await flush();assert.equal(both.elements.cameraAssignChoices.hidden,true);assert.equal(both.elements.cameraConfirmButton.disabled,true);
- const wrong=fixture({regionResult:{status:'contradictory',field:'temperature'}});await review(wrong);wrong.elements.cameraTempBox.emit('keydown',{key:'ArrowRight',preventDefault(){}});await flush();assert.equal(wrong.elements.cameraTempDraft.value,'');assert.equal(wrong.elements.cameraRhDraft.value,'59');assert.match(wrong.elements.cameraReadStatus.textContent,/unit does not match/);
+ const wrong=fixture({regionResult:{status:'contradictory',field:'temperature'}});await review(wrong);wrong.elements.cameraTempBox.emit('keydown',{key:'ArrowRight',preventDefault(){}});await flush();assert.equal(wrong.elements.cameraTempDraft.value,'');assert.equal(wrong.elements.cameraRhDraft.value,'59');assert.match(wrong.elements.cameraReadStatusText.textContent,/Unit doesn’t match/);
 });
 test('a worker error leaves existing unaffected readings and manual correction available',async()=>{
- const f=fixture({regionError:new Error('worker')});await review(f);f.elements.cameraTempBox.emit('keydown',{key:'ArrowRight',preventDefault(){}});await flush();assert.equal(f.elements.cameraRhDraft.value,'59');assert.match(f.elements.cameraReadStatus.textContent,/Local recognition/);f.elements.cameraTempDraft.value='22.1';f.elements.cameraTempDraft.emit('input');f.controller.confirm();assert.equal(f.saved[0].indoorTemp,22.1);
+ const f=fixture({regionError:new Error('worker')});await review(f);f.elements.cameraTempBox.emit('keydown',{key:'ArrowRight',preventDefault(){}});await flush();assert.equal(f.elements.cameraRhDraft.value,'59');assert.match(f.elements.cameraReadStatusText.textContent,/Reading failed/);f.elements.cameraTempDraft.value='22.1';f.elements.cameraTempDraft.emit('input');f.controller.confirm();assert.equal(f.saved[0].indoorTemp,22.1);
+});
+
+test('review status changes text and icon together and editing help is hidden on returning to manual entry',async()=>{
+ const f=fixture({deferredReading:true});await f.controller.startCamera();f.controller.capturePhoto();
+ assert.equal(f.elements.cameraReadStatus.dataset.state,'processing');assert.equal(f.elements.cameraReadStatusText.textContent,'Reading numbers…');
+ assert.equal(f.elements.cameraHelpButton.hidden,false);f.resolveReading({temperature:'22.3',humidity:'59'});await flush();
+ assert.equal(f.elements.cameraReadStatus.dataset.state,'ready');assert.equal(f.elements.cameraReadStatusText.textContent,'Review both values.');
+ f.elements.cameraHelpButton.emit('click');assert.equal(f.elements.cameraCropHint.hidden,false);
+ f.controller.cancel();assert.equal(f.elements.cameraHelpButton.hidden,true);assert.equal(f.elements.cameraCropHint.hidden,true);
 });

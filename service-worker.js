@@ -1,9 +1,9 @@
-const CACHE_NAME = "is-it-dryer-out-v143";
+const CACHE_NAME = "is-it-dryer-out-v144";
 const APP_FILES = [
   "./",
   "index.html",
-  "styles.css?v=143",
-  "app.js?v=143",
+  "styles.css?v=144",
+  "app.js?v=144",
   "src/config.js",
   "src/domain/humidity.js",
   "src/domain/forecast.js",
@@ -25,6 +25,8 @@ const APP_FILES = [
   "src/voice/parser.js",
   "src/voice/controller.js",
   "src/camera/controller.js",
+  "src/camera/capture.js",
+  "src/camera/help.js",
   "src/camera/readings.js",
   "src/camera/recognition.js",
   "src/camera/segments.js",
