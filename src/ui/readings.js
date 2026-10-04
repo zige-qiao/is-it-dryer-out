@@ -111,7 +111,7 @@ export function createReadingControls({
     const elapsed = minutes === 0 ? 'Just now'
       : minutes < 60 ? `${minutes}m ago`
       : `${Math.floor(minutes / 60)}h ${minutes % 60}m ago`;
-    lastSet.textContent = elapsed;
+    lastSet.textContent = state.indoorReadingSource === 'photo' ? `From photo · ${elapsed.toLowerCase()}` : elapsed;
     summaryLastSet.textContent = `· ${elapsed}`;
     const absoluteTime = new Date(state.indoorLastSet).toLocaleString();
     lastSet.title = absoluteTime;

@@ -1,6 +1,8 @@
 .DS_Store
 Thumbs.db
 node_modules/
+work/
+/tests/fixtures/camera-monitor.jpg
 dist/
 .env
 .env.*

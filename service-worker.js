@@ -1,9 +1,9 @@
-const CACHE_NAME = "is-it-dryer-out-v140";
+const CACHE_NAME = "is-it-dryer-out-v141";
 const APP_FILES = [
   "./",
   "index.html",
-  "styles.css?v=140",
-  "app.js?v=140",
+  "styles.css?v=141",
+  "app.js?v=141",
   "src/config.js",
   "src/domain/humidity.js",
   "src/domain/forecast.js",
@@ -24,6 +24,10 @@ const APP_FILES = [
   "src/ui/pull-refresh.js",
   "src/voice/parser.js",
   "src/voice/controller.js",
+  "src/camera/controller.js",
+  "src/camera/readings.js",
+  "src/camera/recognition.js",
+  "src/camera/segments.js",
   "manifest.webmanifest",
   "favicon-v4.png",
 ];
@@ -45,6 +49,21 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+
+  // Larger recognition assets are cached on first Scan, independently of the shell.
+  const ocrRoot = new URL('vendor/tesseract/', self.location).href;
+  if (event.request.url.startsWith(ocrRoot)) {
+    event.respondWith(caches.open('dew-camera-ocr-6.0.1-v1').then(async cache => {
+      const cached = await cache.match(event.request);
+      if (cached) return cached;
+      try {
+        const response = await fetch(event.request);
+        if (response.ok) await cache.put(event.request, response.clone());
+        return response;
+      } catch { return Response.error(); }
+    }));
+    return;
+  }
 
   event.respondWith(
     fetch(event.request).catch(async () => {

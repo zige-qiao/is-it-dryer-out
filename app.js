@@ -1,4 +1,5 @@
 import { createVoiceController } from './src/voice/controller.js';
+import { createCameraController } from './src/camera/controller.js';
 import { createStorage } from './src/services/storage.js';
 import { createGeocoding } from './src/services/geocoding.js';
 import { createWeatherController } from './src/services/weather.js';
@@ -17,6 +18,7 @@ import { DEFAULT_LOCATION, DEFAULT_PRESSURE_HPA, DEFAULT_TIMEZONE, WEATHER_REFRE
 const uiPreferences = { showIndoorSummary: false, openIndoorOnLaunch: true };
 
 const state = {
+  indoorReadingSource: null,
   indoorLastSet: null,
   timerMinutes: 1,
   indoorTemp: 24,
@@ -48,6 +50,15 @@ const state = {
 };
 
 const elements = {
+  indoorDialog: document.querySelector('#indoorDialog'),
+  cameraTitle: document.querySelector('#indoor-heading'),
+  ...Object.fromEntries(['cameraInputButton', 'cameraBackButton', 'cameraPanel', 'cameraCapturePanel',
+    'cameraReviewPanel', 'cameraErrorPanel', 'cameraVideo', 'cameraFlash', 'cameraCaptureStatus',
+    'cameraCaptureButton', 'cameraPhoto', 'cameraTempBox', 'cameraRhBox', 'cameraReadStatus',
+    'cameraTempCrop', 'cameraRhCrop', 'cameraTempDraft', 'cameraRhDraft', 'cameraTempError',
+    'cameraRhError', 'cameraCropControls', 'cameraReadAgainButton', 'cameraRetakeButton',
+    'cameraConfirmButton', 'cameraErrorMessage', 'cameraErrorHelp', 'cameraErrorDetails',
+    'cameraManualButton', 'cameraRetryButton'].map(id => [id, document.querySelector('#' + id)])),
   timerDialog: document.querySelector('#timerDialog'),
   timerDialogTitle: document.querySelector('#timerDialogTitle'),
   timerMinutes: document.querySelector('#timerMinutes'),
@@ -157,6 +168,18 @@ const storage = createStorage({
   uiPreferences,
   applyUiPreferences: (...args) => events.applyUiPreferences(...args),
 });
+const cameraController = createCameraController({
+  state, elements,
+  beforeCamera: () => {
+    dialogs.rememberSheetFocus(elements.cameraPanel, elements.cameraInputButton, elements.cameraTitle);
+    if (!elements.voiceDialog.hidden) voiceController.closeVoiceDialog();
+  },
+  saveIndoorReadings: (...args) => storage.saveIndoorReadings(...args),
+  render: () => dashboard.render(),
+  returnFocus: () => {
+    dialogs.restoreSheetFocus(elements.cameraPanel);
+  },
+});
 const geocoding = createGeocoding({
 
 });
@@ -235,8 +258,8 @@ const events = createEvents({
   elements,
   uiPreferences,
   dialogScrollLock,
-  startVoiceInput: (...args) => voiceController.startVoiceInput(...args),
-  toggleVoiceListening: (...args) => voiceController.toggleVoiceListening(...args),
+  startVoiceInput: (...args) => { cameraController.cancel({ focus: false }); return voiceController.startVoiceInput(...args); },
+  toggleVoiceListening: (...args) => { cameraController.cancel({ focus: false }); return voiceController.toggleVoiceListening(...args); },
   closeVoiceDialog: (...args) => voiceController.closeVoiceDialog(...args),
   applyVoiceChanges: (...args) => voiceController.applyVoiceChanges(...args),
   voiceSupported: voiceController.supported,
@@ -284,6 +307,7 @@ locationController.updateLocationUi();
 // Give the timer help popup first refusal of Escape before shared dismissal.
 timerController.initialize();
 events.bindEvents();
+cameraController.initialize();
 pullRefresh.bindPullToRefresh();
 dashboard.render();
 locationController.initializeLocation(hasSavedLocation);
@@ -293,10 +317,11 @@ setInterval(readingControls.updateIndoorLastSetLabels, 60_000);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") {
     voiceController.handleVoiceHidden();
+    cameraController.handleHidden();
     return;
   }
   readingControls.updateIndoorLastSetLabels();
   weatherController.updateWeatherCheckedLabel();
   if (!state.lastCheckedAt || formatters.minutesSince(state.lastCheckedAt) >= 15) weatherController.fetchWeather();
 });
-window.addEventListener("pagehide", () => voiceController.handleVoiceHidden("page left"));
+window.addEventListener("pagehide", () => { voiceController.handleVoiceHidden("page left"); cameraController.handleHidden(); });

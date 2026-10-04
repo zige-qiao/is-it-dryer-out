@@ -46,9 +46,21 @@ The two verdict times can mean different things. A period of reliably drier outd
 
 Clock owns the alarm and cancellation after the handoff. The web app shows no countdown and cannot confirm that the timer started; check Clock after the first handoff and choose an audible timer sound rather than Stop Playing. The user confirmed the handoff from Safari and the Home Screen web app, and an alarm in airplane mode. See [timer development](timer-development.md) for test evidence and remaining gaps.
 
+## Camera readings
+
+In Indoor readings, tap the camera icon to take a new photo. Fit only the current temperature and humidity inside the guide, including the smaller temperature decimal. Keep the digits sharp and avoid reflections; the flash control is available while the camera is live if the device supports it. There is no album picker.
+
+Choose **Take photo**, then compare the recognised values with their image crops. Tap a value to correct it. **Adjust crops** provides keyboard- and touch-accessible controls for the selected regions; after adjustment, use **Read again** or enter both values. **Retake photo** starts a fresh capture. If one reading cannot be recognised, that field stays empty instead of using an old reading.
+
+**Confirm readings** saves both values and updates the recommendation. Values must be 10–32°C (at most one decimal place) and 20–90% RH (whole numbers). Before confirmation, results are drafts: Back, dismissal or leaving the app discards them. The temporary **From photo** label clears after a manual or voice update and is not retained after reload. **Done** closes the Indoor sheet.
+
+The first recognition prepares local OCR files over the network. Once cached, recognition works offline; fresh outdoor weather still needs a connection. Photos are processed on-device and are not saved or uploaded. Recognition initially targets this monitor's top Celsius and humidity layout; other display arrangements may require manual entry.
+
+Camera access needs HTTPS or localhost. If permission is blocked, allow Camera for this website in your browser settings and retry; check device permissions if necessary. Camera-unavailable and recognition failures offer a retry or **Enter manually**. The camera stops after capture and on dismissal or backgrounding. Scanning does not change the accepted foreground microphone-retention behaviour described below.
+
 ## Voice input
 
-In supported browsers, choose **Speak** in Indoor readings or the optional summary's microphone button. Say, for example, “21 degrees, 55 percent” or “21 and 55”. Review the recognised changes and select **Apply**, or return **Back to manual**.
+In supported browsers, choose the microphone icon in Indoor readings or the optional summary. Say, for example, “21 degrees, 55 percent” or “21 and 55”. Review the recognised changes and select **Apply**, or return **Back to manual**.
 
 On iPhone, the app retains the microphone stream after a voice attempt while it remains in the foreground, including after Stop, Apply or closing the sheet. The microphone indicator may remain on, although transcription and waveform animation end separately. Leaving or backgrounding the app releases capture; reliable restarting after release remains unresolved.
 

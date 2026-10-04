@@ -4,6 +4,9 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Add camera-only capture and review for the current top temperature and humidity readings, with matching camera/microphone icon buttons, live flash where supported, editable drafts, crop adjustment, partial-failure recovery and explicit confirmation before saving.
+- Read the supplied segmented LCD locally using a seven-segment decoder with pinned on-device OCR fallback. Cache recognition assets separately for offline use; discard temporary photos and preserve existing voice capture behaviour and saved-reading formats.
+
 - Align fixed layout spacing, control/icon sizes and ordinary corner radii to a 4px grid; use 52px ruler fields and a 48px settings switch while preserving typography, fine strokes and flexible geometry. Prevent ruler digits from clipping by reserving text space and using 100px paired fields.
 
 - Close the ventilation timer sheet before handing off to Shortcuts, without claiming that the timer started.

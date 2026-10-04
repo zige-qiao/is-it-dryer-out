@@ -18,7 +18,8 @@ export function createStorage({
 } = {}, environment = globalThis) {
   const { localStorage, Date } = environment;
 
-  function saveIndoorReadings() {
+  function saveIndoorReadings(source = null) {
+    state.indoorReadingSource = source;
     state.indoorLastSet = Date.now();
     localStorage.setItem(
       STORAGE_KEY,

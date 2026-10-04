@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=140" />
+    <link rel="stylesheet" href="styles.css?v=141" />
     <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
@@ -202,9 +202,13 @@
   <div class="section-heading">
     <div class="indoor-title"><h2 id="indoor-heading" tabindex="-1">Indoor readings</h2><p id="indoorLastSet" hidden></p></div>
     <div class="sheet-heading-actions">
-    <button class="indoor-speak-button" type="button" id="voiceInputButton" aria-label="Update indoor readings by voice" hidden>
-      <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></svg><span>Speak</span>
+    <button class="indoor-speak-button indoor-icon-button" type="button" id="cameraInputButton" aria-label="Scan indoor readings" title="Scan indoor readings" aria-controls="cameraPanel">
+      <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
     </button>
+    <button class="indoor-speak-button indoor-icon-button" type="button" id="voiceInputButton" aria-label="Update indoor readings by voice" title="Update indoor readings by voice" hidden>
+      <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></svg>
+    </button>
+    <button class="secondary-button camera-back" type="button" id="cameraBackButton" hidden>Back</button>
     <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close indoor readings" title="Close">&times;</button>
     </div>
   </div>
@@ -264,6 +268,66 @@
       </div>
     </section>
 <button class="indoor-done sheet-primary" id="indoorDoneButton" type="button">Done</button>
+<section class="camera-panel" id="cameraPanel" aria-labelledby="indoor-heading" hidden>
+  <div id="cameraCapturePanel">
+    <p class="camera-instruction">Fit the current readings in the frame.</p>
+    <div class="camera-feed">
+      <video id="cameraVideo" autoplay muted playsinline aria-label="Rear camera preview"></video>
+      <div class="camera-guide" aria-hidden="true"></div>
+      <button id="cameraFlash" class="camera-flash" type="button" aria-label="Turn flash on" aria-pressed="false" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h8l-1 8 11-12h-8l1-8Z"></path></svg>
+      </button>
+    </div>
+    <p id="cameraCaptureStatus" class="camera-status" role="status">Starting camera…</p>
+    <button id="cameraCaptureButton" type="button" class="sheet-primary" disabled>Take photo</button>
+  </div>
+  <div id="cameraReviewPanel" hidden>
+    <div class="camera-photo-wrap">
+      <canvas id="cameraPhoto" role="img" aria-label="Captured current readings"></canvas>
+      <div id="cameraTempBox" class="camera-reading-box" aria-hidden="true"><span>Temperature</span></div>
+      <div id="cameraRhBox" class="camera-reading-box" aria-hidden="true"><span>Humidity</span></div>
+    </div>
+    <p id="cameraReadStatus" class="camera-status" role="status" aria-live="polite">Reading photo…</p>
+    <div class="camera-reading-cards">
+      <div class="camera-reading-card">
+        <label for="cameraTempDraft">Temperature</label>
+        <canvas id="cameraTempCrop" role="img" aria-label="Temperature image crop"></canvas>
+        <div class="camera-draft-field"><input id="cameraTempDraft" type="number" min="10" max="32" step="0.1" inputmode="decimal" aria-describedby="cameraEditHint cameraTempError" /><span aria-hidden="true">°C</span></div>
+        <p id="cameraTempError" class="camera-field-error"></p>
+      </div>
+      <div class="camera-reading-card">
+        <label for="cameraRhDraft">Relative humidity</label>
+        <canvas id="cameraRhCrop" role="img" aria-label="Humidity image crop"></canvas>
+        <div class="camera-draft-field"><input id="cameraRhDraft" type="number" min="20" max="90" step="1" inputmode="numeric" aria-describedby="cameraEditHint cameraRhError" /><span aria-hidden="true">%</span></div>
+        <p id="cameraRhError" class="camera-field-error"></p>
+      </div>
+    </div>
+    <p id="cameraEditHint" class="camera-status">Tap a value to correct it.</p>
+    <details id="cameraCropControls" class="camera-crop-controls">
+      <summary>Adjust crops</summary>
+      <p>Include the small temperature decimal. Leave low and high records outside the crops.</p>
+      <fieldset><legend>Temperature crop</legend>
+        <label>Left <input type="range" min="0" max="95" value="3" data-camera-crop="temperature" data-crop-axis="x" /></label>
+        <label>Top <input type="range" min="0" max="95" value="5" data-camera-crop="temperature" data-crop-axis="y" /></label>
+        <label>Width <input type="range" min="5" max="100" value="49" data-camera-crop="temperature" data-crop-axis="width" /></label>
+        <label>Height <input type="range" min="5" max="100" value="90" data-camera-crop="temperature" data-crop-axis="height" /></label>
+      </fieldset>
+      <fieldset><legend>Humidity crop</legend>
+        <label>Left <input type="range" min="0" max="95" value="64" data-camera-crop="humidity" data-crop-axis="x" /></label>
+        <label>Top <input type="range" min="0" max="95" value="5" data-camera-crop="humidity" data-crop-axis="y" /></label>
+        <label>Width <input type="range" min="5" max="100" value="33" data-camera-crop="humidity" data-crop-axis="width" /></label>
+        <label>Height <input type="range" min="5" max="100" value="90" data-camera-crop="humidity" data-crop-axis="height" /></label>
+      </fieldset>
+    </details>
+    <button type="button" id="cameraReadAgainButton" class="secondary-button camera-read-again">Read again</button>
+    <div class="camera-actions"><button id="cameraRetakeButton" type="button" class="sheet-secondary">Retake photo</button><button id="cameraConfirmButton" type="button" class="sheet-primary" disabled>Confirm readings</button></div>
+  </div>
+  <div id="cameraErrorPanel" hidden>
+    <p id="cameraErrorMessage"></p>
+    <details id="cameraErrorDetails"><summary>Help with the camera</summary><p id="cameraErrorHelp"></p></details>
+    <div class="camera-actions"><button id="cameraManualButton" type="button" class="sheet-secondary">Enter manually</button><button id="cameraRetryButton" type="button" class="sheet-primary">Try again</button></div>
+  </div>
+</section>
 </dialog>
 
 <dialog class="plan-dialog" id="planDialog" aria-labelledby="planDialogTitle">
@@ -407,6 +471,6 @@
         <button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button>
       </section>
     </dialog>
-    <script src="app.js?v=140" type="module"></script>
+    <script src="app.js?v=141" type="module"></script>
   </body>
 </html>

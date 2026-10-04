@@ -223,6 +223,16 @@ Use tabular numerals for changing readings, estimates and timestamps. Keep units
 
 ## 5. Geometry, layout and motion
 
+### Camera readings
+
+The Indoor heading has matching camera and microphone icon buttons with 44px circular touch targets, accessible names and the existing focus conventions. Camera capture and review are alternate views in the same sheet; manual rulers and Done are hidden until returning to manual input. Back remains visible during scanning, including on narrow phones.
+
+Capture uses a 4:3 live preview with a narrow guide around the current top readings, plus a capability-dependent flash toggle. Review shows the captured top strip, labelled neutral crop outlines, actual image crops and two editable draft fields. Keep recognition progress in one live status region, and show one correction hint. Use existing warm-grey surfaces, dark primary actions, ordinary 12px card/field radii and flexible action wrapping. Crop labels identify their roles without colour.
+
+Confirm readings persists reviewed values; it stays disabled for incomplete or invalid drafts. Retake remains available during recognition. Partial failures retain the recognised draft and leave the unresolved field empty. The optional crop adjustment controls support keyboard and touch; changing a crop invalidates both drafts until re-reading or correction. Avoid duplicate success cards or retained photo thumbnails. The source label is session-only and clears on another input method.
+
+Camera failures provide manual entry and retry. Permission guidance is short, expandable and distinct from device availability or recognition failure. Sheet dismissal, visible-viewport sizing, focus return and reduced-motion behaviour retain the shared conventions below.
+
 ### Shared scale
 
 - Fixed spacing and layout dimensions follow a 4px grid. Shared spacing tokens cover 4, 8, 12, 16, 20, 24 and 32px; larger dimensions remain multiples of 4. Round to nearest, with halfway magnitudes rounded upward; preserve negative signs and keep positive spacing at least 4px.

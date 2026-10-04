@@ -8,7 +8,7 @@ It compares the amount of moisture indoors and outdoors, then uses the weather f
 
 ## Get started
 
-1. **Enter your indoor readings.** Add temperature and relative humidity from your room sensor. You can type, adjust the rulers, or use voice input in supported browsers.
+1. **Enter your indoor readings.** Add temperature and relative humidity from your room sensor. You can type, adjust the rulers, scan a new photo with the camera button, or use the microphone button in supported browsers. Review photo results before confirming.
 2. **Choose your location.** Search for a town or UK postcode, or use your device's location.
 3. **Read the recommendation.** Check the suggested opening time and the 24- or 48-hour outlook. Tap or drag the chart to inspect the forecast.
 4. **Adjust your plan.** Set your target humidity, minimum temperature, room size and window opening using the ventilation summary below the chart.
@@ -22,6 +22,8 @@ Opening times are estimates: actual airflow depends on your room, windows and th
 The moisture cards and chart show actual absolute humidity. Their colours compare indoor and outdoor air at the same temperature, matching the ventilation estimate.
 
 Readings and preferences are saved in your browser. The interface can load offline after caching, but fresh weather needs an internet connection.
+
+Camera scanning reads the current top numbers on the supported segmented LCD monitor; it ignores low/high records. Camera images stay on-device and are discarded after review. Local OCR assets prepare on first use and support subsequent offline scanning. Camera access requires HTTPS (or localhost for development). See the [camera instructions](docs/user-guide.md#camera-readings) for correction and recovery.
 
 On iPhone, voice input may keep the microphone indicator on while the app remains in the foreground. See the [user guide](docs/user-guide.md) for voice behaviour, data services and detailed instructions.
 
