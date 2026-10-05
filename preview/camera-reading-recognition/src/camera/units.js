@@ -28,6 +28,15 @@ export function locateUnits(pixels, mask) {
       i.x + i.width <= c.x + c.width * .15 && c.x - (i.x + i.width) < c.height * .45 && Math.abs(i.y - c.y) < c.height * .3);
     if (degree) result.push({ field: 'temperature', unit: '°C', box: bounds([c, degree]), strokes: [c, degree], confidence: rings.includes(degree) ? .96 : .9 });
   }
+  // Fahrenheit is contradiction evidence, never a Celsius assignment.
+  for (const f of cShapes) {
+    if (f.height < 6 || f.width / f.height < .3 || f.width / f.height > 1.1) continue;
+    if (sample(f, .22, 0, .8, .2) < .25 || sample(f, 0, .2, .25, .95) < .25 ||
+      sample(f, .22, .38, .8, .62) < .25 || sample(f, .3, .8, 1, 1) > .12 || sample(f, .65, .65, 1, .85) > .12) continue;
+    const degree = degrees.find(i => i.height >= f.height * .15 && i.height <= f.height * .55 &&
+      i.x + i.width <= f.x + f.width * .15 && f.x - (i.x + i.width) < f.height * .45 && Math.abs(i.y - f.y) < f.height * .3);
+    if (degree) result.push({ field: 'temperature', unit: '°F', box: bounds([f, degree]), strokes: [f, degree], confidence: .96 });
+  }
   for (const slash of all) {
     if (slash.height < 10 || slash.width / slash.height < .18 || slash.width / slash.height > 1.1 || slash.correlation > -.5 || slash.count / (slash.width * slash.height) > .55) continue;
     if (slash.correlation > -.65 && sample(slash, 0, 0, .4, .25) < .25) continue;

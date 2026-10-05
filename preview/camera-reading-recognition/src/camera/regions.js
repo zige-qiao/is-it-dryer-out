@@ -1,5 +1,6 @@
 import { components, bounds } from './image.js';
 import { detectCandidates, digitPairs } from './detection.js';
+import { samePosition } from './evidence.js';
 import { compose, IDENTITY } from './geometry.js';
 
 const intersection = (a, b) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) *
@@ -113,14 +114,32 @@ export function mapRegionalResult(result, crop, pixels, source) {
 
 export function mergeResults(results) {
   const output = { regions: { temperature: null, humidity: null }, values: { temperature: '', humidity: '' }, readings: {}, status: 'unassigned', field: null };
-  const dominant = Math.max(0, ...results.map(r => r?.currentBand?.height || 0), ...results.flatMap(r => Object.values(r?.readings || {}).map(e => e.digitBounds?.height || 0)));
+  const bands = results.map(r => r?.currentBand).filter(Boolean);
   for (const field of ['temperature', 'humidity']) {
-    const entries = results.map(r => r?.readings?.[field]).filter(e => e && (!e.digitBounds || e.digitBounds.height >= dominant * .6));
-    const best = entries.find(e => e.value) || entries[0]; if (!best) continue;
-    const conflict = entries.some(e => e.value && best.value && e.value !== best.value);
-    output.readings[field] = conflict ? { ...best, value: '', rejectionReason: 'conflicting-digits', confidence: { ...best.confidence, numeric: 0 } } : best;
-    output.regions[field] = best.region; output.values[field] = conflict ? '' : best.value;
+    const entries = results.map(r => r?.readings?.[field]).filter(e => {
+      if (!e?.digitBounds) return Boolean(e);
+      const b = e.digitBounds;
+      const related = bands.filter(band => b.x < band.x + band.width * 3 && b.x + b.width > band.x - band.width * 2 &&
+        b.y >= band.y - band.height * .3 && b.y <= band.y + band.height * 2.5);
+      return b.height >= Math.max(0, ...related.map(band => band.height)) * .6;
+    });
+    const quality = e => (e.confidence?.numeric || 0) + (e.confidence?.unit || 0) * .15;
+    const best = entries.filter(e => e.value).sort((a, b) => quality(b) - quality(a))[0] || entries[0]; if (!best) continue;
+    const conflict = entries.some(e => e.value && best.value && e.value !== best.value &&
+      (!e.digitBounds || !best.digitBounds || samePosition(e.digitBounds, best.digitBounds)) && (e.confidence?.numeric || 0) >= (best.confidence?.numeric || 0) - .04);
+    const ambiguous = field === 'temperature' && best.confidence?.evidence?.assignment === 'same-display-humidity' &&
+      entries.some(e => e.value && e.value !== best.value && e.digitBounds && best.digitBounds && !samePosition(e.digitBounds, best.digitBounds));
+    output.readings[field] = conflict || ambiguous ? { ...best, value: '', rejectionReason: ambiguous ? 'ambiguous-temperature' : 'conflicting-digits', confidence: { ...best.confidence, numeric: 0 } } : best;
+    output.regions[field] = best.region; output.values[field] = conflict || ambiguous ? '' : best.value;
   }
   if (Object.keys(output.readings).length) output.status = 'found';
   return output;
+}
+
+export function humiditySearchRegion(result, source) {
+  const box = result?.values?.humidity && result.readings?.humidity?.digitBounds;
+  if (!box) return null;
+  const h = box.height * source.height;
+  return boundedRegion({ x: box.x * source.width - h * 4, y: box.y * source.height - h * .25,
+    width: box.width * source.width + h * 8, height: h * 1.5 }, source.width, source.height);
 }

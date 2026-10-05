@@ -7,7 +7,22 @@ const SEGMENT_PATTERNS = ['1111110', '0110000', '1101101', '1111001', '0110011',
 export function grayscaleConfidence(pixels, glyph) {
   // A full-width glyph cannot be a narrow LCD one. Thresholding can leave
   // only a vertical fragment of a five while its other strokes define bounds.
-  if (glyph.digit === '1') return glyph.width / glyph.height < .3 ? .9 : 0;
+  if (glyph.digit === '1') {
+    if (glyph.width / glyph.height >= .3) return 0;
+    // Check the original cell to the left of the vertical fragment. A faint
+    // three can lose its horizontal bars during thresholding and look like one.
+    const sample = (x, y) => {
+      const xx = Math.max(0, Math.min(pixels.width - 1, Math.round(x))), yy = Math.max(0, Math.min(pixels.height - 1, Math.round(y)));
+      const p = (yy * pixels.width + xx) * 4;
+      return .299 * pixels.data[p] + .587 * pixels.data[p + 1] + .114 * pixels.data[p + 2];
+    };
+    const contrasts = [-.06, .5, 1.04].map(y => [.2, .35, .5].map(dx => {
+      const x = glyph.x - glyph.height * dx;
+      const bg = (sample(x, glyph.y + glyph.height * .27) + sample(x, glyph.y + glyph.height * .73)) / 2;
+      return bg - sample(x, glyph.y + glyph.height * y);
+    }).filter(c => c >= 8).length);
+    return contrasts.some(count => count >= 2) ? 0 : .9;
+  }
   const at = (x, y) => {
     const xx = Math.max(0, Math.min(pixels.width - 1, Math.round(glyph.x + glyph.width * x)));
     const yy = Math.max(0, Math.min(pixels.height - 1, Math.round(glyph.y + glyph.height * y)));
@@ -99,7 +114,7 @@ export function digitPairs(glyphs) {
   for (const a of glyphs) for (const b of glyphs) {
     const h = Math.max(a.height, b.height), gap = b.x - right(a);
     // A right-aligned 1 leaves much more empty space in its character cell.
-    if (gap < 0 || gap > h * (b.digit === '1' ? .95 : .6) || Math.min(a.height, b.height) < h * .7 || Math.abs(bottom(a) - bottom(b)) > h * .18) continue;
+    if (gap < 0 || b.x + b.width / 2 - a.x - a.width / 2 < h * .3 || gap > h * (b.digit === '1' ? .95 : .6) || Math.min(a.height, b.height) < h * .7 || Math.abs(bottom(a) - bottom(b)) > h * .18) continue;
     pairs.push({ items: [a, b], value: a.digit + b.digit, height: h });
   }
   return pairs;
@@ -120,7 +135,7 @@ export function numericGroups(pixels, mask, glyphs) {
   const dots = components(mask, pixels.width, pixels.height);
   return { temperature: temperatureGroups(glyphs).filter(g => Number(g.value) <= INDOOR_LIMITS.temperature.max && dots.some(dot => {
     const last = g.items[1], fraction = g.items[2], h = g.height;
-    return dot.count >= 1 && dot.width <= h * .18 && dot.height <= h * .18 &&
+    return dot.count >= 2 && dot.width <= h * .18 && dot.height <= h * .18 && dot.width >= dot.height * .35 && dot.height >= dot.width * .35 &&
       dot.x >= right(last) - h * .08 && dot.x <= fraction.x + h * .08 && dot.y > bottom(last) - h * .2 && dot.y <= bottom(last) + h * .05;
   })), humidity: digitPairs(glyphs).filter(g => Number(g.value) >= INDOOR_LIMITS.humidity.min && Number(g.value) <= 90) };
 }
@@ -140,6 +155,7 @@ export function detectCandidates(pixels, threshold = .55, variant = 'adaptive') 
   const groups = numericGroups(pixels, numericMask, glyphs);
   const readings = [];
   for (const unit of units) {
+    if (unit.unit === '°F') continue;
     const candidates = groups[unit.field].filter(group => {
       const last = group.items[1], h = group.height;
       if (unit.field === 'temperature') return unit.box.x >= right(last) - h * .12 && unit.box.x - right(last) < h * .8 &&

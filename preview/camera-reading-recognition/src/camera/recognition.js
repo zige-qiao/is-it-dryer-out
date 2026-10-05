@@ -1,5 +1,7 @@
 import { processImage } from './worker.js';
-import { boundedRegion, mapRegionalResult, mergeResults } from './regions.js';
+import { boundedRegion, mapRegionalResult, mergeResults, humiditySearchRegion } from './regions.js';
+
+export const RECOGNITION_LIMIT_MS = 8000;
 
 export function cropCanvas(source, crop, document = globalThis.document) {
   const canvas = document.createElement('canvas');
@@ -32,7 +34,7 @@ export function createRecognitionService(environment = globalThis) {
   }
   async function analyze(source, options = {}) {
     cancel(); const id = generation, sourceSize = { width: source.width, height: source.height };
-    const now = () => environment.performance?.now() ?? Date.now(), deadline = now() + 15000;
+    const now = () => environment.performance?.now() ?? Date.now(), deadline = now() + RECOGNITION_LIMIT_MS;
     const alive = () => id === generation && now() < deadline;
     const candidate = environment.Worker ? new environment.Worker(new URL('./worker.js', import.meta.url), { type: 'module' }) : null;
     worker = candidate;
@@ -56,7 +58,7 @@ export function createRecognitionService(environment = globalThis) {
         receive?.(null); receive = null;
         if (error) reject(error); else resolve(result);
       };
-      pending = { resolve: () => { receive?.(null); resolve(null); }, timer: environment.setTimeout(() => { const result = mergeResults([...results, partial].filter(Boolean)); result.rejectionReason = 'timeout'; if (Object.values(result.values).some(Boolean)) finish(result); else finish(null, Object.assign(new Error('Recognition timed out. Enter values manually.'), { name: 'TimeoutError' })); }, 15000) };
+      pending = { resolve: () => { receive?.(null); resolve(null); }, timer: environment.setTimeout(() => { const result = mergeResults([...results, partial].filter(Boolean)); result.rejectionReason = 'timeout'; if (Object.values(result.values).some(Boolean)) finish(result); else finish(null, Object.assign(new Error('Recognition timed out. Enter values manually.'), { name: 'TimeoutError' })); }, RECOGNITION_LIMIT_MS) };
       if (candidate) {
         candidate.onmessage = event => {
           if (id !== generation || event.data.id !== id) return;
@@ -82,6 +84,15 @@ export function createRecognitionService(environment = globalThis) {
           if (!alive()) return;
           results.push(direct);
           if (direct?.values?.temperature && direct?.values?.humidity) { finish(direct); return; }
+          const anchored = humiditySearchRegion(direct, sourceSize);
+          if (anchored) {
+            const image = pixels(source, anchored, true), map = value => mapRegionalResult(value, anchored, image, sourceSize);
+            const result = await request(image, { allowPartial: true, refine: true, requiredField: 'temperature' }, 'analyze', map);
+            if (!alive()) return;
+            results.push(map(result));
+            const merged = mergeResults(results);
+            if (merged.values.temperature && merged.values.humidity) { finish(merged); return; }
+          }
           const proposals = await request(overview, {}, 'propose');
           if (!alive()) return;
 
@@ -93,7 +104,7 @@ export function createRecognitionService(environment = globalThis) {
             // A verified reading anchors this display proposal. Search it once
             // for the other unit/digit group, without assuming its position or value.
             const identified = ['temperature', 'humidity'].filter(field => result?.values?.[field]);
-            if (identified.length === 1 && now() < deadline - 5000) {
+            if (identified.length === 1 && now() < deadline - 1500) {
               const missing = identified[0] === 'temperature' ? 'humidity' : 'temperature';
               const neighbour = await request(image, { allowPartial: true, refine: true, requiredField: missing }, 'analyze', value => mapRegionalResult(value, proposal.region, image, sourceSize));
               if (!alive()) return;
