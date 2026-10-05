@@ -1,4 +1,4 @@
-import { equivalentAbsoluteHumidity } from '../domain/humidity.js';
+import { equivalentAbsoluteHumidity, compareMoisture, vaporPressure, relativeHumidityAtTemperature } from '../domain/humidity.js';
 import { MAX_OPEN_MINUTES, MINIMUM_NOTICEABLE_RH_CHANGE } from '../config.js';
 import { validTimerMinutes } from './timer.js';
 
@@ -72,18 +72,31 @@ export function createRecommendationView({
     elements.recommendation.classList.remove("open", "windows", "closed", "caution");
     elements.recommendation.classList.add(planTone(plan));
     const limited = ["too-cold", "condensation"].includes(plan.status);
+    const readings = [state.indoorTemp, state.indoorRh, state.outdoorTemp, state.outdoorRh];
+    const drier = readings.every(Number.isFinite) && compareMoisture(...readings).status === "drier";
+    const rhAtOriginalTemp = relativeHumidityAtTemperature(
+      vaporPressure(plan.projectedTemp, plan.projectedRh), state.indoorTemp,
+    );
+    const coolingLimitsBenefit = plan.projectedTemp < state.indoorTemp &&
+      state.indoorRh - rhAtOriginalTemp >= MINIMUM_NOTICEABLE_RH_CHANGE &&
+      state.indoorRh - plan.projectedRh < MINIMUM_NOTICEABLE_RH_CHANGE;
+    const limitedBenefitLine = drier
+      ? coolingLimitsBenefit
+        ? "Drier out, but limited benefit as the room cools."
+        : "Drier out, but little drying benefit expected."
+      : "Open briefly for fresh air; humidity may not fall.";
 
     if (plan.status === "target-met") {
       elements.decisionLabel.textContent = "TARGET MET";
       setDecisionSummary(
         `At or near your ${formatRh(state.targetRh)} target.`,
-        "No ventilation needed now.",
+        drier ? "Drier out, but your humidity target is already met." : "No ventilation needed now.",
       );
     } else if (plan.status === "below-minimum") {
       elements.decisionLabel.textContent = "KEEP CLOSED";
       setDecisionSummary(
         `Room is below your ${formatTemp(state.minTemp)} minimum.`,
-        "Ventilation would cool it further.",
+        drier ? "Drier out, but opening would cool the room further." : "Ventilation would cool it further.",
       );
     } else if (plan.status === "wetter") {
       elements.decisionLabel.textContent = "KEEP CLOSED";
@@ -95,7 +108,7 @@ export function createRecommendationView({
       elements.decisionLabel.textContent = "OPEN IF NEEDED";
       setDecisionSummary(
         "No clear drying benefit.",
-        "Open briefly for fresh air; humidity may not fall.",
+        "Open briefly for fresh air; drying benefit is uncertain.",
       );
     } else if (plan.status === "good") {
       elements.decisionLabel.textContent = "OPEN WINDOWS";
@@ -120,7 +133,7 @@ export function createRecommendationView({
           : "No clear drying benefit.",
         plan.limitMinutes
           ? `Estimated then: ${formatRh(plan.projectedRh)} RH at ${formatTemp(plan.projectedTemp)}.`
-          : "Open briefly for fresh air; humidity may not fall.",
+          : limitedBenefitLine,
         plan.limitMinutes ? limitDuration : null,
         null,
         { minutes: plan.limitMinutes, context: 'Reliably drier forecast-air limit.' },
@@ -134,7 +147,7 @@ export function createRecommendationView({
           : "No clear drying benefit.",
         plan.minutes
           ? `Estimated then: ${formatRh(plan.projectedRh)} RH at ${formatTemp(plan.projectedTemp)}.`
-          : "Open briefly for fresh air; humidity may not fall.",
+          : limitedBenefitLine,
         plan.minutes ? settlingDuration : null,
         null,
         { minutes: plan.minutes, context: 'Estimated useful drying period.' },
@@ -155,7 +168,9 @@ export function createRecommendationView({
           ? "Stop then to limit condensation risk."
           : plan.limitMinutes
             ? `Estimated then: ${formatRh(plan.projectedRh)} RH at ${formatTemp(plan.projectedTemp)}.`
-            : "No useful opening time is available.";
+            : plan.status === "too-cold"
+              ? "Opening would cool the room too much."
+              : "Opening may increase condensation risk.";
       setDecisionSummary(
         primary,
         secondary,
@@ -178,7 +193,7 @@ export function createRecommendationView({
       elements.decisionLabel.textContent = "OPEN IF NEEDED";
       setDecisionSummary(
         "No clear drying benefit.",
-        "Open briefly for fresh air; humidity may not fall.",
+        limitedBenefitLine,
       );
     } else {
       elements.decisionLabel.textContent = "WAIT";

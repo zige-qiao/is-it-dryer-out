@@ -4,6 +4,8 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Clarify second-line verdict explanations for drier outdoor air, limited drying benefit, uncertainty, and immediate temperature or condensation limits.
+
 ## v0.7.4.1 - UI geometry and sheet refinements - 2026-10-04
 
 - Align fixed layout spacing, control/icon sizes and ordinary corner radii to a 4px grid; use 52px ruler fields and a 48 × 28px settings switch while preserving typography, fine strokes and flexible geometry. Prevent ruler digits from clipping by reserving text space, using 100px paired/Indoor RH fields and a 128px Indoor temperature field. Use 16px Indoor RH and 12px target-RH tick spacing.

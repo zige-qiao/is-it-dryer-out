@@ -381,3 +381,9 @@ The existence of a rule is not proof of its implementation. Before calling the s
 - 0.3 draft, 27 September 2026: added precision/unit/time conventions, invalid-input and announcement gaps, complete modal focus contract, light-theme/browser-chrome boundaries, and the shared-token/visual-regression handoff. App unchanged.
 - 0.2 draft, 27 September 2026: added the complete semantic-role inventory, active green TARGET MET, independent verdict/comparison/curve mapping, condensation and unavailable-data accents, chart overlays, feedback panels, legacy-only rules and semantic visual specimens. Corrected the incomplete verdict list. App unchanged.
 - 0.1 draft, 27 September 2026: current-app audit; proposed warm neutrals, full state matrix, reusable component/geometry rules, contrast checks and implementation acceptance checklist. No application styling changed.
+
+### Conditional verdict copy
+
+Second explanations use the current shared-temperature moisture comparison and plan outcome, independently of chart inspection. Drier-air limited benefit uses “Drier out, but little drying benefit expected.” Cooling uses “Drier out, but limited benefit as the room cools.” only when projected temperature falls, projected vapour pressure evaluated at the original indoor temperature produces at least the minimum noticeable RH reduction, and projected RH at the cooler temperature does not.
+
+For drier air, TARGET MET uses “Drier out, but your humidity target is already met.” and below-minimum KEEP CLOSED uses “Drier out, but opening would cool the room further.” Uncertain OPEN IF NEEDED uses “Open briefly for fresh air; drying benefit is uncertain.” Immediate temperature and condensation limits use “Opening would cool the room too much.” and “Opening may increase condensation risk.” regardless of moisture comparison. Remaining copy, headlines, primary lines, colours and durations are unchanged.
