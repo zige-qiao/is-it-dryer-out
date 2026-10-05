@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=153" />
+    <link rel="stylesheet" href="styles.css?v=154" />
     <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
@@ -317,7 +317,7 @@
       <div id="cameraPendingBox" class="camera-reading-box" data-camera-field="pending" role="group" tabindex="0" aria-label="Unassigned selection. Arrow keys move; Shift and arrow keys resize." hidden><span>Reading</span>
         <button class="camera-crop-handle" data-crop-handle="nw" type="button" aria-label="Resize reading from top left"></button><button class="camera-crop-handle" data-crop-handle="ne" type="button" aria-label="Resize reading from top right"></button><button class="camera-crop-handle" data-crop-handle="sw" type="button" aria-label="Resize reading from bottom left"></button><button class="camera-crop-handle" data-crop-handle="se" type="button" aria-label="Resize reading from bottom right"></button>
       </div>
-      <button id="cameraRetakeButton" class="camera-flash camera-retake" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0-2-2h-3z"></path><circle cx="12" cy="13" r="3"></circle></svg><span>Retake</span></button>
+      <button id="cameraRetakeButton" class="camera-flash camera-retake" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"></path><circle cx="12" cy="13" r="3"></circle></svg><span>Retake</span></button>
     </div>
     <p id="cameraKeyboardHint" class="visually-hidden">Enter or Space on the photo draws a box. Arrow keys move it; Shift resizes and Alt makes smaller adjustments.</p>
     <div id="cameraReadStatus" class="camera-reading-status" data-state="processing" role="status" aria-live="polite" aria-atomic="true"><svg viewBox="0 0 24 24" aria-hidden="true"><g class="camera-status-progress"><path d="M20 12a8 8 0 1 1-8-8"></path></g><g class="camera-status-info"><circle cx="12" cy="12" r="8"></circle><path d="M12 11v6M12 7h.01"></path></g><g class="camera-status-ready"><circle cx="12" cy="12" r="8"></circle><path d="m8 12 3 3 5-6"></path></g><g class="camera-status-warning"><path d="m12 3 10 18H2Z M12 9v5M12 17h.01"></path></g><g class="camera-status-error"><circle cx="12" cy="12" r="8"></circle><path d="m9 9 6 6m0-6-6 6"></path></g></svg><span id="cameraReadStatusText">Reading numbers…</span></div>
@@ -487,6 +487,6 @@
         <button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button>
       </section>
     </dialog>
-    <script src="app.js?v=153" type="module"></script>
+    <script src="app.js?v=154" type="module"></script>
   </body>
 </html>
