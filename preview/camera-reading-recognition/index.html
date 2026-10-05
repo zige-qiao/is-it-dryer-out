@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=157" />
+    <link rel="stylesheet" href="styles.css?v=158" />
     <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
@@ -310,7 +310,7 @@
       </div>
     </div>
     <p class="camera-framing-hint">Keep the main digits sharp and visible.</p>
-    <button id="cameraCaptureButton" type="button" class="sheet-primary" disabled>Take photo</button>
+    <button id="cameraCaptureButton" type="button" class="sheet-primary" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"></path><circle cx="12" cy="13" r="3"></circle></svg><span>Take photo</span></button>
   </div>
   <div id="cameraReviewPanel" hidden>
     <div class="camera-photo-wrap" id="cameraPhotoWrap" tabindex="0" aria-label="Edit reading boxes on the photo" aria-describedby="cameraCropHint cameraKeyboardHint">
@@ -494,6 +494,6 @@
         <button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button>
       </section>
     </dialog>
-    <script src="app.js?v=157" type="module"></script>
+    <script src="app.js?v=158" type="module"></script>
   </body>
 </html>
