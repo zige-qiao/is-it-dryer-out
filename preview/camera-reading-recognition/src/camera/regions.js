@@ -117,8 +117,9 @@ export function mapRegionalResult(result, crop, pixels, source) {
 export function mergeResults(results) {
   const output = { regions: { temperature: null, humidity: null }, values: { temperature: '', humidity: '' }, readings: {}, status: 'unassigned', field: null };
   const bands = results.map(r => r?.currentBand).filter(Boolean);
+  const credibleDisplays = new Set(results.flatMap(r => r?.orientation?.credibleDisplayIds || []));
   for (const field of ['temperature', 'humidity']) {
-    const entries = results.map(r => r?.readings?.[field]).filter(e => {
+    const entries = results.filter(r => !r?.orientation || r.orientation.resolvedFields?.[field] || r.orientation.state !== 'pending').map(r => r?.readings?.[field] && ({ ...r.readings[field], displayId: r.readings[field].displayId || r.displayId })).filter(e => {
       if (!e?.digitBounds) return Boolean(e);
       const b = e.digitBounds;
       const related = bands.filter(band => b.x < band.x + band.width * 3 && b.x + b.width > band.x - band.width * 2 &&
@@ -127,14 +128,21 @@ export function mergeResults(results) {
     });
     const quality = e => (e.confidence?.numeric || 0) + (e.confidence?.unit || 0) * .15;
     const best = entries.filter(e => e.value).sort((a, b) => quality(b) - quality(a))[0] || entries[0]; if (!best) continue;
-    const conflict = entries.some(e => e.value && best.value && e.value !== best.value &&
+    const withdrawn = entries.some(e => e.rejectionReason === 'conflicting-digits' && (!e.digitBounds || !best.digitBounds || samePosition(e.digitBounds, best.digitBounds)));
+    const displayConflict = entries.some(a => a.value && credibleDisplays.has(a.displayId) && entries.some(b => b.value && a.displayId !== b.displayId && credibleDisplays.has(b.displayId) &&
+      (a.value !== b.value || !a.digitBounds || !b.digitBounds || !samePosition(a.digitBounds, b.digitBounds))));
+    const conflict = withdrawn || displayConflict || entries.some(e => e.value && best.value && e.value !== best.value &&
       (!e.digitBounds || !best.digitBounds || samePosition(e.digitBounds, best.digitBounds)) && (e.confidence?.numeric || 0) >= (best.confidence?.numeric || 0) - .04);
     const ambiguous = field === 'temperature' && best.confidence?.evidence?.assignment === 'same-display-humidity' &&
       entries.some(e => e.value && e.value !== best.value && e.digitBounds && best.digitBounds && !samePosition(e.digitBounds, best.digitBounds));
-    output.readings[field] = conflict || ambiguous ? { ...best, value: '', rejectionReason: ambiguous ? 'ambiguous-temperature' : 'conflicting-digits', confidence: { ...best.confidence, numeric: 0 } } : best;
+    output.readings[field] = conflict || ambiguous ? { ...best, value: '', rejectionReason: ambiguous ? 'ambiguous-temperature' : 'conflicting-digits', confidence: { ...best.confidence, numeric: 0 },
+      correction: best.correction && { ...best.correction, orientationResolved: false } } : best;
     output.regions[field] = best.region; output.values[field] = conflict || ambiguous ? '' : best.value;
   }
   if (Object.keys(output.readings).length) output.status = 'found';
+  const oriented = results.filter(r => r?.orientation);
+  if (oriented.length) output.orientation = { state: oriented.some(r => r.orientation.state === 'pending') ? 'pending' : Object.values(output.readings).some(e => e.rejectionReason === 'conflicting-digits') ? 'conflicted' : 'resolved',
+    credibleIds: [...new Set(oriented.flatMap(r => r.orientation.credibleIds || []))], credibleDisplayIds: [...credibleDisplays], evaluatedIds: [...new Set(oriented.flatMap(r => r.orientation.evaluatedIds || []))], resolvedFields: Object.fromEntries(['temperature','humidity'].map(field => [field, Boolean(output.values[field])])) };
   return output;
 }
 

@@ -2,6 +2,12 @@ import { INDOOR_LIMITS } from '../config.js';
 import { readSegmentedDigits } from './segments.js';
 import { components, binaryPixels, bounds, normalise } from './image.js';
 import { locateUnits } from './units.js';
+import { validateFractionCell } from './cell-validator.js';
+import { checkRecognitionBudget } from './budget.js';
+
+export function validateTemperatureGroup(pixels, group, options = {}) {
+  return validateFractionCell(pixels, group, options);
+}
 
 const SEGMENT_PATTERNS = ['1111110', '0110000', '1101101', '1111001', '0110011', '1011011', '1011111', '1110000', '1111111', '1111011'];
 export function grayscaleConfidence(pixels, glyph, neighbours = []) {
@@ -121,13 +127,16 @@ function union(items, width, height) {
 
 export function digitPairs(glyphs, obstructions = glyphs) {
   const pairs = [];
-  for (const a of glyphs) for (const b of glyphs) {
-    const h = Math.max(a.height, b.height), gap = b.x - right(a);
-    // A right-aligned 1 leaves much more empty space in its character cell.
-    if (gap < 0 || b.x + b.width / 2 - a.x - a.width / 2 < h * .3 || gap > h * (b.digit === '1' ? .95 : .6) || Math.min(a.height, b.height) < h * .7 || Math.abs(bottom(a) - bottom(b)) > h * .18) continue;
-    if (obstructions.some(g => g.height >= h * .7 && Math.abs(bottom(g) - bottom(b)) < h * .18 &&
-      g.x >= right(a) && right(g) <= b.x)) continue;
-    pairs.push({ items: [a, b], value: a.digit + b.digit, height: h });
+  for (const a of glyphs) {
+    checkRecognitionBudget();
+    for (const b of glyphs) {
+      const h = Math.max(a.height, b.height), gap = b.x - right(a);
+      // A right-aligned 1 leaves much more empty space in its character cell.
+      if (gap < 0 || b.x + b.width / 2 - a.x - a.width / 2 < h * .3 || gap > h * (b.digit === '1' ? .95 : .6) || Math.min(a.height, b.height) < h * .7 || Math.abs(bottom(a) - bottom(b)) > h * .18) continue;
+      if (obstructions.some(g => g.height >= h * .7 && Math.abs(bottom(g) - bottom(b)) < h * .18 &&
+        g.x >= right(a) && right(g) <= b.x)) continue;
+      pairs.push({ items: [a, b], value: a.digit + b.digit, height: h });
+    }
   }
   return pairs;
 }
@@ -135,12 +144,14 @@ export function digitPairs(glyphs, obstructions = glyphs) {
 export function temperatureGroups(glyphs, obstructions = glyphs) {
   const pairs = digitPairs(glyphs, obstructions), groups = [];
   for (const temp of pairs.filter(pair => Number(pair.value) >= 10 && Number(pair.value) <= INDOOR_LIMITS.temperature.max)) {
+    checkRecognitionBudget();
     const last = temp.items[1];
     const fractions = glyphs.filter(glyph => glyph.x >= right(last) && glyph.x - right(last) < temp.height * .65 &&
       glyph.height >= temp.height * .3 && glyph.height <= temp.height * .75 && Math.abs(bottom(glyph) - bottom(last)) < temp.height * .2);
     for (const fraction of fractions) {
       if (obstructions.some(g => g.height >= temp.height * .7 && Math.abs(bottom(g) - bottom(last)) < temp.height * .18 &&
-        g.x >= right(last) && g.x < fraction.x)) continue;
+        g.x >= right(last) && g.x < fraction.x && !(g.rawComponent && fraction.digit !== '1' &&
+          g.y <= fraction.y && right(g) >= right(fraction) && bottom(g) >= bottom(fraction)))) continue;
       groups.push({ items: [...temp.items, fraction], value: `${temp.value}.${fraction.digit}`, height: temp.height });
     }
   }
@@ -156,8 +167,11 @@ export function numericGroups(pixels, mask, glyphs, obstructions = glyphs) {
   })), humidity: digitPairs(glyphs, obstructions).filter(g => Number(g.value) >= INDOOR_LIMITS.humidity.min && Number(g.value) <= 90) };
 }
 
-export function detectCandidates(pixels, threshold = .55, variant = 'adaptive') {
+export function detectCandidates(pixels, threshold = .55, variant = 'adaptive', options = {}) {
   const prepared = normalise(pixels, threshold, variant), units = locateUnits(prepared, prepared.mask);
+  // Keep pre-symbol evidence immutable. Undecodable components remain available
+  // for complete-group obstruction checks even when masking removes their ink.
+  const rawComponents = components(prepared.mask, pixels.width, pixels.height, 1, true);
   const numericMask = prepared.mask.slice();
   // Remove only the components belonging to a symbol, not its bounding rectangle.
   // In particular, degree/C can sit above a small fractional digit.
@@ -169,7 +183,12 @@ export function detectCandidates(pixels, threshold = .55, variant = 'adaptive') 
     return { ...glyph, digit: evidence === null ? '' : evidence ? '8' : '0' };
   }).filter(g => g.digit);
   const glyphs = located.map(g => ({ ...g, confidence: grayscaleConfidence(pixels, g, located) })).filter(g => g.confidence > 0).sort((a, b) => a.x - b.x);
-  const groups = numericGroups(pixels, numericMask, glyphs, located);
+  // A joined unit/fraction component is preserved as evidence, but is not an
+  // inserted integer if it contains a complete non-one fractional glyph. The
+  // full native grayscale cell is still validated after grouping.
+  const rawObstructions = rawComponents.filter(c => c.height >= 7 && c.width >= 2 && c.width / c.height >= .06 && c.width / c.height <= 1.05 && c.count / (c.width * c.height) < .8).map(c => ({ ...c, rawComponent: true }));
+  const groups = numericGroups(pixels, numericMask, glyphs, [...located, ...rawObstructions]);
+  groups.temperature = groups.temperature.filter(group => validateTemperatureGroup(pixels, group, options));
   const readings = [];
   for (const unit of units) {
     if (unit.unit === '°F') continue;
@@ -191,7 +210,7 @@ export function detectCandidates(pixels, threshold = .55, variant = 'adaptive') 
   }
   const band = principalBand(numericMask, pixels.width, pixels.height, units);
   const dominantHeight = Math.max(band?.height || 0, ...readings.map(r => r.height));
-  return { readings: readings.filter(r => r.height >= dominantHeight * .6), units, glyphs, rawGlyphs: located, prepared,
+  return { readings: readings.filter(r => r.height >= dominantHeight * .6), units, glyphs, rawGlyphs: located, rawComponents, rawObstructions, rawMask: prepared.mask, prepared,
     currentBand: band && { ...band, x: band.x / pixels.width, y: band.y / pixels.height, width: band.width / pixels.width, height: band.height / pixels.height } };
 }
 

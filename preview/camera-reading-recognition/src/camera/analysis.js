@@ -1,7 +1,9 @@
-import { detectCandidates, locateGlyphs, numericGroups, grayscaleConfidence } from './detection.js';
-import { normalise, bounds, extract, binaryPixels } from './image.js';
-import { IDENTITY, rotation, warp, projectBox, inverse, screenCorrections, strokeAngles, strokeShear, compose } from './geometry.js';
-import { PROCESSING_VARIANTS, combineEvidence, samePosition } from './evidence.js';
+import { detectCandidates, locateGlyphs, numericGroups, grayscaleConfidence, validateTemperatureGroup } from './detection.js';
+import { normalise, bounds, extract, binaryPixels, components } from './image.js';
+import { IDENTITY, rotation, correctedPixels, projectBox, inverse, compose } from './geometry.js';
+import { PROCESSING_VARIANTS, PERSPECTIVE_REFINEMENT_VARIANT, combineEvidence, samePosition } from './evidence.js';
+import { prepareOrientation } from './orientation.js';
+import { runWithRecognitionBudget } from './budget.js';
 
 export { PROCESSING_VARIANTS } from './evidence.js';
 const fields = ['temperature', 'humidity'];
@@ -16,16 +18,20 @@ const asBox = (crop, width, height) => ({ x: crop.x * width, y: crop.y * height,
 
 export function makePreview(pixels, correction, sourceBox) {
   const matrix = correction?.matrix || IDENTITY, destination = projectBox(inverse(matrix) || IDENTITY, sourceBox);
-  const corrected = warp(pixels, matrix, correction?.width || pixels.width, correction?.height || pixels.height);
+  const corrected = correctedPixels(pixels, { ...correction, matrix, width: correction?.width || pixels.width, height: correction?.height || pixels.height });
   return extract(normalise(corrected, correction?.threshold || .55, correction?.preprocessing), destination);
 }
 
 // Each stage yields to support cancellation in browsers where workers cannot start.
 export async function analyzeImage(pixels, options = {}, checkpoint = async () => true, onProgress = () => {}) {
+  const guarded = work => runWithRecognitionBudget(checkpoint.check, work);
+  const preparation = options.hypotheses ? { hypotheses: options.hypotheses, orientation: options.orientation } : guarded(() => prepareOrientation(pixels, options));
+  const hypotheses = preparation.hypotheses, evaluatedIds = new Set(), nativeComplete = new Map();
+  const credibleIds = preparation.orientation?.credibleIds || hypotheses.map(h => h.id);
   const selection = options.region ? asBox(options.region, pixels.width, pixels.height) : null;
   const expected = options.field || null, all = [], seen = new Set(), rejections = new Set();
   const enlargement = options.refine ? Math.min(4, Math.max(1, 600 / Math.max(pixels.width, pixels.height))) : 1;
-  const prepared = normalise(pixels);
+  const prepared = guarded(() => normalise(pixels));
   if (prepared.empty) {
     const result = { regions: { temperature: null, humidity: null }, values: { temperature: '', humidity: '' }, readings: {}, status: expected ? 'found' : 'unassigned', field: expected };
     if (expected && selection) { result.regions[expected] = options.region; result.readings[expected] = {
@@ -38,26 +44,34 @@ export async function analyzeImage(pixels, options = {}, checkpoint = async () =
       const matches = all.flatMap(candidate => candidate.readings.filter(r => r.field === field).map(reading => ({ candidate, reading })))
         .filter(m => projectBox(m.candidate.correction.matrix, m.reading.digitBounds).height / pixels.height >= (result.currentBand?.height || 0) * .6)
         .sort((a, b) => (b.reading.confidence.numeric + b.reading.confidence.unit * .15) - (a.reading.confidence.numeric + a.reading.confidence.unit * .15) || b.reading.height - a.reading.height);
-      const match = matches[0]; if (!match) continue;
+      const hasSupport = m => m.candidate.correction.method === 'none' || new Set(matches.filter(other =>
+        other.candidate.correction.id === m.candidate.correction.id && other.reading.value === m.reading.value &&
+        samePosition(projectBox(other.candidate.correction.matrix, other.reading.digitBounds), projectBox(m.candidate.correction.matrix, m.reading.digitBounds)))
+        .map(other => other.candidate.correction.preprocessing + ':' + other.candidate.correction.threshold)).size >= 2;
+      // An unvalidated one-variant hypothesis cannot withdraw a validated field.
+      // Credible orientations still all finish before any value is published.
+      const validated = matches.filter(hasSupport);
+      const match = validated[0] || matches[0]; if (!match) continue;
       const { candidate, reading } = match, matrix = candidate.correction.matrix;
       const digitBox = projectBox(matrix, reading.digitBounds), unitBox = projectBox(matrix, reading.unitBounds);
       let sourceBox = projectBox(matrix, reading.box);
       if (selection) sourceBox = bounds([selection, digitBox, unitBox], 2);
-      const conflicts = matches.some(m => m.reading.value !== reading.value && m.reading.confidence.numeric >= reading.confidence.numeric - .04 &&
-        samePosition(projectBox(m.candidate.correction.matrix, m.reading.digitBounds), digitBox));
-      const ambiguous = reading.confidence.evidence?.assignment === 'same-display-humidity' && matches.some(m => m.reading.value !== reading.value && !samePosition(projectBox(m.candidate.correction.matrix, m.reading.digitBounds), digitBox));
-      const support = new Set(matches.filter(m => m.reading.value === reading.value && samePosition(projectBox(m.candidate.correction.matrix, m.reading.digitBounds), digitBox)).map(m => m.candidate.correction.preprocessing + ':' + m.candidate.correction.threshold));
-      const weakCorrection = candidate.correction.method !== 'none' && support.size < 2;
-      const value = conflicts || ambiguous || weakCorrection ? '' : reading.value;
+      const conflicts = validated.some(m => (m.reading.value !== reading.value || m.candidate.correction.id !== candidate.correction.id && (!samePosition(projectBox(m.candidate.correction.matrix, m.reading.digitBounds), digitBox) || m.reading.confidence.evidence?.assignment !== reading.confidence.evidence?.assignment)) && (m.candidate.correction.id !== candidate.correction.id || m.reading.confidence.numeric >= reading.confidence.numeric - .04) &&
+        (m.candidate.correction.id !== candidate.correction.id || samePosition(projectBox(m.candidate.correction.matrix, m.reading.digitBounds), digitBox)));
+      const ambiguous = reading.confidence.evidence?.assignment === 'same-display-humidity' && validated.some(m => m.reading.value !== reading.value && !samePosition(projectBox(m.candidate.correction.matrix, m.reading.digitBounds), digitBox));
+      const weakCorrection = !hasSupport(match);
+      const orientationResolved = credibleIds.every(id => evaluatedIds.has(id));
+      const value = conflicts || ambiguous || weakCorrection || !orientationResolved ? '' : reading.value;
       const entry = { field, value, region: cropBox(sourceBox, pixels.width, pixels.height), digitBounds: cropBox(digitBox, pixels.width, pixels.height),
         unitBounds: cropBox(unitBox, pixels.width, pixels.height), confidence: { ...reading.confidence, numeric: conflicts || ambiguous || weakCorrection ? 0 : reading.confidence.numeric },
         rejectionReason: conflicts ? 'conflicting-digits' : ambiguous ? 'ambiguous-temperature' : weakCorrection ? 'insufficient-variant-support' : null,
-        correction: { ...candidate.correction, sourceWidth: pixels.width, sourceHeight: pixels.height },
-        preview: extract(candidate.found.prepared, selection ? projectBox(inverse(matrix), sourceBox) : reading.box) };
+        correction: { ...candidate.correction, orientationResolved: orientationResolved && Boolean(value), sourceWidth: pixels.width, sourceHeight: pixels.height },
+        preview: guarded(() => extract(candidate.found.prepared, selection ? projectBox(inverse(matrix), sourceBox) : reading.box)) };
       result.regions[field] = entry.region; result.values[field] = value; result.readings[field] = entry;
     }
     result.status = Object.keys(result.readings).length ? 'found' : 'unassigned';
-    if (!result.values.temperature) result.rejectionReasons.temperature = result.readings.temperature?.rejectionReason || [...rejections].find(r => r === 'unsupported-fahrenheit' || r === 'missing-decimal' || r === 'missing-fraction') || 'unreadable-temperature';
+    result.orientation = { state: credibleIds.every(id => evaluatedIds.has(id)) ? (Object.values(result.readings).some(e => e.rejectionReason === 'conflicting-digits') ? 'conflicted' : 'resolved') : 'pending', credibleIds, evaluatedIds: [...evaluatedIds], resolvedFields: Object.fromEntries(fields.map(field => [field, Boolean(result.values[field])])) };
+    if (!result.values.temperature) result.rejectionReasons.temperature = result.readings.temperature?.rejectionReason || [...rejections].find(r => r === 'unsupported-fahrenheit' || r === 'missing-decimal' || r === 'missing-fraction' || r === 'unreadable-fraction-cell') || 'unreadable-temperature';
     if (!result.values.humidity) result.rejectionReasons.humidity = result.readings.humidity?.rejectionReason || 'unreadable-humidity';
     return result;
   }
@@ -65,17 +79,19 @@ export async function analyzeImage(pixels, options = {}, checkpoint = async () =
     if (!await checkpoint()) return false;
     const scale = correction.native ? 1 : Math.min(enlargement, 800 / Math.max(correction.width, correction.height));
     if (scale !== 1) correction = { ...correction,
+      cardinal: false,
       matrix: compose(correction.matrix, [1 / scale, 0, 0, 0, 1 / scale, 0, 0, 0, 1]),
       width: Math.max(1, Math.round(correction.width * scale)), height: Math.max(1, Math.round(correction.height * scale)) };
     const key = JSON.stringify(correction.matrix);
     if (seen.has(key)) return true; seen.add(key);
-    const image = correction.method === 'none' && scale === 1 ? pixels : warp(pixels, correction.matrix, correction.width, correction.height);
+    const unchanged = correction.width === pixels.width && correction.height === pixels.height && correction.matrix.every((v,i)=>v===IDENTITY[i]);
+    const image = unchanged ? pixels : guarded(() => correctedPixels(pixels, correction));
     const sourceBox = box => projectBox(correction.matrix, box);
-    const variants = options.preprocessing || options.thresholds || options.threshold ? (options.preprocessing || ['adaptive', 'denoised', 'gentle']).flatMap(preprocessing => (options.thresholds || [options.threshold || (preprocessing === 'denoised' ? .7 : .55)]).map(threshold => ({ preprocessing, threshold }))) : PROCESSING_VARIANTS;
+    const variants = [...(options.preprocessing || options.thresholds || options.threshold ? (options.preprocessing || ['adaptive', 'denoised', 'gentle']).flatMap(preprocessing => (options.thresholds || [options.threshold || (preprocessing === 'denoised' ? .7 : .55)]).map(threshold => ({ preprocessing, threshold }))) : PROCESSING_VARIANTS)];
     const local = [];
     for (const { preprocessing, threshold } of variants) {
       if (!await checkpoint()) return false;
-      const found = detectCandidates(image, threshold, preprocessing);
+      const found = guarded(() => detectCandidates(image, threshold, preprocessing, { sourceEvidence: { pixels, matrix: correction.matrix } }));
       const accepted = reading => !selection || overlap(sourceBox(reading.digitBounds), selection) / Math.max(1, sourceBox(reading.digitBounds).width * sourceBox(reading.digitBounds).height) >= .45;
       const readings = found.readings.filter(accepted);
       const units = found.units.filter(unit => !selection || overlap(sourceBox(unit.box), selection) > 0 || readings.some(r => r.field === unit.field && overlap(r.unitBounds, unit.box) > 0));
@@ -83,11 +99,18 @@ export async function analyzeImage(pixels, options = {}, checkpoint = async () =
       const candidate = { correction: { ...correction, threshold, preprocessing }, found, readings, units, score, threshold, preprocessing };
       all.push(candidate); local.push(candidate);
       reportProgress();
-      if (local.length >= 2 && complete()) return true;
+      // A faint perspective LCD can retain its fraction only after rejecting
+      // more of the local background. Obtain a second preprocessing family at
+      // the same geometry; native cell validation still controls acceptance.
+      if (correction.method === 'perspective' && local.length === PROCESSING_VARIANTS.length &&
+        local.filter(c => c.readings.some(r => r.field === 'temperature')).length === 1 &&
+        !options.preprocessing && !options.thresholds && !options.threshold) variants.push(PERSPECTIVE_REFINEMENT_VARIANT);
+      const requested = options.requiredField ? [options.requiredField] : expected ? [expected] : fields;
+      if (local.length >= 2 && requested.every(field => matchingLocalField(field))) break;
     }
     reportProgress(); // Preserve validated humidity before a fraction search.
-    if (!local.some(c => c.readings.some(r => r.field === 'temperature')) || options.requiredField === 'temperature') {
-      const combined = await combineEvidence(image, local, checkpoint, { expected, selection: selection && projectBox(inverse(correction.matrix), selection) });
+    if (!matchingLocalField('temperature')) {
+      const combined = await combineEvidence(image, local, checkpoint, { expected, selection: selection && projectBox(inverse(correction.matrix), selection), sourceEvidence: { pixels, matrix: correction.matrix } });
       if (!combined) return false;
       if (!combined.length) rejections.add(combined.rejectionReason);
       for (const reading of combined) if (acceptedCombined(reading)) {
@@ -96,47 +119,33 @@ export async function analyzeImage(pixels, options = {}, checkpoint = async () =
       }
     }
     reportProgress();
+    const requested = options.requiredField ? [options.requiredField] : expected ? [expected] : fields;
+    nativeComplete.set(correction.id, requested.every(field => matchingLocalField(field) || correction.method === 'none' && local.some(c=>c.readings.some(r=>r.field===field&&r.value))));
     return true;
+    function matchingLocalField(field) {
+      const readings=local.flatMap(c=>c.readings.filter(r=>r.field===field).map(reading=>({reading,candidate:c})));
+      return readings.some(a=>readings.some(b=>a.candidate!==b.candidate&&a.reading.value&&a.reading.value===b.reading.value&&samePosition(a.reading.digitBounds,b.reading.digitBounds)&&a.reading.confidence.evidence?.assignment===b.reading.confidence.evidence?.assignment));
+    }
     function acceptedCombined(reading) { return !selection || overlap(sourceBox(reading.digitBounds), selection) / Math.max(1, sourceBox(reading.digitBounds).width * sourceBox(reading.digitBounds).height) >= .45; }
     function reportProgress() {
       const selectedFields = new Set(all.flatMap(c => c.units.map(u => u.field)));
-      if (!selection || selectedFields.size <= 1 && (!expected || ![...selectedFields].some(field => field !== expected))) onProgress(buildReadings());
+      if (credibleIds.every(id => evaluatedIds.has(id)) && (!selection || selectedFields.size <= 1 && (!expected || ![...selectedFields].some(field => field !== expected)))) onProgress(guarded(buildReadings));
     }
   }
   const basic = (angle, shear = 0) => ({ matrix: rotation(pixels.width, pixels.height, angle, shear), width: pixels.width, height: pixels.height,
     angle, shear, method: angle || shear ? 'strokes' : 'none' });
-  // Stop once the requested field(s) have complete unit/numeric evidence.
-  const complete = () => { const result = buildReadings(); return options.requiredField ? Boolean(result.values[options.requiredField]) :
-    selection ? Boolean(expected ? result.values[expected] : Object.values(result.values).some(Boolean)) : Boolean(result.values.temperature && result.values.humidity); };
   // Larger native display crops need no enlargement; keep their faint fraction
   // and decimal intact before trying a resampled geometric correction.
-  if (options.refine && Math.max(pixels.width, pixels.height) > 400 && !await tryCorrection({ ...basic(0), native: true })) return null;
-  if (!complete() && !await tryCorrection(basic(0))) return null;
-  const straight = complete();
-  if (!straight && !options.quick) {
-    if (options.angle && !await tryCorrection(basic(options.angle))) return null;
-    for (const correction of screenCorrections(pixels)) {
-      if (complete()) break; if (!await tryCorrection(correction)) return null;
-      const last = all.at(-1);
-      if (last.readings.length && !complete()) {
-        const rectified = warp(pixels, correction.matrix, correction.width, correction.height);
-        const angle = strokeAngles(rectified)[0] || 0, shear = strokeShear(rectified, angle);
-        if ((angle || shear) && Math.abs(angle) <= 8 && !await tryCorrection({ ...correction,
-          matrix: compose(correction.matrix, rotation(correction.width, correction.height, angle, shear)), angle, shear })) return null;
-      }
-    }
-    const angles = strokeAngles(pixels).slice(0, 4);
-    for (const angle of angles) { if (complete()) break; if (!await tryCorrection(basic(angle))) return null; }
+  for (const hypothesis of hypotheses) {
+    if (!credibleIds.includes(hypothesis.id)) continue;
+    if (selection && options.refine && enlargement > 1 && !hypothesis.native) {
+      if (!await tryCorrection({ ...hypothesis, native: true })) return null;
+      if (!nativeComplete.get(hypothesis.id) && !await tryCorrection(hypothesis)) return null;
+    } else if (!await tryCorrection(hypothesis)) return null;
+    evaluatedIds.add(hypothesis.id);
   }
-  const promising = complete() || options.quick ? [] : all.filter(c => c.units.length).sort((a, b) => b.score - a.score).slice(0, 2);
-  for (const candidate of promising) {
-    if (candidate.correction.method === 'perspective') continue;
-    const angle = candidate.correction.angle || 0;
-    for (const delta of [-2, -1, 1, 2]) { if (complete()) break; if (Math.abs(angle + delta) <= 25 && !await tryCorrection(basic(angle + delta))) return null; }
-    const shear = strokeShear(pixels, angle);
-    if (!complete() && shear && !await tryCorrection(basic(angle, shear))) return null;
-  }
-  const result = buildReadings();
+  const result = guarded(buildReadings);
+  if (await checkpoint()) onProgress(result);
   if (!selection) { result.status = Object.keys(result.readings).length ? 'found' : 'unassigned'; return result; }
   const identified = fields.filter(field => result.readings[field]);
   const bestUnits = all.slice().sort((a, b) => b.score - a.score)[0]?.units || [];
@@ -158,14 +167,15 @@ export async function analyzeImage(pixels, options = {}, checkpoint = async () =
       const correction = { ...basic(0), preprocessing: 'gentle' };
       const unitBox = best ? projectBox(best.candidate.correction.matrix, best.unit.box) : null;
       const sourceBox = best ? bounds([selection, unitBox], 2) : selection;
-      const prepared = normalise(pixels, .55, 'gentle'), preview = extract(prepared, sourceBox);
-      const binary = extract(binaryPixels(prepared, prepared.mask), sourceBox);
+      const prepared = guarded(() => normalise(pixels, .55, 'gentle')), preview = guarded(() => extract(prepared, sourceBox));
+      const binary = guarded(() => extract(binaryPixels(prepared, prepared.mask), sourceBox));
       const mask = Uint8Array.from({length: binary.width * binary.height}, (_, i) => binary.data[i * 4] < 128 ? 1 : 0);
-      const raw = extract(pixels, sourceBox);
-      const located = locateGlyphs(binary, true);
-      const glyphs = located.filter(g => grayscaleConfidence(raw, g, located) > 0).sort((a, b) => a.x - b.x);
-      const groups = numericGroups(binary, mask, glyphs, located)[field];
-      const group = groups.sort((a, b) => b.height - a.height)[0], value = best ? '' : group?.value || '';
+      const raw = guarded(() => extract(pixels, sourceBox));
+      const located = guarded(() => locateGlyphs(binary, true));
+      const glyphs = guarded(() => located.filter(g => grayscaleConfidence(raw, g, located) > 0).sort((a, b) => a.x - b.x));
+      const rawObstructions = guarded(() => components(mask, binary.width, binary.height).filter(c => c.height >= 7 && c.width >= 2 && c.width / c.height >= .06 && c.width / c.height <= 1.05 && c.count / (c.width * c.height) < .8).map(c => ({ ...c, rawComponent: true })));
+      const groups = guarded(() => numericGroups(binary, mask, glyphs, [...located, ...rawObstructions]))[field];
+      const group = groups.filter(g => field !== 'temperature' || guarded(() => validateTemperatureGroup(raw, g, { rawMask: normalise(raw).mask }))).sort((a, b) => b.height - a.height)[0], value = best || result.orientation?.state !== 'resolved' || credibleIds.length !== 1 ? '' : group?.value || '';
       const destination = projectBox(inverse(correction.matrix), sourceBox), digits = group ? bounds(group.items) : null;
       const digitBounds = digits ? cropBox(projectBox(correction.matrix, { ...digits, x: digits.x + Math.max(0, Math.floor(destination.x)),
         y: digits.y + Math.max(0, Math.floor(destination.y)) }), pixels.width, pixels.height) : null;
@@ -175,6 +185,7 @@ export async function analyzeImage(pixels, options = {}, checkpoint = async () =
         rejectionReason: best ? 'unreadable-digits' : 'unreadable-unit-or-digits',
         correction: { ...correction, sourceWidth: pixels.width, sourceHeight: pixels.height }, preview };
       result.regions[field] = result.readings[field].region; result.values[field] = value;
+      if(result.orientation?.state==='resolved') result.orientation.resolvedFields[field]=Boolean(value);
     }
   }
   if (expected && field && field !== expected) { result.status = 'contradictory'; result.field = expected; return result; }

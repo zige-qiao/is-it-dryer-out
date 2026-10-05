@@ -192,7 +192,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     setReviewStatus('processing', 'Reading box…');
     elements.cameraReviewPanel.setAttribute('aria-busy', 'true'); validate();
     try {
-      const result = await recognition.readRegion(originalPhoto || elements.cameraPhoto, crops[field], expected, corrections[expected]?.angle);
+      const result = await recognition.readRegion(originalPhoto || elements.cameraPhoto, crops[field], expected, corrections[expected]);
       if (!active || session !== request || !result) return;
       if (result.status === 'ambiguous') {
         setReviewStatus('attention', 'Both units found. Make the box smaller.');
@@ -211,6 +211,8 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
           draft(identified).value = entry.value || '';
           if (field === 'pending') crops.pending = null;
           drawCrops(); readStatus();
+          if (result.rejectionReason === 'timeout' && !validateCameraReadings(elements.cameraTempDraft.value, elements.cameraRhDraft.value).valid) setReviewStatus('attention',
+            'Reading timed out. Check the detected value and enter the missing value.');
           if (assigned) draft(identified).focus();
         }
       }

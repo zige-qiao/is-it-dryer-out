@@ -1,4 +1,5 @@
 import { components, bounds } from './image.js';
+import { checkRecognitionBudget } from './budget.js';
 export const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 export function compose(a, b) { return Array.from({ length: 9 }, (_, i) => {
   const row = Math.floor(i / 3), column = i % 3;
@@ -41,12 +42,41 @@ export function rotation(width, height, angle, shear = 0) {
   return [a, b, width / 2 - a * width / 2 - b * height / 2, d, e, height / 2 - d * width / 2 - e * height / 2, 0, 0, 1];
 }
 
+// All matrices map corrected destination pixels back to the unchanged source.
+// Quarter turns use exact integer coordinates and exchange the canvas axes.
+export function expandedRotation(width, height, angle, shear = 0) {
+  const turn = ((angle % 360) + 360) % 360;
+  if (!shear && Math.abs(turn - Math.round(turn / 90) * 90) < 1e-8) {
+    const quarter = Math.round(turn / 90) % 4;
+    const matrices = [IDENTITY, [0,-1,width-1,1,0,0,0,0,1], [-1,0,width-1,0,-1,height-1,0,0,1], [0,1,0,-1,0,height-1,0,0,1]];
+    return { matrix: [...matrices[quarter]], width: quarter % 2 ? height : width, height: quarter % 2 ? width : height, cardinal: true };
+  }
+  const centred = rotation(width, height, angle, shear), forward = inverse(centred);
+  const box = projectBox(forward, { x: 0, y: 0, width: width - 1, height: height - 1 });
+  return { matrix: compose(centred, [1,0,box.x,0,1,box.y,0,0,1]), width: Math.ceil(box.width) + 1, height: Math.ceil(box.height) + 1, cardinal: false };
+}
+
+export function exactTransform(pixels, correction) {
+  const { width, height, matrix } = correction, data = new Uint8ClampedArray(width * height * 4);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    if (x === 0) checkRecognitionBudget();
+    const [sx, sy] = project(matrix, x, y), p = (y * width + x) * 4;
+    data.set(pixels.data.subarray((sy * pixels.width + sx) * 4, (sy * pixels.width + sx) * 4 + 4), p);
+  }
+  return { width, height, data };
+}
+
+export function correctedPixels(pixels, correction) {
+  return correction.cardinal ? exactTransform(pixels, correction) : warp(pixels, correction.matrix, correction.width, correction.height);
+}
+
 // Dominant raw edge directions propose rotation before any digits are decoded.
 // Vertical and horizontal strokes vote into the same orientation histogram.
 export function strokeAngles(pixels) {
   const { width, height, data } = pixels, votes = new Float64Array(51);
   const gray = (x, y) => .299 * data[(y * width + x) * 4] + .587 * data[(y * width + x) * 4 + 1] + .114 * data[(y * width + x) * 4 + 2];
   for (let y = 1; y < height - 1; y += 2) for (let x = 1; x < width - 1; x += 2) {
+    if (x === 1) checkRecognitionBudget();
     const dx = gray(x + 1, y) - gray(x - 1, y), dy = gray(x, y + 1) - gray(x, y - 1);
     const strength = Math.hypot(dx, dy); if (strength < 6) continue;
     let angle = Math.atan2(dy, dx) * 180 / Math.PI;
@@ -63,6 +93,7 @@ export function strokeAngles(pixels) {
 export function strokeShear(pixels, angle) {
   const { width, height, data } = pixels, votes = new Float64Array(31);
   for (let y = 2; y < height - 2; y += 2) for (let x = 2; x < width - 2; x += 2) {
+    if (x === 2) checkRecognitionBudget();
     const p = (y * width + x) * 4;
     const dx = data[p + 4] - data[p - 4], dy = data[p + width * 4] - data[p - width * 4];
     if (Math.abs(dx) < 8 || Math.abs(dy) > Math.abs(dx) * .7) continue;
@@ -79,6 +110,7 @@ export function strokeShear(pixels, angle) {
 export function warp(pixels, matrix, width = pixels.width, height = pixels.height) {
   const data = new Uint8ClampedArray(width * height * 4).fill(255);
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    if (x === 0) checkRecognitionBudget();
     const [sx, sy] = project(matrix, x, y), xx = Math.floor(sx), yy = Math.floor(sy);
     if (xx < 0 || yy < 0 || xx + 1 >= pixels.width || yy + 1 >= pixels.height) continue;
     const dx = sx - xx, dy = sy - yy, p = (y * width + x) * 4, q = (yy * pixels.width + xx) * 4;
@@ -91,7 +123,7 @@ export function warp(pixels, matrix, width = pixels.width, height = pixels.heigh
 
 export function screenCorrections(pixels) {
   const gray = new Uint8Array(pixels.width * pixels.height), histogram = new Uint32Array(256);
-  for (let i = 0; i < gray.length; i++) { gray[i] = Math.round(.299 * pixels.data[i * 4] + .587 * pixels.data[i * 4 + 1] + .114 * pixels.data[i * 4 + 2]); histogram[gray[i]]++; }
+  for (let i = 0; i < gray.length; i++) { if ((i & 1023) === 0) checkRecognitionBudget(); gray[i] = Math.round(.299 * pixels.data[i * 4] + .587 * pixels.data[i * 4 + 1] + .114 * pixels.data[i * 4 + 2]); histogram[gray[i]]++; }
   const results = [];
   for (const fraction of [.25, .4, .55, .7]) {
     let total = 0, threshold = 0;

@@ -1,3 +1,5 @@
+import { checkRecognitionBudget } from './budget.js';
+
 // Pure pixel operations, shared by the worker and its cooperative fallback.
 export function normalise(pixels, threshold = .55, variant = 'adaptive') {
   if (variant === 'denoised') pixels = denoise(pixels);
@@ -5,6 +7,7 @@ export function normalise(pixels, threshold = .55, variant = 'adaptive') {
   const gray = new Float32Array(width * height), sum = new Float64Array(stride * (height + 1)), squares = new Float64Array(sum.length);
   let minimum = 255, maximum = 0;
   for (let y = 0; y < height; y++) {
+    if (!(y % 16)) checkRecognitionBudget();
     let row = 0, rowSquares = 0;
     for (let x = 0; x < width; x++) {
       const p = (y * width + x) * 4, value = .299 * data[p] + .587 * data[p + 1] + .114 * data[p + 2];
@@ -21,6 +24,7 @@ export function normalise(pixels, threshold = .55, variant = 'adaptive') {
   const radius = Math.max(8, Math.round(width / (variant === 'display' ? 12 : variant === 'gentle' ? 24 : 60)));
   const areaSum = (table, l, t, r, b) => table[b * stride + r] - table[t * stride + r] - table[b * stride + l] + table[t * stride + l];
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    if (!x && !(y % 16)) checkRecognitionBudget();
     const l = Math.max(0, x - radius), r = Math.min(width, x + radius + 1), t = Math.max(0, y - radius), b = Math.min(height, y + radius + 1);
     const n = (r - l) * (b - t), mean = areaSum(sum, l, t, r, b) / n;
     const deviation = Math.sqrt(Math.max(0, areaSum(squares, l, t, r, b) / n - mean * mean));
@@ -40,6 +44,7 @@ export function normalise(pixels, threshold = .55, variant = 'adaptive') {
 function denoise({ width, height, data }) {
   const output = data.slice();
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    if (!x && !(y % 4)) checkRecognitionBudget();
     const p = (y * width + x) * 4;
     for (let channel = 0; channel < 3; channel++) {
       let sum = 0, weights = 0;
@@ -59,15 +64,18 @@ function denoise({ width, height, data }) {
 export function components(mask, width, height, radius = 0, includePoints = false) {
   const joined = new Uint8Array(mask.length), queue = new Int32Array(mask.length), result = [];
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (mask[y * width + x]) {
+    if (!(x % 128)) checkRecognitionBudget();
     for (let yy = Math.max(0, y - radius); yy <= Math.min(height - 1, y + radius); yy++)
       for (let xx = Math.max(0, x - radius); xx <= Math.min(width - 1, x + radius); xx++) joined[yy * width + xx] = 1;
   }
   for (let p = 0; p < joined.length; p++) {
+    if (!(p % 1024)) checkRecognitionBudget();
     if (!joined[p]) continue;
     let head = 0, tail = 1, left = width, right = -1, top = height, bottom = -1, count = 0, sx = 0, sy = 0, sxx = 0, syy = 0, sxy = 0;
     const corners = [[width, height], [0, height], [0, 0], [width, 0]], extremes = [Infinity, -Infinity, -Infinity, Infinity], points = includePoints ? [] : null;
     queue[0] = p; joined[p] = 0;
     while (head < tail) {
+      if (!(head % 1024)) checkRecognitionBudget();
       const point = queue[head++], x = point % width, y = Math.floor(point / width);
       if (mask[point]) {
         points?.push(point);
@@ -106,12 +114,18 @@ export function extract(pixels, box) {
   const x = Math.max(0, Math.floor(box.x)), y = Math.max(0, Math.floor(box.y));
   const width = Math.max(1, Math.min(pixels.width, Math.ceil(box.x + box.width)) - x), height = Math.max(1, Math.min(pixels.height, Math.ceil(box.y + box.height)) - y);
   const data = new Uint8ClampedArray(width * height * 4);
-  for (let row = 0; row < height; row++) data.set(pixels.data.subarray(((y + row) * pixels.width + x) * 4, ((y + row) * pixels.width + x + width) * 4), row * width * 4);
+  for (let row = 0; row < height; row++) {
+    if (!(row % 16)) checkRecognitionBudget();
+    data.set(pixels.data.subarray(((y + row) * pixels.width + x) * 4, ((y + row) * pixels.width + x + width) * 4), row * width * 4);
+  }
   return { width, height, data };
 }
 
 export function binaryPixels(pixels, mask) {
   const data = new Uint8ClampedArray(pixels.width * pixels.height * 4).fill(255);
-  for (let i = 0; i < mask.length; i++) if (mask[i]) data.fill(0, i * 4, i * 4 + 3);
+  for (let i = 0; i < mask.length; i++) {
+    if (!(i % 4096)) checkRecognitionBudget();
+    if (mask[i]) data.fill(0, i * 4, i * 4 + 3);
+  }
   return { width: pixels.width, height: pixels.height, data };
 }
