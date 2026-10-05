@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=154" />
+    <link rel="stylesheet" href="styles.css?v=155" />
     <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
@@ -193,19 +193,25 @@
     </div>
     <section class="settings-group" aria-labelledby="settingsIndoorTitle">
       <h3 id="settingsIndoorTitle">Indoor readings</h3>
+      <div class="settings-group-card">
       <label class="settings-toggle"><span>Open Indoor readings on launch</span><input id="openIndoorOnLaunch" type="checkbox" role="switch" checked /><span class="settings-switch" aria-hidden="true"></span></label>
       <label class="settings-toggle"><span>Show Indoor summary</span><input id="showIndoorSummary" type="checkbox" role="switch" /><span class="settings-switch" aria-hidden="true"></span></label>
+      </div>
     </section>
     <section class="settings-group" aria-labelledby="settingsButtonsTitle">
       <h3 id="settingsButtonsTitle">Input buttons</h3>
+      <div class="settings-group-card">
       <label class="settings-toggle"><span>Show camera button</span><input id="showCameraButton" type="checkbox" role="switch" checked /><span class="settings-switch" aria-hidden="true"></span></label>
       <label class="settings-toggle"><span>Show voice button</span><input id="showVoiceButton" type="checkbox" role="switch" checked /><span class="settings-switch" aria-hidden="true"></span></label>
+      </div>
     </section>
     <section class="settings-group" aria-labelledby="settingsCameraTitle">
       <h3 id="settingsCameraTitle">Camera</h3>
+      <div class="settings-group-card">
       <label class="settings-toggle"><span>Use still photos</span><input id="useStillPhotos" type="checkbox" role="switch" aria-describedby="stillPhotoSettingHelp" /><span class="settings-switch" aria-hidden="true"></span></label>
       <p class="settings-help" id="stillPhotoSettingHelp">Off captures a camera frame faster. On takes a still photo for better detail and flash.</p>
       <label class="settings-toggle"><span>Auto flash</span><input id="autoFlash" type="checkbox" role="switch" checked /><span class="settings-switch" aria-hidden="true"></span></label>
+      </div>
     </section>
   </div>
 </dialog>
@@ -487,6 +493,6 @@
         <button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button>
       </section>
     </dialog>
-    <script src="app.js?v=154" type="module"></script>
+    <script src="app.js?v=155" type="module"></script>
   </body>
 </html>

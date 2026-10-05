@@ -181,6 +181,7 @@ const cameraController = createCameraController({
     elements.settingsButton.click();
     dialogs.rememberSheetFocus(elements.settingsDialog, elements.cameraHelpButton, elements.cameraHelpButton);
     elements.autoFlash.focus({ preventScroll: true });
+    elements.autoFlash.closest('.settings-toggle').scrollIntoView({ block: 'nearest', behavior: 'instant' });
   },
   beforeCamera: () => {
     dialogs.rememberSheetFocus(elements.cameraPanel, elements.cameraInputButton, elements.cameraTitle);
