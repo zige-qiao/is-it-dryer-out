@@ -2,7 +2,7 @@ import { locateGlyphs, grayscaleConfidence, middleBar, digitPairs, temperatureGr
 import { bounds, extract, normalise, binaryPixels, components } from './image.js';
 import { INDOOR_LIMITS } from '../config.js';
 
-export const PROCESSING_VARIANTS = Object.freeze([{ preprocessing: 'adaptive', threshold: .55 }, { preprocessing: 'adaptive', threshold: .4 }, { preprocessing: 'gentle', threshold: .55 }, { preprocessing: 'denoised', threshold: .7 }]);
+export const PROCESSING_VARIANTS = Object.freeze([{ preprocessing: 'adaptive', threshold: .55 }, { preprocessing: 'display', threshold: .65 }, { preprocessing: 'adaptive', threshold: .4 }, { preprocessing: 'gentle', threshold: .55 }, { preprocessing: 'denoised', threshold: .7 }]);
 const right = b => b.x + b.width, bottom = b => b.y + b.height;
 export const intersection = (a, b) => Math.max(0, Math.min(right(a), right(b)) - Math.max(a.x, b.x)) * Math.max(0, Math.min(bottom(a), bottom(b)) - Math.max(a.y, b.y));
 export const samePosition = (a, b) => intersection(a, b) / Math.max(a.width * a.height, b.width * b.height) > .55;
@@ -48,8 +48,9 @@ function decimalEvidence(pixels, dots, group) {
 export async function combineEvidence(pixels, variants, checkpoint, { expected = null, selection = null } = {}) {
   const units = variants.flatMap(v => v.found.units), glyphs = variants.flatMap(v => v.found.glyphs.map(g => ({ ...g, variant: v })));
   let combined = consolidateGlyphs(glyphs);
+  const obstructions = variants.flatMap(v => v.found.rawGlyphs || v.found.glyphs);
   const bandHeight = Math.max(0, ...variants.map(v => (v.found.currentBand?.height || 0) * pixels.height));
-  const pairs = digitPairs(combined).filter(p => Number(p.value) >= INDOOR_LIMITS.temperature.min && Number(p.value) <= INDOOR_LIMITS.temperature.max && p.height >= bandHeight * .6).sort((a, b) => b.height - a.height).slice(0, 8);
+  const pairs = digitPairs(combined, obstructions).filter(p => Number(p.value) >= INDOOR_LIMITS.temperature.min && Number(p.value) <= INDOOR_LIMITS.temperature.max && p.height >= bandHeight * .6).sort((a, b) => b.height - a.height).slice(0, 8);
   const masks = variants.map(v => v.found.prepared.mask);
   for (const pair of pairs) {
     if (!await checkpoint()) return null;
@@ -67,7 +68,7 @@ export async function combineEvidence(pixels, variants, checkpoint, { expected =
       const local = locateGlyphs(binaryPixels(crop, mask), true).map(g => {
         const full = { ...g, x: g.x + box.x, y: g.y + box.y };
         if (full.digit === '8' || full.digit === '0') { const middle = middleBar(pixels, full); full.digit = middle === null ? '' : middle ? '8' : '0'; }
-        return { ...full, confidence: full.digit ? grayscaleConfidence(pixels, full) : 0, variant: variants.find(v => v.preprocessing === config.preprocessing && v.threshold === config.threshold) || variants[0], localFraction: true };
+        return { ...full, confidence: full.digit ? grayscaleConfidence(pixels, full, glyphs) : 0, variant: variants.find(v => v.preprocessing === config.preprocessing && v.threshold === config.threshold) || variants[0], localFraction: true };
       }).filter(g => g.confidence > 0 && g.height >= h * .3 && g.height <= h * .75 && Math.abs(bottom(g) - bottom(last)) < h * .2);
       glyphs.push(...local);
     }
@@ -75,7 +76,7 @@ export async function combineEvidence(pixels, variants, checkpoint, { expected =
   combined = consolidateGlyphs(glyphs);
   const dots = [];
   for (const mask of masks) { if (!await checkpoint()) return null; dots.push(...components(mask, pixels.width, pixels.height).filter(d => d.width < pixels.height * .2 && d.height < pixels.height * .2)); }
-  const numbered = temperatureGroups(combined).filter(g => Number(g.value) <= INDOOR_LIMITS.temperature.max);
+  const numbered = temperatureGroups(combined, obstructions).filter(g => Number(g.value) <= INDOOR_LIMITS.temperature.max);
   const groups = numbered.filter(g => decimalEvidence(pixels, dots, g));
   const humidityCandidates = variants.flatMap(v => v.found.readings.filter(r => r.field === 'humidity').map(r => ({ ...r, variant: v })));
   const humidity = humidityCandidates.filter(r => !humidityCandidates.some(other => other.value !== r.value &&

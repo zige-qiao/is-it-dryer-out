@@ -56,7 +56,7 @@ export const OPENING_SETUPS = {
   cross: { label: "Cross-ventilation", airflow: 180 },
 };
 
-export const APP_BUILD_VERSION = "camera-reading-recognition (7aa6796)";
+export const APP_BUILD_VERSION = "camera-reading-recognition (caf4440)";
 
 export const VOICE_SILENCE_DURATION_MS = 1000;
 

@@ -5,7 +5,7 @@ export function visibleFrame(width, height, viewWidth, viewHeight, zoom = 1) {
   return { x: (width - w) / 2, y: (height - h) / 2, width: w, height: h };
 }
 
-export function createCaptureControls({ video, preview, feed, flash, zoomControl, zoomInput, zoomValue, status, capture, onError, onZoomSync = () => {} }, environment = globalThis) {
+export function createCaptureControls({ video, preview, feed, flash, zoomControl, status, capture, onError, onZoomSync = () => {} }, environment = globalThis) {
   const now = () => environment.performance.now();
   let owner = null, generation = 0, timer = null, frameCallback = null, watchdog = null, deadline = null;
   let first = null, changed = 0, samples = 0, geometry = '', ready = false, revealed = false, baselineLocked = false;
@@ -14,7 +14,7 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
   let torch = false, desiredTorch = false, supportsTorch = false, pending = false, applying = false;
   let revision = 0, appliedRevision = 0, lastApply = -Infinity, controlTimer = null, startupResolve = null, waiters = [];
   let statusTimer = null;
-  let displayed = null, lastDraw = -Infinity, zoomGesturing = false, capturing = false;
+  let displayed = null, lastDraw = -Infinity, switching = false, capturing = false;
   const settings = () => owner?.getSettings?.() || {};
 
   function captureStatus(text, duration = 0) {
@@ -45,11 +45,9 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
 
   function sync() {
     digital = Math.max(1, desired / nativeZoom);
-    zoomInput.value = String(desired); zoomValue.textContent = `${desired.toFixed(1)}×`;
-    zoomInput.setAttribute('aria-valuetext', `${desired.toFixed(1)} times zoom`);
-    zoomInput.disabled = !ready || capturing; capture.disabled = !ready || capturing || pending || zoomGesturing || !currentFrame();
-    onZoomSync();
-    flash.disabled = !ready || pending || capturing;
+    capture.disabled = !ready || capturing || switching || pending || !currentFrame();
+    onZoomSync({ available: Boolean(owner) && (ready || switching), capturing, desired });
+    flash.disabled = !ready || pending || capturing || switching;
     flash.setAttribute('aria-pressed', String(torch));
     flash.setAttribute('aria-label', torch ? 'Turn flash off' : 'Turn flash on');
   }
@@ -117,11 +115,11 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
     first = null; changed = samples = 0; geometry = ''; lastMetadata = {}; ready = revealed = baselineLocked = false;
     lensBase = baseline = nativeZoom = desired = digital = 1; nativeRange = null;
     torch = desiredTorch = supportsTorch = pending = applying = false; revision = appliedRevision = 0; lastApply = -Infinity;
-    displayed = null; lastDraw = -Infinity; zoomGesturing = capturing = false; preview.width = preview.height = 0;
+    displayed = null; lastDraw = -Infinity; switching = capturing = false; preview.width = preview.height = 0;
     zoomControl.hidden = true; flash.hidden = true; preview.classList.add('camera-starting'); sync();
   }
   async function start(track, { base = 1, zoom = 1 } = {}) {
-    const gesture = zoomGesturing; stop(); zoomGesturing = gesture; lensBase = base; nativeZoom = base; desired = zoom; owner = track; captureStatus('Starting camera…'); supportsTorch = Boolean(track.getCapabilities?.().torch); flash.hidden = !supportsTorch; zoomControl.hidden = false;
+    const changing = switching; stop(); switching = changing; lensBase = base; nativeZoom = base; desired = zoom; owner = track; captureStatus(changing ? 'Switching camera…' : 'Starting camera…'); supportsTorch = Boolean(track.getCapabilities?.().torch); flash.hidden = !supportsTorch; zoomControl.hidden = false;
     const request = generation;
     const startup = new Promise(resolve => startupResolve = resolve);
     watchdog = environment.setTimeout(() => {
@@ -214,13 +212,13 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
     if (ready && signature(lastMetadata) !== geometry) {
       ready = false; changed = now(); samples = 0; captureStatus('Camera framing is still settling.'); sync();
     }
-    return ready && !capturing && !pending && !zoomGesturing && Boolean(currentFrame());
+    return ready && !capturing && !switching && !pending && Boolean(currentFrame());
   }
   return { start, stop, setZoom, toggleFlash, setTorch, frame, isReady,
     snapshot: () => ({ flash: torch, supportsTorch, digital, aspect: feed.getBoundingClientRect().width / feed.getBoundingClientRect().height }),
-    settled: () => ready && !pending && !capturing && !zoomGesturing && Boolean(currentFrame()),
+    settled: () => ready && !pending && !capturing && !switching && Boolean(currentFrame()),
     waitIdle: () => pending ? new Promise(resolve => waiters.push(resolve)) : Promise.resolve(),
     notify: captureStatus,
     setCapturing: value => { capturing = value; captureStatus(value ? 'Hold still — taking photo…' : ''); sync(); },
-    setZoomGesture: value => { zoomGesturing = value; sync(); } };
+    setSwitching: value => { switching = value; sync(); } };
 }

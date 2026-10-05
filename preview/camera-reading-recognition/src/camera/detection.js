@@ -4,7 +4,7 @@ import { components, binaryPixels, bounds, normalise } from './image.js';
 import { locateUnits } from './units.js';
 
 const SEGMENT_PATTERNS = ['1111110', '0110000', '1101101', '1111001', '0110011', '1011011', '1011111', '1110000', '1111111', '1111011'];
-export function grayscaleConfidence(pixels, glyph) {
+export function grayscaleConfidence(pixels, glyph, neighbours = []) {
   // A full-width glyph cannot be a narrow LCD one. Thresholding can leave
   // only a vertical fragment of a five while its other strokes define bounds.
   if (glyph.digit === '1') {
@@ -16,11 +16,18 @@ export function grayscaleConfidence(pixels, glyph) {
       const p = (yy * pixels.width + xx) * 4;
       return .299 * pixels.data[p] + .587 * pixels.data[p + 1] + .114 * pixels.data[p + 2];
     };
-    const contrasts = [-.06, .5, 1.04].map(y => [.2, .35, .5].map(dx => {
+    const cellLeft = Math.max(glyph.x - glyph.height * .5, ...neighbours.filter(g => g !== glyph &&
+      g.x + g.width <= glyph.x && g.height >= glyph.height * .7 && Math.abs(g.y - glyph.y) < glyph.height * .2)
+      .map(g => g.x + g.width + glyph.height * .04));
+    const stroke = [.27,.73].map(y => sample(glyph.x + glyph.width * .5, glyph.y + glyph.height * y));
+    const background = [.27,.73].map(y => sample(glyph.x - glyph.height * .2, glyph.y + glyph.height * y));
+    const minimumContrast = Math.max(8, (Math.max(...background) - Math.min(...stroke)) * .15);
+    if (background.some((b,i) => b - stroke[i] < minimumContrast)) return 0;
+    const contrasts = [.05, .5, .95].map(y => [.2, .35, .5].filter(dx => glyph.x - glyph.height * dx >= cellLeft).map(dx => {
       const x = glyph.x - glyph.height * dx;
       const bg = (sample(x, glyph.y + glyph.height * .27) + sample(x, glyph.y + glyph.height * .73)) / 2;
       return bg - sample(x, glyph.y + glyph.height * y);
-    }).filter(c => c >= 8).length);
+    }).filter(c => c >= minimumContrast).length);
     return contrasts.some(count => count >= 2) ? 0 : .9;
   }
   const at = (x, y) => {
@@ -31,11 +38,14 @@ export function grayscaleConfidence(pixels, glyph) {
   };
   const background = [(at(.4, .27) + at(.6, .27)) / 2, (at(.4, .73) + at(.6, .73)) / 2];
   const locations = [[.5, .05], [.9, .27], [.9, .73], [.5, .95], [.1, .73], [.1, .27], [.5, .5]];
+  const minimumContrast = Math.max(8, (Math.max(...background) - Math.min(...locations.map(([x,y])=>at(x,y)))) * .15);
   const evidence = locations.map(([x, y], i) => {
     const b = i === 6 ? (background[0] + background[1]) / 2 : background[y < .5 ? 0 : 1];
     const horizontal = i === 0 || i === 3 || i === 6;
-    const contrast = [-.12, -.06, 0, .06, .12].map(d => b - at(x + (horizontal ? d : 0), y + (horizontal ? 0 : d)));
-    return contrast.filter(d => d >= 8).length / contrast.length;
+    const contrast = [-.12, -.06, 0, .06, .12].map(d => b - at(x + (horizontal ? d : 0), y + (horizontal ? 0 : d))).sort((a,b)=>a-b);
+    // A coherent segment survives a thin reflected streak; isolated dark noise
+    // cannot activate an absent segment through one lucky sample.
+    return contrast[2] >= minimumContrast ? 1 : 0;
   });
   const pattern = SEGMENT_PATTERNS[Number(glyph.digit)];
   if (!pattern || evidence.some((value, i) => pattern[i] === '1' ? value < .4 : value > .2)) return 0;
@@ -109,35 +119,41 @@ function union(items, width, height) {
     height: (Math.min(height, Math.max(...items.map(bottom)) + pad) - y) / height };
 }
 
-export function digitPairs(glyphs) {
+export function digitPairs(glyphs, obstructions = glyphs) {
   const pairs = [];
   for (const a of glyphs) for (const b of glyphs) {
     const h = Math.max(a.height, b.height), gap = b.x - right(a);
     // A right-aligned 1 leaves much more empty space in its character cell.
     if (gap < 0 || b.x + b.width / 2 - a.x - a.width / 2 < h * .3 || gap > h * (b.digit === '1' ? .95 : .6) || Math.min(a.height, b.height) < h * .7 || Math.abs(bottom(a) - bottom(b)) > h * .18) continue;
+    if (obstructions.some(g => g.height >= h * .7 && Math.abs(bottom(g) - bottom(b)) < h * .18 &&
+      g.x >= right(a) && right(g) <= b.x)) continue;
     pairs.push({ items: [a, b], value: a.digit + b.digit, height: h });
   }
   return pairs;
 }
 
-export function temperatureGroups(glyphs) {
-  const pairs = digitPairs(glyphs), groups = [];
+export function temperatureGroups(glyphs, obstructions = glyphs) {
+  const pairs = digitPairs(glyphs, obstructions), groups = [];
   for (const temp of pairs.filter(pair => Number(pair.value) >= 10 && Number(pair.value) <= INDOOR_LIMITS.temperature.max)) {
     const last = temp.items[1];
     const fractions = glyphs.filter(glyph => glyph.x >= right(last) && glyph.x - right(last) < temp.height * .65 &&
       glyph.height >= temp.height * .3 && glyph.height <= temp.height * .75 && Math.abs(bottom(glyph) - bottom(last)) < temp.height * .2);
-    for (const fraction of fractions) groups.push({ items: [...temp.items, fraction], value: `${temp.value}.${fraction.digit}`, height: temp.height });
+    for (const fraction of fractions) {
+      if (obstructions.some(g => g.height >= temp.height * .7 && Math.abs(bottom(g) - bottom(last)) < temp.height * .18 &&
+        g.x >= right(last) && g.x < fraction.x)) continue;
+      groups.push({ items: [...temp.items, fraction], value: `${temp.value}.${fraction.digit}`, height: temp.height });
+    }
   }
   return groups.sort((a, b) => b.height - a.height);
 }
 
-export function numericGroups(pixels, mask, glyphs) {
+export function numericGroups(pixels, mask, glyphs, obstructions = glyphs) {
   const dots = components(mask, pixels.width, pixels.height);
-  return { temperature: temperatureGroups(glyphs).filter(g => Number(g.value) <= INDOOR_LIMITS.temperature.max && dots.some(dot => {
+  return { temperature: temperatureGroups(glyphs, obstructions).filter(g => Number(g.value) <= INDOOR_LIMITS.temperature.max && dots.some(dot => {
     const last = g.items[1], fraction = g.items[2], h = g.height;
     return dot.count >= 2 && dot.width <= h * .18 && dot.height <= h * .18 && dot.width >= dot.height * .35 && dot.height >= dot.width * .35 &&
       dot.x >= right(last) - h * .08 && dot.x <= fraction.x + h * .08 && dot.y > bottom(last) - h * .2 && dot.y <= bottom(last) + h * .05;
-  })), humidity: digitPairs(glyphs).filter(g => Number(g.value) >= INDOOR_LIMITS.humidity.min && Number(g.value) <= 90) };
+  })), humidity: digitPairs(glyphs, obstructions).filter(g => Number(g.value) >= INDOOR_LIMITS.humidity.min && Number(g.value) <= 90) };
 }
 
 export function detectCandidates(pixels, threshold = .55, variant = 'adaptive') {
@@ -147,12 +163,13 @@ export function detectCandidates(pixels, threshold = .55, variant = 'adaptive') 
   // In particular, degree/C can sit above a small fractional digit.
   for (const unit of units) for (const stroke of unit.strokes || [])
     for (const point of stroke.points || []) numericMask[point] = 0;
-  const glyphs = locateGlyphs(binaryPixels(pixels, numericMask), true).map(glyph => {
+  const located = locateGlyphs(binaryPixels(pixels, numericMask), true).map(glyph => {
     if (glyph.digit !== '0' && glyph.digit !== '8') return glyph;
     const evidence = middleBar(pixels, glyph);
     return { ...glyph, digit: evidence === null ? '' : evidence ? '8' : '0' };
-  }).filter(g => g.digit).map(g => ({ ...g, confidence: grayscaleConfidence(pixels, g) })).filter(g => g.confidence > 0).sort((a, b) => a.x - b.x);
-  const groups = numericGroups(pixels, numericMask, glyphs);
+  }).filter(g => g.digit);
+  const glyphs = located.map(g => ({ ...g, confidence: grayscaleConfidence(pixels, g, located) })).filter(g => g.confidence > 0).sort((a, b) => a.x - b.x);
+  const groups = numericGroups(pixels, numericMask, glyphs, located);
   const readings = [];
   for (const unit of units) {
     if (unit.unit === '°F') continue;
@@ -174,7 +191,7 @@ export function detectCandidates(pixels, threshold = .55, variant = 'adaptive') 
   }
   const band = principalBand(numericMask, pixels.width, pixels.height, units);
   const dominantHeight = Math.max(band?.height || 0, ...readings.map(r => r.height));
-  return { readings: readings.filter(r => r.height >= dominantHeight * .6), units, glyphs, prepared,
+  return { readings: readings.filter(r => r.height >= dominantHeight * .6), units, glyphs, rawGlyphs: located, prepared,
     currentBand: band && { ...band, x: band.x / pixels.width, y: band.y / pixels.height, width: band.width / pixels.width, height: band.height / pixels.height } };
 }
 

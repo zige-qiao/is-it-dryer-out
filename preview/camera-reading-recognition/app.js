@@ -58,7 +58,7 @@ const elements = {
     'cameraTempCrop', 'cameraRhCrop', 'cameraTempDraft', 'cameraRhDraft', 'cameraTempError',
     'cameraRhError', 'cameraRetakeButton', 'cameraPendingBox', 'cameraAssignment', 'cameraAssignChoices', 'cameraAssignTemp', 'cameraAssignRh', 'cameraDiscardBox',
     'cameraConfirmButton', 'cameraPhotoWrap', 'cameraErrorMessage', 'cameraErrorHelp', 'cameraErrorDetails',
-    'cameraManualButton', 'cameraRetryButton', 'cameraFeed', 'cameraZoomControl', 'cameraZoom', 'cameraZoomValue',
+    'cameraManualButton', 'cameraRetryButton', 'cameraFeed', 'cameraZoomControl', 'cameraZoom1', 'cameraZoom3', 'cameraZoom5',
     'cameraAutoFlashSettings', 'cameraHelpButton', 'cameraCropHint', 'cameraCaptureHint', 'cameraReviewHint', 'cameraReadStatusText'].map(id => [id, document.querySelector('#' + id)])),
   timerDialog: document.querySelector('#timerDialog'),
   timerDialogTitle: document.querySelector('#timerDialogTitle'),

@@ -84,7 +84,9 @@ export function proposeRegions(pixels) {
   }
   const result = [];
   for (const proposal of [...raw, ...supplemental].sort((a, b) => b.score - a.score || a.box.width * a.box.height - b.box.width * b.box.height)) {
-    const region = boundedRegion(proposal.box, width, height, proposal.kind === 'display' ? proposal.box.height * .12 : 0);
+    // Raw LCD interiors already include their digits. Avoid pulling the dark
+    // bezel into the crop where a vertical edge could masquerade as a one.
+    const region = boundedRegion(proposal.box, width, height, proposal.kind === 'display' ? proposal.box.height * .025 : 0);
     if (region.width < .01 || region.height < .01 || result.some(r => {
       const overlap = intersection(region, r.region), a = region.width * region.height, b = r.region.width * r.region.height;
       return overlap / (a + b - overlap) > .7 || (r.kind === proposal.kind && overlap / Math.min(a, b) > .85);

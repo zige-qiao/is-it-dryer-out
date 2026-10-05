@@ -16,18 +16,21 @@ export function normalise(pixels, threshold = .55, variant = 'adaptive') {
   }
   const output = new Uint8ClampedArray(data.length).fill(255), mask = new Uint8Array(width * height);
   if (maximum - minimum < 4) return { width, height, data: output, mask, empty: true };
-  const radius = Math.max(8, Math.round(width / (variant === 'gentle' ? 24 : 60)));
+  // A broad neighbourhood on an LCD crop keeps whole dark segments intact
+  // rather than turning them into outlines under strong torch illumination.
+  const radius = Math.max(8, Math.round(width / (variant === 'display' ? 12 : variant === 'gentle' ? 24 : 60)));
   const areaSum = (table, l, t, r, b) => table[b * stride + r] - table[t * stride + r] - table[b * stride + l] + table[t * stride + l];
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
     const l = Math.max(0, x - radius), r = Math.min(width, x + radius + 1), t = Math.max(0, y - radius), b = Math.min(height, y + radius + 1);
     const n = (r - l) * (b - t), mean = areaSum(sum, l, t, r, b) / n;
     const deviation = Math.sqrt(Math.max(0, areaSum(squares, l, t, r, b) / n - mean * mean));
     const difference = mean - gray[y * width + x];
-    const floor = variant === 'gentle' ? 5 : 2;
+    const floor = variant === 'display' ? 8 : variant === 'gentle' ? 5 : 2;
     const value = Math.round(255 - Math.max(0, difference) * 230 / Math.max(floor / threshold, deviation));
     const p = (y * width + x) * 4;
     output[p] = output[p + 1] = output[p + 2] = value;
     mask[y * width + x] = difference > Math.max(floor, deviation * threshold) ? 1 : 0;
+    if (variant === 'display') output[p] = output[p + 1] = output[p + 2] = mask[y * width + x] ? 0 : 255;
   }
   return { width, height, data: output, mask, empty: false };
 }

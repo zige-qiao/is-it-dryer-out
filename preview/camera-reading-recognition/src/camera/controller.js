@@ -3,7 +3,7 @@ import { createRecognitionService, cropCanvas } from './recognition.js';
 import { createCropEditor } from './crop-editor.js';
 import { createCaptureControls } from './capture.js';
 import { createCameraHelp } from './help.js';
-import { createZoomRuler } from './zoom-ruler.js';
+import { createZoomPresets } from './zoom-presets.js';
 import { createDeviceSession } from './device-session.js';
 import { createStillPhoto } from './still-photo.js';
 
@@ -19,13 +19,13 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
   const stillPhoto = createStillPhoto(environment);
   const help = createCameraHelp({ button: elements.cameraHelpButton, content: elements.cameraCropHint, dialog: elements.indoorDialog }, document);
   const captureControls = createCaptureControls({ video: elements.cameraVideo, preview: elements.cameraPreview, feed: elements.cameraFeed,
-    flash: elements.cameraFlash, zoomControl: elements.cameraZoomControl, zoomInput: elements.cameraZoom,
-    zoomValue: elements.cameraZoomValue, status: elements.cameraCaptureStatus, capture: elements.cameraCaptureButton,
-    onZoomSync: () => zoomRuler.render(),
+    flash: elements.cameraFlash, zoomControl: elements.cameraZoomControl,
+    status: elements.cameraCaptureStatus, capture: elements.cameraCaptureButton,
+    onZoomSync: state => zoomPresets.sync(state),
     onError: error => { if (active && !captured) { releaseCamera(); showError(error, true); } },
   }, environment);
-  const zoomRuler = createZoomRuler({ input: elements.cameraZoom,
-    onValue: value => devices.setZoom(value), onGesture: value => captureControls.setZoomGesture(value) }, environment);
+  const zoomPresets = createZoomPresets({ buttons: [1, 3, 5].map(value => [value, elements[`cameraZoom${value}`]]),
+    onValue: value => devices.setZoom(value) });
   const devices = createDeviceSession({ video: elements.cameraVideo, controls: captureControls, preferences: uiPreferences,
     onStream: value => { stream = value; track = value.getVideoTracks()[0]; }, settingsOpen: () => Boolean(elements.settingsDialog?.open) }, environment);
   function setReviewStatus(kind, text) {
@@ -57,7 +57,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
 
   function releaseCamera() {
     stillPhoto.cancel();
-    zoomRuler.stop();
+    zoomPresets.reset();
     devices.stop();
     stream = null; track = null;
     elements.cameraVideo.srcObject = null;
@@ -173,7 +173,9 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
       drawCrops();
       for (const field of fields) draft(field).value = result?.values?.[field] || '';
       readStatus();
-      if (result?.rejectionReason === 'timeout') setReviewStatus('attention', 'Reading timed out. Check the detected value and enter the missing value.');
+      if (result?.rejectionReason === 'timeout' && !validateCameraReadings(elements.cameraTempDraft.value, elements.cameraRhDraft.value).valid)
+        setReviewStatus(fields.some(field => draft(field).value) ? 'attention' : 'error', fields.some(field => draft(field).value)
+          ? 'Reading timed out. Check the detected value and enter the missing value.' : 'Reading timed out. Enter values manually.');
     } catch (error) {
       if (active && request === session) setReviewStatus('error', error?.name === 'TimeoutError' ? 'Reading timed out. Enter values manually.' : 'Reading failed. Enter values manually.');
     } finally {
@@ -268,7 +270,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
   function initialize() {
     help.initialize();
     elements.cameraAutoFlashSettings?.addEventListener('click', event => { event.preventDefault(); help.close(); openFlashSettings(); });
-    zoomRuler.initialize();
+    zoomPresets.initialize();
     editor.initialize();
     elements.cameraInputButton.addEventListener('click', () => void startCamera());
     elements.cameraBackButton.addEventListener('click', () => cancel());

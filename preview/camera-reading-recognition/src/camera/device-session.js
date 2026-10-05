@@ -65,13 +65,14 @@ export function createDeviceSession({ video, controls, onStream, preferences, se
     if (switching || !stream) return;
     const request = generation;
     switching = true;
+    controls.setSwitching(true);
     try {
       await bounded(controls.waitIdle());
       while (valid(request) && stream) {
         const desired = zoom, target = desired >= 3 && telephoto && main ? telephoto : main;
         if (target && target !== selected) {
           const previous = selected, previousBase = previous === telephoto ? 3 : 1;
-          controls.setCapturing(true); controls.notify('Switching camera…');
+          controls.notify('Switching camera…');
           stream.getTracks().forEach(track => track.stop()); stream = null;
           try { await open(target, request, target === telephoto ? 3 : 1); }
           catch (error) {
@@ -79,7 +80,7 @@ export function createDeviceSession({ video, controls, onStream, preferences, se
             stream?.getTracks().forEach(track => track.stop()); stream = null;
             telephoto = ''; // Avoid repeatedly attempting a camera that failed.
             await open(previous, request, previousBase);
-            controls.notify('Camera switch failed. Using the previous camera.');
+            controls.notify('Camera switch failed. Using the previous camera.', 3500);
           }
         } else { controls.setZoom(desired, true); await bounded(controls.waitIdle()); }
         if (!valid(request)) return;
@@ -87,8 +88,11 @@ export function createDeviceSession({ video, controls, onStream, preferences, se
         if (desired === zoom) break;
       }
     } catch {
-      if (valid(request)) { controls.setCapturing(false); controls.notify('Camera could not change. Try again.'); }
-    } finally { if (valid(request)) switching = false; }
+      if (valid(request)) {
+        if (!stream || stream.getVideoTracks()[0].readyState === 'ended') controls.stop();
+        controls.notify('Camera could not change. Try again.');
+      }
+    } finally { if (valid(request)) { switching = false; controls.setSwitching(false); } }
   }
   function scheduleSample(request) {
     sampling = environment.setTimeout(async () => {

@@ -82,6 +82,8 @@ export async function analyzeImage(pixels, options = {}, checkpoint = async () =
       const score = readings.length * 20 + units.length * 4;
       const candidate = { correction: { ...correction, threshold, preprocessing }, found, readings, units, score, threshold, preprocessing };
       all.push(candidate); local.push(candidate);
+      reportProgress();
+      if (local.length >= 2 && complete()) return true;
     }
     reportProgress(); // Preserve validated humidity before a fraction search.
     if (!local.some(c => c.readings.some(r => r.field === 'temperature')) || options.requiredField === 'temperature') {
@@ -160,8 +162,9 @@ export async function analyzeImage(pixels, options = {}, checkpoint = async () =
       const binary = extract(binaryPixels(prepared, prepared.mask), sourceBox);
       const mask = Uint8Array.from({length: binary.width * binary.height}, (_, i) => binary.data[i * 4] < 128 ? 1 : 0);
       const raw = extract(pixels, sourceBox);
-      const glyphs = locateGlyphs(binary, true).filter(g => grayscaleConfidence(raw, g) > 0).sort((a, b) => a.x - b.x);
-      const groups = numericGroups(binary, mask, glyphs)[field];
+      const located = locateGlyphs(binary, true);
+      const glyphs = located.filter(g => grayscaleConfidence(raw, g, located) > 0).sort((a, b) => a.x - b.x);
+      const groups = numericGroups(binary, mask, glyphs, located)[field];
       const group = groups.sort((a, b) => b.height - a.height)[0], value = best ? '' : group?.value || '';
       const destination = projectBox(inverse(correction.matrix), sourceBox), digits = group ? bounds(group.items) : null;
       const digitBounds = digits ? cropBox(projectBox(correction.matrix, { ...digits, x: digits.x + Math.max(0, Math.floor(destination.x)),
