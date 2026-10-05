@@ -2289,6 +2289,7 @@ html[data-show-indoor-summary="true"] .indoor-summary { display: flex; }
 .settings-group-card { padding: 0 var(--space-16); border-radius: 20px; background: var(--surface-panel); }
 .settings-group-card > .settings-toggle:first-child { border-top: 0; }
 .settings-help { margin: 0 0 8px; color: var(--ink-muted); font-size: 13px; line-height: 1.4; }
+.settings-group-card > .settings-help:last-child { margin-bottom: 0; padding-bottom: var(--space-12); }
 .settings-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); margin-bottom: var(--space-8); }
 .settings-dialog-heading h2, .indoor-dialog .section-heading h2 { margin: 0; font-size: 1.2rem; }
 .settings-toggle {

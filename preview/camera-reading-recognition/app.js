@@ -16,7 +16,7 @@ import { createTimerController, isAppleMobile } from './src/ui/timer.js';
 import { DEFAULT_LOCATION, DEFAULT_PRESSURE_HPA, DEFAULT_TIMEZONE, WEATHER_REFRESH_INTERVAL_MS } from './src/config.js';
 
 const uiPreferences = { showIndoorSummary: false, openIndoorOnLaunch: true, autoFlash: true,
-  useStillPhotos: false, showCameraButton: true, showVoiceButton: true };
+  useStillPhotos: false, showCameraButton: true, showVoiceButton: false };
 
 const state = {
   indoorReadingSource: null,
