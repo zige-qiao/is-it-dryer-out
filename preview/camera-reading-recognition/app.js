@@ -15,7 +15,8 @@ import { createEvents } from './src/ui/events.js';
 import { createTimerController, isAppleMobile } from './src/ui/timer.js';
 import { DEFAULT_LOCATION, DEFAULT_PRESSURE_HPA, DEFAULT_TIMEZONE, WEATHER_REFRESH_INTERVAL_MS } from './src/config.js';
 
-const uiPreferences = { showIndoorSummary: false, openIndoorOnLaunch: true, autoFlash: true };
+const uiPreferences = { showIndoorSummary: false, openIndoorOnLaunch: true, autoFlash: true,
+  useStillPhotos: false, showCameraButton: true, showVoiceButton: true };
 
 const state = {
   indoorReadingSource: null,
@@ -85,6 +86,10 @@ const elements = {
   indoorSummaryRh: document.querySelector("#indoorSummaryRh"),
   settingsButton: document.querySelector("#settingsButton"),
   autoFlash: document.querySelector("#autoFlash"),
+  useStillPhotos: document.querySelector("#useStillPhotos"),
+  showCameraButton: document.querySelector("#showCameraButton"),
+  showVoiceButton: document.querySelector("#showVoiceButton"),
+  cameraSwitchPreview: document.querySelector("#cameraSwitchPreview"),
   settingsDialog: document.querySelector("#settingsDialog"),
   settingsDialogTitle: document.querySelector("#settingsDialogTitle"),
   showIndoorSummary: document.querySelector("#showIndoorSummary"),

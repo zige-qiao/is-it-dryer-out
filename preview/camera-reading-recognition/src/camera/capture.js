@@ -5,7 +5,19 @@ export function visibleFrame(width, height, viewWidth, viewHeight, zoom = 1) {
   return { x: (width - w) / 2, y: (height - h) / 2, width: w, height: h };
 }
 
-export function createCaptureControls({ video, preview, feed, flash, zoomControl, status, capture, onError, onZoomSync = () => {} }, environment = globalThis) {
+// Snapshot the decoding source, not the smaller presentation canvas or its CSS effects.
+export function captureVideoFrame(video, crop, document) {
+  if (!crop || !video.videoWidth || !video.videoHeight || video.readyState < 2 || video.paused === true) throw new Error('Camera frame unavailable. Try again.');
+  const canvas = document.createElement('canvas');
+  const scale = Math.min(1, 4096 / Math.max(crop.width, crop.height));
+  canvas.width = Math.max(1, Math.round(crop.width * scale));
+  canvas.height = Math.max(1, Math.round(crop.height * scale));
+  try { canvas.getContext('2d').drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, canvas.width, canvas.height); }
+  catch (error) { canvas.width = canvas.height = 0; throw error; }
+  return canvas;
+}
+
+export function createCaptureControls({ video, preview, switchPreview, feed, flash, zoomControl, status, capture, onError, onZoomSync = () => {} }, environment = globalThis) {
   const now = () => environment.performance.now();
   let owner = null, generation = 0, timer = null, frameCallback = null, watchdog = null, deadline = null;
   let first = null, changed = 0, samples = 0, geometry = '', ready = false, revealed = false, baselineLocked = false;
@@ -15,6 +27,7 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
   let revision = 0, appliedRevision = 0, lastApply = -Infinity, controlTimer = null, startupResolve = null, waiters = [];
   let statusTimer = null;
   let displayed = null, lastDraw = -Infinity, switching = false, capturing = false;
+  let switchVisual = false;
   const settings = () => owner?.getSettings?.() || {};
 
   function captureStatus(text, duration = 0) {
@@ -46,10 +59,28 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
   function sync() {
     digital = Math.max(1, desired / nativeZoom);
     capture.disabled = !ready || capturing || switching || pending || !currentFrame();
-    onZoomSync({ available: Boolean(owner) && (ready || switching), capturing, desired });
+    onZoomSync({ available: switching || Boolean(owner) && ready, capturing, desired });
+    if (switchVisual && !switching && !pending && ready && currentFrame()) clearSwitchVisual();
     flash.disabled = !ready || pending || capturing || switching;
     flash.setAttribute('aria-pressed', String(torch));
     flash.setAttribute('aria-label', torch ? 'Turn flash off' : 'Turn flash on');
+  }
+  function clearSwitchVisual() {
+    switchVisual = false; feed.classList.remove('is-switching');
+    if (switchPreview) { switchPreview.hidden = true; switchPreview.width = switchPreview.height = 0; }
+    if (status.textContent === 'Switching zoom…') captureStatus('');
+  }
+  function beginSwitchVisual() {
+    if (switchVisual) return;
+    switchVisual = true;
+    if (switchPreview && preview.width && preview.height) {
+      try {
+        switchPreview.width = preview.width; switchPreview.height = preview.height;
+        switchPreview.getContext('2d').drawImage(preview, 0, 0);
+        switchPreview.hidden = false;
+      } catch { switchPreview.hidden = true; }
+    }
+    feed.classList.add('is-switching'); captureStatus('Switching zoom…');
   }
   function resolveStartup() { startupResolve?.(); startupResolve = null; }
   function lockBaseline() {
@@ -79,7 +110,7 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
         deadline = environment.setTimeout(() => {
           if (owner === track && generation === request && !revealed) {
             revealed = true; preview.classList.remove('camera-starting');
-            captureStatus('Camera framing is still settling.'); resolveStartup();
+            captureStatus(switching ? 'Switching zoom…' : 'Camera framing is still settling.'); resolveStartup();
           }
         }, 1500);
       }
@@ -89,12 +120,12 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
         if (!ready) {
           lockBaseline(); geometry = signature(metadata); ready = true; revealed = true; update = true;
           preview.classList.remove('camera-starting'); zoomControl.hidden = false;
-          if (!capturing) captureStatus(''); resolveStartup();
+          if (!capturing) captureStatus(switching ? 'Switching zoom…' : ''); resolveStartup();
         }
       } else if (!revealed && time - first >= 1500) {
         revealed = true; preview.classList.remove('camera-starting');
-        captureStatus('Camera framing is still settling.'); resolveStartup();
-      } else if (revealed && !ready && update) captureStatus('Camera framing is still settling.');
+        captureStatus(switching ? 'Switching zoom…' : 'Camera framing is still settling.'); resolveStartup();
+      } else if (revealed && !ready && update) captureStatus(switching ? 'Switching zoom…' : 'Camera framing is still settling.');
       const wasCurrent = Boolean(currentFrame());
       paint();
       if (!owner) return;
@@ -106,7 +137,7 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
     });
     else timer = environment.setTimeout(() => { if (generation === request && owner === track) sample(); }, 1000 / 30);
   }
-  function stop() {
+  function stop({ preserveSwitch = false } = {}) {
     generation++; owner = null; environment.clearTimeout(statusTimer); statusTimer = null;
     environment.clearTimeout(timer); environment.clearTimeout(watchdog); environment.clearTimeout(controlTimer); environment.clearTimeout(deadline);
     if (frameCallback !== null) video.cancelVideoFrameCallback?.(frameCallback);
@@ -116,10 +147,11 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
     lensBase = baseline = nativeZoom = desired = digital = 1; nativeRange = null;
     torch = desiredTorch = supportsTorch = pending = applying = false; revision = appliedRevision = 0; lastApply = -Infinity;
     displayed = null; lastDraw = -Infinity; switching = capturing = false; preview.width = preview.height = 0;
+    if (!preserveSwitch) clearSwitchVisual();
     zoomControl.hidden = true; flash.hidden = true; preview.classList.add('camera-starting'); sync();
   }
   async function start(track, { base = 1, zoom = 1 } = {}) {
-    const changing = switching; stop(); switching = changing; lensBase = base; nativeZoom = base; desired = zoom; owner = track; captureStatus(changing ? 'Switching camera…' : 'Starting camera…'); supportsTorch = Boolean(track.getCapabilities?.().torch); flash.hidden = !supportsTorch; zoomControl.hidden = false;
+    const changing = switching; stop({ preserveSwitch: changing }); switching = changing; lensBase = base; nativeZoom = base; desired = zoom; owner = track; captureStatus(changing ? 'Switching zoom…' : 'Starting camera…'); supportsTorch = Boolean(track.getCapabilities?.().torch); flash.hidden = !supportsTorch; zoomControl.hidden = false;
     const request = generation;
     const startup = new Promise(resolve => startupResolve = resolve);
     watchdog = environment.setTimeout(() => {
@@ -219,6 +251,11 @@ export function createCaptureControls({ video, preview, feed, flash, zoomControl
     settled: () => ready && !pending && !capturing && !switching && Boolean(currentFrame()),
     waitIdle: () => pending ? new Promise(resolve => waiters.push(resolve)) : Promise.resolve(),
     notify: captureStatus,
-    setCapturing: value => { capturing = value; captureStatus(value ? 'Hold still — taking photo…' : ''); sync(); },
-    setSwitching: value => { switching = value; sync(); } };
+    setCapturing: (value, message = 'Hold still — taking photo…') => { capturing = value; captureStatus(value ? message : ''); sync(); },
+    setSwitching: (value, { failed = false } = {}) => {
+      switching = value;
+      if (value) beginSwitchVisual();
+      else if (failed) clearSwitchVisual();
+      sync();
+    } };
 }

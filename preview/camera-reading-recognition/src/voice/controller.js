@@ -716,7 +716,7 @@ export function createVoiceController({
     elements.voiceDialog.hidden = true;
     const indoorDialog = document.querySelector('#indoorDialog');
     indoorDialog.classList.remove('voice-mode');
-    if (indoorDialog.open) elements.voiceInputButton.focus({ preventScroll: true });
+    if (indoorDialog.open) (elements.voiceInputButton.hidden ? document.querySelector('#indoor-heading') : elements.voiceInputButton)?.focus({ preventScroll: true });
   }
 
   function applyVoiceChanges() {

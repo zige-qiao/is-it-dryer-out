@@ -1,7 +1,7 @@
 import { boundedCrop, cameraErrorMessage, validateCameraReadings } from './readings.js';
 import { createRecognitionService, cropCanvas } from './recognition.js';
 import { createCropEditor } from './crop-editor.js';
-import { createCaptureControls } from './capture.js';
+import { createCaptureControls, captureVideoFrame } from './capture.js';
 import { createCameraHelp } from './help.js';
 import { createZoomPresets } from './zoom-presets.js';
 import { createDeviceSession } from './device-session.js';
@@ -18,7 +18,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
   let originalPhoto = null;
   const stillPhoto = createStillPhoto(environment);
   const help = createCameraHelp({ button: elements.cameraHelpButton, content: elements.cameraCropHint, dialog: elements.indoorDialog }, document);
-  const captureControls = createCaptureControls({ video: elements.cameraVideo, preview: elements.cameraPreview, feed: elements.cameraFeed,
+  const captureControls = createCaptureControls({ video: elements.cameraVideo, preview: elements.cameraPreview, switchPreview: elements.cameraSwitchPreview, feed: elements.cameraFeed,
     flash: elements.cameraFlash, zoomControl: elements.cameraZoomControl,
     status: elements.cameraCaptureStatus, capture: elements.cameraCaptureButton,
     onZoomSync: state => zoomPresets.sync(state),
@@ -228,9 +228,12 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     const video = elements.cameraVideo;
     if (!active || !stream || !video.videoWidth || !video.videoHeight || devices.busy() || !captureControls.isReady()) return;
     const request = session, owner = track, framing = { ...captureControls.snapshot(), fillLightMode: devices.captureMode() };
-    captureControls.setCapturing(true);
+    const useStillPhotos = uiPreferences.useStillPhotos === true, crop = captureControls.frame();
+    captureControls.setCapturing(true, useStillPhotos ? 'Hold still — taking photo…' : 'Capturing…');
     try {
-      const photo = await stillPhoto.take(owner, framing, () => captureControls.setTorch(false));
+      const photo = useStillPhotos
+        ? await stillPhoto.take(owner, framing, () => captureControls.setTorch(false))
+        : captureVideoFrame(video, crop, document);
       if (!active || request !== session || owner !== track) { photo.width = photo.height = 0; return; }
       originalPhoto = photo;
       const canvas = elements.cameraPhoto, scale = Math.min(1, 1600 / Math.max(photo.width, photo.height));
@@ -242,7 +245,7 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
       if (error.name === 'TimeoutError' || owner.readyState === 'ended') {
         releaseCamera(); showError({ name: 'NotReadableError' }, true); return;
       }
-      try { await stillPhoto.restore(async () => { await captureControls.setTorch(framing.flash); if (active && request === session && owner === track) await video.play(); }); }
+      try { if (useStillPhotos) await stillPhoto.restore(async () => { await captureControls.setTorch(framing.flash); if (active && request === session && owner === track) await video.play(); }); }
       catch { if (active && request === session && owner === track) { releaseCamera(); showError({ name: 'NotReadableError' }, true); } return; }
       if (!active || request !== session || owner !== track) return;
       captureControls.setCapturing(false);

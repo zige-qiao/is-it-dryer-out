@@ -107,6 +107,12 @@ export function createEvents({
       saveUiPreferences();
     });
     elements.autoFlash?.addEventListener('change', () => { uiPreferences.autoFlash = elements.autoFlash.checked; saveUiPreferences(); });
+    for (const key of ['useStillPhotos', 'showCameraButton', 'showVoiceButton']) {
+      elements[key]?.addEventListener('change', () => {
+        uiPreferences[key] = elements[key].checked;
+        applyUiPreferences(); saveUiPreferences();
+      });
+    }
     elements.openIndoorOnLaunch.addEventListener('change', () => {
       uiPreferences.openIndoorOnLaunch = elements.openIndoorOnLaunch.checked;
       saveUiPreferences();
@@ -199,8 +205,8 @@ export function createEvents({
       restoreSheetFocus(elements.planDialog);
     });
     if (voiceSupported) {
-      elements.voiceInputButton.hidden = false;
-      summaryVoice.hidden = false;
+      elements.voiceInputButton.hidden = uiPreferences.showVoiceButton === false;
+      summaryVoice.hidden = uiPreferences.showVoiceButton === false;
       summaryVoice.addEventListener('click', () => {
         rememberSheetFocus(indoorDialog, summaryVoice, elements.locationButton);
         summaryVoice.setAttribute('aria-expanded', 'true');
@@ -218,6 +224,13 @@ export function createEvents({
     document.documentElement.dataset.showIndoorSummary = String(uiPreferences.showIndoorSummary);
     elements.showIndoorSummary.checked = uiPreferences.showIndoorSummary;
     if (elements.autoFlash) elements.autoFlash.checked = uiPreferences.autoFlash;
+    for (const key of ['useStillPhotos', 'showCameraButton', 'showVoiceButton']) {
+      if (elements[key]) elements[key].checked = key === 'useStillPhotos' ? uiPreferences[key] === true : uiPreferences[key] !== false;
+    }
+    if (elements.cameraInputButton) elements.cameraInputButton.hidden = uiPreferences.showCameraButton === false;
+    if (elements.voiceInputButton) elements.voiceInputButton.hidden = !voiceSupported || uiPreferences.showVoiceButton === false;
+    const summaryVoice = document.querySelector('#indoorSummaryVoice');
+    if (summaryVoice) summaryVoice.hidden = !voiceSupported || uiPreferences.showVoiceButton === false;
     elements.openIndoorOnLaunch.checked = uiPreferences.openIndoorOnLaunch;
   }
 

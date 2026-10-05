@@ -72,7 +72,7 @@ export function createDeviceSession({ video, controls, onStream, preferences, se
         const desired = zoom, target = desired >= 3 && telephoto && main ? telephoto : main;
         if (target && target !== selected) {
           const previous = selected, previousBase = previous === telephoto ? 3 : 1;
-          controls.notify('Switching camera…');
+          controls.notify('Switching zoom…');
           stream.getTracks().forEach(track => track.stop()); stream = null;
           try { await open(target, request, target === telephoto ? 3 : 1); }
           catch (error) {
@@ -89,6 +89,7 @@ export function createDeviceSession({ video, controls, onStream, preferences, se
       }
     } catch {
       if (valid(request)) {
+        controls.setSwitching(false, { failed: true });
         if (!stream || stream.getVideoTracks()[0].readyState === 'ended') controls.stop();
         controls.notify('Camera could not change. Try again.');
       }
