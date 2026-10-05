@@ -2359,7 +2359,7 @@ body.pull-result.pull-failed .pull-refresh-result-icon::after { content: '!'; }
 .indoor-dialog.camera-mode #indoorDoneButton { display: none; }
 .indoor-dialog.camera-mode:has(#cameraReviewPanel:not([hidden])) { overscroll-behavior-y: none; }
 .camera-panel[hidden], .camera-panel [hidden], .camera-back[hidden] { display: none !important; }
-.camera-panel { margin-top: var(--space-12); }
+.camera-panel { --camera-overlay-background: rgb(32 39 37 / 65%); margin-top: var(--space-12); }
 .camera-panel p { line-height: 1.5; }
 .camera-panel .camera-instruction { margin: 0 0 var(--space-12); color: var(--ink-muted); font-size: 14px; }
 .camera-back { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-4); min-height: 44px; padding: var(--space-8); font-family: inherit; font-size: 14px; font-weight: 600; border: 0; border-radius: 8px; background: transparent; color: var(--ink-main); cursor: pointer; }
@@ -2374,7 +2374,7 @@ body.pull-result.pull-failed .pull-refresh-result-icon::after { content: '!'; }
 .camera-help-button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
 .camera-help-button:hover, .camera-help-button[aria-expanded="true"] { background: var(--surface-control); }
 .camera-help-content { position: absolute; top: calc(100% + 4px); left: 0; z-index: 6; box-sizing: border-box; width: min(300px, calc(100vw - 48px)); padding: var(--space-12); border: 1px solid var(--border-subtle); border-radius: 8px; background: var(--surface-panel); color: var(--ink-main); font-size: 14px; line-height: 1.5; box-shadow: 0 4px 12px rgb(0 0 0 / .08); }
-.camera-zoom { box-sizing: border-box; padding: 4px; border: 0; border-radius: 999px; background: #202725d9; font-size: 14px; color: #fff; }
+.camera-zoom { box-sizing: border-box; padding: 4px; border: 0; border-radius: 999px; background: var(--camera-overlay-background); font-size: 14px; color: #fff; }
 .camera-zoom-presets { display: flex; gap: 4px; }
 .camera-zoom-presets button { min-width: 44px; min-height: 44px; padding: 4px; border: 0; border-radius: 999px; background: transparent; color: #fff; font: inherit; font-weight: 650; }
 .camera-zoom-presets button[aria-pressed="true"] { background: #fff; color: #202725; }
@@ -2391,7 +2391,7 @@ body.pull-result.pull-failed .pull-refresh-result-icon::after { content: '!'; }
 #cameraSwitchPreview[hidden] { display: none; }
 #cameraSwitchPreview { pointer-events: none; }
 @media (prefers-reduced-motion: no-preference) { .camera-feed canvas { transition: filter 150ms ease; } }
-.camera-flash { position: absolute; right: 12px; bottom: 12px; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 999px; background: #202725d9; color: #fff; cursor: pointer; }
+.camera-flash { position: absolute; right: 12px; bottom: 12px; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 999px; background: var(--camera-overlay-background); color: #fff; cursor: pointer; }
 .camera-flash[aria-pressed="true"] { color: #202725; background: #fff; }
 .camera-flash svg { width: 20px; height: 20px; aspect-ratio: 1; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .camera-flash:focus-visible { outline: 2px solid white; outline-offset: 3px; }
