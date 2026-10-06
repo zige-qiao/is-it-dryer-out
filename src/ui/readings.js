@@ -1,4 +1,6 @@
+import { INDOOR_LIMITS } from '../config.js';
 import { clamp } from '../domain/humidity.js';
+import { rulerValueFromDrag } from './ruler.js';
 
 export function createReadingControls({
   state,
@@ -27,8 +29,8 @@ export function createReadingControls({
 
   function bindSteppers() {
     const settings = {
-      indoorTemp: { min: 10, max: 32, step: 0.1, save: saveIndoorReadings },
-      indoorRh: { min: 20, max: 90, step: 1, save: saveIndoorReadings },
+      indoorTemp: { ...INDOOR_LIMITS.temperature, save: saveIndoorReadings },
+      indoorRh: { ...INDOOR_LIMITS.humidity, save: saveIndoorReadings },
       targetRh: { min: 40, max: 65, step: 1, save: savePlanSettings },
       minTemp: { min: 16, max: 26, step: 1, save: savePlanSettings },
     };
@@ -75,10 +77,6 @@ export function createReadingControls({
     });
   }
 
-  function rulerValueFromDrag(start, distance, min, max, step, spacing) {
-    return Number(Math.min(max, Math.max(min, Math.round((start - distance / spacing * step) / step) * step)).toFixed(step < 1 ? 1 : 0));
-  }
-
   function renderReadingRulers() {
     document.querySelectorAll('[data-ruler]').forEach(ruler => {
       const input = ruler.querySelector('input');
@@ -111,7 +109,7 @@ export function createReadingControls({
     const elapsed = minutes === 0 ? 'Just now'
       : minutes < 60 ? `${minutes}m ago`
       : `${Math.floor(minutes / 60)}h ${minutes % 60}m ago`;
-    lastSet.textContent = elapsed;
+    lastSet.textContent = state.indoorReadingSource === 'photo' ? `From photo · ${elapsed.toLowerCase()}` : elapsed;
     summaryLastSet.textContent = `· ${elapsed}`;
     const absoluteTime = new Date(state.indoorLastSet).toLocaleString();
     lastSet.title = absoluteTime;

@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon-v4.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon-v4.png" />
-    <link rel="stylesheet" href="styles.css?v=141" />
+    <link rel="stylesheet" href="styles.css?v=161" />
     <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
@@ -191,8 +191,29 @@
       <h2 id="settingsDialogTitle" tabindex="-1" autofocus>Settings</h2>
       <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close settings" title="Close">&times;</button>
     </div>
-    <label class="settings-toggle"><span>Show Indoor summary</span><input id="showIndoorSummary" type="checkbox" role="switch" /><span class="settings-switch" aria-hidden="true"></span></label>
-    <label class="settings-toggle"><span>Open Indoor readings on launch</span><input id="openIndoorOnLaunch" type="checkbox" role="switch" checked /><span class="settings-switch" aria-hidden="true"></span></label>
+    <section class="settings-group" aria-labelledby="settingsIndoorTitle">
+      <h3 id="settingsIndoorTitle">Indoor readings</h3>
+      <div class="settings-group-card">
+      <label class="settings-toggle"><span>Open Indoor readings on launch</span><input id="openIndoorOnLaunch" type="checkbox" role="switch" checked /><span class="settings-switch" aria-hidden="true"></span></label>
+      <label class="settings-toggle"><span>Show Indoor summary</span><input id="showIndoorSummary" type="checkbox" role="switch" /><span class="settings-switch" aria-hidden="true"></span></label>
+      </div>
+    </section>
+    <section class="settings-group" aria-labelledby="settingsButtonsTitle">
+      <h3 id="settingsButtonsTitle">Input buttons</h3>
+      <div class="settings-group-card">
+      <label class="settings-toggle"><span>Show camera button</span><input id="showCameraButton" type="checkbox" role="switch" checked /><span class="settings-switch" aria-hidden="true"></span></label>
+      <label class="settings-toggle"><span>Show voice button</span><input id="showVoiceButton" type="checkbox" role="switch" /><span class="settings-switch" aria-hidden="true"></span></label>
+      </div>
+    </section>
+    <section class="settings-group" aria-labelledby="settingsCameraTitle">
+      <h3 id="settingsCameraTitle">Camera</h3>
+      <div class="settings-group-card">
+      <label class="settings-toggle"><span>Use still photos</span><input id="useStillPhotos" type="checkbox" role="switch" aria-describedby="stillPhotoSettingHelp" /><span class="settings-switch" aria-hidden="true"></span></label>
+      <p class="settings-help" id="stillPhotoSettingHelp">Off captures a camera frame faster. On takes a still photo for better detail and flash.</p>
+      <label class="settings-toggle"><span>Auto flash</span><input id="autoFlash" type="checkbox" role="switch" aria-describedby="autoFlashSettingHelp" checked /><span class="settings-switch" aria-hidden="true"></span></label>
+      <p class="settings-help" id="autoFlashSettingHelp">Automatically turns on lighting in low light.</p>
+      </div>
+    </section>
   </div>
 </dialog>
 
@@ -200,32 +221,36 @@
 <div class="sheet-handle" aria-hidden="true"><span></span></div>
 <section class="inputs-panel" aria-labelledby="indoor-heading">
   <div class="section-heading">
-    <div class="indoor-title"><h2 id="indoor-heading" tabindex="-1">Indoor readings</h2><p id="indoorLastSet" hidden></p></div>
+    <div class="indoor-title"><div class="camera-title-row"><h2 id="indoor-heading" tabindex="-1">Indoor readings</h2><button id="cameraHelpButton" class="camera-help-button" type="button" aria-label="Reading box help" aria-expanded="false" aria-controls="cameraCropHint" aria-describedby="cameraCropHint" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 16h.01"></path></svg></button></div><div id="cameraCropHint" class="camera-help-content" role="region" aria-label="Camera help" hidden><span id="cameraCaptureHint" hidden>Choose 1×, 3× or 5×. The higher presets select an available telephoto camera; the multiplier does not guarantee an exact optical ratio. Keep the main digits sharp and visible. Avoid reflections. Higher digital zoom enlarges existing pixels; moving closer preserves more detail. <span class="camera-auto-help">Auto flash turns on lighting in low light. Camera-frame capture uses torch where supported; still-photo flash requires Use still photos to be on. Change it in <a id="cameraAutoFlashSettings" href="#autoFlash">Settings</a>.</span></span><span id="cameraReviewHint">Drag on the photo to add a box including °C or %. Move a box or resize its corners; release to read. <span id="cameraEditHint">Tap a value to correct it.</span></span></div><p id="indoorLastSet" hidden></p></div>
     <div class="sheet-heading-actions">
-    <button class="indoor-speak-button" type="button" id="voiceInputButton" aria-label="Update indoor readings by voice" hidden>
-      <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></svg><span>Speak</span>
+    <button class="indoor-speak-button indoor-icon-button" type="button" id="cameraInputButton" aria-label="Scan indoor readings" title="Scan indoor readings" aria-controls="cameraPanel">
+      <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
     </button>
+    <button class="indoor-speak-button indoor-icon-button" type="button" id="voiceInputButton" aria-label="Update indoor readings by voice" title="Update indoor readings by voice" hidden>
+      <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></svg>
+    </button>
+    <button class="camera-back" type="button" id="cameraBackButton" aria-label="Back to indoor readings" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"></path></svg><span>Back</span></button>
     <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close indoor readings" title="Close">&times;</button>
     </div>
   </div>
   <div class="control ruler-control">
     <label for="indoorTemp">Temperature</label>
     <label class="reading-field ruler-value" for="indoorTempInput">
-      <input id="indoorTempInput" type="number" min="10" max="32" step="0.1" value="24" inputmode="decimal" aria-label="Indoor temperature" /><span aria-hidden="true">°C</span>
+      <input id="indoorTempInput" type="number" min="10" max="45" step="0.1" value="24" inputmode="decimal" aria-label="Indoor temperature" /><span aria-hidden="true">°C</span>
     </label>
     <div class="reading-ruler" data-ruler="indoorTemp" data-major-interval="1" data-tick-spacing="8" data-unit="degrees Celsius">
       <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
-      <input id="indoorTemp" type="range" min="10" max="32" step="0.1" value="24" aria-describedby="rulerHelp" />
+      <input id="indoorTemp" type="range" min="10" max="45" step="0.1" value="24" aria-describedby="rulerHelp" />
     </div>
   </div>
   <div class="control ruler-control">
     <label for="indoorRh">Relative humidity</label>
     <label class="reading-field ruler-value" for="indoorRhInput">
-      <input id="indoorRhInput" type="number" min="20" max="90" step="1" value="58" inputmode="numeric" aria-label="Indoor relative humidity" /><span aria-hidden="true">%</span>
+      <input id="indoorRhInput" type="number" min="10" max="90" step="1" value="58" inputmode="numeric" aria-label="Indoor relative humidity" /><span aria-hidden="true">%</span>
     </label>
     <div class="reading-ruler" data-ruler="indoorRh" data-major-interval="5" data-tick-spacing="16" data-unit="percent">
       <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
-      <input id="indoorRh" type="range" min="20" max="90" step="1" value="58" aria-describedby="rulerHelp" />
+      <input id="indoorRh" type="range" min="10" max="90" step="1" value="58" aria-describedby="rulerHelp" />
     </div>
   </div>
   <p id="rulerHelp" class="ruler-help">Drag the ruler or use arrow keys to adjust. Tap the number to type.</p>
@@ -264,6 +289,68 @@
       </div>
     </section>
 <button class="indoor-done sheet-primary" id="indoorDoneButton" type="button">Done</button>
+<section class="camera-panel" id="cameraPanel" aria-labelledby="indoor-heading" hidden>
+  <div id="cameraCapturePanel">
+    <div class="camera-feed" id="cameraFeed">
+      <video id="cameraVideo" autoplay muted playsinline aria-hidden="true"></video>
+      <canvas id="cameraPreview" class="camera-starting" role="img" aria-label="Rear camera preview"></canvas>
+      <canvas id="cameraSwitchPreview" aria-hidden="true" hidden></canvas>
+      <p id="cameraCaptureStatus" class="camera-status" role="status" aria-live="polite" aria-atomic="true">Starting camera…</p>
+      <div class="camera-preview-controls">
+      <div class="camera-zoom" id="cameraZoomControl" hidden>
+        <div class="camera-zoom-presets" role="group" aria-label="Zoom">
+          <button id="cameraZoom1" type="button" aria-pressed="true" disabled>1×</button>
+          <button id="cameraZoom3" type="button" aria-pressed="false" disabled>3×</button>
+          <button id="cameraZoom5" type="button" aria-pressed="false" disabled>5×</button>
+        </div>
+      </div>
+      <button id="cameraFlash" class="camera-flash" type="button" aria-label="Turn flash on" aria-pressed="false" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h8l-1 8 11-12h-8l1-8Z"></path></svg>
+      </button>
+      </div>
+    </div>
+    <p class="camera-framing-hint">Keep the main digits sharp and visible.</p>
+    <button id="cameraCaptureButton" type="button" class="sheet-primary" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"></path><circle cx="12" cy="13" r="3"></circle></svg><span>Take photo</span></button>
+  </div>
+  <div id="cameraReviewPanel" hidden>
+    <div class="camera-photo-wrap" id="cameraPhotoWrap" tabindex="0" aria-label="Edit reading boxes on the photo" aria-describedby="cameraCropHint cameraKeyboardHint">
+      <canvas id="cameraPhoto" role="img" aria-label="Captured current readings"></canvas>
+      <div id="cameraTempBox" class="camera-reading-box" data-camera-field="temperature" role="group" tabindex="0" aria-label="Temperature selection. Arrow keys move; Shift and arrow keys resize." hidden><span>Temperature</span>
+        <button class="camera-crop-handle" data-crop-handle="nw" type="button" aria-label="Resize temperature from top left"></button><button class="camera-crop-handle" data-crop-handle="ne" type="button" aria-label="Resize temperature from top right"></button><button class="camera-crop-handle" data-crop-handle="sw" type="button" aria-label="Resize temperature from bottom left"></button><button class="camera-crop-handle" data-crop-handle="se" type="button" aria-label="Resize temperature from bottom right"></button>
+      </div>
+      <div id="cameraRhBox" class="camera-reading-box" data-camera-field="humidity" role="group" tabindex="0" aria-label="Humidity selection. Arrow keys move; Shift and arrow keys resize." hidden><span>Humidity</span>
+        <button class="camera-crop-handle" data-crop-handle="nw" type="button" aria-label="Resize humidity from top left"></button><button class="camera-crop-handle" data-crop-handle="ne" type="button" aria-label="Resize humidity from top right"></button><button class="camera-crop-handle" data-crop-handle="sw" type="button" aria-label="Resize humidity from bottom left"></button><button class="camera-crop-handle" data-crop-handle="se" type="button" aria-label="Resize humidity from bottom right"></button>
+      </div>
+      <div id="cameraPendingBox" class="camera-reading-box" data-camera-field="pending" role="group" tabindex="0" aria-label="Unassigned selection. Arrow keys move; Shift and arrow keys resize." hidden><span>Reading</span>
+        <button class="camera-crop-handle" data-crop-handle="nw" type="button" aria-label="Resize reading from top left"></button><button class="camera-crop-handle" data-crop-handle="ne" type="button" aria-label="Resize reading from top right"></button><button class="camera-crop-handle" data-crop-handle="sw" type="button" aria-label="Resize reading from bottom left"></button><button class="camera-crop-handle" data-crop-handle="se" type="button" aria-label="Resize reading from bottom right"></button>
+      </div>
+      <button id="cameraRetakeButton" class="camera-flash camera-retake" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"></path><circle cx="12" cy="13" r="3"></circle></svg><span>Retake</span></button>
+    </div>
+    <p id="cameraKeyboardHint" class="visually-hidden">Enter or Space on the photo draws a box. Arrow keys move it; Shift resizes and Alt makes smaller adjustments.</p>
+    <div id="cameraReadStatus" class="camera-reading-status" data-state="processing" role="status" aria-live="polite" aria-atomic="true"><svg viewBox="0 0 24 24" aria-hidden="true"><g class="camera-status-progress"><path d="M20 12a8 8 0 1 1-8-8"></path></g><g class="camera-status-info"><circle cx="12" cy="12" r="8"></circle><path d="M12 11v6M12 7h.01"></path></g><g class="camera-status-ready"><circle cx="12" cy="12" r="8"></circle><path d="m8 12 3 3 5-6"></path></g><g class="camera-status-warning"><path d="m12 3 10 18H2Z M12 9v5M12 17h.01"></path></g><g class="camera-status-error"><circle cx="12" cy="12" r="8"></circle><path d="m9 9 6 6m0-6-6 6"></path></g></svg><span id="cameraReadStatusText">Reading numbers…</span></div>
+    <div id="cameraAssignment" class="camera-selection-actions" hidden><div id="cameraAssignChoices"><button id="cameraAssignTemp" type="button" class="secondary-button">Temperature</button><button id="cameraAssignRh" type="button" class="secondary-button">Humidity</button></div><button id="cameraDiscardBox" type="button" class="secondary-button">Discard box</button></div>
+    <div class="camera-reading-cards">
+      <div class="camera-reading-card">
+        <label for="cameraTempDraft">Temperature</label>
+        <canvas id="cameraTempCrop" role="img" aria-label="Temperature image crop"></canvas>
+        <div class="camera-draft-field"><input id="cameraTempDraft" type="number" min="10" max="45" step="0.1" inputmode="decimal" aria-describedby="cameraEditHint cameraTempError" /><span aria-hidden="true">°C</span></div>
+        <p id="cameraTempError" class="camera-field-error"></p>
+      </div>
+      <div class="camera-reading-card">
+        <label for="cameraRhDraft">Relative humidity</label>
+        <canvas id="cameraRhCrop" role="img" aria-label="Humidity image crop"></canvas>
+        <div class="camera-draft-field"><input id="cameraRhDraft" type="number" min="10" max="90" step="1" inputmode="numeric" aria-describedby="cameraEditHint cameraRhError" /><span aria-hidden="true">%</span></div>
+        <p id="cameraRhError" class="camera-field-error"></p>
+      </div>
+    </div>
+    <div class="camera-actions"><button id="cameraConfirmButton" type="button" class="sheet-primary" disabled>Confirm readings</button></div>
+  </div>
+  <div id="cameraErrorPanel" hidden>
+    <p id="cameraErrorMessage"></p>
+    <details id="cameraErrorDetails"><summary>Help with the camera</summary><p id="cameraErrorHelp"></p></details>
+    <div class="camera-actions"><button id="cameraManualButton" type="button" class="sheet-secondary">Enter manually</button><button id="cameraRetryButton" type="button" class="sheet-primary">Try again</button></div>
+  </div>
+</section>
 </dialog>
 
 <dialog class="plan-dialog" id="planDialog" aria-labelledby="planDialogTitle">
@@ -407,6 +494,6 @@
         <button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button>
       </section>
     </dialog>
-    <script src="app.js?v=141" type="module"></script>
+    <script src="app.js?v=161" type="module"></script>
   </body>
 </html>

@@ -1,0 +1,25 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Camera recognition photo regression</title>
+<h1>Camera recognition photo regression</h1><p id="status" role="status">Loading supplied photo…</p><canvas id="source" role="img" aria-label="Current readings fixture"></canvas><pre id="result"></pre>
+<p>This browser-only check uses a local, untracked fixture at tests/fixtures/camera-monitor.jpg. Copy the supplied photo there before running it. It is not an album-upload feature.</p>
+<script type="module">
+import { createRecognitionService } from '../src/camera/recognition.js';
+
+const status = document.querySelector('#status');
+try {
+  const image = new Image(); image.src = './fixtures/camera-monitor.jpg'; await image.decode();
+  const source = document.querySelector('#source'); source.width = image.width; source.height = image.height; source.style.width = 'min(100%, 480px)';
+  source.getContext('2d').drawImage(image, 0, 0);
+  const service = createRecognitionService(), found = await service.locate(source);
+  if (!found?.regions.temperature || !found.regions.humidity) throw Error('Current digits were not located');
+  const result = found.values;
+  const blank = document.createElement('canvas'); blank.width = 480; blank.height = 360;
+  blank.getContext('2d').fillStyle = '#555'; blank.getContext('2d').fillRect(0, 0, 480, 360);
+  const blankResult = await service.locate(blank);
+  if (blankResult.regions.temperature || blankResult.regions.humidity) throw Error('Blank photo received invented regions');
+  const blankRead = blankResult.values;
+  if (blankRead.temperature || blankRead.humidity) throw Error('Blank crop received invented values');
+  const passed = result.temperature === '22.3' && result.humidity === '59';
+  document.querySelector('#result').textContent = JSON.stringify(result);
+  status.textContent = passed ? 'PASS: 22.3°C and 59%, excluding low/high records.' : 'FAIL: readings differ from the photo.';
+} catch(error) { status.textContent = 'FAIL: recognition did not finish.'; document.querySelector('#result').textContent = String(error); }
+</script></html>

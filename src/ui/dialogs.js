@@ -48,7 +48,8 @@ export function createDialogs({
   function prepareSheetFocus(dialog) {
     const saved = sheetFocus.get(dialog);
     if (!saved) return;
-    const target = saved.opener?.isConnected ? saved.opener : saved.fallback;
+    const visible = element => element?.isConnected && !element.hidden && !element.closest?.('[hidden]');
+    const target = visible(saved.opener) ? saved.opener : saved.fallback;
     if (!target) return;
     clearRestoredFocus(target);
     target.classList.add(saved.keyboard && target === saved.opener

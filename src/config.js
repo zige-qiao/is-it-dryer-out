@@ -56,7 +56,7 @@ export const OPENING_SETUPS = {
   cross: { label: "Cross-ventilation", airflow: 180 },
 };
 
-export const APP_BUILD_VERSION = "v0.7.4.1";
+export const APP_BUILD_VERSION = "v0.7.5";
 
 export const VOICE_SILENCE_DURATION_MS = 1000;
 
@@ -78,3 +78,5 @@ export const INPUT_UNCERTAINTY = {
   outdoorTemp: 0.5,
   outdoorRh: 3,
 };
+
+export const INDOOR_LIMITS = Object.freeze({ temperature: { min: 10, max: 45, step: .1 }, humidity: { min: 10, max: 90, step: 1 } });

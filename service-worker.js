@@ -1,9 +1,9 @@
-const CACHE_NAME = "is-it-dryer-out-v141";
+const CACHE_NAME = "is-it-dryer-out-v161";
 const APP_FILES = [
   "./",
   "index.html",
-  "styles.css?v=141",
-  "app.js?v=141",
+  "styles.css?v=161",
+  "app.js?v=161",
   "src/config.js",
   "src/domain/humidity.js",
   "src/domain/forecast.js",
@@ -16,6 +16,7 @@ const APP_FILES = [
   "src/ui/dashboard.js",
   "src/ui/chart.js",
   "src/ui/readings.js",
+  "src/ui/ruler.js",
   "src/ui/timer.js",
   "docs/timer-shortcut.html",
   "src/ui/dialogs.js",
@@ -24,6 +25,30 @@ const APP_FILES = [
   "src/ui/pull-refresh.js",
   "src/voice/parser.js",
   "src/voice/controller.js",
+  "src/camera/controller.js",
+  "src/camera/capture.js",
+  "src/camera/device-session.js",
+  "src/camera/still-photo.js",
+  "src/camera/zoom-presets.js",
+  "src/camera/labels.js",
+  "src/camera/regions.js",
+  "src/camera/help.js",
+  "src/camera/readings.js",
+  "src/camera/recognition.js",
+  "src/camera/segments.js",
+  "src/camera/detection.js",
+  "src/camera/crop-editor.js",
+  "src/camera/analysis.js",
+  "src/camera/budget.js",
+  "src/camera/cell-validator.js",
+  "src/camera/orientation.js",
+  "src/camera/current-row.js",
+  "src/camera/row-context.js",
+  "src/camera/evidence.js",
+  "src/camera/geometry.js",
+  "src/camera/image.js",
+  "src/camera/units.js",
+  "src/camera/worker.js",
   "manifest.webmanifest",
   "favicon-v4.png",
 ];
@@ -45,6 +70,21 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+
+  // Preserve previously bundled OCR resources for older diagnostics.
+  const ocrRoot = new URL('vendor/tesseract/', self.location).href;
+  if (event.request.url.startsWith(ocrRoot)) {
+    event.respondWith(caches.open('dew-camera-ocr-6.0.1-v1').then(async cache => {
+      const cached = await cache.match(event.request);
+      if (cached) return cached;
+      try {
+        const response = await fetch(event.request);
+        if (response.ok) await cache.put(event.request, response.clone());
+        return response;
+      } catch { return Response.error(); }
+    }));
+    return;
+  }
 
   event.respondWith(
     fetch(event.request).catch(async () => {

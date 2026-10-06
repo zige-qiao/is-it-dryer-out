@@ -28,8 +28,8 @@ These checks are browser emulation, not additional physical iPhone tests. The us
 
 An `x-success` callback to the current web address was considered and removed before device testing. Reopening a URL cannot guarantee return to the originating Chrome tab, Safari tab or Home Screen app, which is the user's requirement. Keep the existing plain handoff rather than redirecting into a potentially different browser. No automatic-return behavior is enabled.
 
-## v0.7.4.1 dismissal refinement
+## Unreleased dismissal refinement
 
 Start now closes the timer sheet before the existing URL handoff. All five sheets share quiet focus return for touch-opened sheets, retaining an indicator only if the opener had visible keyboard focus at activation. All header close buttons are hidden below 640px; existing Done buttons and mobile drag dismissal remain.
 
-Local Windows Edge checks passed at 320, 390, 639, 640 and 1280px, covering 205 activation/dismissal combinations plus typed/ruler entry, help Escape, short/cancelled drags, refresh preservation, replaced openers and subsequent keyboard navigation. A separate normal-desktop check passed for the four non-timer sheets and plain verdict durations. These are emulated checks, not physical iPhone confirmation of the updated Start-dismiss flow. The v0.7.4.1 release includes this refinement and the 4px geometry harmonisation, uses cache revision 141, and passes all 114 Node regression tests.
+Local Windows Edge checks passed at 320, 390, 639, 640 and 1280px, covering 205 activation/dismissal combinations plus typed/ruler entry, help Escape, short/cancelled drags, refresh preservation, replaced openers and subsequent keyboard navigation. A separate normal-desktop check passed for the four non-timer sheets and plain verdict durations. These are emulated checks, not physical iPhone confirmation of the updated Start-dismiss flow. Version v0.7.4 and cache revision 140 remain unchanged; nothing has been published.

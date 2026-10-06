@@ -76,7 +76,7 @@ test('voice examples stay below status and waveform stays inside the dialog', ()
   assert.match(dialog,/Try “21 degrees, 55 percent” or just “21 and 55”\./);
   assert.match(dialog,/To change one reading, say “Humidity 60 percent”\./);
   assert.match(dialog,/voice-waveform/);
-  assert.equal(APP_BUILD_VERSION,'v0.7.4.1');
+  assert.equal(APP_BUILD_VERSION,'v0.7.4');
 });
 test('recognition errors hide examples and retain the iOS stream after end', async () => {
   const f=voiceFixture();f.controller.startVoiceInput();await flush();

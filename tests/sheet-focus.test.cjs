@@ -23,6 +23,12 @@ function fixture() {
   return { document, dialogs, target };
 }
 
+test('an entry button hidden in Settings restores focus to the visible sheet heading', () => {
+  const f=fixture(), dialog=element(), opener=f.target(), fallback=f.target();
+  f.dialogs.rememberSheetFocus(dialog,opener,fallback); opener.hidden=true;
+  f.dialogs.restoreSheetFocus(dialog); assert.equal(f.document.activeElement,fallback);
+});
+
 test('touch-opened sheets return focus quietly even after keyboard entry inside', () => {
   const f = fixture(), dialog = element(), opener = f.target(), input = f.target();
   f.document.emit('pointerdown', { target: opener });

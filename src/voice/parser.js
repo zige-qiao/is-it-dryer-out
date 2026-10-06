@@ -1,3 +1,4 @@
+import { INDOOR_LIMITS } from '../config.js';
 
 
 export const NUMBER_WORDS = {
@@ -91,8 +92,8 @@ export function inferUnlabelledIndoorValues(text) {
   }));
   if (numberTokens.length === 0 || numberTokens.length > 2) return {};
 
-  const isTemperature = (number) => number >= 10 && number <= 32;
-  const isHumidity = (number) => Number.isInteger(number) && number >= 20 && number <= 90;
+  const isTemperature = (number) => number >= INDOOR_LIMITS.temperature.min && number <= INDOOR_LIMITS.temperature.max;
+  const isHumidity = (number) => Number.isInteger(number) && number >= INDOOR_LIMITS.humidity.min && number <= INDOOR_LIMITS.humidity.max;
   if (numberTokens.length === 1) {
     const [{ value, hasDecimal }] = numberTokens;
     if (hasDecimal && isTemperature(value)) return { indoorTemp: value };
@@ -137,11 +138,11 @@ export function parseVoiceCommand(transcript) {
     indoorRh = inferred.indoorRh ?? null;
   }
   if (indoorTemp !== null) {
-    if (indoorTemp < 10 || indoorTemp > 32) errors.push("Indoor temperature must be between 10 and 32.");
+    if (indoorTemp < INDOOR_LIMITS.temperature.min || indoorTemp > INDOOR_LIMITS.temperature.max) errors.push("Indoor temperature must be between 10 and 45.");
     else values.indoorTemp = Number(indoorTemp.toFixed(1));
   }
   if (indoorRh !== null) {
-    if (indoorRh < 20 || indoorRh > 90) errors.push("Indoor humidity must be between 20 and 90.");
+    if (indoorRh < INDOOR_LIMITS.humidity.min || indoorRh > INDOOR_LIMITS.humidity.max) errors.push("Indoor humidity must be between 10 and 90.");
     else values.indoorRh = Math.round(indoorRh);
   }
   return { values, errors };
