@@ -4,6 +4,8 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Prepare app-shell cache revision 163 and reclaim retired OCR and camera-preview caches during activation.
+- Resize the app icon to 512×512 with lossless PNG optimisation and matching manifest dimensions; establish LF text line endings with binary asset exclusions.
 - Keep the app usable when browser storage is blocked or full, and time out stalled weather requests after 15 seconds while cancelling superseded requests.
 - Coalesce input-driven rendering to one animation frame, reuse chart date formatters and load camera modules on first use while retaining offline coverage.
 - Rename the app icon to `favicon.png`, remove the unused SVG icon and reconcile stale test and documentation references.

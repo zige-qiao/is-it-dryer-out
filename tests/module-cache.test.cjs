@@ -79,9 +79,12 @@ for(const base of ['https://example.test/','https://example.test/dew/']) {
     assert.equal(await w.request('submit','cors','POST'),undefined);
   });
 }
-test('activation replaces an older shell and preserves unrelated caches',async()=>{
+test('activation removes old shells and retired camera caches while preserving unrelated caches',async()=>{
   const w=worker();const revision=Number(source.match(/is-it-dryer-out-v(\d+)/)[1]);
   await w.caches.open(`is-it-dryer-out-v${revision-1}`);await w.caches.open('unrelated-app');
+  for(const name of ['dew-camera-ocr-6.0.1-v1','dew-camera-preview-v1','dew-camera-preview-ocr-6.0.1-v1']) {
+    await w.caches.open(name);
+  }
   await w.lifecycle('install');await w.lifecycle('activate');
   assert.equal(w.activated,true);assert.deepEqual(await w.caches.keys(),['unrelated-app',`is-it-dryer-out-v${revision}`]);
   w.offline=true;assert.equal((await w.request('src/voice/controller.js')).status,200);

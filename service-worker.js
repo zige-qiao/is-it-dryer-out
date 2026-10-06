@@ -1,9 +1,9 @@
-const CACHE_NAME = "is-it-dryer-out-v162";
+const CACHE_NAME = "is-it-dryer-out-v163";
 const APP_FILES = [
   "./",
   "index.html",
-  "styles.css?v=162",
-  "app.js?v=162",
+  "styles.css?v=163",
+  "app.js?v=163",
   "src/config.js",
   "src/domain/humidity.js",
   "src/domain/forecast.js",
@@ -63,7 +63,11 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key.startsWith("is-it-dryer-out-v") && key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) =>
+        (key.startsWith("is-it-dryer-out-v") && key !== CACHE_NAME)
+        || key.startsWith("dew-camera-ocr-")
+        || key.startsWith("dew-camera-preview-")
+      ).map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
 });
