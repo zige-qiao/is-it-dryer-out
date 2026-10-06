@@ -4,6 +4,18 @@ import { components, binaryPixels, bounds, normalise } from './image.js';
 import { locateUnits } from './units.js';
 import { validateFractionCell } from './cell-validator.js';
 import { checkRecognitionBudget } from './budget.js';
+import { findCurrentRows, passesCurrentRow } from './current-row.js';
+
+export function currentRowForCells(cells, rows) {
+  const containing = rows.filter(reference => reference.row && reference.integerHeight > 0 && cells.every(cell => {
+    const box = reference.displayBounds, x = cell.x + cell.width / 2, y = cell.y + cell.height / 2;
+    return box && x >= box.x && x <= box.x + box.width && y >= box.y && y <= box.y + box.height;
+  })).sort((a, b) => b.integerHeight - a.integerHeight);
+  const reference = containing[0];
+  if (reference && containing.some(other => other !== reference && other.integerHeight >= reference.integerHeight * .8 &&
+      Math.max(0, Math.min(other.row.y + other.row.height, reference.row.y + reference.row.height) - Math.max(other.row.y, reference.row.y)) < Math.min(other.row.height, reference.row.height) * .5)) return null;
+  return reference && passesCurrentRow(cells, reference.row, reference.integerHeight) ? reference : null;
+}
 
 export function validateTemperatureGroup(pixels, group, options = {}) {
   return validateFractionCell(pixels, group, options);
@@ -168,6 +180,7 @@ export function numericGroups(pixels, mask, glyphs, obstructions = glyphs) {
 }
 
 export function detectCandidates(pixels, threshold = .55, variant = 'adaptive', options = {}) {
+  const currentRows = options.currentRows ?? findCurrentRows(pixels, options.displayBoxes || []);
   const prepared = normalise(pixels, threshold, variant), units = locateUnits(prepared, prepared.mask);
   // Keep pre-symbol evidence immutable. Undecodable components remain available
   // for complete-group obstruction checks even when masking removes their ink.
@@ -192,7 +205,7 @@ export function detectCandidates(pixels, threshold = .55, variant = 'adaptive', 
   const readings = [];
   for (const unit of units) {
     if (unit.unit === '°F') continue;
-    const candidates = groups[unit.field].filter(group => {
+    const candidates = groups[unit.field].filter(group => currentRowForCells(group.items.slice(0, 2), currentRows)).filter(group => {
       const last = group.items[1], h = group.height;
       if (unit.field === 'temperature') return unit.box.x >= right(last) - h * .12 && unit.box.x - right(last) < h * .8 &&
         Math.abs(unit.box.y - last.y) < h * .3 && unit.box.height >= h * .15 && unit.box.height <= h * .8;
@@ -204,13 +217,14 @@ export function detectCandidates(pixels, threshold = .55, variant = 'adaptive', 
     if (unit.field === 'humidity' && temperatureGroups(glyphs).some(t => t.items[0] === group.items[0] && t.items[1] === group.items[1] &&
       t.items[2].x >= unit.box.x && t.items[2].x < right(unit.box))) continue;
     const digitBounds = bounds(group.items), pad = Math.max(2, group.height * .06);
-    readings.push({ field: unit.field, value: group.value, digitBounds, unitBounds: unit.box,
+    const integerCells = group.items.slice(0, 2), currentRow = currentRowForCells(integerCells, currentRows);
+    if (!currentRow) continue;
+    readings.push({ field: unit.field, value: group.value, digitBounds, integerCells, currentRow, currentRowValidated: true, unitBounds: unit.box,
       box: bounds([digitBounds, unit.box], pad), confidence: { unit: unit.confidence, numeric: Math.min(...group.items.map(g => g.confidence)),
-        evidence: { unit: unit.unit, glyphs: group.items.map(g => g.digit), aligned: true, decimal: unit.field === 'temperature' } }, height: group.height });
+        evidence: { unit: unit.unit, glyphs: group.items.map(g => g.digit), aligned: true, currentRow: true, decimal: unit.field === 'temperature' } }, height: group.height });
   }
-  const band = principalBand(numericMask, pixels.width, pixels.height, units);
-  const dominantHeight = Math.max(band?.height || 0, ...readings.map(r => r.height));
-  return { readings: readings.filter(r => r.height >= dominantHeight * .6), units, glyphs, rawGlyphs: located, rawComponents, rawObstructions, rawMask: prepared.mask, prepared,
+  const band = [...currentRows].sort((a, b) => b.integerHeight - a.integerHeight)[0]?.row;
+  return { readings, currentRows, rejectionReason: currentRows.length ? 'outside-current-row' : 'unresolved-current-row', units, glyphs, rawGlyphs: located, rawComponents, rawObstructions, rawMask: prepared.mask, prepared,
     currentBand: band && { ...band, x: band.x / pixels.width, y: band.y / pixels.height, width: band.width / pixels.width, height: band.height / pixels.height } };
 }
 
@@ -231,22 +245,6 @@ export function middleBar(pixels, glyph) {
   if (lit >= .75) return true;
   if (lit <= .2 && differences.reduce((a, b) => a + b, 0) / differences.length < 5) return false;
   return null;
-}
-
-// Undecoded, digit-shaped strokes can establish the main LCD band. A paired
-// band must share height/baseline and lie next to a detected unit; random scene
-// components cannot suppress another monitor's verified readings.
-function principalBand(mask, width, height, units) {
-  const strokes = components(mask, width, height, Math.max(1, Math.min(3, Math.round(width / 240))))
-    .filter(c => c.x > 1 && c.y > 1 && right(c) < width - 1 && bottom(c) < height - 1 && c.height >= 10 && c.width / c.height >= .12 && c.width / c.height <= .95 && c.count / (c.width * c.height) < .8);
-  const bands = [];
-  for (const a of strokes) for (const b of strokes) {
-    const h = Math.max(a.height, b.height), gap = b.x - right(a);
-    if (gap < 0 || gap > h * .9 || Math.min(a.height, b.height) < h * .7 || Math.abs(bottom(a) - bottom(b)) > h * .18) continue;
-    const box = bounds([a, b]);
-    if (units.some(u => u.box.x >= right(b) - h * .15 && u.box.x <= right(b) + h * 1.1 && u.box.y >= a.y - h * .3 && u.box.y <= bottom(a))) bands.push(box);
-  }
-  return bands.sort((a, b) => b.height - a.height)[0] || null;
 }
 
 export function detectReadingRegions(pixels) {

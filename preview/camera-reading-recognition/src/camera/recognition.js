@@ -1,9 +1,11 @@
 import { processImage } from './worker.js';
 import { boundedRegion, mapRegionalResult, mergeResults, humiditySearchRegion } from './regions.js';
 import { remapHypotheses } from './orientation.js';
-import { createRecognitionBudget } from './budget.js';
+import { createRecognitionBudget, RECOGNITION_LIMIT_MS } from './budget.js';
+import { mapRowContexts, validateRowCells, dedupeRowContexts } from './row-context.js';
+import { inverse, projectBox, IDENTITY } from './geometry.js';
 
-export const RECOGNITION_LIMIT_MS = 8000;
+export { RECOGNITION_LIMIT_MS } from './budget.js';
 
 export function cropCanvas(source, crop, document = globalThis.document) {
   const canvas = document.createElement('canvas');
@@ -29,6 +31,7 @@ export function createRecognitionService(environment = globalThis) {
       let worker = null, settled = false, stageId = 0, stageResolve = null, stageReject = null;
       let stageMap = value => value, partial = null;
       const results = [];
+      let rowContexts = null;
       let credibleDisplayIds = [];
       const pendingDisplays = new Set();
       const alive = () => !settled && id === generation && now() < deadline;
@@ -36,16 +39,22 @@ export function createRecognitionService(environment = globalThis) {
         if (!result) return result;
         const copy = { ...result, values: { ...result.values }, readings: { ...result.readings } };
         for (const field of ['temperature', 'humidity']) {
-          if (!result.orientation?.resolvedFields?.[field]) {
+          const entry = result.readings?.[field];
+          const row = rowContexts === null ? null : validateRowCells(entry?.integerCells || [], entry?.correction?.matrix || IDENTITY, rowContexts);
+          if (!result.orientation?.resolvedFields?.[field] || row && !row.valid) {
             copy.values[field] = '';
-            if (copy.readings[field]) copy.readings[field] = { ...copy.readings[field], value: '' };
+            if (copy.readings[field]) copy.readings[field] = { ...copy.readings[field], value: '', ...(row && !row.valid ? {
+              currentRowValidated: false, rejectionReason: row.reason,
+              confidence: { ...copy.readings[field].confidence, numeric: 0 },
+              correction: { ...copy.readings[field].correction, orientationResolved: false }
+            } : {}) };
           }
         }
         return copy;
       };
       let timer;
       const assemble = entries => {
-        const result = mergeResults(entries.filter(Boolean).map(safe));
+        const result = mergeResults(entries.filter(Boolean).map(safe), rowContexts);
         if (credibleDisplayIds.length > 1 && pendingDisplays.size) {
           for (const field of ['temperature', 'humidity']) {
             result.values[field] = '';
@@ -123,21 +132,46 @@ export function createRecognitionService(environment = globalThis) {
           const overview = pixels();
           const prepared = await request(overview, { priorCorrection: options.correction, sourceSize }, 'prepare');
           if (!alive() || !prepared) return;
+          if (prepared.rowContexts) rowContexts = mapRowContexts(prepared.rowContexts, [source.width / overview.width, 0, 0, 0, source.height / overview.height, 0, 0, 0, 1]);
           const hypotheses = prepared.hypotheses.slice(0, 4);
           const analyzeCrop = async (crop, opts = {}, displayId = null) => {
             const image = crop ? pixels(crop) : overview;
             if (!image) { if (!settled) timeout(); return null; }
+            const region = crop || { x: 0, y: 0, width: 1, height: 1 };
+            const inputMap = [region.width * source.width / image.width, 0, region.x * source.width, 0,
+              region.height * source.height / image.height, region.y * source.height, 0, 0, 1];
             const map = value => {
-              const mapped = crop ? mapRegionalResult(value, crop, image, sourceSize) : value;
+              const mapped = mapRegionalResult(value, region, image, sourceSize);
+              if (mapped?.rowContexts && rowContexts !== null) {
+                rowContexts = dedupeRowContexts([...rowContexts, ...mapped.rowContexts]);
+              }
               return mapped && { ...mapped, ...(displayId ? { displayId } : {}),
                 orientation: { ...mapped.orientation, credibleDisplayIds } };
             };
-            const result = await request(image, { ...opts, hypotheses: remapHypotheses(hypotheses, image, { crop, sourceSize }), orientation: prepared.orientation }, 'analyze', map);
+            const result = await request(image, { ...opts, ...(rowContexts !== null ? { rowContexts: mapRowContexts(rowContexts, inverse(inputMap)) } : {}), hypotheses: remapHypotheses(hypotheses, image, { crop, sourceSize }), orientation: prepared.orientation }, 'analyze', map);
             return result && safe(map(result));
           };
           if (options.region) {
             const b = options.region;
-            const crop = boundedRegion({ x: b.x * source.width, y: b.y * source.height, width: b.width * source.width, height: b.height * source.height }, source.width, source.height, b.height * source.height * .35);
+            const selected = { x: b.x * source.width, y: b.y * source.height, width: b.width * source.width, height: b.height * source.height };
+            const containsSelection = box => selected.x + selected.width / 2 >= box.x && selected.x + selected.width / 2 <= box.x + box.width &&
+              selected.y + selected.height / 2 >= box.y && selected.y + selected.height / 2 <= box.y + box.height;
+            const displays = [];
+            for (const proposal of prepared.proposals || []) {
+              if (proposal.kind !== 'display' || !(proposal.strokeScore > 0) || !(proposal.axes?.fill > .65) || !(proposal.axes?.aspect > 1.8)) continue;
+              const box = { x: proposal.region.x * source.width, y: proposal.region.y * source.height,
+                width: proposal.region.width * source.width, height: proposal.region.height * source.height };
+              if (containsSelection(box)) displays.push(box);
+            }
+            if (!displays.length) displays.push(...(rowContexts || []).map(row => projectBox(row.matrix, row.displayBounds)).filter(containsSelection));
+            const display = displays[0];
+            // Decode the whole LCD for scale/context; assignment remains limited
+            // to the user's original selection. An isolated historical crop
+            // cannot invent a reference when overview evidence was insufficient.
+            const crop = display ? boundedRegion({ x: Math.min(display.x, selected.x), y: Math.min(display.y, selected.y),
+              width: Math.max(display.x + display.width, selected.x + selected.width) - Math.min(display.x, selected.x),
+              height: Math.max(display.y + display.height, selected.y + selected.height) - Math.min(display.y, selected.y) }, source.width, source.height)
+              : { x: 0, y: 0, width: 1, height: 1 };
             const selection = { x: (b.x - crop.x) / crop.width, y: (b.y - crop.y) / crop.height, width: b.width / crop.width, height: b.height / crop.height };
             const result = await analyzeCrop(crop, { ...options, region: selection, refine: true });
             if (alive()) operation.finish(result); return;

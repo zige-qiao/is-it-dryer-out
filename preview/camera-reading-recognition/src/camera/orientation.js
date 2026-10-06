@@ -2,6 +2,7 @@ import { components, normalise } from './image.js';
 import { boundedRegion } from './regions.js';
 import { expandedRotation, compose, homography } from './geometry.js';
 import { checkRecognitionBudget } from './budget.js';
+import { establishRowContexts } from './row-context.js';
 
 const canonical = angle => ((angle + 180) % 360 + 360) % 360 - 180;
 function orientedComponent(item, width) {
@@ -122,5 +123,5 @@ export function prepareOrientation(pixels,options={}){
       }
     }
   }
-  return {proposals,hypotheses,orientation:{state:'pending',credibleIds:supportedPriorId?[supportedPriorId]:hypotheses.filter(h=>!primary||Math.abs(base)<8||h.angle!==0).map(h=>h.id)}};
+  return {proposals,hypotheses,rowContexts:establishRowContexts(pixels,hypotheses,proposals),orientation:{state:'pending',credibleIds:supportedPriorId?[supportedPriorId]:hypotheses.filter(h=>!primary||Math.abs(base)<8||h.angle!==0).map(h=>h.id)}};
 }

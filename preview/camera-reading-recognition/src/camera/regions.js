@@ -2,6 +2,7 @@ import { components, bounds } from './image.js';
 import { detectCandidates, digitPairs } from './detection.js';
 import { samePosition } from './evidence.js';
 import { compose, IDENTITY } from './geometry.js';
+import { mapRowContexts, validateRowCells, dedupeRowContexts } from './row-context.js';
 
 const intersection = (a, b) => Math.max(0, Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x)) *
   Math.max(0, Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y));
@@ -104,6 +105,7 @@ export function mapRegionalResult(result, crop, pixels, source) {
   const mapped = { ...result, currentBand: map(result.currentBand), regions: {}, readings: {} };
   const matrix = [crop.width * source.width / pixels.width, 0, crop.x * source.width, 0,
     crop.height * source.height / pixels.height, crop.y * source.height, 0, 0, 1];
+  if (result.rowContexts) mapped.rowContexts = mapRowContexts(result.rowContexts, matrix);
   for (const field of ['temperature', 'humidity']) {
     mapped.regions[field] = map(result.regions?.[field]);
     const e = result.readings?.[field]; if (!e) continue;
@@ -114,28 +116,39 @@ export function mapRegionalResult(result, crop, pixels, source) {
   return mapped;
 }
 
-export function mergeResults(results) {
+export function mergeResults(results, establishedRows = null) {
   const output = { regions: { temperature: null, humidity: null }, values: { temperature: '', humidity: '' }, readings: {}, status: 'unassigned', field: null };
   const bands = results.map(r => r?.currentBand).filter(Boolean);
   const credibleDisplays = new Set(results.flatMap(r => r?.orientation?.credibleDisplayIds || []));
+  const rowContexts = dedupeRowContexts([...(establishedRows || []), ...results.flatMap(r => r?.rowContexts || [])]);
+  const requireRows = establishedRows !== null || results.some(r => r?.rowContexts);
+  if (requireRows) output.rowContexts = rowContexts;
   for (const field of ['temperature', 'humidity']) {
     const entries = results.filter(r => !r?.orientation || r.orientation.resolvedFields?.[field] || r.orientation.state !== 'pending').map(r => r?.readings?.[field] && ({ ...r.readings[field], displayId: r.readings[field].displayId || r.displayId })).filter(e => {
+      if (requireRows) return Boolean(e);
       if (!e?.digitBounds) return Boolean(e);
       const b = e.digitBounds;
       const related = bands.filter(band => b.x < band.x + band.width * 3 && b.x + b.width > band.x - band.width * 2 &&
         b.y >= band.y - band.height * .3 && b.y <= band.y + band.height * 2.5);
       return b.height >= Math.max(0, ...related.map(band => band.height)) * .6;
+    }).map(e => {
+      if (!requireRows || !e.value) return e;
+      const row = validateRowCells(e.integerCells || [], e.correction?.matrix || IDENTITY, rowContexts);
+      return row.valid ? { ...e, currentRowValidated: true } : { ...e, value: '', currentRowValidated: false, rejectionReason: row.reason,
+        confidence: { ...e.confidence, numeric: 0 }, correction: { ...e.correction, orientationResolved: false } };
     });
     const quality = e => (e.confidence?.numeric || 0) + (e.confidence?.unit || 0) * .15;
     const best = entries.filter(e => e.value).sort((a, b) => quality(b) - quality(a))[0] || entries[0]; if (!best) continue;
-    const withdrawn = entries.some(e => e.rejectionReason === 'conflicting-digits' && (!e.digitBounds || !best.digitBounds || samePosition(e.digitBounds, best.digitBounds)));
+    const withdrawal = entries.find(e => e.rejectionReason === 'ambiguous-display-assignment' ||
+      ['conflicting-digits', 'ambiguous-temperature'].includes(e.rejectionReason) && (!e.digitBounds || !best.digitBounds || samePosition(e.digitBounds, best.digitBounds)));
+    const withdrawn = Boolean(withdrawal);
     const displayConflict = entries.some(a => a.value && credibleDisplays.has(a.displayId) && entries.some(b => b.value && a.displayId !== b.displayId && credibleDisplays.has(b.displayId) &&
       (a.value !== b.value || !a.digitBounds || !b.digitBounds || !samePosition(a.digitBounds, b.digitBounds))));
     const conflict = withdrawn || displayConflict || entries.some(e => e.value && best.value && e.value !== best.value &&
       (!e.digitBounds || !best.digitBounds || samePosition(e.digitBounds, best.digitBounds)) && (e.confidence?.numeric || 0) >= (best.confidence?.numeric || 0) - .04);
     const ambiguous = field === 'temperature' && best.confidence?.evidence?.assignment === 'same-display-humidity' &&
       entries.some(e => e.value && e.value !== best.value && e.digitBounds && best.digitBounds && !samePosition(e.digitBounds, best.digitBounds));
-    output.readings[field] = conflict || ambiguous ? { ...best, value: '', rejectionReason: ambiguous ? 'ambiguous-temperature' : 'conflicting-digits', confidence: { ...best.confidence, numeric: 0 },
+    output.readings[field] = conflict || ambiguous ? { ...best, value: '', rejectionReason: withdrawal?.rejectionReason || (ambiguous ? 'ambiguous-temperature' : 'conflicting-digits'), confidence: { ...best.confidence, numeric: 0 },
       correction: best.correction && { ...best.correction, orientationResolved: false } } : best;
     output.regions[field] = best.region; output.values[field] = conflict || ambiguous ? '' : best.value;
   }

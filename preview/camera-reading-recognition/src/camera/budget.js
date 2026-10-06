@@ -2,6 +2,8 @@
 // deadline as the asynchronous worker/fallback orchestration.
 let activeCheck = null;
 
+export const RECOGNITION_LIMIT_MS = 10000;
+
 export class RecognitionDeadlineError extends Error {
   constructor() { super('Recognition deadline reached.'); this.name = 'RecognitionDeadlineError'; }
 }

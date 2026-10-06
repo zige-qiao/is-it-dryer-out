@@ -1,4 +1,5 @@
-import { locateGlyphs, grayscaleConfidence, middleBar, digitPairs, temperatureGroups, validateTemperatureGroup } from './detection.js';
+import { locateGlyphs, grayscaleConfidence, middleBar, digitPairs, temperatureGroups, validateTemperatureGroup, currentRowForCells } from './detection.js';
+import { findCurrentRows } from './current-row.js';
 import { bounds, extract, normalise, binaryPixels, components } from './image.js';
 import { INDOOR_LIMITS } from '../config.js';
 import { runWithRecognitionBudget } from './budget.js';
@@ -47,13 +48,14 @@ function decimalEvidence(pixels, dots, group) {
 
 // Combine independently validated glyphs in one corrected coordinate system.
 // Fractions get a local threshold neighbourhood rather than the large-digit one.
-export async function combineEvidence(pixels, variants, checkpoint, { expected = null, selection = null, sourceEvidence = null } = {}) {
+export async function combineEvidence(pixels, variants, checkpoint, { expected = null, selection = null, sourceEvidence = null, currentRows = null, displayBoxes = [] } = {}) {
   const guarded = work => runWithRecognitionBudget(checkpoint.check, work);
   const units = variants.flatMap(v => v.found.units), glyphs = variants.flatMap(v => v.found.glyphs.map(g => ({ ...g, variant: v })));
   let combined = consolidateGlyphs(glyphs);
   const obstructions = variants.flatMap(v => [...(v.found.rawGlyphs || v.found.glyphs), ...(v.found.rawObstructions || [])]);
-  const bandHeight = Math.max(0, ...variants.map(v => (v.found.currentBand?.height || 0) * pixels.height));
-  const pairs = guarded(() => digitPairs(combined, obstructions).filter(p => Number(p.value) >= INDOOR_LIMITS.temperature.min && Number(p.value) <= INDOOR_LIMITS.temperature.max && p.height >= bandHeight * .6).sort((a, b) => b.height - a.height).slice(0, 8));
+  const establishedRows = variants.flatMap(v => v.found.currentRows || []);
+  const rows = currentRows ?? (variants.some(v => 'currentRows' in v.found) ? establishedRows : guarded(() => findCurrentRows(pixels, displayBoxes)));
+  const pairs = guarded(() => digitPairs(combined, obstructions).filter(p => Number(p.value) >= INDOOR_LIMITS.temperature.min && Number(p.value) <= INDOOR_LIMITS.temperature.max && currentRowForCells(p.items, rows)).sort((a, b) => b.height - a.height).slice(0, 8));
   const masks = variants.map(v => v.found.prepared.mask);
   for (const pair of pairs) {
     if (!await checkpoint()) return null;
@@ -81,9 +83,9 @@ export async function combineEvidence(pixels, variants, checkpoint, { expected =
   for (const mask of masks) { if (!await checkpoint()) return null; dots.push(...guarded(() => components(mask, pixels.width, pixels.height).filter(d => d.width < pixels.height * .2 && d.height < pixels.height * .2))); }
   const numbered = guarded(() => temperatureGroups(combined, obstructions).filter(g => Number(g.value) <= INDOOR_LIMITS.temperature.max));
   const decimalGroups = numbered.filter(g => decimalEvidence(pixels, dots, g));
-  const groups = guarded(() => decimalGroups.filter(g => validateTemperatureGroup(pixels, g, { sourceEvidence })));
+  const groups = guarded(() => decimalGroups.filter(g => currentRowForCells(g.items.slice(0, 2), rows) && validateTemperatureGroup(pixels, g, { sourceEvidence })));
   const humidityCandidates = variants.flatMap(v => v.found.readings.filter(r => r.field === 'humidity').map(r => ({ ...r, variant: v })));
-  const humidity = humidityCandidates.filter(r => !humidityCandidates.some(other => other.value !== r.value &&
+  const humidity = humidityCandidates.filter(r => r.integerCells && currentRowForCells(r.integerCells, rows) && !humidityCandidates.some(other => other.value !== r.value &&
     samePosition(other.digitBounds, r.digitBounds) && other.confidence.numeric >= r.confidence.numeric - .04));
   const readings = [];
   readings.rejectionReason = pairs.length && !numbered.length ? 'missing-fraction' : numbered.length && !decimalGroups.length ? 'missing-decimal' : decimalGroups.length && !groups.length ? 'unreadable-fraction-cell' : groups.length ? 'unassigned-temperature' : 'unreadable-integer-digits';
@@ -98,10 +100,11 @@ export async function combineEvidence(pixels, variants, checkpoint, { expected =
     const assigned = expected === 'temperature' && selection && intersection(selection, digits) / (digits.width * digits.height) >= .65;
     if (!celsius && !anchor && !assigned) continue;
     const variant = group.items[2].variant || group.items[0].variant;
-    readings.push({ field: 'temperature', value: group.value, digitBounds: digits, unitBounds: celsius?.box || digits,
+    const integerCells = group.items.slice(0, 2), currentRow = currentRowForCells(integerCells, rows);
+    readings.push({ field: 'temperature', value: group.value, digitBounds: digits, integerCells, currentRow, currentRowValidated: true, unitBounds: celsius?.box || digits,
       box: bounds(celsius ? [digits, celsius.box] : [digits], 2), height: h, variant,
       confidence: { unit: celsius?.confidence || 0, numeric: Math.min(...group.items.map(g => g.confidence)),
-        evidence: { unit: celsius ? '°C' : assigned ? 'manual-assignment' : 'humidity-anchor', decimal: true, glyphs: group.items.map(g => g.digit), assignment: celsius ? 'unit' : assigned ? 'manual' : 'same-display-humidity', combined: true } } });
+        evidence: { unit: celsius ? '°C' : assigned ? 'manual-assignment' : 'humidity-anchor', currentRow: true, decimal: true, glyphs: group.items.map(g => g.digit), assignment: celsius ? 'unit' : assigned ? 'manual' : 'same-display-humidity', combined: true } } });
   }
   return readings;
 }

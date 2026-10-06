@@ -1,4 +1,9 @@
 {
   "branch": "camera-reading-recognition",
-  "commit": "6b698d300f23fc356bfc3bb1a536fea13ac89e1f"
+  "build": "current-row-v160",
+  "runtimeTree": "cb29651fa5fe0452c6f33d2547bc41c5dac1021b",
+  "cacheRevision": 160,
+  "recognitionLimitMs": 10000,
+  "minimumIntegerHeight": 0.8,
+  "minimumVerticalOverlap": 0.5
 }
