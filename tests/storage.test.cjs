@@ -26,6 +26,22 @@ test('existing plan data migrates opening settings and preserves validated numer
   assert.deepEqual(state,{minTemp:20,targetRh:60,roomLength:4,roomWidth:5,roomHeight:2.5,customAirflow:80,openingSetup:'cross',roomPreset:'large'});
 });
 
+test('blocked or full storage keeps defaults and never interrupts saving',()=>{
+  const blocked=Object.create(globalThis,{localStorage:{get(){throw new Error('SecurityError');}}});
+  const full=environment({localStorage:{getItem:()=>null,setItem(){throw new Error('QuotaExceededError');},removeItem(){}}});
+  for(const env of [blocked,full]){
+    const state={indoorTemp:24,indoorRh:58,targetRh:55,minTemp:18,location:{name:'Sale',latitude:53.4,longitude:-2.3}};
+    const uiPreferences={showIndoorSummary:false};
+    const storage=createStorage({state,uiPreferences,applyUiPreferences(){}},env);
+    assert.doesNotThrow(()=>{
+      storage.loadIndoorReadings();storage.loadPlanSettings();storage.loadUiPreferences();
+      storage.saveIndoorReadings();storage.savePlanSettings();storage.saveUiPreferences();storage.saveLocation();
+    });
+    assert.equal(storage.loadLocation(),false);assert.deepEqual(storage.loadLocationHistory(false),[]);
+    assert.equal(state.indoorTemp,24);assert.ok(state.indoorLastSet>0);
+  }
+});
+
 test('capture and entry visibility preferences persist independently and invalid values retain defaults',()=>{
  const localStorage=memoryStorage(), defaults={useStillPhotos:false,showCameraButton:true,showVoiceButton:false};
  const make=()=>{const uiPreferences={...defaults};return {uiPreferences,storage:createStorage({uiPreferences,applyUiPreferences(){}},environment({localStorage}))};};

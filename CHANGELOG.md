@@ -4,6 +4,11 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Keep the app usable when browser storage is blocked or full, and time out stalled weather requests after 15 seconds while cancelling superseded requests.
+- Coalesce input-driven rendering to one animation frame, reuse chart date formatters and load camera modules on first use while retaining offline coverage.
+- Rename the app icon to `favicon.png`, remove the unused SVG icon and reconcile stale test and documentation references.
+- Remove unused Tesseract assets and the retired camera preview deployment, publishing helper and compatibility paths. Keep the standalone camera diagnostic sources and production offline module coverage.
+
 ## v0.7.5 - Camera readings and Settings - 2026-10-06
 
 - Add on-device segmented LCD recognition with editable temperature/humidity drafts, original-photo region adjustment, processed crop previews and confirmation before saving. Temporary images are discarded after review.

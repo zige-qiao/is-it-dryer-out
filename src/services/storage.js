@@ -17,19 +17,24 @@ export function createStorage({
   uiPreferences,
   applyUiPreferences,
 } = {}, environment = globalThis) {
-  const { localStorage, Date } = environment;
+  const { Date } = environment;
+  // Blocked site data makes even reading `localStorage` throw, and a full store
+  // rejects writes. Every access degrades to page-session state instead.
+  const read = key => { try { return environment.localStorage.getItem(key); } catch { return null; } };
+  const write = (key, value) => { try { environment.localStorage.setItem(key, value); } catch {} };
+  const remove = key => { try { environment.localStorage.removeItem(key); } catch {} };
 
   function saveIndoorReadings(source = null) {
     state.indoorReadingSource = source;
     state.indoorLastSet = Date.now();
-    localStorage.setItem(
+    write(
       STORAGE_KEY,
       JSON.stringify({ indoorTemp: state.indoorTemp, indoorRh: state.indoorRh, indoorLastSet: state.indoorLastSet }),
     );
   }
 
   function savePlanSettings() {
-    localStorage.setItem(
+    write(
       PLAN_STORAGE_KEY,
       JSON.stringify({
         targetRh: state.targetRh,
@@ -45,7 +50,7 @@ export function createStorage({
   }
 
   function loadIndoorReadings() {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = read(STORAGE_KEY);
     if (!saved) return;
     try {
       const parsed = JSON.parse(saved);
@@ -53,12 +58,12 @@ export function createStorage({
       state.indoorRh = numberInRange(parsed.indoorRh, INDOOR_LIMITS.humidity.min, INDOOR_LIMITS.humidity.max, state.indoorRh);
       state.indoorLastSet = Number.isFinite(parsed.indoorLastSet) && parsed.indoorLastSet > 0 && parsed.indoorLastSet <= Date.now() ? parsed.indoorLastSet : null;
     } catch {
-      localStorage.removeItem(STORAGE_KEY);
+      remove(STORAGE_KEY);
     }
   }
 
   function loadPlanSettings() {
-    const saved = localStorage.getItem(PLAN_STORAGE_KEY);
+    const saved = read(PLAN_STORAGE_KEY);
     if (!saved) return;
     try {
       const parsed = JSON.parse(saved);
@@ -77,13 +82,13 @@ export function createStorage({
       if (OPENING_SETUPS[opening] || opening === "custom") state.openingSetup = opening;
       state.customAirflow = numberInRange(parsed.customAirflow, 10, 500, state.customAirflow);
     } catch {
-      localStorage.removeItem(PLAN_STORAGE_KEY);
+      remove(PLAN_STORAGE_KEY);
     }
   }
 
   function loadUiPreferences() {
     try {
-      const saved = JSON.parse(localStorage.getItem(UI_PREFERENCES_STORAGE_KEY));
+      const saved = JSON.parse(read(UI_PREFERENCES_STORAGE_KEY));
       if (typeof saved?.showIndoorSummary === 'boolean') uiPreferences.showIndoorSummary = saved.showIndoorSummary;
       if (typeof saved?.autoFlash === 'boolean') uiPreferences.autoFlash = saved.autoFlash;
       for (const key of ['useStillPhotos', 'showCameraButton', 'showVoiceButton']) {
@@ -95,24 +100,16 @@ export function createStorage({
   }
 
   function saveUiPreferences() {
-    try { localStorage.setItem(UI_PREFERENCES_STORAGE_KEY, JSON.stringify(uiPreferences)); }
-    catch { /* The switches still work for this page session. */ }
+    write(UI_PREFERENCES_STORAGE_KEY, JSON.stringify(uiPreferences));
   }
 
   function saveLocation() {
-    try {
-      localStorage.setItem(
-        LOCATION_STORAGE_KEY,
-        JSON.stringify({ location: state.location, mode: state.locationMode }),
-      );
-    } catch {
-      // Location selection still works when browser storage is unavailable.
-    }
+    write(LOCATION_STORAGE_KEY, JSON.stringify({ location: state.location, mode: state.locationMode }));
   }
 
   function loadLocation() {
     try {
-      const saved = JSON.parse(localStorage.getItem(LOCATION_STORAGE_KEY));
+      const saved = JSON.parse(read(LOCATION_STORAGE_KEY));
       const location = saved?.location;
       if (
         location &&
@@ -125,34 +122,25 @@ export function createStorage({
         return true;
       }
     } catch {
-      localStorage.removeItem(LOCATION_STORAGE_KEY);
+      remove(LOCATION_STORAGE_KEY);
     }
     return false;
   }
 
   function hasRequestedLocation() {
-    try {
-      return localStorage.getItem(LOCATION_REQUESTED_STORAGE_KEY) === "true";
-    } catch {
-      return false;
-    }
+    return read(LOCATION_REQUESTED_STORAGE_KEY) === "true";
   }
 
   function markLocationRequested() {
-    try {
-      localStorage.setItem(LOCATION_REQUESTED_STORAGE_KEY, "true");
-    } catch {
-      // The browser may request location again when storage is unavailable.
-    }
+    write(LOCATION_REQUESTED_STORAGE_KEY, "true");
   }
 
   function saveLocationHistory(locations) {
-    try { localStorage.setItem(LOCATION_HISTORY_STORAGE_KEY, JSON.stringify(locations)); } catch {}
+    write(LOCATION_HISTORY_STORAGE_KEY, JSON.stringify(locations));
   }
 
   function loadLocationHistory(hasSavedLocation) {
-    let stored;
-    try { stored = localStorage.getItem(LOCATION_HISTORY_STORAGE_KEY); } catch {}
+    const stored = read(LOCATION_HISTORY_STORAGE_KEY);
     if (stored == null) {
       const locations = hasSavedLocation ? [{ ...state.location }] : [];
       saveLocationHistory(locations);

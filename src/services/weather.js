@@ -1,6 +1,6 @@
 import { dewPoint } from '../domain/humidity.js';
 import { buildForecast } from '../domain/forecast.js';
-import { WEATHER_ENDPOINT, DEFAULT_PRESSURE_HPA } from '../config.js';
+import { WEATHER_ENDPOINT, DEFAULT_PRESSURE_HPA, WEATHER_REQUEST_TIMEOUT_MS } from '../config.js';
 
 export function createWeatherController({
   state,
@@ -10,9 +10,15 @@ export function createWeatherController({
   formatShortTime,
   render,
 } = {}, environment = globalThis) {
-  const { fetch, Date, setTimeout, clearTimeout } = environment;
+  const { fetch, Date, setTimeout, clearTimeout, AbortController } = environment;
 
   let activeWeatherRequestId = 0;
+  let activeWeatherAbort = null;
+
+  function abortActiveRequest() {
+    activeWeatherAbort?.abort();
+    activeWeatherAbort = null;
+  }
 
   let checkedLabelTimer = null;
 
@@ -45,6 +51,10 @@ export function createWeatherController({
   async function fetchWeather() {
     const requestId = ++activeWeatherRequestId;
     const requestLocation = { ...state.location };
+    abortActiveRequest();
+    const abort = new AbortController();
+    activeWeatherAbort = abort;
+    const timeout = setTimeout(() => abort.abort(), WEATHER_REQUEST_TIMEOUT_MS);
     if (checkedLabelTimer !== null) clearTimeout(checkedLabelTimer);
     checkedLabelTimer = null;
     state.weatherRequestPending = true;
@@ -56,7 +66,7 @@ export function createWeatherController({
     render();
 
     try {
-      const response = await fetch(weatherUrlForLocation(requestLocation));
+      const response = await fetch(weatherUrlForLocation(requestLocation), { signal: abort.signal });
       if (!response.ok) throw new Error("Weather request failed");
       const data = await response.json();
       if (requestId !== activeWeatherRequestId) return;
@@ -87,7 +97,9 @@ export function createWeatherController({
       state.weatherLoadFailed = true;
       elements.weatherStatus.textContent = "Update failed";
     } finally {
+      clearTimeout(timeout);
       if (requestId !== activeWeatherRequestId) return;
+      activeWeatherAbort = null;
       state.weatherRequestPending = false;
       updateWeatherCheckedLabel();
       elements.recommendation.removeAttribute("aria-busy");
@@ -99,6 +111,7 @@ export function createWeatherController({
 
   function setLocation(location, mode) {
     activeWeatherRequestId += 1;
+    abortActiveRequest();
     if (checkedLabelTimer !== null) clearTimeout(checkedLabelTimer);
     checkedLabelTimer = null;
     state.location = location;

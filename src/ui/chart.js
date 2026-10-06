@@ -14,6 +14,16 @@ export function createChart({
     return clamp(0.5 + comparison.difference / (comparison.margin * 3.5), 0, 1);
   };
   const nearStart = 0.2142857143, nearEnd = 0.7857142857;
+  // Intl formatters are costly to construct; reuse them until the timezone changes.
+  let formatterZone = null, dayFormatter, clockFormatter;
+  function chartFormatters() {
+    if (formatterZone !== state.timezone) {
+      formatterZone = state.timezone;
+      dayFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: state.timezone, weekday: 'short' });
+      clockFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: state.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    }
+    return { dayFormatter, clockFormatter };
+  }
   function semanticColor(position, wet, near) {
     const rgb = value => {
       const hex = value.trim().match(/^#([0-9a-f]{6})$/i)?.[1];
@@ -145,8 +155,7 @@ export function createChart({
       curve = '<image x="'+left+'" y="'+top+'" width="'+(right-left)+'" height="'+(bottom-top)+'" href="'+curveCanvas.toDataURL('image/png')+'" aria-hidden="true"/>';
     }
     const ticks = '<path d="M'+left+' '+bottom+'H'+right+'" class="ah-grid"/>';
-    const dayFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: state.timezone, weekday: 'short' });
-    const clockFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: state.timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    const { dayFormatter, clockFormatter } = chartFormatters();
     const step = state.chartHours === 24 ? 6 : 12;
     const clockTicks = timeline.filter(p => p.time.getTime() > start && p.time.getTime() <= end)
       .map(p => ({ time: p.time.getTime(), clock: clockFormatter.format(p.time) }))

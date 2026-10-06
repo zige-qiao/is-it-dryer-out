@@ -1,5 +1,4 @@
 import { createVoiceController } from './src/voice/controller.js';
-import { createCameraController } from './src/camera/controller.js';
 import { createStorage } from './src/services/storage.js';
 import { createGeocoding } from './src/services/geocoding.js';
 import { createWeatherController } from './src/services/weather.js';
@@ -161,6 +160,11 @@ const dialogScrollLock = {
   open: (...args) => lock.open(...args),
   release: (...args) => lock.release(...args),
 };
+// Rulers, sliders and held steppers can emit several inputs per frame; draw once.
+let renderFrame = null;
+const scheduleRender = () => {
+  renderFrame ??= requestAnimationFrame(() => { renderFrame = null; dashboard.render(); });
+};
 const voiceController = createVoiceController({
   state,
   elements,
@@ -175,23 +179,41 @@ const storage = createStorage({
   uiPreferences,
   applyUiPreferences: (...args) => events.applyUiPreferences(...args),
 });
-const cameraController = createCameraController({
-  state, elements, uiPreferences,
-  openFlashSettings: () => {
-    elements.settingsButton.click();
-    dialogs.rememberSheetFocus(elements.settingsDialog, elements.cameraHelpButton, elements.cameraHelpButton);
-    elements.autoFlash.focus({ preventScroll: true });
-    elements.autoFlash.closest('.settings-toggle').scrollIntoView({ block: 'nearest', behavior: 'instant' });
-  },
-  beforeCamera: () => {
-    dialogs.rememberSheetFocus(elements.cameraPanel, elements.cameraInputButton, elements.cameraTitle);
-    if (!elements.voiceDialog.hidden) voiceController.closeVoiceDialog();
-  },
-  saveIndoorReadings: (...args) => storage.saveIndoorReadings(...args),
-  render: () => dashboard.render(),
-  returnFocus: () => {
-    dialogs.restoreSheetFocus(elements.cameraPanel);
-  },
+// Camera recognition is most of the module graph, so it loads on first use.
+// Its own initialize() binds the entry button for every later tap.
+let cameraController = null;
+let cameraLoading = null;
+function loadCamera() {
+  cameraLoading ??= import('./src/camera/controller.js').then(({ createCameraController }) => {
+    cameraController = createCameraController({
+      state, elements, uiPreferences,
+      openFlashSettings: () => {
+        elements.settingsButton.click();
+        dialogs.rememberSheetFocus(elements.settingsDialog, elements.cameraHelpButton, elements.cameraHelpButton);
+        elements.autoFlash.focus({ preventScroll: true });
+        elements.autoFlash.closest('.settings-toggle').scrollIntoView({ block: 'nearest', behavior: 'instant' });
+      },
+      beforeCamera: () => {
+        dialogs.rememberSheetFocus(elements.cameraPanel, elements.cameraInputButton, elements.cameraTitle);
+        if (!elements.voiceDialog.hidden) voiceController.closeVoiceDialog();
+      },
+      saveIndoorReadings: (...args) => storage.saveIndoorReadings(...args),
+      render: () => dashboard.render(),
+      returnFocus: () => {
+        dialogs.restoreSheetFocus(elements.cameraPanel);
+      },
+    });
+    cameraController.initialize();
+    return cameraController;
+  }, error => {
+    cameraLoading = null;
+    throw error;
+  });
+  return cameraLoading;
+}
+elements.cameraInputButton.addEventListener('click', () => {
+  if (cameraLoading) return;
+  loadCamera().then(camera => camera.startCamera(), error => console.error('Camera failed to load', error));
 });
 const geocoding = createGeocoding({
 
@@ -255,7 +277,7 @@ const readingControls = createReadingControls({
   elements,
   saveIndoorReadings: (...args) => storage.saveIndoorReadings(...args),
   savePlanSettings: (...args) => storage.savePlanSettings(...args),
-  render: (...args) => dashboard.render(...args),
+  render: scheduleRender,
 });
 const dialogs = createDialogs({
   elements,
@@ -271,8 +293,8 @@ const events = createEvents({
   elements,
   uiPreferences,
   dialogScrollLock,
-  startVoiceInput: (...args) => { cameraController.cancel({ focus: false }); return voiceController.startVoiceInput(...args); },
-  toggleVoiceListening: (...args) => { cameraController.cancel({ focus: false }); return voiceController.toggleVoiceListening(...args); },
+  startVoiceInput: (...args) => { cameraController?.cancel({ focus: false }); return voiceController.startVoiceInput(...args); },
+  toggleVoiceListening: (...args) => { cameraController?.cancel({ focus: false }); return voiceController.toggleVoiceListening(...args); },
   closeVoiceDialog: (...args) => voiceController.closeVoiceDialog(...args),
   applyVoiceChanges: (...args) => voiceController.applyVoiceChanges(...args),
   voiceSupported: voiceController.supported,
@@ -286,7 +308,7 @@ const events = createEvents({
   openLocationDialog: (...args) => locationController.openLocationDialog(...args),
   closeLocationDialog: (...args) => locationController.closeLocationDialog(...args),
   cancelLocationWork: (...args) => locationController.cancelLocationWork(...args),
-  render: (...args) => dashboard.render(...args),
+  render: scheduleRender,
   renderAhChart: (...args) => chart.renderAhChart(...args),
   bindTypedValue: (...args) => readingControls.bindTypedValue(...args),
   bindSteppers: (...args) => readingControls.bindSteppers(...args),
@@ -320,7 +342,6 @@ locationController.updateLocationUi();
 // Give the timer help popup first refusal of Escape before shared dismissal.
 timerController.initialize();
 events.bindEvents();
-cameraController.initialize();
 pullRefresh.bindPullToRefresh();
 dashboard.render();
 locationController.initializeLocation(hasSavedLocation);
@@ -330,11 +351,11 @@ setInterval(readingControls.updateIndoorLastSetLabels, 60_000);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") {
     voiceController.handleVoiceHidden();
-    cameraController.handleHidden();
+    cameraController?.handleHidden();
     return;
   }
   readingControls.updateIndoorLastSetLabels();
   weatherController.updateWeatherCheckedLabel();
   if (!state.lastCheckedAt || formatters.minutesSince(state.lastCheckedAt) >= 15) weatherController.fetchWeather();
 });
-window.addEventListener("pagehide", () => { voiceController.handleVoiceHidden("page left"); cameraController.handleHidden(); });
+window.addEventListener("pagehide", () => { voiceController.handleVoiceHidden("page left"); cameraController?.handleHidden(); });

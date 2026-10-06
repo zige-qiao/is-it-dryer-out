@@ -49,7 +49,10 @@ function fixture(width = 320) {
     setDecisionSummary: (a, b) => { elements.decisionPrimary.textContent = a; elements.decisionSecondary.textContent = b; },
     renderRecommendation: () => { elements.decisionLabel.textContent = 'OPEN WINDOWS'; },
     saveLocation() {}, updateLocationUi() {}, weatherUrlForLocation: location => location.name,
-    fetch: url => new Promise((resolve, reject) => requests.push({ url, resolve, reject })),
+    fetch: (url, options) => new Promise((resolve, reject) => {
+      requests.push({ url, options, resolve, reject });
+      options?.signal?.addEventListener('abort', () => reject(options.signal.reason));
+    }),
   });
   Object.assign(context, createChart(context, context));
   Object.assign(context, createDashboard({ ...context, ...callbacks(context, ['renderAhChart']) }, context));
@@ -148,6 +151,28 @@ test('failed fetch can retry successfully and only the newest location request c
   assert.equal(f.state.outdoorTemp, 15);
   assert.equal(f.elements.decisionLabel.textContent, 'OPEN WINDOWS');
   assert.equal(f.elements.refreshWeather.disabled, false);
+});
+
+test('a stalled request times out into the retry state and superseded requests are aborted', async () => {
+  const f = fixture();
+  const stalled = f.context.fetchWeather();
+  f.advance(14_999);
+  assert.equal(f.elements.refreshWeather.disabled, true);
+  f.advance(1);
+  await stalled;
+  assert.equal(f.requests[0].options.signal.aborted, true);
+  assert.equal(f.elements.decisionLabel.textContent, 'NO DATA');
+  assert.equal(f.elements.weatherStatus.textContent, 'Update failed');
+  assert.equal(f.elements.refreshWeather.disabled, false);
+
+  const superseded = f.context.fetchWeather();
+  const latest = f.context.fetchWeather();
+  assert.equal(f.requests[1].options.signal.aborted, true);
+  f.requests[2].resolve({ ok: true, json: async () => ({ current: { temperature_2m: 15, relative_humidity_2m: 70 } }) });
+  await Promise.all([superseded, latest]);
+  assert.equal(f.state.outdoorTemp, 15);
+  f.advance(20_000);
+  assert.equal(f.state.weatherLoadFailed, false, 'a completed request must not leave its timeout armed');
 });
 
 test('checked label changes at one minute, catches up on return, and does not replace failure', async () => {

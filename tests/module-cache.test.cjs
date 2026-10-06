@@ -13,7 +13,8 @@ function graph() {
     if(files.has(file)) return;
     visiting.add(file);
     const code=fs.readFileSync(path.join(root,file),'utf8');
-    for(const match of code.matchAll(/\b(?:import|export)\s+[^;]*?\bfrom\s+['"]([^'"]+)['"]/g)) {
+    for(const match of code.matchAll(/\b(?:import|export)\s+[^;]*?\bfrom\s+['"]([^'"]+)['"]|\bimport\(\s*['"]([^'"]+)['"]\s*\)/g)) {
+      match[1]??=match[2];
       assert.ok(match[1].startsWith('.'),`production import must be local: ${match[1]}`);
       visit(path.posix.normalize(path.posix.join(path.posix.dirname(file),match[1])));
     }
@@ -62,34 +63,6 @@ test('HTML entry URLs and cache revision stay synchronised',()=>{
     assert.ok(html.includes(`${asset}?v=${revision}`));assert.ok(source.includes(`"${asset}?v=${revision}"`));
   }
 });
-test('preview activation and offline loading preserve the main app caches',async()=>{
-  const { previewWorker } = require('../scripts/publish-camera-preview.cjs');
-  const w=worker('https://example.test/dew/preview/camera-reading-recognition/',previewWorker(source));
-  const mainShell=await w.caches.open('is-it-dryer-out-v140');
-  await mainShell.put('https://example.test/dew/index.html',new Response('main app'));
-  await w.caches.open('dew-camera-ocr-6.0.1-v1');
-  await w.caches.open('dew-camera-preview-v1');
-  await w.lifecycle('install');await w.lifecycle('activate');
-  assert.ok(w.stores.has('is-it-dryer-out-v140'));
-  assert.ok(w.stores.has('dew-camera-ocr-6.0.1-v1'));
-  assert.ok(!w.stores.has('dew-camera-preview-v1'));
-  const model='vendor/tesseract/tesseract.min.js';
-  await w.request(model);w.offline=true;
-  assert.equal((await w.request(model)).status,200);
-  assert.match(await (await w.request('./','navigate')).text(),/cameraInputButton/);
-  assert.equal(await (await mainShell.match('https://example.test/dew/index.html')).text(),'main app');
-});
-test('preview configuration uses separate saved preferences and source identity',async()=>{
-  const { previewConfig } = require('../scripts/publish-camera-preview.cjs');
-  const original=require('../src/config.js');
-  const transformed=previewConfig(fs.readFileSync(path.join(root,'src/config.js'),'utf8'),'abcdef0123456789');
-  const preview=await import('data:text/javascript;base64,'+Buffer.from(transformed).toString('base64'));
-  for(const key of Object.keys(original).filter(key=>key.endsWith('STORAGE_KEY'))) {
-    assert.equal(preview[key],`camera-preview-${original[key]}`);
-  }
-  assert.equal(preview.APP_BUILD_VERSION,'camera-reading-recognition (abcdef0)');
-  assert.equal(preview.WEATHER_ENDPOINT,original.WEATHER_ENDPOINT);
-});
 for(const base of ['https://example.test/','https://example.test/dew/']) {
   test(`fresh install caches the complete import graph and reloads offline at ${base}`,async()=>{
     const w=worker(base);await w.lifecycle('install');assert.equal(w.skipped,true);
@@ -113,18 +86,3 @@ test('activation replaces an older shell and preserves unrelated caches',async()
   assert.equal(w.activated,true);assert.deepEqual(await w.caches.keys(),['unrelated-app',`is-it-dryer-out-v${revision}`]);
   w.offline=true;assert.equal((await w.request('src/voice/controller.js')).status,200);
 });
-
-for (const base of ['https://example.test/', 'https://example.test/dew/']) {
-  test(`OCR assets cache independently and fail as resources when missing at ${base}`, async () => {
-    const w = worker(base); await w.lifecycle('install');
-    const asset = 'vendor/tesseract/worker.min.js';
-    assert.ok(!w.requests.some(url => url.endsWith(asset)), 'OCR must not delay normal shell installation');
-    assert.equal((await w.request(asset)).status, 200);
-    assert.ok(w.stores.has('dew-camera-ocr-6.0.1-v1'));
-    w.offline = true;
-    assert.equal((await w.request(asset)).status, 200);
-    assert.equal((await w.request('vendor/tesseract/missing.js')).type, 'error');
-    await w.lifecycle('activate');
-    assert.ok(w.stores.has('dew-camera-ocr-6.0.1-v1'), 'shell activation must preserve prepared OCR');
-  });
-}

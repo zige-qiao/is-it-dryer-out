@@ -1,9 +1,0 @@
-{
-  "branch": "camera-reading-recognition",
-  "build": "current-row-v160",
-  "runtimeTree": "cb29651fa5fe0452c6f33d2547bc41c5dac1021b",
-  "cacheRevision": 160,
-  "recognitionLimitMs": 10000,
-  "minimumIntegerHeight": 0.8,
-  "minimumVerticalOverlap": 0.5
-}

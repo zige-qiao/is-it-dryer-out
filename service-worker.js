@@ -50,7 +50,7 @@ const APP_FILES = [
   "src/camera/units.js",
   "src/camera/worker.js",
   "manifest.webmanifest",
-  "favicon-v4.png",
+  "favicon.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -70,21 +70,6 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
-
-  // Preserve previously bundled OCR resources for older diagnostics.
-  const ocrRoot = new URL('vendor/tesseract/', self.location).href;
-  if (event.request.url.startsWith(ocrRoot)) {
-    event.respondWith(caches.open('dew-camera-ocr-6.0.1-v1').then(async cache => {
-      const cached = await cache.match(event.request);
-      if (cached) return cached;
-      try {
-        const response = await fetch(event.request);
-        if (response.ok) await cache.put(event.request, response.clone());
-        return response;
-      } catch { return Response.error(); }
-    }));
-    return;
-  }
 
   event.respondWith(
     fetch(event.request).catch(async () => {

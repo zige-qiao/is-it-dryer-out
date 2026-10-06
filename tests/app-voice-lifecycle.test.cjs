@@ -2,7 +2,6 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const { voiceFixture, flush } = require('./helpers/voice.cjs');
-const { APP_BUILD_VERSION } = require('../src/config.js');
 const index = readFileSync(require.resolve('../index.html'), 'utf8');
 
 test('iOS holds the microphone before starting speech recognition', async () => {
@@ -76,7 +75,6 @@ test('voice examples stay below status and waveform stays inside the dialog', ()
   assert.match(dialog,/Try “21 degrees, 55 percent” or just “21 and 55”\./);
   assert.match(dialog,/To change one reading, say “Humidity 60 percent”\./);
   assert.match(dialog,/voice-waveform/);
-  assert.equal(APP_BUILD_VERSION,'v0.7.4');
 });
 test('recognition errors hide examples and retain the iOS stream after end', async () => {
   const f=voiceFixture();f.controller.startVoiceInput();await flush();

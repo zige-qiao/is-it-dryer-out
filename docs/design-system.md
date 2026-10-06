@@ -1,8 +1,8 @@
 # Is it dryer out — design system
 
-**Version:** 1.6 · **Updated:** 4 October 2026 · **Status:** v0.7.4
+**Version:** 1.6 · **Updated:** 6 October 2026 · **Status:** v0.7.5
 
-This is a reusable specification for the app. The warm-grey controls and component states were implemented in v0.7.0, the revised verdict and AH chart colours shipped in v0.7.1, and the Indoor summary strip with subsequent layout and focus refinements shipped in v0.7.2. The current shared-temperature moisture comparison and time-based chart gradient are described below. Fixed layout spacing, control/icon sizes and ordinary radii now follow a 4px grid in the local trial. Broader typography normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
+This is a reusable specification for the app. The warm-grey controls and component states were implemented in v0.7.0, the revised verdict and AH chart colours shipped in v0.7.1, and the Indoor summary strip with subsequent layout and focus refinements shipped in v0.7.2. The current shared-temperature moisture comparison and time-based chart gradient are described below. Fixed layout spacing, control/icon sizes and ordinary radii follow the 4px grid shipped in v0.7.4.1. Broader typography normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
 
 Open [the visual review board](design-system.html) for colour and state specimens. This document records the rules; the board illustrates them.
 
