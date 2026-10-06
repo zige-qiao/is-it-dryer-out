@@ -11,13 +11,13 @@ All notable changes to Is it dryer out are documented here.
 - Replace the camera zoom ruler with accessible 1×, 3× and 5× presets. Select identified telephoto devices where available, retain supported zoom/digital-crop fallback and coalesce rapid selections.
 - Place zoom and lighting controls inside the preview, show compact feedback at the top centre and blur only the preview image during switching. Add labelled translucent Retake and matching Take photo camera icons.
 - Group Settings into Indoor readings, Input buttons and Camera, with larger headings and rounded groups. Persist entry visibility, still-photo capture and Auto flash independently. Camera entry defaults on, voice entry and still photos off, and Auto flash on; saved choices are preserved.
-- Clarify second-line verdict explanations for limited drying benefit, cooling, uncertainty, target-met conditions and immediate temperature/condensation limits. Headlines, colors and opening durations remain unchanged.
+- Clarify second-line verdict explanations for limited drying benefit, cooling, uncertainty, target-met conditions and immediate temperature/condensation limits. The uncertainty line reads “Open for fresh air; drying benefit is uncertain.” Headlines, colors and opening durations remain unchanged.
 - Expand indoor readings to 10–45°C and 10–90% RH across manual, voice, camera and saved readings.
 - Establish LCD orientation and the dominant current integer row before accepting numbers, without gyro access. Preserve original coordinates and same-display row evidence through automatic/manual crops and preprocessing; require 80% relative integer height and 50% row overlap to prevent smaller historical readings from winning.
 - Improve narrow digits, uneven torch/flash illumination, separate fractions and humidity-guided temperature recognition. Retain grayscale, decimal, Fahrenheit and conflicting-digit safeguards; uncertain readings remain blank.
 - Enforce one ten-second recognition deadline, including preparation and refinement. Stop on validated success, preserve safe partial readings and withdraw candidates invalidated by stronger evidence.
 - Refine reading labels, review scrolling, sheet focus restoration and 4px control spacing while preserving existing ventilation and voice behavior.
-- Set build identity v0.7.5 and app-shell cache revision 161. Reuse completed verification: 398 tests, 121 private cases and 43 browser checks. Actual-phone timing, capture framing and lighting checks remain outstanding.
+- Set build identity v0.7.5 and app-shell cache revision 162. Reuse completed verification: 398 tests, 121 private cases and 43 browser checks. Actual-phone timing, capture framing and lighting checks remain outstanding.
 
 ## v0.7.4.1 - UI geometry and sheet refinements - 2026-10-04
 

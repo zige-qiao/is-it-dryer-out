@@ -108,7 +108,7 @@ export function createRecommendationView({
       elements.decisionLabel.textContent = "OPEN IF NEEDED";
       setDecisionSummary(
         "No clear drying benefit.",
-        "Open briefly for fresh air; drying benefit is uncertain.",
+        "Open for fresh air; drying benefit is uncertain.",
       );
     } else if (plan.status === "good") {
       elements.decisionLabel.textContent = "OPEN WINDOWS";

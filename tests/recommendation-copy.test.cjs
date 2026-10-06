@@ -14,7 +14,7 @@ test('agreed conditional second lines cover all seven combinations', () => {
   for (const [status, plan, expected] of [
     ['minimal-impact', {projectedTemp:20, projectedRh:63}, 'Drier out, but limited benefit as the room cools.'],
     ['minimal-impact', {}, 'Drier out, but little drying benefit expected.'],
-    ['uncertain', {}, 'Open briefly for fresh air; drying benefit is uncertain.'],
+    ['uncertain', {}, 'Open for fresh air; drying benefit is uncertain.'],
     ['target-met', {}, 'Drier out, but your humidity target is already met.'],
     ['below-minimum', {}, 'Drier out, but opening would cool the room further.'],
     ['too-cold', {}, 'Opening would cool the room too much.'],
