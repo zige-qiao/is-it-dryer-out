@@ -1,0 +1,19 @@
+{
+  "name": "Is it dryer out — camera loading preview",
+  "short_name": "Camera preview",
+  "description": "Compare indoor and outdoor moisture before opening windows.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f2f0ed",
+  "theme_color": "#10231f",
+  "icons": [
+    {
+      "src": "favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "id": ".",
+  "scope": "."
+}
