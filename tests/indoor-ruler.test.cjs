@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const { environment } = require('./helpers/browser.cjs');
+const { environment, element } = require('./helpers/browser.cjs');
 const { createReadingControls } = require('../src/ui/readings.js');
 const { createStorage } = require('../src/services/storage.js');
 const ctx=createReadingControls();
@@ -84,17 +84,29 @@ test('new touch, keyboard, close, hidden page and reduced-motion change stop mom
 });
 
 test('ventilation rulers honour their spacing, whole-degree steps and owning dialog close',()=>{
- const f=momentumFixture({value:21,step:1,min:16,max:26,spacing:40});
+ const f=momentumFixture({value:21,step:1,min:8,max:28,spacing:40});
  f.flick(40); assert.equal(f.input.value,20);
  assert.equal(f.frames.size,1); f.dialogEvents.close(); f.advance(450);
  assert.equal(f.input.value,20); assert.equal(f.frames.size,0);
- const humidity=momentumFixture({value:55,step:1,min:40,max:65,spacing:10});
- humidity.flick(-10); assert.equal(humidity.input.value,56);
+ const humidity=momentumFixture({value:55,step:1,min:35,max:65,spacing:12});
+ humidity.flick(-12); assert.equal(humidity.input.value,56);
  humidity.advance(450); assert.ok(humidity.input.value<=65);
 });
 
+test('ventilation steppers stop at both new range boundaries',()=>{
+ for(const [key,min,max] of [['minTemp',8,28],['targetRh',35,65]]) {
+  for(const direction of [-1,1]) {
+   const button=element(); button.dataset={stepTarget:key,stepDirection:String(direction)};
+   const state={[key]:direction<0?min:max}; let saves=0;
+   createReadingControls({state,savePlanSettings(){saves++;},render(){}},environment({document:{querySelectorAll:()=>[button]}})).bindSteppers();
+   button.emit('click'); assert.equal(state[key],direction<0?min:max); assert.equal(saves,1);
+   state[key]=direction<0?min+1:max-1; button.emit('click'); assert.equal(state[key],direction<0?min:max);
+  }
+ }
+});
+
 test('ventilation major ticks use explicit intervals and announce the correct units',()=>{
- const rulers=[['minTemp',18,16,26,1,40,1,'degrees Celsius'],['targetRh',55,40,65,1,10,5,'percent']].map(([key,value,min,max,step,spacing,interval,unit])=>{
+ const rulers=[['minTemp',18,8,28,1,40,1,'degrees Celsius'],['targetRh',55,35,65,1,12,5,'percent']].map(([key,value,min,max,step,spacing,interval,unit])=>{
   const ticks={innerHTML:''}, input={min,max,step,setAttribute(n,v){this[n]=v;}};
   return {dataset:{ruler:key,tickSpacing:spacing,majorInterval:interval,unit},clientWidth:124,ticks,input,querySelector:s=>s==='input'?input:ticks};
  });

@@ -141,8 +141,8 @@ export function createEvents({
     bindTypedValue(elements.indoorRhInput, "indoorRh", INDOOR_LIMITS.humidity.min, INDOOR_LIMITS.humidity.max, saveIndoorReadings);
     bindSteppers();
     bindReadingRulers();
-    bindTypedValue(elements.targetRhInput, "targetRh", 40, 65, savePlanSettings);
-    bindTypedValue(elements.minTempInput, "minTemp", 16, 26, savePlanSettings);
+    bindTypedValue(elements.targetRhInput, "targetRh", 35, 65, savePlanSettings);
+    bindTypedValue(elements.minTempInput, "minTemp", 8, 28, savePlanSettings);
 
     elements.targetRh.addEventListener("input", (event) => {
       state.targetRh = Number(event.target.value);

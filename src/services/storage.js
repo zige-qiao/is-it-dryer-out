@@ -67,8 +67,8 @@ export function createStorage({
     if (!saved) return;
     try {
       const parsed = JSON.parse(saved);
-      state.targetRh = numberInRange(parsed.targetRh, 40, 65, state.targetRh);
-      state.minTemp = Math.round(numberInRange(parsed.minTemp, 16, 26, state.minTemp));
+      state.targetRh = numberInRange(parsed.targetRh, 35, 65, state.targetRh);
+      state.minTemp = Math.round(numberInRange(parsed.minTemp, 8, 28, state.minTemp));
       if (ROOM_PRESETS[parsed.roomPreset] || parsed.roomPreset === "custom") {
         state.roomPreset = parsed.roomPreset;
       }

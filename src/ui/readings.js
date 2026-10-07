@@ -31,8 +31,8 @@ export function createReadingControls({
     const settings = {
       indoorTemp: { ...INDOOR_LIMITS.temperature, save: saveIndoorReadings },
       indoorRh: { ...INDOOR_LIMITS.humidity, save: saveIndoorReadings },
-      targetRh: { min: 40, max: 65, step: 1, save: savePlanSettings },
-      minTemp: { min: 16, max: 26, step: 1, save: savePlanSettings },
+      targetRh: { min: 35, max: 65, step: 1, save: savePlanSettings },
+      minTemp: { min: 8, max: 28, step: 1, save: savePlanSettings },
     };
 
     document.querySelectorAll(".step-button").forEach((button) => {

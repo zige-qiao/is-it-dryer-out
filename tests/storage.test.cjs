@@ -26,6 +26,22 @@ test('existing plan data migrates opening settings and preserves validated numer
   assert.deepEqual(state,{minTemp:20,targetRh:60,roomLength:4,roomWidth:5,roomHeight:2.5,customAirflow:80,openingSetup:'cross',roomPreset:'large'});
 });
 
+test('plan range endpoints survive saving and loading; outside values retain defaults',()=>{
+  const localStorage=memoryStorage();
+  for(const minTemp of [8,28]) for(const targetRh of [35,65]) {
+    createStorage({state:{minTemp,targetRh}},environment({localStorage})).savePlanSettings();
+    const restored={minTemp:18,targetRh:55};
+    createStorage({state:restored},environment({localStorage})).loadPlanSettings();
+    assert.equal(restored.minTemp,minTemp); assert.equal(restored.targetRh,targetRh);
+  }
+  for(const saved of [{minTemp:7,targetRh:34},{minTemp:29,targetRh:66}]) {
+    localStorage.setItem(PLAN_STORAGE_KEY,JSON.stringify(saved));
+    const restored={minTemp:18,targetRh:55};
+    createStorage({state:restored},environment({localStorage})).loadPlanSettings();
+    assert.equal(restored.minTemp,18); assert.equal(restored.targetRh,55);
+  }
+});
+
 test('blocked or full storage keeps defaults and never interrupts saving',()=>{
   const blocked=Object.create(globalThis,{localStorage:{get(){throw new Error('SecurityError');}}});
   const full=environment({localStorage:{getItem:()=>null,setItem(){throw new Error('QuotaExceededError');},removeItem(){}}});

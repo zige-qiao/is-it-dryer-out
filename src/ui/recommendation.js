@@ -84,7 +84,7 @@ export function createRecommendationView({
       ? coolingLimitsBenefit
         ? "Drier out, but limited benefit as the room cools."
         : "Drier out, but little drying benefit expected."
-      : "Open briefly for fresh air; humidity may not fall.";
+      : "Open for fresh air, humidity may not fall.";
 
     if (plan.status === "target-met") {
       elements.decisionLabel.textContent = "TARGET MET";
@@ -96,7 +96,7 @@ export function createRecommendationView({
       elements.decisionLabel.textContent = "KEEP CLOSED";
       setDecisionSummary(
         `Room is below your ${formatTemp(state.minTemp)} minimum.`,
-        drier ? "Drier out, but opening would cool the room further." : "Ventilation would cool it further.",
+        drier ? "Drier out, but opening would cool it further." : "Ventilation would cool it further.",
       );
     } else if (plan.status === "wetter") {
       elements.decisionLabel.textContent = "KEEP CLOSED";

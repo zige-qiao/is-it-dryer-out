@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon.png" />
-    <link rel="stylesheet" href="styles.css?v=164" />
+    <link rel="stylesheet" href="styles.css?v=165" />
     <script>try { document.documentElement.dataset.showIndoorSummary = JSON.parse(localStorage.getItem('is-it-dryer-out-ui-preferences'))?.showIndoorSummary === true ? 'true' : 'false'; } catch { document.documentElement.dataset.showIndoorSummary = 'false'; }</script>
   </head>
   <body>
@@ -369,24 +369,24 @@
           <div class="ruler-control">
             <label for="minTemp">Min indoor temp</label>
               <label class="reading-field ruler-value" for="minTempInput">
-                <input id="minTempInput" type="number" min="16" max="26" step="1" value="21" inputmode="numeric" aria-label="Minimum indoor temperature" />
+                <input id="minTempInput" type="number" min="8" max="28" step="1" value="21" inputmode="numeric" aria-label="Minimum indoor temperature" />
                 <span aria-hidden="true">&deg;C</span>
               </label>
             <div class="reading-ruler" data-ruler="minTemp" data-major-interval="1" data-tick-spacing="40" data-unit="degrees Celsius">
               <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
-              <input id="minTemp" type="range" min="16" max="26" step="1" value="21" aria-describedby="planRulerHelp" />
+              <input id="minTemp" type="range" min="8" max="28" step="1" value="21" aria-describedby="planRulerHelp" />
             </div>
           </div>
 
           <div class="ruler-control">
             <label for="targetRh">Target humidity</label>
               <label class="reading-field ruler-value" for="targetRhInput">
-                <input id="targetRhInput" type="number" min="40" max="65" step="1" value="55" inputmode="numeric" aria-label="Target indoor humidity" />
+                <input id="targetRhInput" type="number" min="35" max="65" step="1" value="55" inputmode="numeric" aria-label="Target indoor humidity" />
                 <span aria-hidden="true">%</span>
               </label>
             <div class="reading-ruler" data-ruler="targetRh" data-major-interval="5" data-tick-spacing="12" data-unit="percent">
               <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
-              <input id="targetRh" type="range" min="40" max="65" step="1" value="55" aria-describedby="planRulerHelp" />
+              <input id="targetRh" type="range" min="35" max="65" step="1" value="55" aria-describedby="planRulerHelp" />
             </div>
           </div>
           <p id="planRulerHelp" class="ruler-help">Drag the ruler or use arrow keys to adjust. Tap the number to type.</p>
@@ -498,6 +498,6 @@
         <button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button>
       </section>
     </dialog>
-    <script src="app.js?v=164" type="module"></script>
+    <script src="app.js?v=165" type="module"></script>
   </body>
 </html>
