@@ -25,6 +25,8 @@ The user confirmed that the handoff works from Chrome, Safari and the Home Scree
 
 ## Recent changes
 
+- [v0.7.6](CHANGELOG.md#v076---drying-guidance-and-reliability---2026-10-07): recognise moisture removal when cooling masks the RH drop, show the next suitable opening time for KEEP CLOSED, improve camera-loading cancellation and retries, and handle blocked storage and stalled weather requests.
+
 - [v0.7.5](CHANGELOG.md): on-device camera readings, frame/still capture, zoom presets, grouped Settings and stronger safeguards against historical LCD readings. See the [release notes](CHANGELOG.md).
 
 - [v0.7.4](CHANGELOG.md#v074---ventilation-timer---2026-10-03): iPhone ventilation timers from verdict times, adjustable minutes and one reusable Shortcut.

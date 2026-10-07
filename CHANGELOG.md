@@ -4,16 +4,19 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+## v0.7.6 - Drying guidance and reliability - 2026-10-07
+
 - Recognise useful moisture removal when cooling hides the RH drop, retaining the physical simulation, target timings and uncertainty constants. Judge partial benefit at the original indoor temperature and pressure, using the last permitted state before temperature or saturation limits.
 - Add the next suitable opening time to **Why this recommendation?** for **KEEP CLOSED**, explicitly assuming unchanged indoor readings and checking drying and temperature limits within available forecast coverage. Keep both KEEP CLOSED verdict lines unchanged; reuse existing useful-drying wording when a room already below its minimum starts cooling again.
 - Simplify supporting recommendation and estimate guidance; explain cooling and reheating, moisture release, fresh-reading checks and the limits of the air-saturation check. Document the model and uncertainty assumptions without adding heating or moisture-buffering calibration.
 - Make camera loading cancellable and retryable, with button-only progress and an inline failure message; prevent late loading from activating the camera after dismissal, backgrounding or switching to voice.
-- Prepare app-shell cache revision 163 and reclaim retired OCR and camera-preview caches during activation.
+- Set the diagnostic build identity to v0.7.6 and synchronise app-shell cache revision 164; reclaim retired OCR and camera-preview caches during activation.
 - Resize the app icon to 512×512 with lossless PNG optimisation and matching manifest dimensions; establish LF text line endings with binary asset exclusions.
 - Keep the app usable when browser storage is blocked or full, and time out stalled weather requests after 15 seconds while cancelling superseded requests.
 - Coalesce input-driven rendering to one animation frame, reuse chart date formatters and load camera modules on first use while retaining offline coverage.
 - Rename the app icon to `favicon.png`, remove the unused SVG icon and reconcile stale test and documentation references.
 - Remove unused Tesseract assets and the retired camera preview deployment, publishing helper and compatibility paths. Keep the standalone camera diagnostic sources and production offline module coverage.
+- Verify the release with 427 passing Node tests, production JavaScript syntax checks and a clean diff check.
 
 ## v0.7.5 - Camera readings and Settings - 2026-10-06
 
