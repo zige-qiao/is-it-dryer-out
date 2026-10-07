@@ -22,7 +22,9 @@ Use the refresh icon beside the checked time, or pull down from the page top on 
 
 ## Reading the result
 
-The recommendation compares indoor and outdoor moisture at the same reference temperature, accounting for uncertainty in the readings. The cards show each reading's actual absolute humidity (AH) in grams per cubic metre; their colours reflect the shared-temperature comparison, so the colour need not follow the order of those two displayed numbers when the air temperatures differ. The **Let in** value estimates outdoor relative humidity after that air warms to the current indoor temperature.
+The recommendation compares indoor and outdoor moisture at the same reference temperature, accounting for uncertainty in the readings. **Why this recommendation?** explains whether outdoor air is drier and what drives the current result. When the difference is too small to be sure, it says so without presenting a numerical error calculation. **How estimates work** explains the main limitations and encourages fresh indoor readings during ventilation.
+
+The cards show each reading's actual absolute humidity (AH) in grams per cubic metre; their colours reflect the shared-temperature comparison, so the colour need not follow the order of those two displayed numbers when the air temperatures differ. The **Let in** value estimates outdoor relative humidity after that air warms to the current indoor temperature.
 
 The outlook starts at 48 hours and can switch to 24 hours. The curve shows actual outdoor AH against the actual indoor reference, and the bars show estimated air changes per hour (ACH). Along the curve, coral means reliably wetter, amber means within the uncertainty margin, and white means reliably drier after comparing air at the indoor temperature. Both ranges use the same 48-hour scales. Tap, drag or hover to inspect values; keyboard users can use arrow keys and Home/End.
 
@@ -30,11 +32,25 @@ The outlook starts at 48 hours and can switch to 24 hours. The curve shows actua
 
 Room volume, opening setup, forecast wind and the indoor–outdoor temperature difference determine estimated airflow. The app then simulates moisture and temperature minute by minute. Between hourly forecast points, humidity is derived from interpolated dew point.
 
-The estimate stops when the humidity target is reached, the room would cool below its minimum, condensation is predicted, or outdoor air stops being reliably drier. A room already below its minimum can still benefit from opening if the incoming air is warmer and reliably drier; the estimate stops if that room starts cooling again while still below its minimum. When both an estimated outcome time and a reliably drier period are shown, follow the earlier limit.
+The estimate stops when the humidity target is reached, the room would cool below its minimum, simulated room air reaches 100% humidity, or outdoor air stops being reliably drier. A room already below its minimum can still benefit from opening if the incoming air is warmer and reliably drier; the estimate stops if that room starts cooling again while still below its minimum. When both an estimated outcome time and a reliably drier period are shown, follow the earlier limit.
 
-Useful drying can produce **OPEN WINDOWS** even when the target cannot be reached. An expected humidity reduction below one percentage point produces **OPEN IF NEEDED**: ventilation might still help with fresh air, but may not meaningfully reduce humidity. Harmful conditions produce **KEEP CLOSED**; small differences within the uncertainty margin do not establish a drying benefit.
+Useful drying can produce **OPEN WINDOWS** even when the target cannot be reached. The benefit check compares moisture before and after ventilation at the original indoor temperature and pressure. It requires at least a one-percentage-point reduction in this reference RH and a moisture reduction exceeding the existing uncertainty margin. This prevents cooling from hiding moisture removal and warming from being mistaken for drying. Reaching the target still uses the actual predicted RH during ventilation and the existing moisture-margin check. Small or uncertain reductions produce **OPEN IF NEEDED**; harmful conditions produce **KEEP CLOSED**. At temperature and saturation limits, the benefit check uses the last permitted state, before the limit is breached.
+
+Cooling can keep the humidity reading high even while ventilation removes moisture. The reading may fall as the room warms again, provided moisture is not added or released back into the air. The reference-temperature comparison is not a prediction of when heating will restore the room temperature.
+
+For **KEEP CLOSED**, **Why this recommendation?** adds the next suitable time to open windows for drying when one is found, explicitly assuming the indoor readings stay the same. The app checks each future minute up to 48 hours ahead, regardless of the chart's selected range, and applies the same ventilation settings and drying/temperature rules. Each candidate simulation uses at most three hours and stops at the end of available forecast coverage; it does not extend the last weather reading. The time is shown in the location's time zone, with tomorrow or the weekday when needed. Take fresh indoor readings before opening then. No future-time sentence is shown when no qualifying window is found or weather is unavailable.
+
+If a room starts below its minimum, warmer outdoor air may allow a useful ventilation period. If that air subsequently starts cooling the room while it remains below its minimum, the verdict uses the existing useful-drying duration instead of claiming a time to reach the minimum temperature.
 
 These are planning estimates, not measurements. Actual airflow depends on the building, window geometry, doors, wind and pressure differences. Forecast recommendations assume the current indoor readings remain unchanged until each displayed start time.
+
+The model mixes moisture in the room's air and allows for a slower temperature response, but does not simulate moisture stored in walls, furniture or fabrics. Those materials can release moisture while the air dries and make humidity rise again after the windows close. Ongoing moisture from people, cooking, showers and drying clothes is not included. Active heating is not simulated either, so actual room temperature can behave differently from the estimate.
+
+Higher humidity makes condensation more likely on cold windows and walls. The app checks whether room air reaches 100% humidity, but does not predict condensation on those colder surfaces. Condensation can form below 100% room humidity if a surface is cold enough; the app does not estimate surface temperatures.
+
+The moisture comparison uses fixed uncertainty allowances: ±0.3°C and ±2 percentage points of indoor humidity, and ±0.5°C and ±3 percentage points of outdoor humidity. These are assumptions, not a guarantee of your sensor's or forecast's accuracy. The same allowances apply to every forecast hour; they do not increase further into the forecast. The humidity allowance means, for example, 60% ±2 points is 58–62%, not a 2% change in the reading. These allowances help identify unclear moisture differences; they do not cover every source of error in opening times.
+
+Take fresh temperature and humidity readings during ventilation, and close the windows sooner if the room gets too cold. A reading after closing can also show whether humidity has risen again.
 
 ## Ventilation timer
 

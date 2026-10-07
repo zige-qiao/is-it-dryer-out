@@ -43,6 +43,23 @@ export function createFormatters({
     }
   }
 
+  function formatForecastOpeningTime(date, referenceDate = new Date()) {
+    let timeZone = state.timezone;
+    try { new Intl.DateTimeFormat('en-GB', { timeZone }); }
+    catch { timeZone = DEFAULT_TIMEZONE; }
+    const calendar = new Intl.DateTimeFormat('en-GB', { timeZone, year: 'numeric', month: 'numeric', day: 'numeric' });
+    const localDay = value => {
+      const parts = Object.fromEntries(calendar.formatToParts(value).map(part => [part.type, part.value]));
+      return Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day));
+    };
+    const clock = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date);
+    const days = (localDay(date) - localDay(referenceDate)) / 86400000;
+    if (days === 0) return clock;
+    if (days === 1) return `${clock} tomorrow`;
+    const weekday = new Intl.DateTimeFormat('en-GB', { timeZone, weekday: 'long' }).format(date);
+    return `${clock} on ${weekday}`;
+  }
+
   function formatDuration(minutes) {
     if (!Number.isFinite(minutes)) return "--";
     if (minutes < 60) return `${minutes} min`;
@@ -55,5 +72,5 @@ export function createFormatters({
     return Math.max(0, Math.round((Date.now() - date.getTime()) / 60000));
   }
 
-  return { formatTemp, formatRh, formatMoisture, formatShortTime, formatWeatherTimestamp, formatDuration, minutesSince };
+  return { formatTemp, formatRh, formatMoisture, formatShortTime, formatWeatherTimestamp, formatForecastOpeningTime, formatDuration, minutesSince };
 }

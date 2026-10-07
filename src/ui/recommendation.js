@@ -1,4 +1,4 @@
-import { equivalentAbsoluteHumidity, compareMoisture, vaporPressure, relativeHumidityAtTemperature } from '../domain/humidity.js';
+import { compareMoisture, vaporPressure, relativeHumidityAtTemperature } from '../domain/humidity.js';
 import { MAX_OPEN_MINUTES, MINIMUM_NOTICEABLE_RH_CHANGE } from '../config.js';
 import { validTimerMinutes } from './timer.js';
 
@@ -155,10 +155,14 @@ export function createRecommendationView({
     } else if (limited) {
       elements.decisionLabel.textContent = plan.limitMinutes ? "OPEN WINDOWS" : "KEEP CLOSED";
       const limitDuration = formatDuration(plan.limitMinutes);
+      const coldRoomReversal = plan.status === "too-cold" && plan.limitMinutes &&
+        state.indoorTemp < state.minTemp && plan.projectedTemp < state.minTemp;
       const primary =
         plan.status === "too-cold"
           ? plan.limitMinutes
-            ? `${limitDuration} to min indoor temperature.`
+            ? coldRoomReversal
+              ? `Up to ${limitDuration} of useful drying.`
+              : `${limitDuration} to min indoor temperature.`
             : `Opening would drop it below ${formatTemp(state.minTemp)} now.`
           : plan.limitMinutes
             ? `${limitDuration} until condensation risk rises.`
@@ -171,12 +175,17 @@ export function createRecommendationView({
             : plan.status === "too-cold"
               ? "Opening would cool the room too much."
               : "Opening may increase condensation risk.";
+      const timerContext = plan.status === 'too-cold'
+        ? coldRoomReversal
+          ? 'Stop before the room starts cooling again below its minimum temperature.'
+          : 'Estimated time to minimum indoor temperature.'
+        : 'Estimated time until condensation risk rises.';
       setDecisionSummary(
         primary,
         secondary,
         plan.limitMinutes ? limitDuration : null,
         null,
-        { minutes: plan.limitMinutes, context: plan.status === 'too-cold' ? 'Estimated time to minimum indoor temperature.' : 'Estimated time until condensation risk rises.' },
+        { minutes: plan.limitMinutes, context: timerContext },
       );
     } else if (plan.status === "slow") {
       elements.decisionLabel.textContent = "OPEN WINDOWS";
@@ -202,50 +211,56 @@ export function createRecommendationView({
   }
 
   function planLimitingExplanation(plan, comparison) {
+    let explanation = planLimitExplanation(plan);
+    const useful = ["good", "slow", "settling", "forecast-limit", "too-cold", "condensation"].includes(plan.status) &&
+      (plan.minutes ?? plan.limitMinutes) > 0;
+    if (useful && plan.projectedTemp < state.indoorTemp &&
+      state.indoorRh - plan.projectedRh < MINIMUM_NOTICEABLE_RH_CHANGE) {
+      explanation = `Ventilation is expected to remove moisture, but cooling can keep the humidity reading high. The reading may fall as the room warms again. ${explanation}`;
+    }
+    return explanation;
+  }
+
+  function planLimitExplanation(plan) {
     const limitedAfter = Number.isFinite(plan.limitMinutes) && plan.limitMinutes > 0
       ? `after about ${formatDuration(plan.limitMinutes)}`
       : "almost immediately";
 
     switch (plan.status) {
       case "target-met":
-        return `indoor humidity is already at or near your ${formatRh(state.targetRh)} target, so ventilation is not needed now.`;
+        return `Indoor humidity is already at or near your ${formatRh(state.targetRh)} target, so opening is not needed to reduce humidity now.`;
       case "below-minimum":
-        return `the room is already below your ${formatTemp(state.minTemp)} minimum, so opening would cool it further.`;
+        return `The room is already below your ${formatTemp(state.minTemp)} minimum, so opening would cool it further.`;
       case "wetter":
-        return "opening would bring in air with more moisture and could raise indoor humidity.";
+        return "Opening could raise indoor humidity.";
       case "uncertain":
-        return "the model therefore recommends opening only if needed for fresh air.";
+        return "Open briefly if you need fresh air; humidity may not fall.";
       case "good":
-        return `the model estimates about ${formatDuration(plan.minutes)} to reach your ${formatRh(state.targetRh)} target.`;
+        return `Opening is estimated to reach your ${formatRh(state.targetRh)} humidity target in about ${formatDuration(plan.minutes)}.`;
       case "forecast-limit":
         return plan.limitMinutes
-          ? `forecast air is expected to stop being reliably drier ${limitedAfter}.`
-          : "the forecast does not stay reliably drier long enough for useful airing.";
+          ? `Outdoor air is expected to stop being clearly drier ${limitedAfter}.`
+          : "Outdoor air is not expected to stay clearly drier long enough to help reduce humidity.";
       case "settling":
-        return `the simulated indoor-outdoor moisture difference no longer clears the uncertainty allowance ${limitedAfter}.`;
+        return `Indoor and outdoor moisture levels are expected to become too similar for further clear drying ${limitedAfter}.`;
       case "too-cold":
+        if (state.indoorTemp < state.minTemp && plan.projectedTemp < state.minTemp) {
+          return plan.limitMinutes
+            ? `The room is already below your ${formatTemp(state.minTemp)} minimum. Ventilation would start cooling it again ${limitedAfter}.`
+            : `The room is already below your ${formatTemp(state.minTemp)} minimum. Opening would cool it further almost immediately.`;
+        }
         return plan.limitMinutes
-          ? `the room is estimated to reach your ${formatTemp(state.minTemp)} minimum ${limitedAfter}.`
-          : `the room would fall below your ${formatTemp(state.minTemp)} minimum almost immediately.`;
+          ? `The room is estimated to reach your ${formatTemp(state.minTemp)} minimum ${limitedAfter}.`
+          : `Opening would cool the room below your ${formatTemp(state.minTemp)} minimum almost immediately.`;
       case "condensation":
-        return plan.limitMinutes
-          ? `the model predicts condensation risk ${limitedAfter}.`
-          : "the model predicts condensation risk almost immediately.";
+        return `Room air is expected to reach 100% humidity ${limitedAfter}. This does not assess condensation on cold windows or walls.`;
       case "slow":
-        return `the model projects some drying, but does not reach your target within its ${MAX_OPEN_MINUTES / 60}-hour simulation.`;
+        return `Some drying is expected, but your humidity target is not reached in the ${MAX_OPEN_MINUTES / 60}-hour estimate.`;
       case "minimal-impact": {
-        const projectedRhDrop = state.indoorRh - plan.projectedRh;
-        if (projectedRhDrop < MINIMUM_NOTICEABLE_RH_CHANGE) {
-          return "With this plan, opening a window isn't expected to lower the indoor humidity reading by even one percentage point.";
-        }
-        const projectedMoisture = equivalentAbsoluteHumidity(plan.projectedTemp, plan.projectedRh, state.indoorTemp);
-        if (comparison.indoor - projectedMoisture <= comparison.margin) {
-          return "With this plan, the expected moisture reduction is within the margin of error, so the change is unclear.";
-        }
-        return "With this plan, the model does not predict a clear reduction in indoor moisture.";
+        return "Only a small or uncertain moisture reduction is expected within the estimated ventilation period.";
       }
       default:
-        return "the model does not find a clear drying benefit under the current settings.";
+        return "There is no clear drying benefit under your current settings.";
     }
   }
 

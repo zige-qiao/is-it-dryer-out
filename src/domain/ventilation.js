@@ -96,6 +96,10 @@ export function projectedDryAirHorizon(state, startWeather, timeline) {
 }
 
 export function estimateOpeningWindowPlan(state, startWeather, timeline) {
+  return simulateOpeningWindowPlan(state, startWeather, timeline, MAX_OPEN_MINUTES);
+}
+
+function simulateOpeningWindowPlan(state, startWeather, timeline, maxMinutes) {
   if (state.indoorRh <= state.targetRh + TARGET_MARGIN_RH) return planResult(state, "target-met");
   if (state.indoorTemp < state.minTemp && startWeather.temp <= state.indoorTemp) {
     return planResult(state, "below-minimum");
@@ -120,13 +124,23 @@ export function estimateOpeningWindowPlan(state, startWeather, timeline) {
   const initialAbsolute = initialComparison.indoor;
   const equivalentAtInitialTemp = ratio =>
     (216.7 * vaporPressureFromHumidityRatio(ratio, initialPressureHpa)) / (state.indoorTemp + 273.15);
+  // Hold temperature and pressure fixed so their changes cannot masquerade as
+  // moisture removal. This is a comparison, not a simulated reheating period.
+  const hasMeaningfulRemoval = ratio => {
+    const referenceRh = relativeHumidityAtTemperature(
+      vaporPressureFromHumidityRatio(ratio, initialPressureHpa), state.indoorTemp,
+    );
+    return hasMeaningfulRhImprovement(state, referenceRh) &&
+      initialAbsolute - equivalentAtInitialTemp(ratio) > initialComparison.margin;
+  };
   let projectedTemp = state.indoorTemp;
   let projectedRh = state.indoorRh;
   let lastComfortableMinute = 0;
   let lastComfortableTemp = state.indoorTemp;
   let lastComfortableRh = state.indoorRh;
+  let lastComfortableRatio = projectedRatio;
 
-  for (let minute = 1; minute <= MAX_OPEN_MINUTES; minute += 1) {
+  for (let minute = 1; minute <= maxMinutes; minute += 1) {
     const targetTime = new Date(startTime.getTime() + minute * 60 * 1000);
     const weather = weatherAtTime(timeline, targetTime);
     const projectedPressureHpa = Number.isFinite(weather.pressure)
@@ -152,7 +166,7 @@ export function estimateOpeningWindowPlan(state, startWeather, timeline) {
       const status = forecastHasBecomeLessDry(startWeather, weather)
         ? "forecast-limit"
         : "settling";
-      if (!hasMeaningfulRhImprovement(state, projectedRhBeforeMixing)) {
+      if (!hasMeaningfulRemoval(projectedRatio)) {
         return planResult(state, "minimal-impact", {
           limitMinutes: minute - 1,
           projectedTemp,
@@ -174,7 +188,7 @@ export function estimateOpeningWindowPlan(state, startWeather, timeline) {
     const projectedVapor = next.vapor;
     const saturation = saturationVaporPressure(projectedTemp);
     if (projectedVapor >= saturation) {
-      if (lastComfortableMinute && !hasMeaningfulRhImprovement(state, lastComfortableRh)) {
+      if (lastComfortableMinute && !hasMeaningfulRemoval(lastComfortableRatio)) {
         return planResult(state, "minimal-impact", {
           limitMinutes: lastComfortableMinute,
           projectedTemp: lastComfortableTemp,
@@ -191,7 +205,7 @@ export function estimateOpeningWindowPlan(state, startWeather, timeline) {
     projectedRh = next.rh;
     if (projectedTemp < state.minTemp &&
       (state.indoorTemp >= state.minTemp || projectedTemp <= previousTemp)) {
-      if (lastComfortableMinute && !hasMeaningfulRhImprovement(state, lastComfortableRh)) {
+      if (lastComfortableMinute && !hasMeaningfulRemoval(lastComfortableRatio)) {
         return planResult(state, "minimal-impact", {
           limitMinutes: lastComfortableMinute,
           projectedTemp: lastComfortableTemp,
@@ -208,6 +222,7 @@ export function estimateOpeningWindowPlan(state, startWeather, timeline) {
     lastComfortableMinute = minute;
     lastComfortableTemp = projectedTemp;
     lastComfortableRh = projectedRh;
+    lastComfortableRatio = projectedRatio;
     const netImprovement = initialAbsolute - equivalentAtInitialTemp(projectedRatio);
     if (
       projectedRh <= state.targetRh + TARGET_MARGIN_RH &&
@@ -223,8 +238,7 @@ export function estimateOpeningWindowPlan(state, startWeather, timeline) {
   }
 
   return planResult(state,
-    hasMeaningfulRhImprovement(state, projectedRh) &&
-      initialAbsolute - equivalentAtInitialTemp(projectedRatio) > initialComparison.margin
+    hasMeaningfulRemoval(projectedRatio)
       ? "slow"
       : "minimal-impact",
     {
@@ -233,4 +247,26 @@ export function estimateOpeningWindowPlan(state, startWeather, timeline) {
       projectedRh,
     },
   );
+}
+
+export function findNextUsefulOpeningTime(state, timeline) {
+  if (timeline.length < 2) return null;
+  const start = timeline[0].time.getTime();
+  const coverageEnd = timeline.at(-1).time.getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(coverageEnd) || coverageEnd <= start) return null;
+  const searchEnd = Math.min(start + 48 * 60 * 60000, coverageEnd);
+  const firstMinute = Math.ceil((start + 1) / 60000) * 60000;
+
+  for (let time = firstMinute; time <= searchEnd; time += 60000) {
+    // Unlike the current estimate, future guidance must not hold the final
+    // forecast sample constant beyond the weather data that supports it.
+    const maxMinutes = Math.min(MAX_OPEN_MINUTES, Math.floor((coverageEnd - time) / 60000));
+    if (maxMinutes < 1) break;
+    const date = new Date(time);
+    const weather = weatherAtTime(timeline, date);
+    const plan = simulateOpeningWindowPlan(state, weather, timeline, maxMinutes);
+    if (["good", "slow", "settling", "forecast-limit", "too-cold", "condensation"].includes(plan.status) &&
+      (plan.minutes ?? plan.limitMinutes) > 0) return date;
+  }
+  return null;
 }

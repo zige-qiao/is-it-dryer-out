@@ -1,6 +1,6 @@
 import { saturationVaporPressure, dewPoint, absoluteHumidity, relativeHumidityAtTemperature, compareMoisture } from '../domain/humidity.js';
 import { buildWeatherTimeline as calculateBuildWeatherTimeline } from '../domain/forecast.js';
-import { roomVolume as calculateRoomVolume, effectiveAirExchange as calculateEffectiveAirExchange, projectedDryAirHorizon as calculateProjectedDryAirHorizon, estimateOpeningWindowPlan as calculateEstimateOpeningWindowPlan } from '../domain/ventilation.js';
+import { roomVolume as calculateRoomVolume, effectiveAirExchange as calculateEffectiveAirExchange, projectedDryAirHorizon as calculateProjectedDryAirHorizon, estimateOpeningWindowPlan as calculateEstimateOpeningWindowPlan, findNextUsefulOpeningTime } from '../domain/ventilation.js';
 import { OPENING_SETUPS } from '../config.js';
 
 export function createDashboard({
@@ -10,6 +10,7 @@ export function createDashboard({
   formatTemp,
   formatRh,
   formatWeatherTimestamp,
+  formatForecastOpeningTime,
   setDecisionSummary,
   renderRecommendation,
   planLimitingExplanation,
@@ -65,6 +66,9 @@ export function createDashboard({
     const current = timeline[0];
     const plan = estimateOpeningWindowPlan(current, timeline);
     if (plan.status === "good") plan.dryAirHorizon = projectedDryAirHorizon(current, timeline);
+    const closed = ["below-minimum", "wetter"].includes(plan.status) ||
+      (["too-cold", "condensation"].includes(plan.status) && !plan.limitMinutes);
+    if (closed) plan.nextUsefulOpeningTime = findNextUsefulOpeningTime(state, timeline);
     elements.planConfidence.textContent = 'Est. ' + effectiveAirExchange(current, state.indoorTemp).airChangesPerHour.toFixed(1) + ' air changes/hr';
     return plan;
   }
@@ -78,31 +82,15 @@ export function createDashboard({
       return;
     }
 
-    const percentDifference = (Math.abs(comparison.difference) / comparison.indoor) * 100;
     const relationship = comparison.status === "drier"
-      ? `Outdoor air contains about ${percentDifference.toFixed(
-          0,
-        )}% less water vapour than indoors, more than the margin of error in the readings (about ±${comparison.margin.toFixed(
-          1,
-        )} g/m³).`
+      ? "Outdoor air is drier than the air indoors."
       : comparison.status === "wetter"
-        ? `Outdoor air contains about ${percentDifference.toFixed(
-          0,
-        )}% more water vapour than indoors, more than the margin of error in the readings (about ±${comparison.margin.toFixed(
-          1,
-        )} g/m³).`
-        : `Indoor and outdoor air contain similar amounts of water vapour, within the margin of error in the readings (about ±${comparison.margin.toFixed(
-          1,
-        )} g/m³).`;
-    const adjustedHumidity = condensationRisk
-      ? "If warmed to your room's current temperature, outdoor air would be at 100% RH"
-      : `If warmed to your room's current temperature, it would be about ${formatRh(adjustedRh)} RH`;
-    const sentences = [relationship];
-    const limitingExplanation = planLimitingExplanation(plan, comparison);
-    sentences.push(plan.status === "minimal-impact"
-      ? `${adjustedHumidity}. ${limitingExplanation}`
-      : `${adjustedHumidity}; ${limitingExplanation}`);
-    elements.explanationText.textContent = sentences.join(" ");
+        ? "Outdoor air contains more moisture than the air indoors."
+        : "The moisture difference between indoor and outdoor air is too small to be sure.";
+    const nextWindow = plan.nextUsefulOpeningTime
+      ? ` Assuming your indoor readings stay the same, the next suitable time to open windows for drying is forecast around ${formatForecastOpeningTime(plan.nextUsefulOpeningTime)}.`
+      : "";
+    elements.explanationText.textContent = `${relationship} ${planLimitingExplanation(plan, comparison)}${nextWindow}`;
   }
 
   function renderWeatherDataDetails() {

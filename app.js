@@ -269,6 +269,7 @@ const dashboard = createDashboard({
   formatTemp: (...args) => formatters.formatTemp(...args),
   formatRh: (...args) => formatters.formatRh(...args),
   formatWeatherTimestamp: (...args) => formatters.formatWeatherTimestamp(...args),
+  formatForecastOpeningTime: (...args) => formatters.formatForecastOpeningTime(...args),
   setDecisionSummary: (...args) => recommendationView.setDecisionSummary(...args),
   renderRecommendation: (...args) => recommendationView.renderRecommendation(...args),
   planLimitingExplanation: (...args) => recommendationView.planLimitingExplanation(...args),
