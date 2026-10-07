@@ -1,4 +1,5 @@
 import { createVoiceController } from './src/voice/controller.js';
+import { createCameraLoader, loadCameraModule } from './src/ui/camera-loader.js';
 import { createStorage } from './src/services/storage.js';
 import { createGeocoding } from './src/services/geocoding.js';
 import { createWeatherController } from './src/services/weather.js';
@@ -50,6 +51,7 @@ const state = {
 };
 
 const elements = {
+  cameraLoadError: document.querySelector('#cameraLoadError'),
   indoorDialog: document.querySelector('#indoorDialog'),
   cameraTitle: document.querySelector('#indoor-heading'),
   ...Object.fromEntries(['cameraInputButton', 'cameraBackButton', 'cameraPanel', 'cameraCapturePanel',
@@ -180,12 +182,21 @@ const storage = createStorage({
   applyUiPreferences: (...args) => events.applyUiPreferences(...args),
 });
 // Camera recognition is most of the module graph, so it loads on first use.
-// Its own initialize() binds the entry button for every later tap.
 let cameraController = null;
-let cameraLoading = null;
-function loadCamera() {
-  cameraLoading ??= import('./src/camera/controller.js').then(({ createCameraController }) => {
-    cameraController = createCameraController({
+const cameraLoader = createCameraLoader({
+  canActivate: () => elements.indoorDialog.open && document.visibilityState === 'visible',
+  setBusy: busy => {
+    elements.cameraInputButton.disabled = busy;
+    elements.cameraInputButton.classList.toggle('is-loading', busy);
+    elements.cameraInputButton.setAttribute('aria-busy', String(busy));
+  },
+  showError: message => {
+    elements.cameraLoadError.hidden = !message;
+    elements.cameraLoadError.textContent = message;
+  },
+  load: async () => {
+    const { createCameraController } = await loadCameraModule();
+    const camera = createCameraController({
       state, elements, uiPreferences,
       openFlashSettings: () => {
         elements.settingsButton.click();
@@ -203,18 +214,14 @@ function loadCamera() {
         dialogs.restoreSheetFocus(elements.cameraPanel);
       },
     });
-    cameraController.initialize();
-    return cameraController;
-  }, error => {
-    cameraLoading = null;
-    throw error;
-  });
-  return cameraLoading;
-}
-elements.cameraInputButton.addEventListener('click', () => {
-  if (cameraLoading) return;
-  loadCamera().then(camera => camera.startCamera(), error => console.error('Camera failed to load', error));
+    return {
+      initialize: () => { camera.initialize(); cameraController = camera; },
+      startCamera: () => camera.startCamera(),
+    };
+  },
 });
+elements.cameraInputButton.addEventListener('click', () => void cameraLoader.start());
+elements.indoorDialog.addEventListener('close', () => cameraLoader.cancel());
 const geocoding = createGeocoding({
 
 });
@@ -293,8 +300,8 @@ const events = createEvents({
   elements,
   uiPreferences,
   dialogScrollLock,
-  startVoiceInput: (...args) => { cameraController?.cancel({ focus: false }); return voiceController.startVoiceInput(...args); },
-  toggleVoiceListening: (...args) => { cameraController?.cancel({ focus: false }); return voiceController.toggleVoiceListening(...args); },
+  startVoiceInput: (...args) => { cameraLoader.cancel(); cameraController?.cancel({ focus: false }); return voiceController.startVoiceInput(...args); },
+  toggleVoiceListening: (...args) => { cameraLoader.cancel(); cameraController?.cancel({ focus: false }); return voiceController.toggleVoiceListening(...args); },
   closeVoiceDialog: (...args) => voiceController.closeVoiceDialog(...args),
   applyVoiceChanges: (...args) => voiceController.applyVoiceChanges(...args),
   voiceSupported: voiceController.supported,
@@ -350,6 +357,7 @@ setInterval(readingControls.updateIndoorLastSetLabels, 60_000);
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState !== "visible") {
+    cameraLoader.cancel();
     voiceController.handleVoiceHidden();
     cameraController?.handleHidden();
     return;
@@ -358,4 +366,4 @@ document.addEventListener("visibilitychange", () => {
   weatherController.updateWeatherCheckedLabel();
   if (!state.lastCheckedAt || formatters.minutesSince(state.lastCheckedAt) >= 15) weatherController.fetchWeather();
 });
-window.addEventListener("pagehide", () => { voiceController.handleVoiceHidden("page left"); cameraController?.handleHidden(); });
+window.addEventListener("pagehide", () => { cameraLoader.cancel(); voiceController.handleVoiceHidden("page left"); cameraController?.handleHidden(); });

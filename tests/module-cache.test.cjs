@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const root=path.resolve(__dirname,'..');
 const source=fs.readFileSync(path.join(root,'service-worker.js'),'utf8');
 
-function graph() {
+function graph(entry = 'app.js') {
   const files=new Set(), visiting=new Set();
   function visit(file) {
     assert.ok(!visiting.has(file),`circular import: ${file}`);
@@ -20,8 +20,14 @@ function graph() {
     }
     visiting.delete(file); files.add(file);
   }
-  visit('app.js'); visit('src/camera/worker.js'); return files;
+  visit(entry); if (entry === 'app.js') visit('src/camera/worker.js'); return files;
 }
+
+test('camera preflight covers every module imported by the lazy camera controller', () => {
+  const { CAMERA_MODULE_FILES } = require('../src/ui/camera-loader.js');
+  const expected = [...graph('src/camera/controller.js')].filter(file => file.startsWith('src/camera/')).sort();
+  assert.deepEqual(CAMERA_MODULE_FILES.map(file => 'src/camera/' + file).sort(), expected);
+});
 
 function worker(base='https://example.test/dew/', workerSource=source) {
   const stores=new Map(), handlers={}, requests=[];

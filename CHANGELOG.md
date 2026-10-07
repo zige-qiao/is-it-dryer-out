@@ -4,6 +4,7 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Make camera loading cancellable and retryable, with button-only progress and an inline failure message; prevent late loading from activating the camera after dismissal, backgrounding or switching to voice.
 - Prepare app-shell cache revision 163 and reclaim retired OCR and camera-preview caches during activation.
 - Resize the app icon to 512×512 with lossless PNG optimisation and matching manifest dimensions; establish LF text line endings with binary asset exclusions.
 - Keep the app usable when browser storage is blocked or full, and time out stalled weather requests after 15 seconds while cancelling superseded requests.

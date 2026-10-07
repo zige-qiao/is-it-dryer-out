@@ -272,29 +272,41 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     Object.assign(state, result.values); saveIndoorReadings('photo'); cancel(); render();
   }
 
+  let initialized = false;
   function initialize() {
-    help.initialize();
-    elements.cameraAutoFlashSettings?.addEventListener('click', event => { event.preventDefault(); help.close(); openFlashSettings(); });
-    zoomPresets.initialize();
-    editor.initialize();
-    elements.cameraInputButton.addEventListener('click', () => void startCamera());
-    elements.cameraBackButton.addEventListener('click', () => cancel());
-    elements.cameraManualButton.addEventListener('click', () => cancel());
-    elements.cameraRetryButton.addEventListener('click', () => void startCamera());
-    elements.cameraCaptureButton.addEventListener('click', capturePhoto);
-    elements.cameraFlash.addEventListener('click', () => void toggleFlash());
-    elements.cameraRetakeButton.addEventListener('click', () => void startCamera());
-    elements.cameraAssignTemp.addEventListener('click', () => void readRegion('pending', 'temperature'));
-    elements.cameraAssignRh.addEventListener('click', () => void readRegion('pending', 'humidity'));
-    elements.cameraDiscardBox.addEventListener('click', () => { cancelReading(); crops.pending = null; elements.cameraAssignment.hidden = true; elements.cameraReviewPanel.setAttribute('aria-busy', 'false'); drawCrops(); readStatus(); validate(); elements.cameraPhotoWrap.focus({ preventScroll: true }); });
-    elements.cameraConfirmButton.addEventListener('click', confirm);
-    elements.indoorDialog.addEventListener('close', () => cancel({ focus: false }));
-    for (const input of [elements.cameraTempDraft, elements.cameraRhDraft]) {
-      input.addEventListener('focus', () => { input.scrollIntoView?.({ block: 'center', behavior: 'smooth' }); });
-      input.addEventListener('input', () => {
-        if (reading) { cancelReading(); elements.cameraReviewPanel.setAttribute('aria-busy', 'false'); }
-        readStatus(true); validate(true);
-      });
+    if (initialized) return;
+    const cleanups = [];
+    const listen = (target, name, handler, options) => {
+      cleanups.push(() => target.removeEventListener(name, handler, options));
+      target.addEventListener(name, handler, options);
+    };
+    try {
+      help.initialize(listen);
+      if (elements.cameraAutoFlashSettings) listen(elements.cameraAutoFlashSettings, 'click', event => { event.preventDefault(); help.close(); openFlashSettings(); });
+      zoomPresets.initialize(listen);
+      editor.initialize(listen, cleanup => cleanups.push(cleanup));
+      listen(elements.cameraBackButton, 'click', () => cancel());
+      listen(elements.cameraManualButton, 'click', () => cancel());
+      listen(elements.cameraRetryButton, 'click', () => void startCamera());
+      listen(elements.cameraCaptureButton, 'click', capturePhoto);
+      listen(elements.cameraFlash, 'click', () => void toggleFlash());
+      listen(elements.cameraRetakeButton, 'click', () => void startCamera());
+      listen(elements.cameraAssignTemp, 'click', () => void readRegion('pending', 'temperature'));
+      listen(elements.cameraAssignRh, 'click', () => void readRegion('pending', 'humidity'));
+      listen(elements.cameraDiscardBox, 'click', () => { cancelReading(); crops.pending = null; elements.cameraAssignment.hidden = true; elements.cameraReviewPanel.setAttribute('aria-busy', 'false'); drawCrops(); readStatus(); validate(); elements.cameraPhotoWrap.focus({ preventScroll: true }); });
+      listen(elements.cameraConfirmButton, 'click', confirm);
+      listen(elements.indoorDialog, 'close', () => cancel({ focus: false }));
+      for (const input of [elements.cameraTempDraft, elements.cameraRhDraft]) {
+        listen(input, 'focus', () => { input.scrollIntoView?.({ block: 'center', behavior: 'smooth' }); });
+        listen(input, 'input', () => {
+          if (reading) { cancelReading(); elements.cameraReviewPanel.setAttribute('aria-busy', 'false'); }
+          readStatus(true); validate(true);
+        });
+      }
+      initialized = true;
+    } catch (error) {
+      for (const cleanup of cleanups.reverse()) cleanup();
+      throw error;
     }
   }
 

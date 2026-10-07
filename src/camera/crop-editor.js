@@ -36,9 +36,9 @@ export function createCropEditor({ surface, boxes, onChange, onCommit, onGesture
     if (previous && surface.hasPointerCapture?.(previous.id)) surface.releasePointerCapture(previous.id);
     update({ temperature: null, humidity: null, pending: null });
   }
-  function initialize() {
-    labels.initialize();
-    surface.addEventListener('pointerdown', event => {
+  function initialize(listen = (target, ...args) => target.addEventListener(...args), onCleanup = () => {}) {
+    labels.initialize(onCleanup);
+    listen(surface, 'pointerdown', event => {
       if (event.button !== 0 || event.isPrimary === false || gesture) return;
       const box = event.target.closest('[data-camera-field]'), handle = event.target.closest('[data-crop-handle]');
       if (event.target.closest('button') && !handle) return;
@@ -48,7 +48,7 @@ export function createCropEditor({ surface, boxes, onChange, onCommit, onGesture
       onGesture(true, field);
       surface.setPointerCapture(event.pointerId);
     });
-    surface.addEventListener('pointermove', event => {
+    listen(surface, 'pointermove', event => {
       if (!gesture || event.pointerId !== gesture.id) return;
       const current = point(event), dx = current.x - gesture.start.x, dy = current.y - gesture.start.y;
       if (!gesture.moved && Math.abs(dx) + Math.abs(dy) < .006) return;
@@ -65,10 +65,10 @@ export function createCropEditor({ surface, boxes, onChange, onCommit, onGesture
       onGesture(false, previous.field, cancelled);
       if (!cancelled && previous.moved) onCommit(previous.field);
     }
-    surface.addEventListener('pointerup', event => end(event));
-    surface.addEventListener('pointercancel', event => end(event, true));
-    surface.addEventListener('lostpointercapture', event => end(event, true));
-    for (const [field, box] of Object.entries(boxes)) box.addEventListener('keydown', event => {
+    listen(surface, 'pointerup', event => end(event));
+    listen(surface, 'pointercancel', event => end(event, true));
+    listen(surface, 'lostpointercapture', event => end(event, true));
+    for (const [field, box] of Object.entries(boxes)) listen(box, 'keydown', event => {
       if (!crops[field] || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
       event.preventDefault(); const step = event.altKey ? .002 : .01;
       const dx = event.key === 'ArrowLeft' ? -step : event.key === 'ArrowRight' ? step : 0;
@@ -77,7 +77,7 @@ export function createCropEditor({ surface, boxes, onChange, onCommit, onGesture
       if (JSON.stringify(next) === JSON.stringify(crops[field])) return;
       changed(field, next); onCommit(field);
     });
-    surface.addEventListener('keydown', event => {
+    listen(surface, 'keydown', event => {
       if (event.target !== surface || !['Enter', ' '].includes(event.key)) return;
       event.preventDefault(); changed('pending', { x: .25, y: .25, width: .5, height: .3 });
       onCommit('pending'); boxes.pending?.focus({ preventScroll: true });

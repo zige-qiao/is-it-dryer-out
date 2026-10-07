@@ -26,6 +26,7 @@ exports.element = () => {
     getAttribute: name => attributes.get(name),
     removeAttribute: name => attributes.delete(name),
     addEventListener(name, fn) { if (!listeners.has(name)) listeners.set(name, []); listeners.get(name).push(fn); },
+    removeEventListener(name, fn) { listeners.set(name, (listeners.get(name) || []).filter(listener => listener !== fn)); },
     emit(name, event = {}) { for (const fn of listeners.get(name) || []) fn(event); },
     append(...children) { this.children.push(...children); },
     replaceChildren(...children) { this.children = children; },

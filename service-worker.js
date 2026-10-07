@@ -15,6 +15,7 @@ const APP_FILES = [
   "src/ui/recommendation.js",
   "src/ui/dashboard.js",
   "src/ui/chart.js",
+  "src/ui/camera-loader.js",
   "src/ui/readings.js",
   "src/ui/ruler.js",
   "src/ui/timer.js",

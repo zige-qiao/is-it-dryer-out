@@ -9,7 +9,7 @@ const flush = () => new Promise(setImmediate);
 const fixtures = [];
 test.afterEach(() => { fixtures.splice(0).forEach(f => f.controller.cancel()); });
 
-function fixture({ deferredMedia = false, deferredReading = false, error, torch = true, regionResult, regionError, locateResult,
+function fixture({ initialize = true, deferredMedia = false, deferredReading = false, error, torch = true, regionResult, regionError, locateResult,
   uiPreferences = { autoFlash: true, useStillPhotos: true } } = {}) {
   const elements = Object.fromEntries(['indoorDialog', 'cameraTitle', 'cameraInputButton', 'cameraBackButton', 'cameraPanel', 'cameraCapturePanel',
     'cameraReviewPanel', 'cameraErrorPanel', 'cameraVideo', 'cameraPreview', 'cameraCaptureHint', 'cameraReviewHint', 'cameraFlash', 'cameraCaptureStatus', 'cameraCaptureButton',
@@ -36,7 +36,7 @@ function fixture({ deferredMedia = false, deferredReading = false, error, torch 
     render: () => renders.push({ ...state }), saveIndoorReadings: source => saved.push({ source, ...state }),
     recogniseService: { cancel: () => cancelled++, locate: async source => { sources.push(source); return found(await (deferredReading ? readPromise : {temperature:'22.3',humidity:'59'})); }, readRegion: async (source, region, field) => { sources.push(source); crops.push({region,field}); if(regionError)throw regionError;if(regionResult)return regionResult;const values=await (deferredReading ? readPromise : { temperature: '22.3', humidity: '59' }); return {status:'found',field,readings:{[field]:{region,value:values[field]}}}; } },
   }, env);
-  controller.initialize(); fixtures.push({controller});
+  if (initialize) controller.initialize(); fixtures.push({controller});
   return { elements, controller, track, requests, constraints, saved, state, renders, crops, sources, env,
     resolveMedia: () => resolveMedia(stream), resolveReading, get cancelled() { return cancelled; }, get before() { return before; } };
 }
@@ -298,6 +298,22 @@ test('a pending still disables all framing controls and cancellation prevents la
  await f.controller.startCamera();const shot=f.controller.capturePhoto();await flush();
  assert.equal(f.elements.cameraCaptureButton.disabled,true);assert.equal(f.elements.cameraZoom1.disabled,true);assert.equal(f.elements.cameraFlash.disabled,true);assert.equal(f.elements.cameraCaptureStatus.textContent,'Hold still — taking photo…');
  await f.controller.capturePhoto();assert.equal(count,1);f.controller.cancel();resolve({size:1});await shot;assert.equal(f.sources.length,0);assert.equal(f.elements.cameraPhoto.width,0);
+});
+
+test('failed initialization rolls back listeners and observers before a retry', () => {
+  const f = fixture({ initialize: false });
+  let disconnected = 0;
+  f.env.ResizeObserver = class { observe() {} disconnect() { disconnected++; } };
+  const button = f.elements.cameraAssignRh, original = button.addEventListener;
+  button.addEventListener = () => { throw Error('listener startup failed'); };
+  assert.throws(() => f.controller.initialize(), /listener startup failed/);
+  assert.equal(disconnected, 1);
+  f.elements.cameraHelpButton.emit('click');
+  assert.equal(f.elements.cameraCropHint.hidden, true);
+  button.addEventListener = original;
+  f.controller.initialize(); f.controller.initialize();
+  f.elements.cameraHelpButton.emit('click'); assert.equal(f.elements.cameraCropHint.hidden, false);
+  f.elements.cameraHelpButton.emit('click'); assert.equal(f.elements.cameraCropHint.hidden, true);
 });
 
 test('timeout review copy reflects the number of validated fields',async()=>{

@@ -8,8 +8,8 @@ export function createZoomPresets({ buttons, onValue }) {
     }
   }
   return {
-    initialize() {
-      for (const [value, button] of buttons) button.addEventListener('click', () => {
+    initialize(listen = (target, ...args) => target.addEventListener(...args)) {
+      for (const [value, button] of buttons) listen(button, 'click', () => {
         if (disabled) return;
         selected = value; render(); onValue(value);
       });

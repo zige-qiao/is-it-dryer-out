@@ -2350,6 +2350,13 @@ body.pull-result.pull-failed .pull-refresh-result-icon::after { content: '!'; }
 
 /* Camera and voice share the Indoor sheet; recognition values remain drafts. */
 .indoor-dialog .indoor-icon-button { width: 44px; min-width: 44px; height: 44px; padding: 0; }
+.camera-load-spinner { display: none; width: 20px; height: 20px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; }
+#cameraInputButton.is-loading .refresh-icon { display: none; }
+#cameraInputButton.is-loading .camera-load-spinner { display: block; animation: camera-load-spin .8s linear infinite; }
+.camera-load-error { margin: 0 0 var(--space-12); color: var(--ink-muted); font-size: 12px; line-height: 1.5; }
+.camera-load-error[hidden] { display: none; }
+@keyframes camera-load-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #cameraInputButton.is-loading .camera-load-spinner { animation: none; } }
 .indoor-dialog.voice-mode #cameraInputButton { display: none; }
 .indoor-dialog.camera-mode .inputs-panel > .control,
 .indoor-dialog.camera-mode #rulerHelp,

@@ -79,9 +79,11 @@ export function createLabelLayout(surface, boxes, environment = globalThis) {
       Object.assign(line.style, { left: `${sx - b.x - 2}px`, top: `${sy - b.y - 2}px`, width: `${length}px`, transform: `rotate(${Math.atan2(ty - sy, tx - sx)}rad)` });
     }
   }
-  function initialize() {
+  function initialize(onCleanup = () => {}) {
     if (!environment.ResizeObserver) return;
-    const observer = new environment.ResizeObserver(() => render()); observer.observe(surface);
+    const observer = new environment.ResizeObserver(() => render());
+    onCleanup(() => observer.disconnect());
+    observer.observe(surface);
     for (const box of Object.values(boxes)) { const label = box.querySelector?.('span'); if (label) observer.observe(label); }
   }
   return { render, initialize, reset: () => { previous = {}; crops = {}; } };

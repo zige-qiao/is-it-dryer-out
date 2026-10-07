@@ -24,6 +24,8 @@ The dialog helpers own opener-focus snapshots and synchronous focus return. Shee
 
 ## Run locally
 
+Camera entry has one handler owned by `app.js`. The camera loader keeps module availability separate from pending activation: closing Indoor readings, backgrounding/page exit or starting voice cancels the pending tap. Successful loading is retained without activating an obsolete request. The entry button shows a reduced-motion-aware busy spinner during loading; failures restore it and show an inline status above the manual controls. Retry clears failed loading state. Before native import, parallel resource checks warm the HTTP cache and keep ordinary download failures out of the browser module map, which can remember failed imports for the page session. A graph-coverage test maintains this camera-only resource list; creation of the recognition worker stays deferred. Controller initialization rolls back listeners and label observers on failure, and repeated successful initialization does not bind them again.
+
 Use an existing static HTTP server rooted at this directory. For example, if Python is installed:
 
 ```sh
