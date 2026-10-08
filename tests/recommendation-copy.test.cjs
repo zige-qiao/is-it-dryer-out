@@ -15,8 +15,8 @@ test('agreed conditional second lines cover all seven combinations', () => {
     ['minimal-impact', {projectedTemp:20, projectedRh:63}, 'Drier out, but limited benefit as the room cools.'],
     ['minimal-impact', {}, 'Drier out, but little drying benefit expected.'],
     ['uncertain', {}, 'Open for fresh air; drying benefit is uncertain.'],
-    ['target-met', {}, 'Drier out, but your humidity target is already met.'],
-    ['below-minimum', {}, 'Drier out, but opening would cool it further.'],
+    ['target-met', {}, 'Drier out, but your humidity target is met.'],
+    ['below-minimum', {}, 'Drier out, but ventilation would cool it further.'],
     ['too-cold', {}, 'Opening would cool the room too much.'],
     ['condensation', {}, 'Opening may increase condensation risk.'],
   ]) assert.equal(render(status, plan).decisionSecondary.textContent, expected);
@@ -29,7 +29,7 @@ test('cooling alone does not establish cooling-limited benefit', () => {
 test('non-drier combinations retain copy and immediate limits are independent', () => {
   for (const outdoorRh of [63,90]) {
     const state = {outdoorTemp:23.2, outdoorRh};
-    assert.equal(render('target-met', {}, state).decisionSecondary.textContent, 'No ventilation needed now.');
+    assert.equal(render('target-met', {}, state).decisionSecondary.textContent, 'Your humidity target is met.');
     assert.equal(render('below-minimum', {}, state).decisionSecondary.textContent, 'Ventilation would cool it further.');
     assert.equal(render('minimal-impact', {}, state).decisionSecondary.textContent, 'Open for fresh air, humidity may not fall.');
     assert.equal(render('too-cold', {}, state).decisionSecondary.textContent, 'Opening would cool the room too much.');

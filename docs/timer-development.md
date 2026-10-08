@@ -1,14 +1,12 @@
 # Ventilation timer setup and device evidence
 
-The web-app UI uses the [shared Ventilation Timer Shortcut](https://www.icloud.com/shortcuts/d16fde94799a414bb11a3a40c484f080). It was created manually on the user's iPhone after the signing experiment below failed. Install Shortcut now opens that iCloud link directly; the macOS workflow is not needed for this installation route.
+The web-app UI uses the [shared Ventilation Timer Shortcut](https://www.icloud.com/shortcuts/d16fde94799a414bb11a3a40c484f080). It was created manually on the user's iPhone after the signing experiment below failed. Install Shortcut opens that iCloud link directly. The unused Python generator and macOS signing workflow were removed on 2026-10-07.
 
-`scripts/build-timer-shortcut.py` generates a property-list Shortcut with input validation and Clock's Start Timer action. It does not require the user to construct actions. Only whole-number text from 1 through 180 is accepted. The Shortcut receives minutes from the web app; it does not fetch weather, upload readings, or wait in the background.
-
-Apple's supported `shortcuts sign` command requires macOS. The **Build Ventilation Timer installer** GitHub Actions workflow runs when its workflow or generator changes are pushed to `ventilation-timer-ios`, or through a manual dispatch. It attempts to sign the file, then uploads it as an artifact on success. It does not publish the site or modify Git. Do not treat a generated unsigned file as installable.
+The web app passes whole-number minutes from 1 through 180 to the shared Shortcut, which starts a Clock timer. This installation route requires no generated installer or GitHub signing workflow.
 
 ## Signing test result
 
-On 2026-10-03, [run 37143389908](https://github.com/zige-qiao/is-it-dryer-out/actions/runs/37143389908) generated the source successfully but failed signing on the hosted macOS 15 runner: `Error: In order to do this, you must be signed into iCloud.` No install artifact was produced. Retrying the same hosted environment cannot resolve this account requirement. Signing would require a trusted Mac already signed into iCloud; do not put Apple account credentials into the workflow. This generated installer remains unverified and is not the shared iPhone-created Shortcut used by the app.
+On 2026-10-03, [run 37143389908](https://github.com/zige-qiao/is-it-dryer-out/actions/runs/37143389908) generated the source successfully but failed signing on the hosted macOS 15 runner: `Error: In order to do this, you must be signed into iCloud.` No install artifact was produced. The abandoned generator produced a property-list Shortcut with input validation and Clock's Start Timer action; its workflow attempted to sign it using `shortcuts sign`. This experiment never produced a verified installer. The app uses the separate iPhone-created Shortcut shared through iCloud.
 
 ## Device evidence
 

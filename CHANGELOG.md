@@ -4,6 +4,10 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Change the below-minimum KEEP CLOSED supporting line to “Drier out, but ventilation would cool it further.”
+- Update TARGET MET supporting lines to “Drier out, but your humidity target is met.” when outdoor air is clearly drier, and “Your humidity target is met.” otherwise.
+- Remove the unused timer Shortcut generator and macOS signing workflow; retain the shared iCloud Shortcut installation flow and document the abandoned signing experiment.
+
 ## v0.7.6 - Drying guidance and reliability - 2026-10-07
 
 - Expand Min indoor temp to 8–28°C and Target humidity to 35–65% across rulers, typed entry, step controls and saved settings.

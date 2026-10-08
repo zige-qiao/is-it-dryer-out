@@ -398,6 +398,8 @@ The live 4:3 preview has no inner guide or dimming overlay. Notifications are to
 
 ### Conditional verdict copy
 
+When outdoor air is not clearly drier, TARGET MET uses “Your humidity target is met.”
+
 Second explanations use the current shared-temperature moisture comparison and plan outcome, independently of chart inspection. Drier-air limited benefit uses “Drier out, but little drying benefit expected.” Cooling uses “Drier out, but limited benefit as the room cools.” only when projected temperature falls, projected vapour pressure evaluated at the original indoor temperature produces at least the minimum noticeable RH reduction, and projected RH at the cooler temperature does not.
 
-For drier air, TARGET MET uses “Drier out, but your humidity target is already met.” and below-minimum KEEP CLOSED uses “Drier out, but opening would cool it further.” Uncertain OPEN IF NEEDED uses “Open for fresh air; drying benefit is uncertain.” Where no clear drying benefit is expected and outdoor air is not clearly drier, use “Open for fresh air, humidity may not fall.” Immediate temperature and condensation limits use “Opening would cool the room too much.” and “Opening may increase condensation risk.” regardless of moisture comparison. Remaining copy, headlines, primary lines, colours and durations are unchanged.
+For drier air, TARGET MET uses “Drier out, but your humidity target is met.” and below-minimum KEEP CLOSED uses “Drier out, but ventilation would cool it further.” Uncertain OPEN IF NEEDED uses “Open for fresh air; drying benefit is uncertain.” Where no clear drying benefit is expected and outdoor air is not clearly drier, use “Open for fresh air, humidity may not fall.” Immediate temperature and condensation limits use “Opening would cool the room too much.” and “Opening may increase condensation risk.” regardless of moisture comparison. Remaining copy, headlines, primary lines, colours and durations are unchanged.

@@ -90,13 +90,13 @@ export function createRecommendationView({
       elements.decisionLabel.textContent = "TARGET MET";
       setDecisionSummary(
         `At or near your ${formatRh(state.targetRh)} target.`,
-        drier ? "Drier out, but your humidity target is already met." : "No ventilation needed now.",
+        drier ? "Drier out, but your humidity target is met." : "Your humidity target is met.",
       );
     } else if (plan.status === "below-minimum") {
       elements.decisionLabel.textContent = "KEEP CLOSED";
       setDecisionSummary(
         `Room is below your ${formatTemp(state.minTemp)} minimum.`,
-        drier ? "Drier out, but opening would cool it further." : "Ventilation would cool it further.",
+        drier ? "Drier out, but ventilation would cool it further." : "Ventilation would cool it further.",
       );
     } else if (plan.status === "wetter") {
       elements.decisionLabel.textContent = "KEEP CLOSED";
