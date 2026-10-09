@@ -21,6 +21,12 @@ All notable changes to Is it dryer out are documented here.
 - Add Page layout in Settings with saved visibility, drag and keyboard ordering, and reset. Default to hidden Indoor summary first, followed by shown Recommendation, Moisture comparison and Supporting details; keep the footer always available and provide a fallback indoor editor.
 - Add a camera shortcut to Indoor summary and make its pencil edit action icon-only, respecting input visibility settings and returning focus after dismissal.
 
+- Use white forecast rain fills at approximately 22% opacity, matching ACH bars to pick up the verdict background colour, retaining blue hatching.
+
+- Add a persistent Chart key accordion with the chart legend and wind-arrow explanation, using the normal accordion background. Keep rain details in accessible inspection text.
+- Share proportional ACH heights between the 24-hour and 48-hour views with numbers and wind arrows in a separate annotation strip.
+
+- Add an advisory rain overlay to the outdoor outlook: hourly rain and shower amounts, subtle rain-spell bands, spell totals and precipitation chance during chart inspection. Keep drying verdicts and ventilation durations unchanged.
 - Change the below-minimum KEEP CLOSED supporting line to “Drier out, but ventilation would cool it further.”
 - Update TARGET MET supporting lines to “Drier out, but your humidity target is met.” when outdoor air is clearly drier, and “Your humidity target is met.” otherwise.
 - Remove the unused timer Shortcut generator and macOS signing workflow; retain the shared iCloud Shortcut installation flow and document the abandoned signing experiment.

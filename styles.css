@@ -2608,6 +2608,11 @@ body.pull-result.pull-failed .pull-refresh-result-icon::after { content: '!'; }
   .camera-preview-controls .camera-flash { grid-column: 2; grid-row: 2; }
 }
 
+/* Forecast rain is advisory; retain the moisture curve as the primary signal. */
+.verdict-panel .rain-band { fill: #8ccdff; opacity: .065; }
+.verdict-panel .rain-hatch { stroke: #aae1ff; stroke-width: 1; opacity: .17; }
+.verdict-panel .rain-bar { fill: #ffffff38; }
+.verdict-panel .rain-spell-total { fill: #d6f0ff; font-size: calc(10px * var(--chart-text-scale, 1)); }
 /* Native disclosure stays outside the chart's frequently replaced SVG. */
 .chart-key-content { margin: 0; color: var(--muted); font-size: var(--font-ui); line-height: 1.5; }
 .chart-key-legend { display: grid; gap: var(--space-16); }
@@ -2628,6 +2633,7 @@ body.pull-result.pull-failed .pull-refresh-result-icon::after { content: '!'; }
 .chart-key-wind { width: 16px; height: 16px; flex: 0 0 16px; fill: currentColor; }
 @media (forced-colors: active) { .chart-key-symbol { forced-color-adjust: none; } }
 
+.airflow-wind { fill: #fff; stroke: none; opacity: .85; pointer-events: none; }
 
 /* Layout follows DOM order, including when every page box is hidden. */
 html.layout-pending .app-shell { visibility: hidden; }

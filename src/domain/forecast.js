@@ -5,7 +5,7 @@ export function dateFromApiTime(value) {
   return new Date(typeof value === "number" ? value * 1000 : value);
 }
 
-function normalizeWindDirection(value) {
+export function normalizeWindDirection(value) {
   return Number.isFinite(value) && value >= 0 && value <= 360 ? value % 360 : null;
 }
 
@@ -48,6 +48,50 @@ export function buildForecast(data) {
     }));
 }
 
+// Rain is an accumulation over the preceding hour, never an instantaneous
+// measurement to interpolate with the humidity/temperature timeline.
+export function buildRainOutlook(forecast = [], start, end) {
+  const hour = 3600000;
+  const intervals = forecast.map(item => ({
+    start: item.time.getTime() - hour, end: item.time.getTime(),
+    amount: Number.isFinite(item.rainfall) && item.rainfall >= 0 ? item.rainfall : null,
+    probability: Number.isFinite(item.precipitationProbability) ? item.precipitationProbability : null,
+  })).sort((a, b) => a.start - b.start);
+  const fullEnd = start + 48 * hour;
+  const scale = Math.max(1, Math.ceil(Math.max(0, ...intervals.filter(item => item.end > start && item.start < fullEnd).map(item => item.amount ?? 0))));
+  const spells = [];
+  let spell = null;
+  intervals.forEach((item, index) => {
+    if (item.amount === null || item.amount < 0.1) { spell = null; return; }
+    if (!spell || spell.end !== item.start) {
+      const previous = intervals[index - 1];
+      spell = { start: item.start, end: item.end, amount: 0, partial: !previous || previous.end !== item.start || previous.amount === null };
+      spells.push(spell);
+    }
+    spell.end = item.end;
+    spell.amount += item.amount;
+    const next = intervals[index + 1];
+    spell.partialEnd = !next || next.start !== item.end || next.amount === null;
+  });
+  return { intervals: intervals.filter(item => item.end > start && item.start < end), scale,
+    spells: spells.filter(item => item.end > start && item.start < end).map(item => ({ ...item,
+      visibleStart: Math.max(start, item.start), visibleEnd: Math.min(end, item.end),
+      // Only sum complete visible hours when clipped, giving an honest lower
+      // bound instead of inventing a proportional amount for part of an hour.
+      amount: item.start < start || item.end > end
+        ? intervals.filter(hour => hour.start >= Math.max(start, item.start) && hour.end <= Math.min(end, item.end)).reduce((sum, hour) => sum + (hour.amount ?? 0), 0)
+        : item.amount,
+      partial: item.partial || item.partialEnd || item.start < start || item.end > end,
+    })) };
+}
+
+export function rainAtTime(outlook, time) {
+  const interval = outlook.intervals.find(item => time >= item.start && time < item.end)
+    ?? outlook.intervals.find(item => time === item.end && item.end === outlook.intervals.at(-1)?.end);
+  const spell = outlook.spells.find(item => interval && interval.start >= item.start && interval.end <= item.end);
+  return { interval, spell };
+}
+
 export function currentWeather(state) {
   return {
     time: new Date(),
@@ -59,6 +103,7 @@ export function currentWeather(state) {
       : dewPoint(state.outdoorTemp, state.outdoorRh),
     pressure: state.outdoorPressure,
     wind: state.outdoorWind,
+    windDirection: normalizeWindDirection(state.outdoorWindDirection),
   };
 }
 
@@ -80,6 +125,11 @@ export function weatherAtTime(timeline, targetTime) {
       const temp = previous.temp + (next.temp - previous.temp) * progress;
       const dew = previous.dewPoint + (next.dewPoint - previous.dewPoint) * progress;
       const pressure = previous.pressure + (next.pressure - previous.pressure) * progress;
+      const from = normalizeWindDirection(previous.windDirection);
+      const to = normalizeWindDirection(next.windDirection);
+      const windDirection = progress === 0 ? from : progress === 1 ? to
+        : from === null || to === null ? null
+        : (from + (((to - from + 540) % 360) - 180) * progress + 360) % 360;
       const wind = previous.wind + (next.wind - previous.wind) * progress;
       return {
         time: targetTime,
@@ -87,6 +137,7 @@ export function weatherAtTime(timeline, targetTime) {
         dewPoint: dew,
         pressure,
         wind,
+        windDirection,
         rh: clamp(relativeHumidityAtTemperature(saturationVaporPressure(dew), temp), 0, 100),
       };
     }
