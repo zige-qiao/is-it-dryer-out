@@ -83,6 +83,7 @@ export function createChart({
       const placeholders = [4, 154, 274, 394].map((x, i) => `<rect class="ah-skeleton-label" x="${x}" y="${hourY - 7 * textScale}" width="${(i === 0 ? 30 : 19) * textScale}" height="${9 * textScale}" rx="${4.5 * textScale}"/>` + (i === 0 || i === 3 ? `<rect class="ah-skeleton-label" x="${x}" y="${dayY - 7 * textScale}" width="${28 * textScale}" height="${9 * textScale}" rx="${4.5 * textScale}"/>` : '')).join('');
       const shimmer = state.weatherLoadFailed ? '' : `<defs><linearGradient id="ahSkeletonShimmer"><stop stop-color="white" stop-opacity="0"/><stop offset=".5" stop-color="white" stop-opacity=".055"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient><clipPath id="ahSkeletonClip"><rect width="480" height="${labelBottom}" rx="5"/></clipPath></defs><g clip-path="url(#ahSkeletonClip)" aria-hidden="true"><g transform="skewX(-18)"><rect class="ah-skeleton-shimmer" x="-280" width="280" height="${labelBottom}" fill="url(#ahSkeletonShimmer)"/></g></g>`;
       chart.innerHTML = `<g class="ah-skeleton" aria-hidden="true">${grid}<path class="ah-grid" d="M0 ${bottom}H480 M0 124H480"/>${bars}${placeholders}<path class="ah-indoor-line" d="M0 76H480"/><text class="ah-indoor-label" x="4" y="70">Indoor ${indoor.toFixed(1)} g/m³</text></g>${shimmer}`;
+      positionAhIndoorLabel(chart, [], 76, top, bottom);
       chart.setAttribute('role', 'img');
       chart.setAttribute('tabindex', '-1');
       chart.setAttribute('aria-label', `${state.weatherLoadFailed ? 'Outdoor forecast unavailable' : 'Loading outdoor forecast'}. Indoor ${indoor.toFixed(1)} g/m³. Chart shapes are placeholders.`);
@@ -97,7 +98,8 @@ export function createChart({
     chart.setAttribute('tabindex', '0');
     chart.setAttribute('aria-valuemin', '0');
     chart.setAttribute('aria-label', 'Outdoor absolute humidity, forecast rain and estimated airflow with indoor reference; use arrow keys to inspect hourly values');
-    const { start, end, points, indoor, low, high, achHigh } = buildAhOutlook(timeline, state.chartHours);
+    const { start, end, points, indoor, low, high: baseHigh, achHigh } = buildAhOutlook(timeline, state.chartHours);
+    const high = upperAhBound(chart, indoor, low, baseHigh, top, bottom, textScale);
     const rainOutlook = buildRainOutlook(state.forecast, start, end);
     const x = time => left + (time - start) / (end - start) * (right - left);
     const y = value => bottom - (value - low) / (high - low) * (bottom - top);
@@ -280,12 +282,15 @@ export function createChart({
     const label = chart.querySelector('.ah-indoor-label');
     const box = label.getBBox();
     const baselineOffset = Number(label.getAttribute('y')) - box.y;
-    const padding = 4; // Keep a little clear space around the text and curve.
+    const textScale = 480 / (chart.getBoundingClientRect?.().width || 480);
+    const padding = 4 * textScale; // Four CSS pixels at any rendered chart width.
+    const halfStroke = .5 * textScale;
+    const lineGap = 6 * textScale;
     const lastX = Math.max(box.x, 480 - padding - box.width);
     const positions = [box.x, lastX];
     const rainLabels = [...chart.querySelectorAll('.rain-spell-total')].map(label => ({ label, box: label.getBBox() }));
     const intersects = (bounds, box) => bounds.left < box.x + box.width && bounds.right > box.x && bounds.top < box.y + box.height && bounds.bottom > box.y;
-    const candidates = [lineY - 6 - box.height, lineY + 6].flatMap(top => positions.map(left => {
+    const candidates = [lineY - lineGap - box.height, lineY + lineGap].flatMap(top => positions.map(left => {
       top = clamp(top, plotTop + padding, plotBottom - padding - box.height);
       const bounds = { left: left - padding, right: left + box.width + padding,
         top: top - padding, bottom: top + box.height + padding };
@@ -313,17 +318,53 @@ export function createChart({
         overlap += Math.max(0, leave - enter) * Math.hypot(b.x - a.x, b.y - a.y);
       }
       const rainOverlap = rainLabels.filter(item => intersects(bounds, item.box)).length;
-      return { left, top, bounds, overlap: overlap + rainOverlap * 1000 };
+      const valid = top >= plotTop && top + box.height <= plotBottom && left >= 0 && left + box.width <= 480
+        && (bounds.bottom <= lineY - halfStroke || bounds.top >= lineY + halfStroke);
+      return { left, top, bounds, valid, overlap: overlap + rainOverlap * 1000 };
     }));
     // Keep the label left when clear; otherwise try the chart's right edge.
     // Fall below the reference only when both upper corners are obstructed.
-    const best = candidates.find(candidate => candidate.overlap === 0) ||
-      candidates.reduce((best, candidate) => candidate.overlap < best.overlap ? candidate : best);
+    const eligible = candidates.filter(candidate => candidate.valid);
+    const choices = eligible.length ? eligible : candidates;
+    const best = choices.find(candidate => candidate.overlap === 0) ||
+      choices.reduce((best, candidate) => candidate.overlap < best.overlap ? candidate : best);
     label.setAttribute('x', best.left);
     label.setAttribute('y', best.top + baselineOffset);
     // The indoor reference takes priority if every placement is obstructed.
     // The full rain total remains available through accessible inspection text.
     rainLabels.filter(item => intersects(best.bounds, item.box)).forEach(item => item.label.remove());
+  }
+
+  // Measure the same text budget in both ranges, even when 48h hides rain totals.
+  // Always start from the full-forecast base bounds, never a previous render.
+  function upperAhBound(chart, indoor, low, baseHigh, plotTop, plotBottom, textScale) {
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('visibility', 'hidden');
+    group.setAttribute('aria-hidden', 'true');
+    const measure = (className, text, baseline) => {
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('class', className);
+      label.setAttribute('x', '0');
+      label.setAttribute('y', baseline);
+      label.textContent = text;
+      group.append(label);
+      return label;
+    };
+    const rain = measure('rain-spell-total', '≥ 13.8 mm', plotTop + 11 * textScale);
+    const label = measure('ah-indoor-label', `Indoor ${indoor.toFixed(1)} g/m³`, 0);
+    chart.append(group);
+    const rainBox = rain.getBBox(), indoorBox = label.getBBox();
+    group.remove();
+    const clearance = 4.5 * textScale; // Includes half the 1px non-scaling reference stroke.
+    const boundFor = requiredY => Math.max(baseHigh, Math.ceil(low + (indoor - low) *
+      (plotBottom - plotTop) / Math.max(textScale, plotBottom - requiredY)));
+    const rainHigh = boundFor(rainBox.y + rainBox.height + clearance);
+    const lineY = plotBottom - (indoor - low) / (rainHigh - low) * (plotBottom - plotTop);
+    const aboveFits = lineY - 6 * textScale - indoorBox.height >= plotTop + 4 * textScale;
+    const belowFits = lineY + 6 * textScale + indoorBox.height <= plotBottom - 4 * textScale;
+    // Add more only if the Indoor label cannot fit on either side of the line.
+    return aboveFits || belowFits ? rainHigh : Math.max(rainHigh,
+      boundFor(plotTop + indoorBox.height + 10 * textScale));
   }
 
   return { buildAhOutlook, renderAhChart, positionAhIndoorLabel };

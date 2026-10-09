@@ -219,13 +219,15 @@
           </div>
     </main>
 
-<dialog class="settings-dialog" id="settingsDialog" aria-labelledby="settingsDialogTitle">
-  <div class="sheet-handle" aria-hidden="true"><span></span></div>
-  <div class="settings-dialog-content">
-    <div class="settings-dialog-heading">
+<dialog class="settings-dialog white-sheet" id="settingsDialog" aria-labelledby="settingsDialogTitle">
+  <div class="sheet-header">
+    <div class="sheet-handle" aria-hidden="true"><span></span></div>
+    <div class="settings-dialog-heading sheet-title-row">
       <h2 id="settingsDialogTitle" tabindex="-1" autofocus>Settings</h2>
       <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close settings" title="Close">&times;</button>
     </div>
+  </div>
+  <div class="settings-dialog-content sheet-body">
     <section class="settings-group" aria-labelledby="settingsLayoutTitle">
       <div class="settings-group-heading"><h3 id="settingsLayoutTitle">Page layout</h3><button class="layout-reset" id="resetPageLayout" type="button" aria-label="Reset page layout">Reset</button></div>
       <ol class="settings-group-card page-layout-list" id="pageLayoutList">
@@ -269,10 +271,9 @@
   </div>
 </dialog>
 
-<dialog class="indoor-dialog" id="indoorDialog" aria-labelledby="indoor-heading">
-<div class="sheet-handle" aria-hidden="true"><span></span></div>
-<section class="inputs-panel" aria-labelledby="indoor-heading">
-  <div class="section-heading">
+<dialog class="indoor-dialog white-sheet" id="indoorDialog" aria-labelledby="indoor-heading">
+<div class="sheet-header"><div class="sheet-handle" aria-hidden="true"><span></span></div>
+<div class="section-heading sheet-title-row">
     <div class="indoor-title"><div class="camera-title-row"><h2 id="indoor-heading" tabindex="-1">Indoor readings</h2><button id="cameraHelpButton" class="camera-help-button" type="button" aria-label="Reading box help" aria-expanded="false" aria-controls="cameraCropHint" aria-describedby="cameraCropHint" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 16h.01"></path></svg></button></div><div id="cameraCropHint" class="camera-help-content" role="region" aria-label="Camera help" hidden><span id="cameraCaptureHint" hidden>Choose 1×, 3× or 5×. The higher presets select an available telephoto camera; the multiplier does not guarantee an exact optical ratio. Keep the main digits sharp and visible. Avoid reflections. Higher digital zoom enlarges existing pixels; moving closer preserves more detail. <span class="camera-auto-help">Auto flash turns on lighting in low light. Camera-frame capture uses torch where supported; still-photo flash requires Still photos to be on. Change it in <a id="cameraAutoFlashSettings" href="#autoFlash">Settings</a>.</span></span><span id="cameraReviewHint">Drag on the photo to add a box including °C or %. Move a box or resize its corners; release to read. <span id="cameraEditHint">Tap a value to correct it.</span></span></div><p id="indoorLastSet" hidden></p></div>
     <div class="sheet-heading-actions">
     <button class="indoor-speak-button indoor-icon-button" type="button" id="cameraInputButton" aria-label="Scan indoor readings" title="Scan indoor readings" aria-controls="cameraPanel">
@@ -286,6 +287,11 @@
     <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close indoor readings" title="Close">&times;</button>
     </div>
   </div>
+</div>
+
+<div class="sheet-body">
+<section class="inputs-panel" aria-labelledby="indoor-heading">
+
   <p id="cameraLoadError" class="camera-load-error" role="status" aria-live="polite" aria-atomic="true" hidden></p>
   <div class="control ruler-control">
     <label for="indoorTemp">Temperature</label>
@@ -405,15 +411,19 @@
     <div class="camera-actions"><button id="cameraManualButton" type="button" class="sheet-secondary">Enter manually</button><button id="cameraRetryButton" type="button" class="sheet-primary">Try again</button></div>
   </div>
 </section>
+</div>
 </dialog>
 
-<dialog class="plan-dialog" id="planDialog" aria-labelledby="planDialogTitle">
-<div class="sheet-handle" aria-hidden="true"><span></span></div>
-      <div class="plan-dialog-content">
-        <div class="plan-dialog-heading">
+<dialog class="plan-dialog white-sheet" id="planDialog" aria-labelledby="planDialogTitle">
+<div class="sheet-header"><div class="sheet-handle" aria-hidden="true"><span></span></div>
+<div class="plan-dialog-heading sheet-title-row">
           <h2 id="planDialogTitle" tabindex="-1" autofocus>Ventilation settings</h2>
           <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close ventilation settings" title="Close">&times;</button>
         </div>
+</div>
+
+      <div class="plan-dialog-content sheet-body">
+
 
         <div class="plan-controls" role="group" aria-label="Ventilation settings">
           <div class="ruler-control">
@@ -489,13 +499,16 @@
       </div>
     </dialog>
 
-<dialog class="location-dialog" id="locationDialog" aria-labelledby="locationDialogTitle">
-<div class="sheet-handle" aria-hidden="true"><span></span></div>
-      <div class="location-dialog-content">
-        <div class="location-dialog-heading">
+<dialog class="location-dialog white-sheet" id="locationDialog" aria-labelledby="locationDialogTitle">
+<div class="sheet-header"><div class="sheet-handle" aria-hidden="true"><span></span></div>
+<div class="location-dialog-heading sheet-title-row">
           <h2 id="locationDialogTitle" tabindex="-1" autofocus>Location</h2>
           <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close location" title="Close">&times;</button>
         </div>
+</div>
+
+      <div class="location-dialog-content sheet-body">
+
         <p class="location-current">Now showing <strong id="locationCurrentName"></strong></p>
         <form class="location-search-form" id="locationSearchForm">
           <label class="visually-hidden" for="locationSearchInput">Search town or postcode</label>
@@ -520,10 +533,9 @@
       </div>
     </dialog>
 
-    <dialog class="indoor-dialog timer-dialog" id="timerDialog" aria-labelledby="timerDialogTitle">
-      <div class="sheet-handle" aria-hidden="true"><span></span></div>
-      <section class="inputs-panel">
-        <div class="section-heading">
+    <dialog class="indoor-dialog timer-dialog white-sheet" id="timerDialog" aria-labelledby="timerDialogTitle">
+<div class="sheet-header"><div class="sheet-handle" aria-hidden="true"><span></span></div>
+<div class="section-heading sheet-title-row">
           <div class="timer-title">
             <h2 id="timerDialogTitle" tabindex="-1">Ventilation timer</h2>
             <details class="timer-help" id="timerHelp">
@@ -536,6 +548,10 @@
           </div>
           <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close ventilation timer" title="Close">&times;</button>
         </div>
+</div>
+
+      <section class="inputs-panel sheet-body">
+
         <div class="control ruler-control">
             <label class="reading-field ruler-value" for="timerMinutesInput">
               <input id="timerMinutesInput" type="number" min="1" max="180" step="1" value="1" inputmode="numeric" aria-label="Timer duration in minutes" /><span aria-hidden="true">min</span>

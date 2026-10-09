@@ -11,7 +11,7 @@ for(const selector of ['#chartKey > summary','.glossary-explainer > summary','.w
 let checks=0;for(const width of [320,390,768,1280]){await page.setViewportSize({width,height:900});for(const scale of [100,200]){
 await page.evaluate(scale=>{document.documentElement.style.fontSize=scale+'%';document.querySelector('#sourceLocationName').textContent='Llanfairpwllgwyngyll, Isle of Anglesey, United Kingdom';},scale);
 const geometry=await page.evaluate(()=>{const box=node=>node.getBoundingClientRect(),style=node=>getComputedStyle(node),meta=document.querySelector('.weather-metadata'),row=meta.firstElementChild,label=row.querySelector('dt'),value=row.querySelector('dd');
-return{overflow:document.documentElement.scrollWidth>innerWidth+1,contentWidth:box(document.querySelector('.weather-data-explainer')).width,threshold:24*parseFloat(style(document.documentElement).fontSize),stacked:box(value).top>box(label).top+1,
+return{overflow:document.documentElement.scrollWidth>innerWidth+1,contentWidth:box(document.querySelector('.weather-data-explainer')).width,threshold:20*parseFloat(style(document.documentElement).fontSize),stacked:box(value).top>box(label).top+1,
 links:[...document.querySelectorAll('.weather-source-details a')].map(n=>({height:box(n).height,width:box(n).width,target:n.target,underline:style(n).textDecorationLine,icon:n.querySelector('svg').getAttribute('aria-hidden')})),
 glossary:document.querySelectorAll('.stacked-definitions dt').length,glossaryGaps:[...document.querySelectorAll('.stacked-definitions >div')].map(n=>box(n.querySelector('dd')).top-box(n.querySelector('dt')).bottom),
 legend:[...document.querySelectorAll('.chart-key-entry')].map(n=>style(n).gridTemplateColumns),legendCount:document.querySelectorAll('.chart-key-entry').length,

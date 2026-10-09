@@ -40,3 +40,19 @@ test('sheet follows visible viewport height and offset and removes listeners on 
  assert.equal(f.root.style.getPropertyValue('--sheet-visible-bottom'),'');
  assert.equal(Object.keys(f.viewportEvents).length,0);assert.equal(Object.keys(f.windowEvents).length,0);
 });
+
+test('shared header measurement follows wrapping and bounds help below its actual viewport position',()=>{
+ const values=new Map(),observed=[];let resized;
+ const headerBounds={height:96,bottom:300};
+ const surface={classList:{add(){}},addEventListener(){},querySelector:()=>null};
+ const header={getBoundingClientRect:()=>headerBounds};
+ const dialog={querySelector:selector=>selector==='.sheet-header'?header:selector==='.sheet-handle'?null:surface,style:{setProperty:(name,value)=>values.set(name,value)},addEventListener(){}};
+ const viewport={height:700,offsetTop:40};
+ const ResizeObserver=class{constructor(callback){resized=callback}observe(target){observed.push(target)}};
+ const context=createDialogs({},environment({window:{visualViewport:viewport,innerHeight:800},ResizeObserver}));
+ context.enableSheetDrag(dialog);
+ assert.deepEqual(observed,[header,dialog]);assert.equal(values.get('--sheet-header-height'),'96px');assert.equal(values.get('--sheet-help-height'),'424px');
+ headerBounds.height=150;headerBounds.bottom=480;resized();assert.equal(values.get('--sheet-header-height'),'150px');assert.equal(values.get('--sheet-help-height'),'244px');
+ viewport.height=350;viewport.offsetTop=20;resized();assert.equal(values.get('--sheet-help-height'),'44px');
+ headerBounds.height=0;resized();assert.equal(values.get('--sheet-header-height'),'150px');
+});

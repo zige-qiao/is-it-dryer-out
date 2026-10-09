@@ -9,7 +9,7 @@ function fixture(width = 320) {
   const node = () => {
     const attrs = new Map(), classes = new Set();
     return {
-      dataset: {}, style: { setProperty() {} }, textContent: '', innerHTML: '', disabled: false,
+      append() {}, prepend() {}, remove() {}, dataset: {}, style: { setProperty() {} }, textContent: '', innerHTML: '', disabled: false,
       classList: { add: (...names) => names.forEach(n => classes.add(n)), remove: (...names) => names.forEach(n => classes.delete(n)), toggle: (n, on) => on ? classes.add(n) : classes.delete(n), contains: n => classes.has(n) },
       setAttribute: (n, v) => attrs.set(n, String(v)), getAttribute: n => attrs.get(n), removeAttribute: n => attrs.delete(n),
       getBoundingClientRect: () => ({ width, left: 0 }), querySelector: () => node(), querySelectorAll: () => [], getBBox: () => ({x:12,y:40,width:90,height:20}),
@@ -40,7 +40,7 @@ function fixture(width = 320) {
     Date: TestDate,
     setTimeout: (callback, delay) => { const id = ++nextTimer; timers.set(id, { callback, at: now + delay }); return id; },
     clearTimeout: id => timers.delete(id),
-    document: { activeElement: null, createElement: () => canvas, querySelector: s => s === '#ahChart' ? chart : s === '#ahChartReading' ? reading : rainFields[s.slice(1)] ?? outdoor, querySelectorAll: () => buttons },
+    document: { activeElement: null, createElement: () => canvas, createElementNS: () => node(), querySelector: s => s === '#ahChart' ? chart : s === '#ahChartReading' ? reading : rainFields[s.slice(1)] ?? outdoor, querySelectorAll: () => buttons },
     window: { devicePixelRatio: 2 },
     getComputedStyle: () => ({ getPropertyValue: name => name === '--chart-wet' ? '#ffb3a8' : '#ffd27a' }),
     formatTemp: v => `${v}°C`, formatRh: v => `${v}%`,

@@ -134,13 +134,54 @@ const key = 'is-it-dryer-out-ui-preferences';
         if (width === 390 && scale === 100) await page.locator('#settingsIndoorTitle').locator('..').screenshot({ path: path.join(artifacts, 'settings-camera-hidden.png') });
         await page.locator('#showCameraButton').check();
         await page.locator('#settingsDoneButton').scrollIntoViewIfNeeded();
+        const pinned = await page.locator('#settingsDialog').evaluate(node => {
+          const sheet = node.getBoundingClientRect(), header = node.querySelector('.sheet-header').getBoundingClientRect();
+          const title = node.querySelector('#settingsDialogTitle').getBoundingClientRect(), done = node.querySelector('#settingsDoneButton').getBoundingClientRect();
+          return { top: header.top, sheetTop: sheet.top + node.clientTop, titleTop: title.top, titleBottom: title.bottom, headerBottom: header.bottom,
+            doneTop: done.top, doneBottom: done.bottom, sheetBottom: sheet.bottom, maxHeight: parseFloat(getComputedStyle(node).maxHeight),
+            viewportHeight: visualViewport.height };
+        });
+        assert.ok(Math.abs(pinned.top - pinned.sheetTop) < 1, `sticky header ${width}/${scale}`);
+        assert.ok(pinned.titleTop >= pinned.top && pinned.titleBottom <= pinned.headerBottom);
+        assert.ok(pinned.doneTop >= pinned.headerBottom && pinned.doneBottom <= pinned.sheetBottom);
+        if (width < 640) assert.ok(Math.abs(pinned.maxHeight - (pinned.viewportHeight - 16)) < 1, `available mobile height ${width}/${scale}`);
         await page.screenshot({ path: path.join(artifacts, `settings-${width}-${scale}-bottom.png`) });
         views++;
       }
     }
     await page.setViewportSize({ width: 390, height: 900 });
     await page.evaluate(() => { document.documentElement.style.fontSize = '100%'; document.querySelector('#settingsDialog').scrollTop = 0; });
+    for (const height of [568, 852, 1100]) {
+      await page.setViewportSize({ width: 390, height });
+      await page.evaluate(() => { const dialog = document.querySelector('#settingsDialog'); dialog.scrollTop = dialog.scrollHeight; });
+      const extent = await page.locator('#settingsDialog').evaluate(node => {
+        const sheet = node.getBoundingClientRect(), header = node.querySelector('.sheet-header').getBoundingClientRect();
+        return { sheetTop: sheet.top, headerTop: header.top, clientTop: node.clientTop, height: sheet.height, scroll: node.scrollHeight > node.clientHeight + 1 };
+      });
+      assert.ok(extent.sheetTop >= 15 && extent.height <= height - 15);
+      assert.ok(Math.abs(extent.headerTop - extent.sheetTop - extent.clientTop) < 1);
+      if (height === 1100) assert.equal(extent.scroll, false);
+      await page.screenshot({ path: path.join(artifacts, `settings-phone-${height}.png`) });
+    }
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.waitForFunction(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sheet-visible-height')) === visualViewport.height);
+    await page.evaluate(() => new Promise(requestAnimationFrame));
     const touch = await context.newCDPSession(page);
+    const grip = await page.locator('#settingsDialog .sheet-handle').boundingBox();
+    const sheetPoint = distance => ({ x: grip.x + grip.width / 2, y: grip.y + 18 + distance, id: 2 });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [sheetPoint(0)] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [sheetPoint(60)] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+    assert.equal(await page.locator('#settingsDialog').evaluate(node => node.open && !node.style.transform), true);
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('#settingsDialog')).transform === 'none');
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [sheetPoint(0)] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [sheetPoint(8)] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [sheetPoint(140)] });
+    await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitForFunction(() => !document.querySelector('#settingsDialog').open);
+    assert.equal(await page.locator('#settingsButton').evaluate(node => node === document.activeElement), true);
+    await page.locator('#settingsButton').click();
+    await page.evaluate(() => { document.querySelector('#settingsDialog').scrollTop = 0; });
     const touchHandle = await handle('indoor-summary').boundingBox(), touchLast = await row('supporting-details').boundingBox();
     const touchPoint = y => ({ x: touchHandle.x + 22, y, id: 1 });
     await touch.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [touchPoint(touchHandle.y + 22)] });

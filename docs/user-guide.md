@@ -111,6 +111,8 @@ Open Chart key directly after Why this recommendation? for the Lines and Bars & 
 Totals above bands add the known hourly amounts in each spell. A ≥ prefix marks a spell clipped by the displayed range or incomplete data. For clipped spells, only complete visible hours contribute to the subtotal; rainfall is never prorated for a partial hour. Labels are omitted where they cannot fit; inspection still shows the total. Missing rain is reported as unavailable, never as dry weather. Hourly forecasts do not establish an exact minute when rain starts.
 
 
+Settings, Indoor readings, Ventilation settings, Location and Ventilation timer use the available phone screen height before scrolling. Their title and drag handle remain visible at the top, including during camera capture/review and voice input. The header fades gently into scrolling content; existing Done, Back and confirmation actions keep their usual behaviour.
+
 Weather data lists the provider, requested location and last successful update, with separate messages for pending or failed refreshes. Before the first success, Last update says Not available yet. Source documentation and View weather data open separately. Glossary stacks each abbreviation and full name above its definition for narrow screens and enlarged text. More detail groups information under Moisture, Drier-air window, Rain, Wind and Model assumptions; only applicable entries appear.
 
 The five supporting-detail accordions use larger, dark headings to distinguish each section from its smaller content labels. More detail remains a compact underlined control inside Why this recommendation?; each disclosure opens independently.

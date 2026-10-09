@@ -4,6 +4,8 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Standardise sticky sheet titles and drag handles, surface-matched fading headers, 16px header-to-content spacing and mobile viewport sizing across Settings, Indoor readings, camera/voice, Ventilation settings, Location and Timer.
+
 - Clarify supporting-detail hierarchy with consistent larger, dark accordion headings, body-size content labels and the compact More detail disclosure.
 
 - Refresh supporting details with labelled recommendation rows, grouped chart symbols, stacked glossary definitions and compact weather metadata. Keep successful update times separate from pending/failure messages and retain native disclosure behaviour.

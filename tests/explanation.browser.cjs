@@ -35,7 +35,7 @@ const cases = [
 (async () => {
   const browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'msedge' } : {}) });
   try {
-    const context = await browser.newContext({ serviceWorkers: 'block', hasTouch: true, viewport: { width: 390, height: 900 } });
+    const context = await browser.newContext({ deviceScaleFactor: Number(process.env.ICON_DPR || 1), serviceWorkers: 'block', hasTouch: true, viewport: { width: 390, height: 900 } });
     await context.addInitScript(() => localStorage.setItem('is-it-dryer-out-ui-preferences', JSON.stringify({ openIndoorOnLaunch: false })));
     const page = await context.newPage();
     const checkedIconPaths = new Set();
@@ -125,7 +125,7 @@ const cases = [
                 const shape = icon.querySelector("path"), bounds = shape.getBBox();
                 const radius = parseFloat(getComputedStyle(icon).strokeWidth) / 2;
                 const style = getComputedStyle(node);
-                return { path: shape.getAttribute("d"), bounds: {left:bounds.x-radius,top:bounds.y-radius,right:bounds.x+bounds.width+radius,bottom:bounds.y+bounds.height+radius}, width: box.width, height: box.height, gap: textBox.left - box.right,
+                return { stroke: radius * 2, path: shape.getAttribute("d"), bounds: {left:bounds.x-radius,top:bounds.y-radius,right:bounds.x+bounds.width+radius,bottom:bounds.y+bounds.height+radius}, width: box.width, height: box.height, gap: textBox.left - box.right,
                   top: box.top - textBox.top, lineHeight: parseFloat(style.lineHeight),
                   hidden: icon.getAttribute('aria-hidden'), focusable: icon.getAttribute('focusable') };
               }),
@@ -141,6 +141,7 @@ const cases = [
             assert.ok(measured.rows <= 5);
             for (const icon of measured.icons) {
               checkedIconPaths.add(icon.path);
+              assert.equal(icon.stroke, 1.5);
               assert.ok(icon.bounds.left >= .5 && icon.bounds.top >= .5 && icon.bounds.right <= 19.5 && icon.bounds.bottom <= 19.5, `Clipped icon: ${JSON.stringify(icon.bounds)}`);
               assert.equal(icon.width, 20);
               assert.equal(icon.height, 20);

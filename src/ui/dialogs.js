@@ -79,13 +79,32 @@ export function createDialogs({
   function enableSheetDrag(dialog) {
     const header = dialog.querySelector('.section-heading, .plan-dialog-heading, .location-dialog-heading, .settings-dialog-heading');
     const handle = dialog.querySelector('.sheet-handle');
+    const stickyHeader = dialog.querySelector('.sheet-header');
+    const measureHeader = () => {
+      const bounds = stickyHeader?.getBoundingClientRect();
+      if (!(bounds?.height > 0)) return;
+      dialog.style.setProperty('--sheet-header-height', `${bounds.height}px`);
+      const viewport = window.visualViewport;
+      const bottom = (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight);
+      dialog.style.setProperty('--sheet-help-height', `${Math.max(44, bottom - bounds.bottom - 16)}px`);
+    };
+    const HeaderObserver = environment.ResizeObserver || window.ResizeObserver;
+    if (stickyHeader && HeaderObserver) {
+      const observer = new HeaderObserver(measureHeader);
+      observer.observe(stickyHeader);
+      observer.observe(dialog);
+    }
+    measureHeader();
+
     let gesture = null;
     const reset = () => {
       gesture = null;
       dialog.style.removeProperty('transform');
       dialog.classList.remove('sheet-dragging');
     };
-    [handle, header].filter(Boolean).forEach(surface => {
+    // Keep help popovers outside the drag surface so their text can scroll.
+    const titleSurface = header?.querySelector?.('h2') || header;
+    [handle, titleSurface].filter(Boolean).forEach(surface => {
       surface.classList.add('sheet-drag-surface');
       surface.addEventListener('pointerdown', event => {
         if (!window.matchMedia('(max-width: 39.999rem)').matches || !event.isPrimary || event.button !== 0 ||
