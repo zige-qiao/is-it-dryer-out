@@ -25,6 +25,8 @@ The user confirmed that the handoff works from Chrome, Safari and the Home Scree
 
 ## Recent changes
 
+- [v0.7.7](CHANGELOG.md#v077---page-layout-and-sheet-refinements---2026-10-09): pinned Recommendation, saved optional layouts, plain-language explanations, advisory rain/wind chart details, clearer supporting sections, stationary sheet headers and actions, safer touch gestures and deliberate Settings reordering. Diagnostic tools now live in `diagnostics/`; old page links still work.
+
 - [v0.7.6](CHANGELOG.md#v076---drying-guidance-and-reliability---2026-10-07): recognise moisture removal when cooling masks the RH drop, show the next suitable opening time for KEEP CLOSED, shorten supporting verdict copy, expand minimum temperature to 8–28°C and target humidity to 35–65%, improve camera-loading cancellation and retries, and handle blocked storage and stalled weather requests.
 
 - [v0.7.5](CHANGELOG.md): on-device camera readings, frame/still capture, zoom presets, grouped Settings and stronger safeguards against historical LCD readings. See the [release notes](CHANGELOG.md).

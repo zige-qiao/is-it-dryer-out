@@ -4,48 +4,17 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
-- Standardise document prose and visible app/diagnostic copy on UK English; retain original quotations, code identifiers and historical log extracts.
+## v0.7.7 - Page layout and sheet refinements - 2026-10-09
 
-- Remove recommendation-row dividers while retaining 16px spacing, lighten the seven category icons to 1.2px strokes, and centre the compact More detail chevron with consistent spacing.
-- Move standalone Voice and Camera flash diagnostic tools into diagnostics/, retaining old page URLs through redirects that preserve parameters, fragments and Back navigation.
-
-- Require a brief touch hold before dragging Settings reorder handles, so immediate swipes scroll instead; keep quick-tap move menus, mouse/pen dragging and keyboard access. Highlight armed rows, follow the finger with an inert decorative preview, reveal row-sized gaps and settle moves with reduced-motion-aware animation. Edge scrolling only reveals clipped reorder rows after a brief pause; fully visible lists stay still.
-
-- Standardised white sheets with stationary headers, content-only scrollbars, restored edge fades and pinned Done/Timer Start actions; Location fits its content and keyboard-constrained sheets avoid extra bottom safe-area padding.
-
-- Prevent swipes and drags in any direction from also activating controls across the app; protect taps that stop scrolling while preserving settled taps, keyboard access and deliberate component gestures.
-
-- Pin Recommendation first and always show it; preserve saved ordering and visibility of the other page boxes.
-- Fix pull-to-refresh overlap for every section below Recommendation, retain the sliding ventilation strip, allow deliberate pulls from controls and charts, and block gestures while sheets or popups are open.
-
-- Standardise sticky sheet titles and drag handles, surface-matched fading headers, 16px header-to-content spacing and mobile viewport sizing across Settings, Indoor readings, camera/voice, Ventilation settings, Location and Timer.
-
-- Clarify supporting-detail hierarchy with consistent bold, dark body-size accordion headings, body-size content labels and the compact More detail disclosure.
-
-- Refresh supporting details with labelled recommendation rows, grouped chart symbols, stacked glossary definitions and compact weather metadata. Keep successful update times separate from pending/failure messages and retain native disclosure behaviour.
-
-- Simplify Settings into Page layout and Indoor readings, move Reset beside the layout heading, and replace visible reorder arrows with dot-handle text menus. Add Done, standardise row/nested-option spacing, and default to hidden Indoor summary below pinned Recommendation, with Moisture comparison shown; preserve valid saved layouts and independent camera values. Hide Still photos and Auto flash with Show camera button, restore their saved choices on enabling, and keep camera-help focus on a visible setting.
-
-- Give More detail a compact secondary disclosure style with regular-weight underlined text, an adjacent chevron and a 44px touch target, distinct from the main accordion headings.
-
-- Make Why this recommendation? easier to scan with short plain-language rows for every outcome and a collapsed More detail disclosure. Preserve disclosure state through weather updates, keep stopping advice visible, and distinguish unavailable wind speed from calm conditions without changing the ventilation model.
-
-- Expand Why this recommendation? with a shared-temperature moisture difference, drier-air-window explanation, hourly rain and sheltered-window advice, wind direction, airflow assumptions and expected cooling. Keep weather advice separate from the drying verdict and clear it while weather is unavailable.
-
-- Standardise page sections and footer to a shared 16px gap across every saved order and visibility combination, removing component margins that caused doubled gaps or touching cards.
-
-- Add Page layout in Settings with saved visibility, drag and keyboard ordering, and reset. Default to hidden Indoor summary first, followed by shown Recommendation, Moisture comparison and Supporting details; keep the footer always available and provide a fallback indoor editor.
-- Add a camera shortcut to Indoor summary and make its pencil edit action icon-only, respecting input visibility settings and returning focus after dismissal.
-
-- Use white forecast rain fills at approximately 22% opacity, matching ACH bars to pick up the verdict background colour, retaining blue hatching.
-
-- Add a persistent Chart key accordion with the chart legend and wind-arrow explanation, using the normal accordion background. Keep rain details in accessible inspection text.
-- Share proportional ACH heights between the 24-hour and 48-hour views with numbers and wind arrows in a separate annotation strip.
-
-- Add an advisory rain overlay to the outdoor outlook: hourly rain and shower amounts, subtle rain-spell bands, spell totals and precipitation chance during chart inspection. Keep drying verdicts and ventilation durations unchanged.
-- Change the below-minimum KEEP CLOSED supporting line to “Drier out, but ventilation would cool it further.”
-- Update TARGET MET supporting lines to “Drier out, but your humidity target is met.” when outdoor air is clearly drier, and “Your humidity target is met.” otherwise.
-- Remove the unused timer Shortcut generator and macOS signing workflow; retain the shared iCloud Shortcut installation flow and document the abandoned signing experiment.
+- Pin Recommendation first and always show its chart and ventilation settings. Save order/visibility of Indoor summary (hidden by default), Moisture comparison and Supporting details; Reset restores only page-layout choices.
+- Group Settings into Page layout and Indoor readings, with handle menus and deliberate touch-hold reordering. Drag previews track the finger; neighbouring rows reveal the destination. Scroll only to reveal clipped reorder rows. Hide camera sub-options with the camera shortcut while retaining their saved values.
+- Use parent-owned 16px page-section spacing, plain-language labelled explanations for every recommendation state, compact More detail disclosure, lighter 1.2px category icons and divider-free recommendation entries. Refresh Chart key, Glossary and Weather data layouts; distinguish successful weather updates from pending or failed attempts.
+- Add advisory hourly rain/shower overlays, spell totals, precipitation chance and wind annotations without changing drying calculations. Share proportional ACH bars between chart ranges and keep Indoor labels/reference lines clear of rain totals.
+- Standardise sheets with stationary headers, content-only scrolling, 16px edge fades and pinned Done/Timer Start actions. Fit Location to its content and adapt keyboard spacing to the visible viewport; keep camera/voice actions in their bodies.
+- Prevent swipes and drags from also activating controls. Pull weather refresh from Recommendation, move following sections together, coordinate chart inspection and block refresh while sheets or popups are open.
+- Move standalone Voice and Camera flash diagnostics into diagnostics/ with compatible root-page redirects. Remove the unused Shortcut generator/signing workflow. Standardise document prose and visible app copy on UK English, preserving original quotations and code identifiers.
+- Verification: 550 unit tests, all 384 valid page-spacing configurations, 152 sheet/mode layouts, 184 recommendation-state checks, 256 chart-clearance layouts and the Settings/reorder/gesture/diagnostic browser regressions passed; JavaScript syntax and whitespace checks passed.
+- Set build identity to v0.7.7 and refresh app-shell cache revision 166. Automated touch and viewport checks do not establish physical iPhone Safari behaviour; device confirmation remains outstanding for the latest sheet/reorder refinements.
 
 ## v0.7.6 - Drying guidance and reliability - 2026-10-07
 

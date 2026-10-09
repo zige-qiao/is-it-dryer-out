@@ -1,6 +1,6 @@
 # Is it dryer out — design system
 
-**Version:** 1.6 · **Updated:** 9 October 2026 · **Status:** v0.7.5
+**Version:** 1.7 · **Updated:** 9 October 2026 · **Status:** v0.7.7
 
 Use UK English for document prose and visible app copy, including help, accessibility labels and diagnostic pages. Preserve original quotations, code/API identifiers, filenames and URLs. Audio level meters are instruments; units of length use metres.
 
@@ -387,6 +387,8 @@ The existence of a rule is not proof of its implementation. Before calling the s
 
 
 ## Revision log
+
+- 1.7 v0.7.7 release, 9 October 2026: recorded pinned page layouts, plain-language supporting details, rain/wind chart annotations and label clearance, stationary sheet bodies/fades/actions, swipe protection, deliberate Settings reordering and UK English conventions.
 
 - 1.6 local trial, 4 October 2026: aligned fixed spacing, control/icon dimensions and ordinary radii to a 4px grid, documented thin-stroke and fluid-geometry exceptions, and aligned ruler fields and switch outer geometry.
 - 1.5 v0.7.4 release, 3 October 2026: recorded clickable verdict durations, timer ruler and compact help popup, approved spacing and typography, and user-confirmed Safari/Home Screen timer handoffs.
