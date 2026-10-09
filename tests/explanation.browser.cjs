@@ -141,7 +141,7 @@ const cases = [
             assert.ok(measured.rows <= 5);
             for (const icon of measured.icons) {
               checkedIconPaths.add(icon.path);
-              assert.equal(icon.stroke, 1.5);
+              assert.equal(icon.stroke, 1.2);
               assert.ok(icon.bounds.left >= .5 && icon.bounds.top >= .5 && icon.bounds.right <= 19.5 && icon.bounds.bottom <= 19.5, `Clipped icon: ${JSON.stringify(icon.bounds)}`);
               assert.equal(icon.width, 20);
               assert.equal(icon.height, 20);
@@ -179,12 +179,11 @@ const cases = [
             await summary.focus();
             await page.keyboard.press('Enter');
             assert.equal(await page.locator('#explanationDetails').evaluate(node => node.open), true);
-            await page.waitForFunction(expected => getComputedStyle(document.querySelector('#explanationDetailsSummary'), '::after').transform === expected, outerChevron);
+            await page.waitForFunction(expected => getComputedStyle(document.querySelector('#explanationDetailsSummary'), '::after').transform === expected, 'matrix(-1, 0, 0, -1, 0, 0)');
             assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), false);
             await page.locator('.recommendation-explainer').screenshot({ animations: 'disabled', path: path.join(artifacts, `secondary-${width}-${scale}-open.png`) });
             await summary.screenshot({ animations: 'disabled', path: path.join(artifacts, `control-${width}-${scale}-open.png`) });
-            assert.equal(await summary.evaluate(node => getComputedStyle(node, '::after').transform),
-              await page.locator('#explanationToggle').evaluate(node => getComputedStyle(node, '::after').transform));
+            assert.equal(await page.locator('#explanationToggle').evaluate(node => getComputedStyle(node, '::after').transform), outerChevron);
             await page.keyboard.press('Space');
             assert.equal(await page.locator('#explanationDetails').evaluate(node => node.open), false);
             await page.waitForFunction(expected => getComputedStyle(document.querySelector('#explanationDetailsSummary'), '::after').transform === expected, closedChevron);

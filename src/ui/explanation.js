@@ -184,7 +184,7 @@ function explanationIcon(document, item) {
     : ({ window: 'time', next: 'time', rain: 'rain', wind: 'wind', temperature: 'temperature' }[item.key] || 'neutral');
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   for (const [name, value] of Object.entries({ class: 'explanation-icon', viewBox: '0 0 20 20',
-    width: '20', height: '20', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.5',
+    width: '20', height: '20', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.2',
     'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', focusable: 'false' })) {
     svg.setAttribute(name, value);
   }
