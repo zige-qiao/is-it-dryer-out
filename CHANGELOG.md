@@ -4,6 +4,23 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Clarify supporting-detail hierarchy with consistent larger, dark accordion headings, body-size content labels and the compact More detail disclosure.
+
+- Refresh supporting details with labelled recommendation rows, grouped chart symbols, stacked glossary definitions and compact weather metadata. Keep successful update times separate from pending/failure messages and retain native disclosure behaviour.
+
+- Simplify Settings into Page layout and Indoor readings, move Reset beside the layout heading, and replace visible reorder arrows with dot-handle text menus. Add Done, standardise row/nested-option spacing, and default to hidden Indoor summary first with Moisture comparison shown; preserve valid saved layouts and independent camera values. Hide Still photos and Auto flash with Show camera button, restore their saved choices on enabling, and keep camera-help focus on a visible setting.
+
+- Give More detail a compact secondary disclosure style with regular-weight underlined text, an adjacent chevron and a 44px touch target, distinct from the main accordion headings.
+
+- Make Why this recommendation? easier to scan with short plain-language rows for every outcome and a collapsed More detail disclosure. Preserve disclosure state through weather updates, keep stopping advice visible, and distinguish unavailable wind speed from calm conditions without changing the ventilation model.
+
+- Expand Why this recommendation? with a shared-temperature moisture difference, drier-air-window explanation, hourly rain and sheltered-window advice, wind direction, airflow assumptions and expected cooling. Keep weather advice separate from the drying verdict and clear it while weather is unavailable.
+
+- Standardise page sections and footer to a shared 16px gap across every saved order and visibility combination, removing component margins that caused doubled gaps or touching cards.
+
+- Add Page layout in Settings with saved visibility, drag and keyboard ordering, and reset. Default to hidden Indoor summary first, followed by shown Recommendation, Moisture comparison and Supporting details; keep the footer always available and provide a fallback indoor editor.
+- Add a camera shortcut to Indoor summary and make its pencil edit action icon-only, respecting input visibility settings and returning focus after dismissal.
+
 - Change the below-minimum KEEP CLOSED supporting line to “Drier out, but ventilation would cool it further.”
 - Update TARGET MET supporting lines to “Drier out, but your humidity target is met.” when outdoor air is clearly drier, and “Your humidity target is met.” otherwise.
 - Remove the unused timer Shortcut generator and macOS signing workflow; retain the shared iCloud Shortcut installation flow and document the abandoned signing experiment.

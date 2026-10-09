@@ -9,9 +9,9 @@ const { estimateOpeningWindowPlan } = require('../src/domain/ventilation.js');
 
 const text = node => node.children.length ? node.children.map(child => typeof child === 'string' ? child : text(child)).join('') : node.textContent;
 function fixture(overrides = {}, timerSupported = false) {
-  const state = { indoorTemp: 24, indoorRh: 58, targetRh: 55, minTemp: 18, outdoorTemp: 24, outdoorRh: 90, outdoorPressure: 1013.25, outdoorWind: 10, roomPreset: 'medium', openingSetup: 'single', roomLength: 4, roomWidth: 5, roomHeight: 2.5, customAirflow: 80, timezone: 'Europe/London', location: { name: 'Sale' }, forecast: [], ...overrides };
+  const state = { indoorTemp: 24, indoorRh: 58, targetRh: 55, minTemp: 18, outdoorTemp: 24, outdoorRh: 90, outdoorPressure: 1013.25, outdoorWind: 10, outdoorWindAvailable: true, roomPreset: 'medium', openingSetup: 'single', roomLength: 4, roomWidth: 5, roomHeight: 2.5, customAirflow: 80, timezone: 'Europe/London', location: { name: 'Sale' }, forecast: [], ...overrides };
   const elements = new Proxy({}, { get: (target, key) => target[key] ||= element() });
-  const document = { activeElement: null, createElement: () => element(), querySelector: () => element() };
+  const document = { activeElement: null, createElement: () => element(), createElementNS: () => element(), querySelector: () => element() };
   const formatters = createFormatters({ state });
   const view = createRecommendationView({ state, elements, timerSupported, ...formatters }, environment({ document }));
   const dashboard = createDashboard({ state, elements, ...formatters, ...view, weatherUrlForLocation: () => '#', renderAhChart() {}, renderReadingRulers() {} }, environment({ document }));
@@ -52,14 +52,15 @@ test('every outcome has plain supporting copy, including immediate limits and co
   for (const relation of ['drier', 'wetter', 'uncertain']) {
     for (const status of ['target-met', 'below-minimum', 'wetter', 'uncertain', 'good', 'forecast-limit', 'settling', 'too-cold', 'condensation', 'slow', 'minimal-impact', 'unknown']) {
       for (const limitMinutes of [0, 20]) {
-        const plan = { status, minutes: status === 'good' ? 25 : null, limitMinutes, projectedTemp: 20, projectedRh: 60 };
+        const plan = { status, minutes: status === 'good' ? 25 : null, limitMinutes, projectedTemp: 20, projectedRh: 60, dryAirHorizon: { minutes: 58, capped: false } };
         f.dashboard.renderRecommendationExplanation(plan, { status: relation });
-        const explanation = f.elements.explanationText.textContent;
+        const fallback = f.elements.explanationDetails.hidden;
+        const explanation = fallback ? text(f.elements.explanationOverview) : f.elements.explanationText.textContent;
         assert.ok(explanation.length > 30);
         assert.doesNotMatch(explanation, /undefined|NaN|±|g\/m³|airing/);
-        if (relation === 'uncertain') assert.match(explanation, /too small to be sure/);
-        if (status === 'condensation') assert.match(explanation, /100% humidity.*does not assess condensation/);
-        if (status === 'minimal-impact') assert.match(explanation, /small or uncertain moisture reduction/);
+        if (relation === 'uncertain' && !fallback) assert.match(explanation, /too small to be sure/);
+        if (status === 'condensation' && !fallback) assert.match(explanation, /100% humidity.*does not assess condensation/);
+        if (status === 'minimal-impact' && !fallback) assert.match(explanation, /small or uncertain moisture reduction/);
       }
     }
   }
@@ -121,4 +122,77 @@ test('loading, failure, missing data and absent forecasts never retain future gu
   f.state.forecast = [];
   f.dashboard.render();
   assert.doesNotMatch(f.elements.explanationText.textContent, /next suitable time/);
+});
+
+test('explanation quantifies comparable moisture and distinguishes the target from the drier-air horizon', () => {
+  const f = fixture({ outdoorTemp: 12, outdoorRh: 75, outdoorWindDirection: 225 });
+  const plan = { status: 'good', minutes: 8, limitMinutes: 8, projectedTemp: 23.5, projectedRh: 55, dryAirHorizon: { minutes: 58, capped: false } };
+  f.dashboard.renderRecommendationExplanation(plan, compareMoisture(24, 58, 12, 75), 35);
+  assert.match(f.elements.explanationText.textContent, /same 24\.0°C temperature.*g\/m³.*less.*moisture/);
+  assert.match(text(f.elements.explanationOverview), /about \d+% less moisture/);
+  assert.match(f.elements.explanationText.textContent, /35% RH.*target in about 8 min/);
+  assert.match(f.elements.explanationHorizon.textContent, /58 min.*changing room.*reading uncertainty/);
+  assert.match(f.elements.explanationHorizon.textContent, /Close when your target is reached.*not a rain or comfort limit/);
+  assert.match(f.elements.explanationModel.textContent, /50 m³.*one window open.*air changes per hour.*23\.5°C.*18\.0°C/);
+  plan.dryAirHorizon = { minutes: 180, capped: true };
+  f.dashboard.renderRecommendationExplanation(plan, compareMoisture(24, 58, 12, 75));
+  assert.match(f.elements.explanationHorizon.textContent, /three-hour limit; drying may continue/);
+  assert.doesNotMatch(f.elements.explanationHorizon.textContent, /After that/);
+});
+
+test('rain advice uses overlapping hourly accumulations without inventing a partial-hour total', () => {
+  const f = fixture({ outdoorTemp: 12, outdoorRh: 75 });
+  const now = Date.now();
+  f.state.forecast = [
+    { ...forecastRow(new Date(now + 4 * 60000), 12, 75), rainfall: 1.2, precipitationProbability: 60 },
+    { ...forecastRow(new Date(now + 64 * 60000), 12, 75), rainfall: 8, precipitationProbability: 90 },
+  ];
+  const plan = { status: 'good', minutes: 8, projectedTemp: 23, projectedRh: 55, dryAirHorizon: { minutes: 58, capped: false } };
+  const comparison = compareMoisture(24, 58, 12, 75);
+  f.dashboard.renderRecommendationExplanation(plan, comparison);
+  assert.match(f.elements.explanationRain.textContent, /suggested 8 min.*8\.0 mm.*overlapping forecast hour.*90%/);
+  assert.match(text(f.elements.explanationOverview), /Heavy rain.*Wait if rain is heavy at your window/);
+  f.state.forecast[1].rainfall = 2.5;
+  f.dashboard.renderRecommendationExplanation(plan, comparison);
+  assert.match(text(f.elements.explanationOverview), /Light rain.*only a sheltered window/);
+  f.state.forecast[1].rainfall = 7.5;
+  f.dashboard.renderRecommendationExplanation(plan, comparison);
+  assert.match(text(f.elements.explanationOverview), /Moderate/);
+  f.state.forecast[1].rainfall = null;
+  f.dashboard.renderRecommendationExplanation(plan, comparison);
+  assert.match(f.elements.explanationRain.textContent, /coverage is incomplete/);
+  f.state.forecast = [];
+  f.dashboard.renderRecommendationExplanation(plan, comparison);
+  assert.match(f.elements.explanationRain.textContent, /amounts are unavailable/);
+  assert.doesNotMatch(f.elements.explanationRain.textContent, /no rain/);
+});
+
+test('wind uses the meteorological from direction and missing data never names a window side', () => {
+  const f = fixture({ outdoorWindDirection: 225, outdoorWind: 18 });
+  const plan = { status: 'good', minutes: 8, projectedTemp: 23, projectedRh: 55, dryAirHorizon: { minutes: 58, capped: false } };
+  f.dashboard.renderRecommendationExplanation(plan, { status: 'drier' });
+  assert.match(f.elements.explanationWind.textContent, /from the south-west.*towards the north-east.*18 km\/h/);
+  assert.match(text(f.elements.explanationOverview), /Avoid exposed south-west-facing windows/);
+  assert.match(f.elements.explanationWind.textContent, /positions and gusts are not modelled/);
+  f.state.outdoorWindDirection = 360;
+  f.dashboard.renderRecommendationExplanation(plan, { status: 'drier' });
+  assert.match(f.elements.explanationWind.textContent, /from the north.*towards the south/);
+  f.state.outdoorWindDirection = null;
+  f.dashboard.renderRecommendationExplanation(plan, { status: 'drier' });
+  assert.match(f.elements.explanationWind.textContent, /direction is unavailable/);
+  assert.doesNotMatch(f.elements.explanationWind.textContent, /facing/);
+  f.state.outdoorWindDirection = 90;
+  f.state.outdoorWind = 0;
+  f.dashboard.renderRecommendationExplanation(plan, { status: 'drier' });
+  assert.match(text(f.elements.explanationOverview), /Little or no wind.*direction gives little guidance/);
+  assert.doesNotMatch(f.elements.explanationWind.textContent, /east-facing/);
+  for (const key of ['weatherRequestPending', 'weatherLoadFailed']) {
+    f.state[key] = true;
+    f.dashboard.renderRecommendationExplanation(null, null);
+    for (const name of ['explanationHorizon', 'explanationRain', 'explanationWind', 'explanationModel']) {
+      assert.equal(f.elements[name].hidden, true);
+      assert.equal(f.elements[name].textContent, '');
+    }
+    f.state[key] = false;
+  }
 });

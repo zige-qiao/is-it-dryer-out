@@ -5,6 +5,10 @@ export function dateFromApiTime(value) {
   return new Date(typeof value === "number" ? value * 1000 : value);
 }
 
+function normalizeWindDirection(value) {
+  return Number.isFinite(value) && value >= 0 && value <= 360 ? value % 360 : null;
+}
+
 export function buildForecast(data) {
   const times = data.hourly?.time ?? [];
   const temperatures = data.hourly?.temperature_2m ?? [];
@@ -21,6 +25,10 @@ export function buildForecast(data) {
       dewPoint: dewPoints[index],
       pressure: pressures[index],
       wind: winds[index],
+      windDirection: normalizeWindDirection(data.hourly?.wind_direction_10m?.[index]),
+      rain: data.hourly?.rain?.[index],
+      showers: data.hourly?.showers?.[index],
+      precipitationProbability: data.hourly?.precipitation_probability?.[index],
     }))
     .filter(
       (item) =>
@@ -33,6 +41,10 @@ export function buildForecast(data) {
       ...item,
       pressure: Number.isFinite(item.pressure) ? item.pressure : DEFAULT_PRESSURE_HPA,
       wind: Number.isFinite(item.wind) ? item.wind : 0,
+      rainfall: Number.isFinite(item.rain) && item.rain >= 0 && Number.isFinite(item.showers) && item.showers >= 0
+        ? item.rain + item.showers : null,
+      precipitationProbability: Number.isFinite(item.precipitationProbability) && item.precipitationProbability >= 0 && item.precipitationProbability <= 100
+        ? item.precipitationProbability : null,
     }));
 }
 

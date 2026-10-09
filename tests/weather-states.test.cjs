@@ -44,6 +44,7 @@ function fixture(width = 320) {
     getComputedStyle: () => ({ getPropertyValue: name => name === '--chart-wet' ? '#ffb3a8' : '#ffd27a' }),
     formatTemp: v => `${v}°C`, formatRh: v => `${v}%`,
     formatShortTime: () => '12:00', formatWeatherTimestamp: () => 'earlier',
+    formatDuration: minutes => `${minutes} min`,
     renderReadingRulers() {},
     planLimitingExplanation: () => 'Check conditions again later.',
     setDecisionSummary: (a, b) => { elements.decisionPrimary.textContent = a; elements.decisionSecondary.textContent = b; },
@@ -93,6 +94,24 @@ test('initial checking and failure retain indoor data, clear outdoor data and ex
   assert.equal(f.elements.indoorAbsoluteHumidity.textContent, absoluteHumidity(20.1,65).toFixed(1));
 });
 
+test('weather metadata separates successful timestamps from loading and failure messages', () => {
+  const f = fixture();
+  for (const success of [null, new Date()]) {
+    for (const status of ['loading', 'failed', 'ready']) {
+      Object.assign(f.state, { lastSuccessfulUpdateAt: success, lastCheckedAt: new Date(),
+        weatherRequestPending: status === 'loading', weatherLoadFailed: status === 'failed' });
+      f.context.render();
+      assert.equal(f.elements.weatherDataUpdated.textContent, success ? 'earlier' : 'Not available yet');
+      const message = f.elements.weatherDataStatus.textContent;
+      if (status === 'failed') assert.match(message, /failed at earlier/);
+      if (status === 'loading') assert.match(message, /in progress/);
+      if (status === 'ready' && success) assert.equal(message, '');
+      if (!success) assert.match(message, /No successful/);
+      assert.equal(f.elements.weatherDataStatus.hidden, !message);
+    }
+  }
+});
+
 test('pending or failed refresh hides previous recommendations and preserves historical timestamp', () => {
   const f = fixture();
   Object.assign(f.state, { outdoorTemp: 15, outdoorRh: 70, lastSuccessfulUpdateAt: new Date() });
@@ -102,7 +121,7 @@ test('pending or failed refresh hides previous recommendations and preserves his
     assert.equal(f.elements.decisionLabel.textContent, failed ? 'NO DATA' : 'Checking');
     assert.equal(f.elements.outdoorTempValue.textContent, '--');
     assert.equal(f.elements.warmedOutdoorRh.textContent, '--');
-    assert.match(f.elements.weatherDataStatus.textContent, /Last successful update: earlier/);
+    assert.equal(f.elements.weatherDataUpdated.textContent, 'earlier');
     assert.doesNotMatch(f.elements.weatherDataStatus.textContent, /Showing/);
     assert.doesNotMatch(f.elements.explanationText.textContent, /No successful weather data/);
     assert.equal(f.context.renderPlan(), null);

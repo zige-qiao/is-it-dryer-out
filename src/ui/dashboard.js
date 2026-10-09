@@ -1,3 +1,4 @@
+import { createExplanationView } from './explanation.js';
 import { saturationVaporPressure, dewPoint, absoluteHumidity, relativeHumidityAtTemperature, compareMoisture } from '../domain/humidity.js';
 import { buildWeatherTimeline as calculateBuildWeatherTimeline } from '../domain/forecast.js';
 import { roomVolume as calculateRoomVolume, effectiveAirExchange as calculateEffectiveAirExchange, projectedDryAirHorizon as calculateProjectedDryAirHorizon, estimateOpeningWindowPlan as calculateEstimateOpeningWindowPlan, findNextUsefulOpeningTime } from '../domain/ventilation.js';
@@ -9,6 +10,7 @@ export function createDashboard({
   weatherUrlForLocation,
   formatTemp,
   formatRh,
+  formatDuration,
   formatWeatherTimestamp,
   formatForecastOpeningTime,
   setDecisionSummary,
@@ -73,47 +75,26 @@ export function createDashboard({
     return plan;
   }
 
-  function renderRecommendationExplanation(plan, comparison, adjustedRh, condensationRisk) {
-    if (state.weatherRequestPending || state.weatherLoadFailed || state.outdoorTemp === null || state.outdoorRh === null) {
-      const locationName = state.location.name || "the selected location";
-      elements.explanationText.textContent = state.weatherLoadFailed
-        ? `Outdoor weather is unavailable for ${locationName}. A recommendation cannot be made until current data is available.`
-        : `Checking outdoor weather for ${locationName}. The recommendation will appear when current data arrives.`;
-      return;
-    }
-
-    const relationship = comparison.status === "drier"
-      ? "Outdoor air is drier than the air indoors."
-      : comparison.status === "wetter"
-        ? "Outdoor air contains more moisture than the air indoors."
-        : "The moisture difference between indoor and outdoor air is too small to be sure.";
-    const nextWindow = plan.nextUsefulOpeningTime
-      ? ` Assuming your indoor readings stay the same, the next suitable time to open windows for drying is forecast around ${formatForecastOpeningTime(plan.nextUsefulOpeningTime)}.`
-      : "";
-    elements.explanationText.textContent = `${relationship} ${planLimitingExplanation(plan, comparison)}${nextWindow}`;
+  const explanationView = createExplanationView({ state, elements, formatTemp, formatRh, formatDuration,
+    formatForecastOpeningTime, formatVentilationSummary, planLimitingExplanation }, environment);
+  function renderRecommendationExplanation(...args) {
+    explanationView.render(...args);
   }
-
   function renderWeatherDataDetails() {
     elements.sourceLocationName.textContent = state.location.name || "Selected location";
     elements.liveWeatherRequest.href = weatherUrlForLocation(state.location);
 
     const lastSuccess = state.lastSuccessfulUpdateAt;
+    elements.weatherDataUpdated.textContent = lastSuccess ? formatWeatherTimestamp(lastSuccess) : "Not available yet";
     if (state.weatherRequestPending) {
-      elements.weatherDataStatus.textContent = lastSuccess
-        ? `Weather refresh in progress. Last successful update: ${formatWeatherTimestamp(lastSuccess)}.`
-        : "Weather update in progress. No successful update is available yet.";
+      elements.weatherDataStatus.textContent = lastSuccess ? "Weather refresh in progress." : "Weather update in progress. No successful update is available yet.";
     } else if (state.weatherLoadFailed) {
-      const failedAt = state.lastCheckedAt
-        ? `Latest refresh failed at ${formatWeatherTimestamp(state.lastCheckedAt)}.`
-        : "The latest weather refresh failed.";
-      elements.weatherDataStatus.textContent = lastSuccess
-        ? `${failedAt} Last successful update: ${formatWeatherTimestamp(lastSuccess)}.`
-        : `${failedAt} No successful weather data is available.`;
+      const failedAt = state.lastCheckedAt ? `Latest refresh failed at ${formatWeatherTimestamp(state.lastCheckedAt)}.` : "The latest weather refresh failed.";
+      elements.weatherDataStatus.textContent = lastSuccess ? failedAt : `${failedAt} No successful weather data is available.`;
     } else {
-      elements.weatherDataStatus.textContent = lastSuccess
-        ? `Last successful update: ${formatWeatherTimestamp(lastSuccess)}.`
-        : "No successful weather update is available yet.";
+      elements.weatherDataStatus.textContent = lastSuccess ? "" : "No successful weather update is available yet.";
     }
+    elements.weatherDataStatus.hidden = !elements.weatherDataStatus.textContent;
   }
 
   function render() {

@@ -1,3 +1,4 @@
+import { normalizePageOrder, PAGE_BOXES } from '../ui/page-layout.js';
 import { INDOOR_LIMITS } from '../config.js';
 import { numberInRange } from '../domain/humidity.js';
 import { STORAGE_KEY, PLAN_STORAGE_KEY, UI_PREFERENCES_STORAGE_KEY, LOCATION_STORAGE_KEY, LOCATION_HISTORY_STORAGE_KEY, LOCATION_REQUESTED_STORAGE_KEY, ROOM_PRESETS, OPENING_SETUPS } from '../config.js';
@@ -87,11 +88,16 @@ export function createStorage({
   }
 
   function loadUiPreferences() {
+    for (const box of PAGE_BOXES) uiPreferences[box.preference] = box.visible;
+    uiPreferences.pageOrder = normalizePageOrder();
     try {
       const saved = JSON.parse(read(UI_PREFERENCES_STORAGE_KEY));
-      if (typeof saved?.showIndoorSummary === 'boolean') uiPreferences.showIndoorSummary = saved.showIndoorSummary;
+      for (const box of PAGE_BOXES) {
+        uiPreferences[box.preference] = typeof saved?.[box.preference] === 'boolean' ? saved[box.preference] : box.visible;
+      }
+      uiPreferences.pageOrder = normalizePageOrder(saved?.pageOrder);
       if (typeof saved?.autoFlash === 'boolean') uiPreferences.autoFlash = saved.autoFlash;
-      for (const key of ['useStillPhotos', 'showCameraButton', 'showVoiceButton']) {
+      for (const key of ['useStillPhotos', 'showCameraButton', 'showVoiceButton', 'showChartKey']) {
         if (typeof saved?.[key] === 'boolean') uiPreferences[key] = saved[key];
       }
       if (typeof saved?.openIndoorOnLaunch === 'boolean') uiPreferences.openIndoorOnLaunch = saved.openIndoorOnLaunch;

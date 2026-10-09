@@ -11,11 +11,12 @@ import { createChart } from './src/ui/chart.js';
 import { createReadingControls } from './src/ui/readings.js';
 import { createDialogs } from './src/ui/dialogs.js';
 import { createPullRefresh } from './src/ui/pull-refresh.js';
+import { createPageLayout, pageLayoutDefaults } from './src/ui/page-layout.js';
 import { createEvents } from './src/ui/events.js';
 import { createTimerController, isAppleMobile } from './src/ui/timer.js';
 import { DEFAULT_LOCATION, DEFAULT_PRESSURE_HPA, DEFAULT_TIMEZONE, WEATHER_REFRESH_INTERVAL_MS } from './src/config.js';
 
-const uiPreferences = { showIndoorSummary: false, openIndoorOnLaunch: true, autoFlash: true,
+const uiPreferences = { showChartKey: false, ...pageLayoutDefaults(), openIndoorOnLaunch: true, autoFlash: true,
   useStillPhotos: false, showCameraButton: true, showVoiceButton: false };
 
 const state = {
@@ -37,6 +38,8 @@ const state = {
   outdoorDewPoint: null,
   outdoorPressure: DEFAULT_PRESSURE_HPA,
   outdoorWind: 0,
+  outdoorWindAvailable: false,
+  outdoorWindDirection: null,
   forecast: [],
   chartHours: 48,
   chartSelection: 0,
@@ -89,6 +92,7 @@ const elements = {
   autoFlash: document.querySelector("#autoFlash"),
   useStillPhotos: document.querySelector("#useStillPhotos"),
   showCameraButton: document.querySelector("#showCameraButton"),
+  settingsCameraOptions: document.querySelector("#settingsCameraOptions"),
   showVoiceButton: document.querySelector("#showVoiceButton"),
   cameraSwitchPreview: document.querySelector("#cameraSwitchPreview"),
   settingsDialog: document.querySelector("#settingsDialog"),
@@ -107,7 +111,14 @@ const elements = {
   warmedOutdoorRh: document.querySelector("#warmedOutdoorRh"),
   adjustedAirNote: document.querySelector("#adjustedAirNote"),
   explanationText: document.querySelector("#explanationText"),
+  ...Object.fromEntries(['explanationStatus', 'explanationOverview', 'explanationDetails',
+    'explanationDetailsSummary', 'explanationToggle'].map(id => [id, document.querySelector('#' + id)])),
+  explanationHorizon: document.querySelector("#explanationHorizon"),
+  explanationRain: document.querySelector("#explanationRain"),
+  explanationWind: document.querySelector("#explanationWind"),
+  explanationModel: document.querySelector("#explanationModel"),
   weatherDataStatus: document.querySelector("#weatherDataStatus"),
+  weatherDataUpdated: document.querySelector("#weatherDataUpdated"),
   refreshWeather: document.querySelector("#refreshWeather"),
   targetRh: document.querySelector("#targetRh"),
   minTemp: document.querySelector("#minTemp"),
@@ -186,9 +197,11 @@ let cameraController = null;
 const cameraLoader = createCameraLoader({
   canActivate: () => elements.indoorDialog.open && document.visibilityState === 'visible',
   setBusy: busy => {
-    elements.cameraInputButton.disabled = busy;
-    elements.cameraInputButton.classList.toggle('is-loading', busy);
-    elements.cameraInputButton.setAttribute('aria-busy', String(busy));
+    for (const button of [elements.cameraInputButton, document.querySelector('#indoorSummaryCamera')]) {
+      button.disabled = busy;
+      button.classList.toggle('is-loading', busy);
+      button.setAttribute('aria-busy', String(busy));
+    }
   },
   showError: message => {
     elements.cameraLoadError.hidden = !message;
@@ -201,8 +214,9 @@ const cameraLoader = createCameraLoader({
       openFlashSettings: () => {
         elements.settingsButton.click();
         dialogs.rememberSheetFocus(elements.settingsDialog, elements.cameraHelpButton, elements.cameraHelpButton);
-        elements.autoFlash.focus({ preventScroll: true });
-        elements.autoFlash.closest('.settings-toggle').scrollIntoView({ block: 'nearest', behavior: 'instant' });
+        const setting = uiPreferences.showCameraButton === false ? elements.showCameraButton : elements.autoFlash;
+        setting.focus({ preventScroll: true });
+        setting.closest('.settings-toggle').scrollIntoView({ block: 'nearest', behavior: 'instant' });
       },
       beforeCamera: () => {
         dialogs.rememberSheetFocus(elements.cameraPanel, elements.cameraInputButton, elements.cameraTitle);
@@ -269,6 +283,7 @@ const dashboard = createDashboard({
   formatTemp: (...args) => formatters.formatTemp(...args),
   formatRh: (...args) => formatters.formatRh(...args),
   formatWeatherTimestamp: (...args) => formatters.formatWeatherTimestamp(...args),
+  formatDuration: (...args) => formatters.formatDuration(...args),
   formatForecastOpeningTime: (...args) => formatters.formatForecastOpeningTime(...args),
   setDecisionSummary: (...args) => recommendationView.setDecisionSummary(...args),
   renderRecommendation: (...args) => recommendationView.renderRecommendation(...args),
@@ -296,7 +311,10 @@ const pullRefresh = createPullRefresh({
   elements,
   fetchWeather: (...args) => weatherController.fetchWeather(...args),
 });
+const pageLayout = createPageLayout({ preferences: uiPreferences, save: () => storage.saveUiPreferences() });
 const events = createEvents({
+  applyPageLayout: () => pageLayout.apply(),
+  startCameraInput: () => cameraLoader.start(),
   state,
   elements,
   uiPreferences,
@@ -349,6 +367,7 @@ locationController.loadLocationHistory(hasSavedLocation);
 locationController.updateLocationUi();
 // Give the timer help popup first refusal of Escape before shared dismissal.
 timerController.initialize();
+pageLayout.bind();
 events.bindEvents();
 pullRefresh.bindPullToRefresh();
 dashboard.render();

@@ -29,6 +29,13 @@ exports.element = () => {
     removeEventListener(name, fn) { listeners.set(name, (listeners.get(name) || []).filter(listener => listener !== fn)); },
     emit(name, event = {}) { for (const fn of listeners.get(name) || []) fn(event); },
     append(...children) { this.children.push(...children); },
+    insertBefore(child, reference) {
+      if (child.parentNode) child.parentNode.children = child.parentNode.children.filter(value => value !== child);
+      const index = reference ? this.children.indexOf(reference) : this.children.length;
+      this.children.splice(index < 0 ? this.children.length : index, 0, child);
+      child.parentNode = this;
+      return child;
+    },
     replaceChildren(...children) { this.children = children; },
     focus() {}, select() {}, showModal() { this.open = true; }, close() { this.open = false; this.emit('close'); },
     querySelectorAll: () => [],
