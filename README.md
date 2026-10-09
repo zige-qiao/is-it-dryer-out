@@ -48,6 +48,4 @@ node --test tests/*.test.cjs
 - [Voice investigation](docs/voice/VOICE-INVESTIGATION.md)
 - [Changelog](CHANGELOG.md)
 
-Created by Ziggy Qiao.
-
-Indoor readings accept 10–45°C in 0.1°C steps and 10–90% relative humidity in whole-number steps.
+Created by Ziggy Qiao
