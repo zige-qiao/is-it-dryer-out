@@ -71,3 +71,13 @@ test('capture and entry visibility preferences persist independently and invalid
  }
  localStorage.setItem(UI_PREFERENCES_STORAGE_KEY,'bad json');const invalid=make();invalid.storage.loadUiPreferences();assert.deepEqual(invalid.uiPreferences,defaults);
 });
+
+
+test('Chart key defaults to collapsed and restores only valid saved booleans',()=>{
+ for(const saved of [undefined,true,false,'true',1,null]){
+  const localStorage=memoryStorage(),uiPreferences={showChartKey:false};
+  localStorage.setItem(UI_PREFERENCES_STORAGE_KEY,JSON.stringify({showChartKey:saved}));
+  createStorage({uiPreferences,applyUiPreferences(){}},environment({localStorage})).loadUiPreferences();
+  assert.equal(uiPreferences.showChartKey,saved===true);
+ }
+});

@@ -1,5 +1,5 @@
 import { clamp, absoluteHumidity, compareMoisture } from '../domain/humidity.js';
-import { buildWeatherTimeline as calculateBuildWeatherTimeline, weatherAtTime } from '../domain/forecast.js';
+import { buildWeatherTimeline as calculateBuildWeatherTimeline, weatherAtTime, buildRainOutlook, rainAtTime } from '../domain/forecast.js';
 import { effectiveAirExchange as calculateEffectiveAirExchange } from '../domain/ventilation.js';
 
 export function createChart({
@@ -59,9 +59,10 @@ export function createChart({
     const chartWidth = chart.getBoundingClientRect().width;
     const textScale = chartWidth > 0 ? 480 / chartWidth : 1;
     chart.style.setProperty('--chart-text-scale', String(textScale));
-    const left = 0, right = 480, top = 8, bottom = 158;
+    const left = 0, right = 480, top = 8, bottom = top + 150;
     // Share geometry across loading, failure and live data, including label rows.
-    const hourY = bottom + 16 * textScale;
+    const annotationHeight = state.chartHours === 24 ? 34 * textScale : 0;
+    const hourY = bottom + annotationHeight + 16 * textScale;
     const dayY = hourY + 18 * textScale;
     const labelBottom = dayY + 7 * textScale;
     chart.setAttribute('viewBox', '0 0 480 ' + labelBottom);
@@ -95,8 +96,9 @@ export function createChart({
     chart.setAttribute('role', 'slider');
     chart.setAttribute('tabindex', '0');
     chart.setAttribute('aria-valuemin', '0');
-    chart.setAttribute('aria-label', 'Outdoor absolute humidity and estimated airflow with indoor reference; use arrow keys to inspect hourly values');
+    chart.setAttribute('aria-label', 'Outdoor absolute humidity, forecast rain and estimated airflow with indoor reference; use arrow keys to inspect hourly values');
     const { start, end, points, indoor, low, high, achHigh } = buildAhOutlook(timeline, state.chartHours);
+    const rainOutlook = buildRainOutlook(state.forecast, start, end);
     const x = time => left + (time - start) / (end - start) * (right - left);
     const y = value => bottom - (value - low) / (high - low) * (bottom - top);
     const airflowBandHeight = (bottom - top) / 3;
@@ -170,17 +172,38 @@ export function createChart({
       if (px >= left+50) hours += '<text class="chart-time-label" x="'+labelX+'" y="'+hourY+'">'+tick.clock.slice(0,2)+'</text>';
       if (tick.clock === '00:00') days += '<text class="chart-time-label" x="'+labelX+'" y="'+dayY+'">'+dayFormatter.format(tick.time)+'</text>';
     }
-    let bars = '';
+    let bars = '', annotations = '';
     const barHours = 2;
     for (let t = start; t < end; t += barHours*3600000) {
       const until = Math.min(end, t+barHours*3600000);
       // Midpoint samples represent each bar's interval; the cursor reads the exact selected time.
-      const ach = effectiveAirExchange(weatherAtTime(timeline, new Date((t+until)/2)), state.indoorTemp).airChangesPerHour;
+      const weather = weatherAtTime(timeline, new Date((t+until)/2));
+      const ach = effectiveAirExchange(weather, state.indoorTemp).airChangesPerHour;
       const bx = x(t)+1.5, width = Math.max(1,x(until)-x(t)-3);
       bars += '<rect class="airflow-bar" x="'+bx+'" y="'+ay(ach)+'" width="'+width+'" height="'+(bottom-ay(ach))+'" rx="2"><title>Estimated airflow '+ach.toFixed(1)+' ACH</title></rect>';
-      if (state.chartHours === 24 && width > 23 && bottom-ay(ach) > 16 * textScale) bars += '<text class="airflow-label" text-anchor="middle" x="'+(bx+width/2)+'" y="'+(ay(ach)+13*textScale)+'">'+ach.toFixed(1)+'</text>';
+      if (state.chartHours === 24 && width > 23) annotations += '<text class="airflow-label" text-anchor="middle" x="'+(bx+width/2)+'" y="'+(bottom+13*textScale)+'">'+ach.toFixed(1)+'</text>';
+      if (state.chartHours === 24 && width > 23 && weather.wind > 0 && Number.isFinite(weather.windDirection)) {
+        const cx = bx + width / 2, cy = bottom + 25 * textScale;
+        // Meteorological bearings describe the source; arrows point with the wind.
+        annotations += `<g class="airflow-wind" transform="translate(${cx} ${cy}) scale(${textScale * .7}) rotate(${weather.windDirection + 180})"><title>Wind from ${Math.round(weather.windDirection)}°</title><path d="M-1 -5.8Q0 -7.4 1 -5.8L5.7 4.5Q6.6 6.2 4.8 5.4L.9 3.2Q0 2.7 -.9 3.2L-4.8 5.4Q-6.6 6.2 -5.7 4.5Z"/></g>`;
+      }
     }
-    chart.innerHTML = '<defs>'+gradient+excessClip+'<clipPath id="outlookPlot"><rect x="'+left+'" y="'+top+'" width="'+(right-left)+'" height="'+(bottom-top)+'"/></clipPath></defs>'+ticks+days+'<g clip-path="url(#outlookPlot)"><path d="'+path+' L'+x(end)+' '+y(indoor)+' L'+left+' '+y(indoor)+'Z" class="ah-excess-fill" clip-path="url(#ahExcessClip)" fill="url(#ahSemantic)" opacity=".09"/>'+bars+curve+'</g>'+hours+'<path d="M'+left+' '+y(indoor)+'H'+right+'" class="ah-indoor-line"/><text class="ah-indoor-label" x="'+(left+4)+'" y="'+(y(indoor)-6)+'">Indoor '+indoor.toFixed(1)+' g/m³</text><path id="ahCursor" class="ah-cursor"/><circle id="ahDot" r="'+(6 * textScale)+'" class="ah-dot"/>';
+    const rainHeight = (bottom - top) / 3;
+    let rainBands = '', rainBars = '', rainLabels = '';
+    for (const spell of rainOutlook.spells) {
+      const bx = x(spell.visibleStart), width = x(spell.visibleEnd) - bx;
+      rainBands += `<g mask="url(#rainFadeMask)"><rect class="rain-band" x="${bx}" y="${top}" width="${width}" height="${bottom-top}"/><rect x="${bx}" y="${top}" width="${width}" height="${bottom-top}" fill="url(#rainHatch)"/></g>`;
+      if (state.chartHours === 24) rainLabels += `<text class="rain-spell-total" text-anchor="middle" x="${bx+width/2}" y="${top+11*textScale}" data-start="${bx}" data-end="${bx+width}">${spell.partial ? '≥ ' : ''}${spell.amount.toFixed(1)} mm</text>`;
+    }
+    for (const item of rainOutlook.intervals) {
+      if (item.amount === null || item.amount <= 0) continue;
+      const bx = x(Math.max(start, item.start)), width = x(Math.min(end, item.end)) - bx;
+      rainBars += `<rect class="rain-bar" x="${bx+.5}" y="${top}" width="${Math.max(.2,width-1)}" height="${item.amount/rainOutlook.scale*rainHeight}" rx="2"/>`;
+    }
+    const rainFade = `<linearGradient id="rainFade" gradientUnits="userSpaceOnUse" x1="0" y1="${top}" x2="0" y2="${bottom}"><stop offset="0" stop-color="white"/><stop offset=".35" stop-color="white"/><stop offset="1" stop-color="black"/></linearGradient><mask id="rainFadeMask" maskUnits="userSpaceOnUse" x="${left}" y="${top}" width="${right-left}" height="${bottom-top}" mask-type="luminance"><rect x="${left}" y="${top}" width="${right-left}" height="${bottom-top}" fill="url(#rainFade)"/></mask>`;
+    const rainPattern = `<pattern id="rainHatch" width="${7*textScale}" height="${7*textScale}" patternUnits="userSpaceOnUse"><path class="rain-hatch" d="M0 ${7*textScale}L${7*textScale} 0"/></pattern>`;
+    chart.innerHTML = '<defs>'+gradient+excessClip+rainFade+rainPattern+'<clipPath id="outlookPlot"><rect x="'+left+'" y="'+top+'" width="'+(right-left)+'" height="'+(bottom-top)+'"/></clipPath></defs>'+ticks+days+'<g clip-path="url(#outlookPlot)">'+rainBands+'<path d="'+path+' L'+x(end)+' '+y(indoor)+' L'+left+' '+y(indoor)+'Z" class="ah-excess-fill" clip-path="url(#ahExcessClip)" fill="url(#ahSemantic)" opacity=".09"/>'+bars+rainBars+curve+'</g>'+annotations+rainLabels+hours+'<path d="M'+left+' '+y(indoor)+'H'+right+'" class="ah-indoor-line"/><text class="ah-indoor-label" x="'+(left+4)+'" y="'+(y(indoor)-6)+'">Indoor '+indoor.toFixed(1)+' g/m³</text><path id="ahCursor" class="ah-cursor"/><circle id="ahDot" r="'+(6 * textScale)+'" class="ah-dot"/>';
+    placeRainLabels(chart, right, textScale);
     reading.innerHTML = '<span class="ah-reading-time"></span> · <span class="ah-reading-moisture"></span> · <span class="ah-reading-airflow"></span>';
     const readingTime = reading.querySelector('.ah-reading-time');
     const readingMoisture = reading.querySelector('.ah-reading-moisture');
@@ -199,7 +222,12 @@ export function createChart({
       const timeLabel = selected === 0 ? 'Now' : dayFormatter.format(time)+' '+formatShortTime(new Date(time));
       const moistureLabel = value.toFixed(1)+' g/m³';
       const airflowLabel = ach.toFixed(1)+' ACH';
-      const label = timeLabel+' · '+moistureLabel+' · '+airflowLabel;
+      const { interval, spell } = rainAtTime(rainOutlook, time);
+      const rainLabel = interval?.amount !== null && interval?.amount !== undefined
+        ? 'Rain ' + interval.amount.toFixed(1) + ' mm (' + clockFormatter.format(interval.start) + '–' + clockFormatter.format(interval.end) + ')' + (interval.probability !== null ? ' · Precip. chance ' + Math.round(interval.probability) + '%' : '') + (spell ? ' · Spell ' + (spell.partial ? '≥ ' : '') + spell.amount.toFixed(1) + ' mm' : '')
+        : 'Rain data unavailable';
+      const windLabel = weather.wind > 0 && Number.isFinite(weather.windDirection) ? ' · Wind from '+Math.round(weather.windDirection)+' degrees' : '';
+      const label = timeLabel+' · '+moistureLabel+' · '+airflowLabel+windLabel+' · '+rainLabel;
       chart.setAttribute('aria-valuenow',selected.toFixed(2));
       chart.setAttribute('aria-valuetext',label);
       chart.querySelector('#ahCursor').setAttribute('d','M'+x(time)+' '+top+'V'+bottom);
@@ -236,6 +264,18 @@ export function createChart({
     select(state.chartSelection);
   }
 
+  function placeRainLabels(chart, right, textScale) {
+    let lastRight = -Infinity;
+    for (const label of chart.querySelectorAll('.rain-spell-total')) {
+      const width = label.getBBox().width;
+      const center = Number(label.getAttribute('x'));
+      const start = Number(label.getAttribute('data-start'));
+      const end = Number(label.getAttribute('data-end'));
+      if (center-width/2 < 0 || center+width/2 > right || width+6*textScale > end-start || center-width/2 < lastRight+6*textScale) label.remove();
+      else lastRight = center+width/2;
+    }
+  }
+
   function positionAhIndoorLabel(chart, curve, lineY, plotTop = 14, plotBottom = 130) {
     const label = chart.querySelector('.ah-indoor-label');
     const box = label.getBBox();
@@ -243,6 +283,8 @@ export function createChart({
     const padding = 4; // Keep a little clear space around the text and curve.
     const lastX = Math.max(box.x, 480 - padding - box.width);
     const positions = [box.x, lastX];
+    const rainLabels = [...chart.querySelectorAll('.rain-spell-total')].map(label => ({ label, box: label.getBBox() }));
+    const intersects = (bounds, box) => bounds.left < box.x + box.width && bounds.right > box.x && bounds.top < box.y + box.height && bounds.bottom > box.y;
     const candidates = [lineY - 6 - box.height, lineY + 6].flatMap(top => positions.map(left => {
       top = clamp(top, plotTop + padding, plotBottom - padding - box.height);
       const bounds = { left: left - padding, right: left + box.width + padding,
@@ -270,7 +312,8 @@ export function createChart({
         }
         overlap += Math.max(0, leave - enter) * Math.hypot(b.x - a.x, b.y - a.y);
       }
-      return { left, top, overlap };
+      const rainOverlap = rainLabels.filter(item => intersects(bounds, item.box)).length;
+      return { left, top, bounds, overlap: overlap + rainOverlap * 1000 };
     }));
     // Keep the label left when clear; otherwise try the chart's right edge.
     // Fall below the reference only when both upper corners are obstructed.
@@ -278,6 +321,9 @@ export function createChart({
       candidates.reduce((best, candidate) => candidate.overlap < best.overlap ? candidate : best);
     label.setAttribute('x', best.left);
     label.setAttribute('y', best.top + baselineOffset);
+    // The indoor reference takes priority if every placement is obstructed.
+    // The full rain total remains available through accessible inspection text.
+    rainLabels.filter(item => intersects(best.bounds, item.box)).forEach(item => item.label.remove());
   }
 
   return { buildAhOutlook, renderAhChart, positionAhIndoorLabel };

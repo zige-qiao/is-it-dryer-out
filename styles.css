@@ -2546,3 +2546,36 @@ body.pull-result.pull-failed .pull-refresh-result-icon::after { content: '!'; }
   .camera-preview-controls .camera-zoom { grid-column: 1 / -1; grid-row: 1; justify-self: center; }
   .camera-preview-controls .camera-flash { grid-column: 2; grid-row: 2; }
 }
+
+/* Forecast rain is advisory; retain the moisture curve as the primary signal. */
+.verdict-panel .rain-band { fill: #8ccdff; opacity: .065; }
+.verdict-panel .rain-hatch { stroke: #aae1ff; stroke-width: 1; opacity: .17; }
+.verdict-panel .rain-bar { fill: #ffffff38; }
+.verdict-panel .rain-spell-total { fill: #d6f0ff; font-size: calc(10px * var(--chart-text-scale, 1)); }
+/* Native disclosure stays outside the chart's frequently replaced SVG. */
+.chart-key-content { margin: 0 0 8px; color: var(--muted); }
+.chart-key-content p { margin: 12px 0 0; }
+.chart-key-humidity > p { margin: 0; }
+.chart-key-legend { display: grid; gap: 16px; line-height: 1.5; }
+.chart-key-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.chart-key-humidity, .chart-key-outdoor, .chart-key-weather { display: grid; gap: 8px; }
+.chart-key-colours { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.chart-key-weather { gap: 12px; }
+.chart-key-items { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.chart-key-note, .chart-key-notes { font-size: var(--font-ui); line-height: 1.5; }
+.chart-key-notes { display: grid; gap: 8px; }
+.chart-key-notes p { margin: 0; }
+
+.chart-key-symbol { display: inline-block; flex: 0 0 16px; width: 16px; height: 3px; border-radius: 2px; }
+.key-rain { height: 12px; width: 12px; flex-basis: 12px; border: 1px solid var(--muted); border-radius: 2px; background: linear-gradient(#ffffff38, #ffffff38), repeating-linear-gradient(135deg, #3478a260 0 1px, transparent 1px 5px); }
+.key-indoor { height: 0; border-top: 2px dashed var(--muted); border-radius: 0; }
+.key-drier { background: white; box-shadow: 0 0 0 1px var(--muted); }
+.key-uncertain { background: #ffd27a; box-shadow: 0 0 0 1px #9b7433; }
+.key-wetter { background: #ffb3a8; box-shadow: 0 0 0 1px #a55a51; }
+.key-ach { height: 12px; background: #3478a238; box-shadow: inset 0 0 0 1px #3478a280; }
+.chart-key-wind { width: 16px; height: 16px; flex: 0 0 16px; fill: currentColor; }
+@media (min-width: 640px) { .chart-key-outdoor { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; } }
+@media (max-width: 300px) { .chart-key-legend span { white-space: normal; } }
+@media (forced-colors: active) { .chart-key-symbol { forced-color-adjust: none; } }
+
+.airflow-wind { fill: #fff; stroke: none; opacity: .85; pointer-events: none; }

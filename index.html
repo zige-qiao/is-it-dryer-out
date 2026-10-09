@@ -81,6 +81,7 @@
                 </div>
               </div>
               <svg id="ahChart" class="ah-chart" viewBox="0 0 480 240" role="slider" tabindex="0" aria-label="Outdoor absolute humidity and estimated airflow with indoor reference; use arrow keys to inspect hourly values" aria-valuemin="0" aria-valuemax="48" aria-valuenow="0"></svg>
+
             </section>
           </div>
           <div class="forecast-panel" aria-label="Opening outlook">
@@ -130,6 +131,37 @@
           <details class="dashboard-explainer recommendation-explainer" open>
             <summary>Why this recommendation?</summary>
             <p id="explanationText">Checking outdoor weather for Sale, Greater Manchester. The recommendation will appear when current data arrives.</p>
+          </details>
+
+          <details class="dashboard-explainer chart-key-explainer" id="chartKey">
+            <summary>Chart key</summary>
+                <div class="chart-key-content" role="region" aria-label="Chart key">
+                  <div class="chart-key-legend">
+                    <div class="chart-key-humidity">
+                      <span>Indoor AH<i class="chart-key-symbol key-indoor" aria-hidden="true"></i></span>
+                      <div class="chart-key-outdoor">
+                        <span>Outdoor AH</span>
+                        <div class="chart-key-colours">
+                          <span><i class="chart-key-symbol key-drier" aria-hidden="true"></i>drier</span>
+                          <span><i class="chart-key-symbol key-uncertain" aria-hidden="true"></i>uncertain</span>
+                          <span><i class="chart-key-symbol key-wetter" aria-hidden="true"></i>wetter</span>
+                        </div>
+                      </div>
+                      <p class="chart-key-note">Colours show the drying benefit of ventilation.</p>
+                    </div>
+                    <div class="chart-key-weather">
+                      <div class="chart-key-items">
+                        <span><i class="chart-key-symbol key-rain" aria-hidden="true"></i>Rain, mm/h</span>
+                        <span><i class="chart-key-symbol key-ach" aria-hidden="true"></i>Est. ACH</span>
+                        <span><svg class="chart-key-wind" viewBox="-8 -8 16 16" aria-hidden="true"><path d="M-1 -5.8Q0 -7.4 1 -5.8L5.7 4.5Q6.6 6.2 4.8 5.4L.9 3.2Q0 2.7 -.9 3.2L-4.8 5.4Q-6.6 6.2 -5.7 4.5Z"/></svg>Wind direction</span>
+                      </div>
+                      <div class="chart-key-notes">
+                        <p>Rain bars: 1 hour. ACH bars: 2 hours.<br>Arrows point where the wind is blowing.</p>
+                        <p>≥ means the rain-spell total is incomplete.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
           </details>
 
           <details class="dashboard-explainer glossary-explainer">

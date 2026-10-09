@@ -10,7 +10,7 @@ The footer Settings sheet has three expanded groups. **Indoor readings** contain
 
 Open the ventilation summary below the chart to set minimum indoor temperature, target humidity, room size and window opening. Choose a room preset or enter custom dimensions; custom airflow is also available. These settings save immediately.
 
-Sheets can be closed with Escape, a tap outside, or their existing Done actions. Below 640px, drag down from the handle or header to dismiss; header close buttons appear on larger screens. Focus returns to the opener without a highlight unless its keyboard focus indicator was visible when the sheet opened. The supporting **Why this recommendation?**, **Glossary**, **How estimates work** and **Weather data** sections explain the current result and terminology.
+Sheets can be closed with Escape, a tap outside, or their existing Done actions. Below 640px, drag down from the handle or header to dismiss; header close buttons appear on larger screens. Focus returns to the opener without a highlight unless its keyboard focus indicator was visible when the sheet opened. The supporting **Why this recommendation?**, **Chart key**, **Glossary**, **How estimates work** and **Weather data** sections explain the current result and terminology.
 
 ## Location and weather
 
@@ -91,3 +91,11 @@ The app interface is cached for offline loading. Fresh outdoor weather and locat
 Auto flash is on by default in Settings. It turns on preview lighting after sustained low light and requests flash for the still photo; manual flash control overrides it for the current camera session. Camera help links directly to this setting. Hold still while the photo is being taken. Preview messages sit alongside the flash button.
 
 At 3× or above, the app selects an explicitly identified telephoto camera when available; below 3× it returns to the starting rear camera. Digital cropping supplies zoom beyond supported camera zoom. The multiplier is approximate and the phone may manage its physical lenses internally.
+
+## Rain on the outdoor outlook
+
+Translucent white bars descend from the top of the chart and show forecast liquid rainfall (rain plus showers) for each hour. Subtle hatched bands mark consecutive hours with at least 0.1 mm. The rain scale is shared between the 24- and 48-hour views; ACH bars still span two hours and show air changes per hour.
+
+Open Chart key directly after Why this recommendation? for grouped humidity and weather symbols. Outdoor AH colours show whether ventilation would dry the indoor air; they do not indicate rainfall. Rain bars cover one hour, and ≥ marks an incomplete rain-spell total. The accordion starts collapsed and remembers your choice. ACH bars cover two-hour intervals and use the same height scale in both views; the 24-hour view shows numbers and wind arrows in a separate strip beneath the proportional bars. Arrows point where the wind is blowing. Tap or drag the chart, or use its arrow keys, to change the selected time. Accessible inspection text includes hourly rainfall, precipitation chance and spell totals; there is no separate visual rain-detail table. Precipitation chance may include snow. Forecast rain is advisory and does not change the drying verdict or suggested opening duration.
+
+Totals above bands add the known hourly amounts in each spell. A ≥ prefix marks a spell clipped by the displayed range or incomplete data. For clipped spells, only complete visible hours contribute to the subtotal; rainfall is never prorated for a partial hour. Labels are omitted where they cannot fit; inspection still shows the total. Missing rain is reported as unavailable, never as dry weather. Hourly forecasts do not establish an exact minute when rain starts.

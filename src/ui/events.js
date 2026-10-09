@@ -36,7 +36,17 @@ export function createEvents({
 } = {}, environment = globalThis) {
   const { window, document, requestAnimationFrame, ResizeObserver } = environment;
 
+  function bindChartKey() {
+    const key = document.querySelector('#chartKey');
+    key?.addEventListener('toggle', () => {
+      if (uiPreferences.showChartKey === key.open) return;
+      uiPreferences.showChartKey = key.open;
+      saveUiPreferences();
+    });
+  }
+
   function bindEvents() {
+    bindChartKey();
     bindSheetFocus();
     let lastChartWidth = 0;
     const chartResizeObserver = new ResizeObserver(entries => {
@@ -221,6 +231,8 @@ export function createEvents({
   }
 
   function applyUiPreferences() {
+    const chartKey = document.querySelector('#chartKey');
+    if (chartKey && chartKey.open !== (uiPreferences.showChartKey === true)) chartKey.open = uiPreferences.showChartKey === true;
     document.documentElement.dataset.showIndoorSummary = String(uiPreferences.showIndoorSummary);
     elements.showIndoorSummary.checked = uiPreferences.showIndoorSummary;
     if (elements.autoFlash) elements.autoFlash.checked = uiPreferences.autoFlash;
@@ -234,5 +246,5 @@ export function createEvents({
     elements.openIndoorOnLaunch.checked = uiPreferences.openIndoorOnLaunch;
   }
 
-  return { bindEvents, applyUiPreferences };
+  return { bindEvents, applyUiPreferences, bindChartKey };
 }

@@ -39,8 +39,8 @@ export function createWeatherController({
     const params = new URLSearchParams({
       latitude: location.latitude.toFixed(4),
       longitude: location.longitude.toFixed(4),
-      current: "temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m",
-      hourly: "temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m",
+      current: "temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m,wind_direction_10m",
+      hourly: "temperature_2m,relative_humidity_2m,dew_point_2m,surface_pressure,wind_speed_10m,wind_direction_10m,rain,showers,precipitation_probability",
       forecast_hours: "50",
       timeformat: "unixtime",
       timezone: "auto",
@@ -84,6 +84,7 @@ export function createWeatherController({
         ? current.surface_pressure
         : DEFAULT_PRESSURE_HPA;
       state.outdoorWind = Number.isFinite(current.wind_speed_10m) ? current.wind_speed_10m : 0;
+      state.outdoorWindDirection = Number.isFinite(current.wind_direction_10m) && current.wind_direction_10m >= 0 && current.wind_direction_10m <= 360 ? current.wind_direction_10m % 360 : null;
       state.forecast = buildForecast(data);
       state.updatedAt = current.time;
       state.lastCheckedAt = new Date();

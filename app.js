@@ -15,7 +15,7 @@ import { createEvents } from './src/ui/events.js';
 import { createTimerController, isAppleMobile } from './src/ui/timer.js';
 import { DEFAULT_LOCATION, DEFAULT_PRESSURE_HPA, DEFAULT_TIMEZONE, WEATHER_REFRESH_INTERVAL_MS } from './src/config.js';
 
-const uiPreferences = { showIndoorSummary: false, openIndoorOnLaunch: true, autoFlash: true,
+const uiPreferences = { showChartKey: false, showIndoorSummary: false, openIndoorOnLaunch: true, autoFlash: true,
   useStillPhotos: false, showCameraButton: true, showVoiceButton: false };
 
 const state = {
@@ -37,6 +37,7 @@ const state = {
   outdoorDewPoint: null,
   outdoorPressure: DEFAULT_PRESSURE_HPA,
   outdoorWind: 0,
+  outdoorWindDirection: null,
   forecast: [],
   chartHours: 48,
   chartSelection: 0,

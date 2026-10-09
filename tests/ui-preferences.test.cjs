@@ -13,3 +13,22 @@ test('entry visibility obeys both saved preferences and speech support without a
    assert.equal(elements.cameraRetakeButton.hidden,false);assert.equal(elements.voiceListenButton.hidden,false);
  }
 });
+
+
+test('Chart key saves user toggles but not initialization, and retains session state with blocked storage',()=>{
+ const {createStorage}=require('../src/services/storage.js');
+ const {memoryStorage,environment}=require('./helpers/browser.cjs');
+ const {UI_PREFERENCES_STORAGE_KEY}=require('../src/config.js');
+ for(const blocked of [false,true]){
+  const key=element(),preferences={showChartKey:false};
+  const localStorage=blocked?{getItem(){throw Error('blocked');},setItem(){throw Error('blocked');}}:memoryStorage();
+  let saves=0;
+  const storage=createStorage({uiPreferences:preferences,applyUiPreferences(){}},environment({localStorage}));
+  const events=createEvents({uiPreferences:preferences,saveUiPreferences(){saves++;storage.saveUiPreferences();}}, {document:{querySelector:()=>key}});
+  events.bindChartKey(); key.emit('toggle'); assert.equal(saves,0);
+  key.open=true; key.emit('toggle'); assert.equal(preferences.showChartKey,true);assert.equal(saves,1);
+  key.emit('toggle');assert.equal(saves,1);
+  if(!blocked) assert.equal(JSON.parse(localStorage.getItem(UI_PREFERENCES_STORAGE_KEY)).showChartKey,true);
+  key.open=false;key.emit('toggle');assert.equal(preferences.showChartKey,false);
+ }
+});

@@ -10,7 +10,7 @@ It compares the amount of moisture indoors and outdoors, then uses the weather f
 
 1. **Enter your indoor readings.** Add temperature and relative humidity from your room sensor. You can type, adjust the rulers, scan a new photo with the camera button, or use the microphone button in supported browsers. Review photo results before confirming.
 2. **Choose your location.** Search for a town or UK postcode, or use your device's location.
-3. **Read the recommendation.** Check the suggested opening time and the 24- or 48-hour outlook. Tap or drag the chart to inspect the forecast.
+3. **Read the recommendation.** Check the suggested opening time and the 24- or 48-hour outlook. Tap or drag the chart to inspect the forecast, with a separate Chart key accordion explaining the symbols. The 24-hour view has proportional ACH bars with numbers and wind arrows underneath; accessible inspection text includes rain details. Translucent white bars and blue hatched bands show forecast rain; it is advisory and does not change the drying recommendation.
 4. **Adjust your plan.** Set your target humidity, minimum temperature, room size and window opening using the ventilation summary below the chart.
 
 Use the refresh icon beside the location, or pull down from the top on a touch device, to update the outdoor weather. The footer Settings sheet groups Indoor readings, Input buttons and Camera preferences. It controls the optional Indoor summary, opening readings on launch, camera and voice entry-button visibility, still-photo capture and Auto flash. Camera entry defaults to shown and voice entry defaults to hidden; valid saved choices are preserved. Still-photo capture defaults off.
