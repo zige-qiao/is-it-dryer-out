@@ -10,7 +10,7 @@ On 2026-10-03, [run 37143389908](https://github.com/zige-qiao/is-it-dryer-out/ac
 
 ## Device evidence
 
-On 2026-10-03 the user confirmed that launching from the iPhone browser started the correct duration in Clock, and that the alarm worked in airplane mode. Screenshots identify Chrome as the calling browser. The user subsequently confirmed that timer launches also work from Safari and the Home Screen web app. The iCloud record was checked and its name is Ventilation Timer. Fresh import from the shared link, multiple different durations, locked-phone delivery, cancelled handoffs and missing-Shortcut recovery are not yet confirmed. Removal of the temporary diagnostic input alert from the shared Shortcut has not been independently checked.
+On 2026-10-03 the user confirmed that launching from the iPhone browser started the correct duration in Clock, and that the alarm worked in flight mode. Screenshots identify Chrome as the calling browser. The user subsequently confirmed that timer launches also work from Safari and the Home Screen web app. The iCloud record was checked and its name is Ventilation Timer. Fresh import from the shared link, multiple different durations, locked-phone delivery, cancelled handoffs and missing-Shortcut recovery are not yet confirmed. Removal of the temporary diagnostic input alert from the shared Shortcut has not been independently checked.
 
 Remaining device checks are different durations using the same Shortcut, invalid Shortcut input, cancelled handoffs, missing Shortcut, fresh import, and an audible alarm with the phone locked and offline. Web-app validation of empty/fractional/out-of-range minutes, refresh preservation, keyboard adjustment, focus return and sheet dismissal has passed automated checks. Preserve the name Ventilation Timer.
 
@@ -24,7 +24,7 @@ These checks are browser emulation, not additional physical iPhone tests. The us
 
 ## Return-to-app experiment
 
-An `x-success` callback to the current web address was considered and removed before device testing. Reopening a URL cannot guarantee return to the originating Chrome tab, Safari tab or Home Screen app, which is the user's requirement. Keep the existing plain handoff rather than redirecting into a potentially different browser. No automatic-return behavior is enabled.
+An `x-success` callback to the current web address was considered and removed before device testing. Reopening a URL cannot guarantee return to the originating Chrome tab, Safari tab or Home Screen app, which is the user's requirement. Keep the existing plain handoff rather than redirecting into a potentially different browser. No automatic-return behaviour is enabled.
 
 ## Dismissal refinement (shipped in v0.7.4.1)
 

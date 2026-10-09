@@ -1,6 +1,8 @@
 # Is it dryer out — design system
 
-**Version:** 1.6 · **Updated:** 6 October 2026 · **Status:** v0.7.5
+**Version:** 1.6 · **Updated:** 9 October 2026 · **Status:** v0.7.5
+
+Use UK English for document prose and visible app copy, including help, accessibility labels and diagnostic pages. Preserve original quotations, code/API identifiers, filenames and URLs. Audio level meters are instruments; units of length use metres.
 
 This is a reusable specification for the app. The warm-grey controls and component states were implemented in v0.7.0, the revised verdict and AH chart colours shipped in v0.7.1, and the Indoor summary strip with subsequent layout and focus refinements shipped in v0.7.2. The current shared-temperature moisture comparison and time-based chart gradient are described below. Fixed layout spacing, control/icon sizes and ordinary radii follow the 4px grid shipped in v0.7.4.1. Broader typography normalisation and new inline numeric validation remain proposals. The evidence captures in section 2 show the earlier app and are retained for comparison.
 
@@ -28,7 +30,7 @@ On iPhone/iPad, each duration in the two verdict lines is an inline button with 
 
 The timer uses the Indoor sheet geometry and a stacked 1-180 minute ruler: 1-minute ticks, labelled 5-minute marks, and 8px spacing. Typed entry remains available. Start is disabled for empty, fractional, or out-of-range values. Draft minutes are temporary and independent of saved readings/settings; refresh does not replace edits. The verdict duration's accessible name retains its timing context. Drier-air windows are not presented as recommended opening durations; capped target estimates create a recheck reminder.
 
-Clock owns the timer after the Shortcut handoff; the web app displays no countdown or success claim. Start closes the sheet and completes focus/scroll cleanup before launching Shortcuts, in the same activation handler. Invalid input keeps the sheet open. Closing restores the clicked duration's focus, or the verdict heading if it has been replaced, using the shared focus-return rule below. A 32px-wide, 44px-tall help control, with its visible symbol centred and 12px from the title, opens a compact setup popover with Install Shortcut, linking directly to iCloud. Its narrower width is a user-requested exception to the usual 44px target. Escape dismisses the popover before the sheet; clicking elsewhere or closing the sheet also clears it. The user confirmed timer handoffs from Chrome, Safari and the Home Screen web app, plus the airplane-mode alarm and sharing link. Fresh import and recovery/locked-phone scenarios remain separately unverified.
+Clock owns the timer after the Shortcut handoff; the web app displays no countdown or success claim. Start closes the sheet and completes focus/scroll cleanup before launching Shortcuts, in the same activation handler. Invalid input keeps the sheet open. Closing restores the clicked duration's focus, or the verdict heading if it has been replaced, using the shared focus-return rule below. A 32px-wide, 44px-tall help control, with its visible symbol centred and 12px from the title, opens a compact setup popover with Install Shortcut, linking directly to iCloud. Its narrower width is a user-requested exception to the usual 44px target. Escape dismisses the popover before the sheet; clicking elsewhere or closing the sheet also clears it. The user confirmed timer handoffs from Chrome, Safari and the Home Screen web app, plus the flight-mode alarm and sharing link. Fresh import and recovery/locked-phone scenarios remain separately unverified.
 
 - Help someone decide whether opening windows reduces indoor moisture, and for approximately how long.
 - Keep the recommendation prominent and follow the saved page layout. The default order starts with Indoor summary, hidden until enabled.
@@ -389,7 +391,7 @@ The existence of a rule is not proof of its implementation. Before calling the s
 - 1.6 local trial, 4 October 2026: aligned fixed spacing, control/icon dimensions and ordinary radii to a 4px grid, documented thin-stroke and fluid-geometry exceptions, and aligned ruler fields and switch outer geometry.
 - 1.5 v0.7.4 release, 3 October 2026: recorded clickable verdict durations, timer ruler and compact help popup, approved spacing and typography, and user-confirmed Safari/Home Screen timer handoffs.
 - 1.4 update, 30 September 2026: aligned card and chart colour semantics with shared-temperature moisture comparison and the time-based forecast gradient.
-- 1.3 v0.7.3 release, 29 September 2026: recorded the iPhone chart curve rendering and pointer versus keyboard focus behavior.
+- 1.3 v0.7.3 release, 29 September 2026: recorded the iPhone chart curve rendering and pointer versus keyboard focus behaviour.
 - 1.2 v0.7.2 release, 29 September 2026: recorded the Indoor controls, layered pull to refresh, updated checked-time label and release status; retained historical v0.7.1 evidence.
 - 1.1 local update, 28 September 2026: documented the unpublished Indoor summary strip, manual sheet opening, relative reading age, current outer/inner radii, 24 h / 48 h spacing and outer keyboard focus pattern. Kept v0.7.1 and historical captures as records of their time.
 - 1.0 v0.7.1 preparation, 28 September 2026: updated the release status and 48-hour default specimens; retained the current palette and earlier audit history.

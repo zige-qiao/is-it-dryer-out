@@ -429,7 +429,7 @@ function createRecognizer() {
       if (name === "end") finish(run);
     });
   }
-  log("recognizer created", { object: objectId });
+  log("recogniser created", { object: objectId });
   return { recognition, objectId };
 }
 
@@ -543,7 +543,7 @@ async function prepareAttempt() {
   } catch (error) {
     log("start threw", { name: error.name });
     if (active) { active.error = error.name; finish(active, true); }
-    else ui.status.textContent = `Could not create recognizer: ${error.name}`;
+    else ui.status.textContent = `Could not create recogniser: ${error.name}`;
   }
 }
 ui.openMicrophone.addEventListener("click", () => { if (staged) return prepareAttempt(); });

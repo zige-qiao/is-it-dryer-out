@@ -16,6 +16,10 @@ Help a person answer two questions quickly:
 
 Keep the main recommendation decisive, the controls easy to adjust, and technical explanation available without dominating the page. Do not present the app as a precise airflow measurement or a guarantee.
 
+## Language convention
+
+Use UK English for all document prose and visible app copy, including help, accessibility labels and diagnostics. Preserve code/API identifiers, filenames, URLs, machine-readable log fields and verbatim external quotations. Audio level meters remain meters; units of length use metres.
+
 ## Working with the user
 
 Apply clearly requested, small, reversible UI edits directly, without a separate approval step. Discuss choices that are unclear, consequential, or materially expand the request before making those changes. A request to edit does not also request a commit, branch, push, merge, tag, or release; perform those operations only when requested.
@@ -24,7 +28,7 @@ When providing a UI preview, always include a clickable link the user can open o
 
 ## Files And Existing Work
 
-Inspect only the files relevant to the requested change. Read broader context when the change crosses structural, behavioral, caching, documentation, or release boundaries.
+Inspect only the files relevant to the requested change. Read broader context when the change crosses structural, behavioural, caching, documentation, or release boundaries.
 
 Preserve uncommitted user changes. Use existing IDs, classes, helpers, and rendering patterns unless the requested change requires otherwise.
 
@@ -35,12 +39,12 @@ The root `app.js` owns state, DOM lookup and feature wiring. Native modules unde
 | File | Owns |
 |---|---|
 | This skill | How to work on the app, decisions that are easy to break, verification, and documentation routing. |
-| [Written design system](../../../docs/design-system.md) and [visual board](../../../docs/design-system.html) | Current layout, tokens, component states, responsive behavior, and visual examples. |
-| [README](../../../README.md) | Durable user-facing behavior, setup, usage, and published release information. |
+| [Written design system](../../../docs/design-system.md) and [visual board](../../../docs/design-system.html) | Current layout, tokens, component states, responsive behaviour, and visual examples. |
+| [README](../../../README.md) | Durable user-facing behaviour, setup, usage, and published release information. |
 | [CHANGELOG](../../../CHANGELOG.md) | Notable changes under **Unreleased** until published; numbered release history stays historical. |
-| [Voice investigation](../../../docs/voice/VOICE-INVESTIGATION.md) | Experiments, rejected approaches, device evidence, and unresolved microphone behavior. |
+| [Voice investigation](../../../docs/voice/VOICE-INVESTIGATION.md) | Experiments, rejected approaches, device evidence, and unresolved microphone behaviour. |
 
-At the end of a change, check whether a durable visual or interaction rule belongs in the design system, user-facing behavior needs the README, or a notable change needs the changelog. Update this skill only when the way we work or a critical product constraint changes. Follow an explicit documentation request immediately; otherwise consolidate routine documentation during local iteration and reconcile it before a requested push. Do not record transient experiments or rewrite historical release notes as current behavior.
+At the end of a change, check whether a durable visual or interaction rule belongs in the design system, user-facing behaviour needs the README, or a notable change needs the changelog. Update this skill only when the way we work or a critical product constraint changes. Follow an explicit documentation request immediately; otherwise consolidate routine documentation during local iteration and reconcile it before a requested push. Do not record transient experiments or rewrite historical release notes as current behaviour.
 
 ## Information Hierarchy
 
@@ -91,7 +95,7 @@ Keep the five explainers in the order and presentation specified by the [design 
 - Use the roles and component specifications in [the design system](../../../docs/design-system.md). Keep the AH chart's white/amber/coral line colours distinct from verdict and moisture-comparison semantics.
 - Keep selected, pressed, and keyboard-focused states distinct. Follow the design system's outer focus rule and its wider focus shapes for the ventilation summary and dashboard explainers.
 - Keep the recommendation and chart integrated, with a neutral ventilation-summary footer. Avoid decorative shadows and unnecessary explanatory copy in the primary interface.
-- Preserve accessible names for icon-only actions and reduced-motion behavior. Measure rendered spacing when a mismatch is being investigated.
+- Preserve accessible names for icon-only actions and reduced-motion behaviour. Measure rendered spacing when a mismatch is being investigated.
 
 ## Weather And Persistence
 
@@ -122,7 +126,7 @@ For microphone diagnostics, use the [voice investigation](../../../docs/voice/VO
 Verify in proportion to the change while iterating:
 
 - For copy changes, inspect the affected rendered state.
-- For layout or styling changes, inspect the affected viewport and include narrow mobile and wide desktop when responsive behavior could change.
+- For layout or styling changes, inspect the affected viewport and include narrow mobile and wide desktop when responsive behaviour could change.
 - For JavaScript changes, syntax-check the entry point and changed modules, then run the relevant imported-module tests with Node.js 24 or later. For structural changes, run `node --test tests/*.test.cjs`, or add `--test-isolation=none` when test-worker creation is restricted.
 - Check `service-worker.js` only when its code or cache references change.
 - Measure rendered gaps, dimensions, clipping, or overflow when those properties are affected or under investigation.
