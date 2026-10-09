@@ -1,5 +1,7 @@
 # iOS voice recognition investigation
 
+The current standalone tool is [Voice diagnostic](../../diagnostics/voice-test.html). Existing root `voice-test.html` links redirect there and preserve mode parameters; historical URLs and build references below remain unchanged.
+
 This document records the investigation into repeated voice-input failures in iOS browsers and the verified application-level mitigation. The underlying platform defect is not claimed to be fixed.
 
 **Status (2026-09-24): OPEN — releasing and reopening the microphone can silence both the waveform and transcription on the affected iPhone.** Retaining a stream is a verified limited mitigation, not a resolved privacy-compatible Stop/Abort lifecycle. Read the current handoff below before drawing conclusions from the historical sections. Earlier natural-completion and retained-stream successes remain valid observations, not proof of a platform fix.

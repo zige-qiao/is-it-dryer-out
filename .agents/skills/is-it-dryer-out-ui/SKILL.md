@@ -44,7 +44,7 @@ At the end of a change, check whether a durable visual or interaction rule belon
 
 ## Information Hierarchy
 
-Keep the compact Indoor summary first and the verdict prominent beneath it. Follow the [design system](../../../docs/design-system.md) for page order and layout.
+Keep Recommendation always shown and pinned first. Indoor summary is hidden by default and follows it in the default optional-section order. Follow the [design system](../../../docs/design-system.md) for page order and layout.
 
 The Indoor strip is hidden by default and the Indoor sheet opens on full page load by default; both are independent saved preferences in the footer Settings sheet. Edit on the strip or Indoor comparison card also opens the Indoor sheet; the strip's microphone action appears only when speech recognition is supported and starts listening from that tap. Manual values save immediately; voice values require review and Apply. Return focus to the opener for manually opened sheets, or to the location button after automatic opening.
 
@@ -84,7 +84,7 @@ When displaying forecast outcomes, use `Uncertain` instead of `Wait` and `Little
 
 ## Supporting Details
 
-Keep the four explainers in the order and presentation specified by the [design system](../../../docs/design-system.md). Preserve each open state during live updates, apply defaults only on initialisation, and never show an old recommendation or location explanation as current while weather reloads.
+Keep the five explainers in the order and presentation specified by the [design system](../../../docs/design-system.md). Preserve each open state during live updates, apply defaults only on initialisation, and never show an old recommendation or location explanation as current while weather reloads.
 
 ## Visual Conventions
 

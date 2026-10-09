@@ -4,6 +4,9 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Remove recommendation-row dividers while retaining 16px spacing, lighten the seven category icons to 1.2px strokes, and centre the compact More detail chevron with consistent spacing.
+- Move standalone Voice and Camera flash diagnostic tools into diagnostics/, retaining old page URLs through redirects that preserve parameters, fragments and Back navigation.
+
 - Require a brief touch hold before dragging Settings reorder handles, so immediate swipes scroll instead; keep quick-tap move menus, mouse/pen dragging and keyboard access. Highlight armed rows, follow the finger with an inert decorative preview, reveal row-sized gaps and settle moves with reduced-motion-aware animation. Edge scrolling only reveals clipped reorder rows after a brief pause; fully visible lists stay still.
 
 - Standardised white sheets with stationary headers, content-only scrollbars, restored edge fades and pinned Done/Timer Start actions; Location fits its content and keyboard-constrained sheets avoid extra bottom safe-area padding.
@@ -15,11 +18,11 @@ All notable changes to Is it dryer out are documented here.
 
 - Standardise sticky sheet titles and drag handles, surface-matched fading headers, 16px header-to-content spacing and mobile viewport sizing across Settings, Indoor readings, camera/voice, Ventilation settings, Location and Timer.
 
-- Clarify supporting-detail hierarchy with consistent larger, dark accordion headings, body-size content labels and the compact More detail disclosure.
+- Clarify supporting-detail hierarchy with consistent bold, dark body-size accordion headings, body-size content labels and the compact More detail disclosure.
 
 - Refresh supporting details with labelled recommendation rows, grouped chart symbols, stacked glossary definitions and compact weather metadata. Keep successful update times separate from pending/failure messages and retain native disclosure behaviour.
 
-- Simplify Settings into Page layout and Indoor readings, move Reset beside the layout heading, and replace visible reorder arrows with dot-handle text menus. Add Done, standardise row/nested-option spacing, and default to hidden Indoor summary first with Moisture comparison shown; preserve valid saved layouts and independent camera values. Hide Still photos and Auto flash with Show camera button, restore their saved choices on enabling, and keep camera-help focus on a visible setting.
+- Simplify Settings into Page layout and Indoor readings, move Reset beside the layout heading, and replace visible reorder arrows with dot-handle text menus. Add Done, standardise row/nested-option spacing, and default to hidden Indoor summary below pinned Recommendation, with Moisture comparison shown; preserve valid saved layouts and independent camera values. Hide Still photos and Auto flash with Show camera button, restore their saved choices on enabling, and keep camera-help focus on a visible setting.
 
 - Give More detail a compact secondary disclosure style with regular-weight underlined text, an adjacent chevron and a 44px touch target, distinct from the main accordion headings.
 
