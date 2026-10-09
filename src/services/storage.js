@@ -93,7 +93,7 @@ export function createStorage({
     try {
       const saved = JSON.parse(read(UI_PREFERENCES_STORAGE_KEY));
       for (const box of PAGE_BOXES) {
-        uiPreferences[box.preference] = typeof saved?.[box.preference] === 'boolean' ? saved[box.preference] : box.visible;
+        uiPreferences[box.preference] = !box.pinned && typeof saved?.[box.preference] === 'boolean' ? saved[box.preference] : box.visible;
       }
       uiPreferences.pageOrder = normalizePageOrder(saved?.pageOrder);
       if (typeof saved?.autoFlash === 'boolean') uiPreferences.autoFlash = saved.autoFlash;

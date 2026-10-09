@@ -19,14 +19,43 @@ export function createPullRefresh({
     let animationFrame = null;
     let settling = false;
     let resultTimer = null;
-    const measureFooterClearance = () => Math.max(0,
-      elements.forecastPanel.offsetTop + elements.forecastPanel.offsetHeight -
-      elements.verdictPanel.offsetTop - elements.verdictPanel.offsetHeight);
+    let requestActive = false;
+    let feedbackBlocked = false;
+    let suppressClick = false;
+    let followers = [];
+    let paintedDistance = 0, paintedFollow = 0;
+    const overlayOpen = () => Boolean(document.querySelector(
+      'dialog[open], .camera-help-content:not([hidden]), .timer-help[open], #pageLayoutMenu:not([hidden]), [popover]:popover-open'));
+    const markFollowers = () => {
+      const recommendation = elements.verdictPanel.closest?.('[data-page-box]');
+      const siblings = recommendation?.parentElement?.children;
+      if (!siblings) return;
+      followers.forEach(node => delete node.dataset.pullFollower);
+      followers = [...siblings].slice([...siblings].indexOf(recommendation) + 1);
+      followers.forEach(node => { node.dataset.pullFollower = ''; });
+    };
+    const clearDistance = () => {
+      document.body.style.removeProperty('--pull-distance');
+      document.body.style.removeProperty('--pull-follow-distance');
+      followers.forEach(node => delete node.dataset.pullFollower);
+      followers = []; paintedDistance = 0; paintedFollow = 0;
+    };
+    const measureFooterClearance = () => {
+      // DOM offset dimensions round to integers; use rendered fractional geometry.
+      if (elements.forecastPanel.getBoundingClientRect && elements.verdictPanel.getBoundingClientRect)
+        return Math.max(0, elements.forecastPanel.getBoundingClientRect().bottom -
+          elements.verdictPanel.getBoundingClientRect().bottom + paintedDistance - paintedFollow);
+      return Math.max(0, elements.forecastPanel.offsetTop + elements.forecastPanel.offsetHeight -
+        elements.verdictPanel.offsetTop - elements.verdictPanel.offsetHeight);
+    };
     const paintDistance = value => {
-      visibleDistance = Math.max(-8, value);
+      footerClearance = measureFooterClearance();
+      visibleDistance = Math.max(0, value);
       const followDistance = Math.max(0, visibleDistance - footerClearance);
-      document.body.style.setProperty('--pull-distance', `${Math.round(visibleDistance * 100) / 100}px`);
-      document.body.style.setProperty('--pull-follow-distance', `${Math.round(followDistance * 100) / 100}px`);
+      paintedDistance = Math.round(visibleDistance * 100) / 100;
+      paintedFollow = Math.round(followDistance * 100) / 100;
+      document.body.style.setProperty('--pull-distance', `${paintedDistance}px`);
+      document.body.style.setProperty('--pull-follow-distance', `${paintedFollow}px`);
     };
     const stopAnimation = () => {
       if (animationFrame !== null) cancelAnimationFrame(animationFrame);
@@ -38,8 +67,7 @@ export function createPullRefresh({
       if (reducedMotion.matches || Math.abs(visibleDistance - target) < 0.5) {
         paintDistance(target);
         if (target === 0) {
-          document.body.style.removeProperty('--pull-distance');
-          document.body.style.removeProperty('--pull-follow-distance');
+          clearDistance();
         }
         onComplete();
         return;
@@ -59,8 +87,7 @@ export function createPullRefresh({
           settling = false;
           paintDistance(target);
           if (target === 0) {
-            document.body.style.removeProperty('--pull-distance');
-            document.body.style.removeProperty('--pull-follow-distance');
+            clearDistance();
           }
           onComplete();
         }
@@ -85,20 +112,48 @@ export function createPullRefresh({
       if (immediate) {
         stopAnimation();
         paintDistance(0);
-        document.body.style.removeProperty('--pull-distance');
-        document.body.style.removeProperty('--pull-follow-distance');
+        clearDistance();
         resetResult();
       } else {
         settleTo(0, resetResult);
       }
     };
+    const cancelForOverlay = () => {
+      if (!overlayOpen()) return;
+      if (requestActive) feedbackBlocked = true;
+      if (start || visibleDistance || requestActive || resultTimer) closePull(true);
+    };
+    if (environment.MutationObserver) new environment.MutationObserver(cancelForOverlay).observe(document.body,
+      { subtree: true, attributes: true, attributeFilter: ['open', 'hidden', 'aria-expanded'] });
+    document.addEventListener('toggle', cancelForOverlay, true);
+    const resize = () => {
+      if (visibleDistance && !feedbackBlocked) {
+        paintDistance(visibleDistance);
+        if (requestActive && !settling) settleTo(elements.pullRefresh.offsetHeight);
+      }
+    };
+    if (environment.ResizeObserver) {
+      const observer = new environment.ResizeObserver(resize);
+      [elements.verdictPanel, elements.forecastPanel, elements.pullRefresh].forEach(node => observer.observe(node));
+    }
+    window.addEventListener?.('resize', resize);
+    window.visualViewport?.addEventListener('resize', resize);
+    document.addEventListener('pointerdown', () => { suppressClick = false; }, true);
+    document.addEventListener('click', event => {
+      if (!suppressClick || event.detail === 0) return;
+      suppressClick = false; event.preventDefault(); event.stopImmediatePropagation();
+    }, true);
     document.addEventListener('touchstart', event => {
+      if (event.touches.length !== 1) { if (start) closePull(); return; }
+      suppressClick = false;
       if (event.touches.length !== 1 || window.scrollY > 0 || settling || state.weatherRequestPending ||
           document.body.classList.contains('pull-refreshing') || document.body.classList.contains('pull-result') ||
-          document.querySelector('dialog[open]') ||
-          event.target.closest('button, a, input, select, textarea, summary, .ah-chart, .reading-ruler')) return;
+          overlayOpen() || requestActive ||
+          event.target.closest('input, select, textarea, [contenteditable="true"]') ||
+          document.activeElement?.matches?.('input, textarea, [contenteditable="true"]')) return;
       const touch = event.touches[0];
       start = { x: touch.clientX, y: touch.clientY };
+      markFollowers();
       footerClearance = measureFooterClearance();
       pullLimit = elements.verdictPanel.offsetHeight / 2;
       const cueHeight = elements.pullRefresh.offsetHeight;
@@ -110,13 +165,19 @@ export function createPullRefresh({
     }, { passive: true });
     document.addEventListener('touchmove', event => {
       if (!start) return;
+      if (overlayOpen()) { cancelForOverlay(); return; }
       if (event.touches.length !== 1) { closePull(); return; }
       const touch = event.touches[0];
       const dx = touch.clientX - start.x;
       const dy = touch.clientY - start.y;
       if (window.scrollY > 0 || dy < -8 || Math.abs(dx) > Math.max(12, dy * 0.7)) { closePull(); return; }
-      if (dy <= 0) return;
-      event.preventDefault();
+      if (dy <= 0) {
+        if (active) {
+          event.preventDefault(); active = false; distance = 0;
+          document.body.classList.remove('pull-active', 'pull-mid', 'pull-ready'); paintDistance(0);
+        }
+        return;
+      }
       if (dy < 12) {
         if (active) {
           active = false;
@@ -125,6 +186,8 @@ export function createPullRefresh({
         }
         return;
       }
+      event.preventDefault();
+      suppressClick = true;
       active = true;
       distance = dy;
       document.body.classList.add('pull-active');
@@ -135,9 +198,11 @@ export function createPullRefresh({
     }, { passive: false });
     document.addEventListener('touchend', async () => {
       if (!start) return;
+      if (overlayOpen()) { cancelForOverlay(); return; }
       const refresh = active && distance >= threshold && !state.weatherRequestPending;
       if (!refresh) { closePull(); return; }
       resetGesture();
+      requestActive = true; feedbackBlocked = false;
       document.body.classList.add('pull-refreshing');
       settleTo(elements.pullRefresh.offsetHeight);
       elements.pullRefreshText.textContent = 'Updating weather…';
@@ -146,22 +211,25 @@ export function createPullRefresh({
         footerClearance = measureFooterClearance();
         paintDistance(visibleDistance);
         await update;
+        if (feedbackBlocked || overlayOpen() || document.hidden) return;
         elements.pullRefreshText.textContent = state.weatherLoadFailed ? 'Weather update failed' : 'Weather updated';
         document.body.classList.toggle('pull-failed', state.weatherLoadFailed);
       } catch {
+        if (feedbackBlocked || overlayOpen() || document.hidden) return;
         elements.pullRefreshText.textContent = 'Weather update failed';
         document.body.classList.add('pull-failed');
       } finally {
+        requestActive = false;
+        if (feedbackBlocked || overlayOpen() || document.hidden) { closePull(true); return; }
         footerClearance = measureFooterClearance();
         paintDistance(visibleDistance);
         document.body.classList.remove('pull-refreshing');
-        if (document.hidden) { closePull(true); return; }
         document.body.classList.add('pull-result');
         resultTimer = setTimeout(closePull, 1400);
       }
     }, { passive: true });
     document.addEventListener('touchcancel', () => { if (start) closePull(); }, { passive: true });
-    document.addEventListener('visibilitychange', () => { if (document.hidden) closePull(true); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { if (requestActive) feedbackBlocked = true; closePull(true); } });
   }
 
   return { bindPullToRefresh };

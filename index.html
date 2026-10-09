@@ -231,20 +231,22 @@
     <section class="settings-group" aria-labelledby="settingsLayoutTitle">
       <div class="settings-group-heading"><h3 id="settingsLayoutTitle">Page layout</h3><button class="layout-reset" id="resetPageLayout" type="button" aria-label="Reset page layout">Reset</button></div>
       <ol class="settings-group-card page-layout-list" id="pageLayoutList">
+        <li class="page-layout-row page-layout-pinned" data-layout-row="recommendation">
+          <div class="layout-pinned-copy">
+            <span>Recommendation</span><span class="visually-hidden">Always shown · Pinned first</span>
+            <span class="layout-pinned-lock" aria-hidden="true"><svg viewBox="0 0 20 20" focusable="false"><rect x="5" y="8" width="10" height="9" rx="1.5"/><path d="M7 8V5a3 3 0 0 1 6 0v3"/></svg></span>
+          </div>
+        </li>
         <li class="page-layout-row" data-layout-row="indoor-summary" tabindex="-1">
-          <button type="button" class="layout-drag-handle" data-drag-handle aria-label="Reorder Indoor summary" title="Drag or tap to reorder" aria-haspopup="menu" aria-controls="pageLayoutMenu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01"/></svg></button>
+          <button type="button" class="layout-drag-handle" data-drag-handle aria-label="Reorder Indoor summary" title="Tap for move options; touch and hold to drag" aria-haspopup="menu" aria-controls="pageLayoutMenu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01"/></svg></button>
           <label class="settings-toggle"><span>Indoor summary</span><input id="showIndoorSummary" type="checkbox" role="switch" aria-label="Show Indoor summary" /><span class="settings-switch" aria-hidden="true"></span></label>
         </li>
-        <li class="page-layout-row" data-layout-row="recommendation" tabindex="-1">
-          <button type="button" class="layout-drag-handle" data-drag-handle aria-label="Reorder Recommendation" title="Drag or tap to reorder" aria-haspopup="menu" aria-controls="pageLayoutMenu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01"/></svg></button>
-          <label class="settings-toggle"><span>Recommendation</span><input id="showRecommendation" type="checkbox" role="switch" aria-label="Show Recommendation" checked /><span class="settings-switch" aria-hidden="true"></span></label>
-        </li>
         <li class="page-layout-row" data-layout-row="moisture-comparison" tabindex="-1">
-          <button type="button" class="layout-drag-handle" data-drag-handle aria-label="Reorder Moisture comparison" title="Drag or tap to reorder" aria-haspopup="menu" aria-controls="pageLayoutMenu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01"/></svg></button>
+          <button type="button" class="layout-drag-handle" data-drag-handle aria-label="Reorder Moisture comparison" title="Tap for move options; touch and hold to drag" aria-haspopup="menu" aria-controls="pageLayoutMenu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01"/></svg></button>
           <label class="settings-toggle"><span>Moisture comparison</span><input id="showMoistureComparison" type="checkbox" role="switch" aria-label="Show Moisture comparison" checked /><span class="settings-switch" aria-hidden="true"></span></label>
         </li>
         <li class="page-layout-row" data-layout-row="supporting-details" tabindex="-1">
-          <button type="button" class="layout-drag-handle" data-drag-handle aria-label="Reorder Supporting details" title="Drag or tap to reorder" aria-haspopup="menu" aria-controls="pageLayoutMenu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01"/></svg></button>
+          <button type="button" class="layout-drag-handle" data-drag-handle aria-label="Reorder Supporting details" title="Tap for move options; touch and hold to drag" aria-haspopup="menu" aria-controls="pageLayoutMenu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01"/></svg></button>
           <label class="settings-toggle"><span>Supporting details</span><input id="showSupportingDetails" type="checkbox" role="switch" aria-label="Show Supporting details" checked /><span class="settings-switch" aria-hidden="true"></span></label>
         </li>
       </ol>
@@ -263,6 +265,8 @@
         <label class="settings-toggle"><span>Show voice button</span><input id="showVoiceButton" type="checkbox" role="switch" /><span class="settings-switch" aria-hidden="true"></span></label>
       </div>
     </section>
+  </div>
+  <div class="settings-dialog-footer sheet-footer">
     <button class="sheet-primary" id="settingsDoneButton" type="button" data-close-dialog>Done</button>
   </div>
   <div id="pageLayoutMenu" class="layout-menu" role="menu" aria-label="Reorder page section" hidden>
@@ -348,7 +352,7 @@
         </div>
       </div>
     </section>
-<button class="indoor-done sheet-primary" id="indoorDoneButton" type="button">Done</button>
+
 <section class="camera-panel" id="cameraPanel" aria-labelledby="indoor-heading" hidden>
   <div id="cameraCapturePanel">
     <div class="camera-feed" id="cameraFeed">
@@ -412,6 +416,7 @@
   </div>
 </section>
 </div>
+<div class="sheet-footer"><button class="indoor-done sheet-primary" id="indoorDoneButton" type="button">Done</button></div>
 </dialog>
 
 <dialog class="plan-dialog white-sheet" id="planDialog" aria-labelledby="planDialogTitle">
@@ -495,9 +500,10 @@
             <span class="dimension-field"><input id="customAirflow" type="number" min="10" max="500" step="5" value="80" inputmode="numeric" aria-label="Custom airflow in cubic metres per hour" /><span>m³/h</span></span>
           </label>
         </div>
-<button class="indoor-done sheet-primary" id="planDoneButton" type="button">Done</button>
+
       </div>
-    </dialog>
+    <div class="sheet-footer"><button class="indoor-done sheet-primary" id="planDoneButton" type="button">Done</button></div>
+</dialog>
 
 <dialog class="location-dialog white-sheet" id="locationDialog" aria-labelledby="locationDialogTitle">
 <div class="sheet-header"><div class="sheet-handle" aria-hidden="true"><span></span></div>
@@ -550,7 +556,7 @@
         </div>
 </div>
 
-      <section class="inputs-panel sheet-body">
+      <div class="sheet-body"><section class="inputs-panel">
 
         <div class="control ruler-control">
             <label class="reading-field ruler-value" for="timerMinutesInput">
@@ -561,9 +567,10 @@
             <input id="timerMinutes" type="range" min="1" max="180" step="1" value="1" aria-label="Timer duration in minutes" />
           </div>
         </div>
-        <button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button>
-      </section>
-    </dialog>
+
+      </section></div>
+    <div class="sheet-footer"><button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button></div>
+</dialog>
     <script src="app.js?v=165" type="module"></script>
   </body>
 </html>

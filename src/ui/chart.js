@@ -89,7 +89,7 @@ export function createChart({
       chart.setAttribute('aria-label', `${state.weatherLoadFailed ? 'Outdoor forecast unavailable' : 'Loading outdoor forecast'}. Indoor ${indoor.toFixed(1)} g/m³. Chart shapes are placeholders.`);
       chart.setAttribute('aria-disabled', 'true');
       ['aria-valuetext', 'aria-valuemin', 'aria-valuemax', 'aria-valuenow'].forEach(name => chart.removeAttribute(name));
-      chart.onpointerdown = chart.onpointermove = chart.onkeydown = null;
+      chart.onpointerdown = chart.onpointermove = chart.onpointerup = chart.onpointercancel = chart.onkeydown = null;
       reading.textContent = state.weatherLoadFailed ? 'Outdoor forecast unavailable' : 'Loading outdoor forecast…';
       return;
     }
@@ -254,8 +254,30 @@ export function createChart({
       const bounds=chart.getBoundingClientRect();
       select(((event.clientX-bounds.left)/bounds.width*480-left)/(right-left)*maxHours);
     };
-    chart.onpointerdown = event => { chart.classList.add('is-pointer-inspecting'); chart.setPointerCapture(event.pointerId); inspect(event); };
-    chart.onpointermove = event => { if(chart.hasPointerCapture(event.pointerId)||event.pointerType==='mouse') inspect(event); };
+    let touchInspection = null;
+    chart.onpointerdown = event => {
+      if (event.pointerType === 'touch') { touchInspection = { x: event.clientX, y: event.clientY, intent: null }; return; }
+      chart.classList.add('is-pointer-inspecting'); chart.setPointerCapture(event.pointerId); inspect(event);
+    };
+    chart.onpointermove = event => {
+      if (event.pointerType === 'touch') {
+        if (!touchInspection) return;
+        const dx = event.clientX - touchInspection.x, dy = event.clientY - touchInspection.y;
+        if (!touchInspection.intent && Math.max(Math.abs(dx), Math.abs(dy)) >= 12)
+          touchInspection.intent = Math.abs(dx) > Math.abs(dy) ? 'inspect' : 'vertical';
+        if (touchInspection.intent !== 'inspect') return;
+        chart.classList.add('is-pointer-inspecting'); chart.setPointerCapture(event.pointerId); inspect(event); return;
+      }
+      if(chart.hasPointerCapture(event.pointerId)||event.pointerType==='mouse') inspect(event);
+    };
+    chart.onpointerup = event => {
+      if (event.pointerType === 'touch' && touchInspection && touchInspection.intent !== 'vertical' &&
+          !document.body.classList.contains('pull-active')) {
+        chart.classList.add('is-pointer-inspecting'); inspect(event);
+      }
+      touchInspection = null;
+    };
+    chart.onpointercancel = () => { touchInspection = null; };
     chart.onblur = () => chart.classList.remove('is-pointer-inspecting');
     chart.onkeydown = event => {
       chart.classList.remove('is-pointer-inspecting');

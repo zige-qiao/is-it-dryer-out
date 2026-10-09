@@ -12,7 +12,7 @@ fs.mkdirSync(artifacts, { recursive: true });
 (async () => {
   const browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'msedge' } : {}) });
   try {
-    const context = await browser.newContext({ serviceWorkers: 'block' });
+    const context = await browser.newContext({ serviceWorkers: 'block', reducedMotion: 'reduce', hasTouch: true });
     await context.addInitScript(() => localStorage.setItem('is-it-dryer-out-ui-preferences', JSON.stringify({ openIndoorOnLaunch: false })));
     const page = await context.newPage();
     const errors = [];
@@ -38,7 +38,8 @@ fs.mkdirSync(artifacts, { recursive: true });
       const controller = createPageLayout({ preferences, save() {} });
       const permutations = values => values.length === 0 ? [[]] : values.flatMap((value, index) =>
         permutations(values.filter((_, i) => i !== index)).map(rest => [value, ...rest]));
-      const orders = permutations(PAGE_BOXES.map(box => box.id));
+      const movable = PAGE_BOXES.filter(box => !box.pinned);
+      const orders = permutations(movable.map(box => box.id)).map(order => ['recommendation', ...order]);
       const measure = () => {
         const shell = document.querySelector('.app-shell');
         const visible = [...shell.children].filter(node => !node.hidden);
@@ -54,10 +55,25 @@ fs.mkdirSync(artifacts, { recursive: true });
       };
       const apply = (order, mask) => {
         preferences.pageOrder = [...order];
-        PAGE_BOXES.forEach((box, index) => { preferences[box.preference] = Boolean(mask & (1 << index)); });
+        movable.forEach((box, index) => { preferences[box.preference] = Boolean(mask & (1 << index)); });
         controller.apply();
       };
-      window.spacingTest = { orders, apply, measure };
+      const touch = (type,y) => {
+        const event = new Event(type,{bubbles:true,cancelable:true});
+        Object.defineProperty(event,'touches',{value:type === 'touchcancel' ? [] : [{clientX:100,clientY:y}]});
+        document.querySelector('.recommendation h1').dispatchEvent(event);
+      };
+      const pullMeasure = () => {
+        const recommendation=document.querySelector('.recommendation'), verdict= document.querySelector('.verdict-panel');
+        const strip=document.querySelector('.forecast-panel'), followers=[...recommendation.parentElement.children].slice(1).filter(n=>!n.hidden);
+        const distance=parseFloat(document.body.style.getPropertyValue('--pull-distance'))||0;
+        const follow=parseFloat(document.body.style.getPropertyValue('--pull-follow-distance'))||0;
+        const bottom=Math.max(verdict.getBoundingClientRect().bottom,strip.getBoundingClientRect().bottom);
+        const gaps=followers.map((n,i)=>n.getBoundingClientRect().top-(i?followers[i-1].getBoundingClientRect().bottom:bottom));
+        return {gaps, follow, distance, stripTransform:getComputedStyle(strip).transform,
+          transforms:followers.map(n=>getComputedStyle(n).transform)};
+      };
+      window.spacingTest = { orders, apply, measure, touch, pullMeasure };
     });
 
     let total = 0;
@@ -67,13 +83,31 @@ fs.mkdirSync(artifacts, { recursive: true });
         const result = await page.evaluate(scale => {
           document.documentElement.style.fontSize = `${scale}%`;
           const failures = [];
-          for (const order of window.spacingTest.orders) for (let mask = 0; mask < 16; mask++) {
-            window.spacingTest.apply(order, mask);
+          for (const order of window.spacingTest.orders) for (let mask = 0; mask < 8; mask++) {
+            window.scrollTo(0,0); window.spacingTest.apply(order, mask);
             const measured = window.spacingTest.measure();
             if (measured.gaps.some(gap => Math.abs(gap - 16) > .1) || measured.badMargin || !measured.footerLast || !measured.loneFooter || !measured.integrated)
               failures.push({ order, mask, ...measured });
+            const t=window.spacingTest;
+            t.touch('touchstart',100);
+            for(const y of [135,500]) {
+              t.touch('touchmove',y);
+              const pulled=t.pullMeasure();
+              if(pulled.gaps.some(g=>Math.abs(g-16)>.1)||pulled.transforms.some(transform=>transform!==pulled.stripTransform))
+                failures.push({order,mask,stage:y,...pulled});
+            }
+            // Measure the same reserved distance used while loading/results are held.
+            const cue=document.querySelector('#pullRefresh').offsetHeight;
+            const v=document.querySelector('.verdict-panel'), f=document.querySelector('.forecast-panel');
+            const clearance=f.getBoundingClientRect().bottom-v.getBoundingClientRect().bottom+parseFloat(document.body.style.getPropertyValue('--pull-distance'))-parseFloat(document.body.style.getPropertyValue('--pull-follow-distance'));
+            document.body.style.setProperty('--pull-distance',cue+'px');
+            document.body.style.setProperty('--pull-follow-distance',Math.max(0,cue-clearance)+'px');
+            const held=t.pullMeasure();
+            if(held.gaps.some(g=>Math.abs(g-16)>.1)) failures.push({order,mask,stage:'held',...held});
+            t.touch('touchcancel',0);
+            if(t.measure().gaps.some(g=>Math.abs(g-16)>.1)) failures.push({order,mask,stage:'settled'});
           }
-          return { cases: window.spacingTest.orders.length * 16, failures };
+          return { cases: window.spacingTest.orders.length * 8, failures };
         }, scale);
         assert.deepEqual(result.failures, [], `${width}px at ${scale}%`);
         total += result.cases;
@@ -82,11 +116,10 @@ fs.mkdirSync(artifacts, { recursive: true });
     }
 
     const cases = [
-      ['reported-order', ['indoor-summary', 'moisture-comparison', 'recommendation', 'supporting-details'], 15],
-      ['default', ['indoor-summary', 'recommendation', 'moisture-comparison', 'supporting-details'], 14],
-      ['supporting-first', ['supporting-details', 'moisture-comparison', 'indoor-summary', 'recommendation'], 15],
-      ['single-section', ['recommendation', 'indoor-summary', 'moisture-comparison', 'supporting-details'], 2],
-      ['footer-only', ['recommendation', 'indoor-summary', 'moisture-comparison', 'supporting-details'], 0],
+      ['comparison-first', ['recommendation', 'moisture-comparison', 'indoor-summary', 'supporting-details'], 7],
+      ['default', ['recommendation', 'indoor-summary', 'moisture-comparison', 'supporting-details'], 6],
+      ['supporting-first', ['recommendation', 'supporting-details', 'moisture-comparison', 'indoor-summary'], 7],
+      ['recommendation-only', ['recommendation', 'indoor-summary', 'moisture-comparison', 'supporting-details'], 0],
     ];
     for (const width of [390, 1280]) {
       await page.setViewportSize({ width, height: 900 });

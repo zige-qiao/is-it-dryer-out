@@ -4,6 +4,15 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Require a brief touch hold before dragging Settings reorder handles, so immediate swipes scroll instead; keep quick-tap move menus, mouse/pen dragging and keyboard access. Highlight armed rows, follow the finger with an inert decorative preview, reveal row-sized gaps and settle moves with reduced-motion-aware animation. Edge scrolling only reveals clipped reorder rows after a brief pause; fully visible lists stay still.
+
+- Standardised white sheets with stationary headers, content-only scrollbars, restored edge fades and pinned Done/Timer Start actions; Location fits its content and keyboard-constrained sheets avoid extra bottom safe-area padding.
+
+- Prevent swipes and drags in any direction from also activating controls across the app; protect taps that stop scrolling while preserving settled taps, keyboard access and deliberate component gestures.
+
+- Pin Recommendation first and always show it; preserve saved ordering and visibility of the other page boxes.
+- Fix pull-to-refresh overlap for every section below Recommendation, retain the sliding ventilation strip, allow deliberate pulls from controls and charts, and block gestures while sheets or popups are open.
+
 - Standardise sticky sheet titles and drag handles, surface-matched fading headers, 16px header-to-content spacing and mobile viewport sizing across Settings, Indoor readings, camera/voice, Ventilation settings, Location and Timer.
 
 - Clarify supporting-detail hierarchy with consistent larger, dark accordion headings, body-size content labels and the compact More detail disclosure.

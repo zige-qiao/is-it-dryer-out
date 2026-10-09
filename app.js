@@ -311,7 +311,8 @@ const pullRefresh = createPullRefresh({
   elements,
   fetchWeather: (...args) => weatherController.fetchWeather(...args),
 });
-const pageLayout = createPageLayout({ preferences: uiPreferences, save: () => storage.saveUiPreferences() });
+const pageLayout = createPageLayout({ preferences: uiPreferences, save: () => storage.saveUiPreferences(),
+  canStartPointerGesture: event => dialogs.canStartPointerGesture(event) });
 const events = createEvents({
   applyPageLayout: () => pageLayout.apply(),
   startCameraInput: () => cameraLoader.start(),
