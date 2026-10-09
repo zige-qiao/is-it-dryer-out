@@ -7,6 +7,8 @@ export function createEvents({
   uiPreferences,
   dialogScrollLock,
   startVoiceInput,
+  startCameraInput,
+  applyPageLayout,
   toggleVoiceListening,
   closeVoiceDialog,
   applyVoiceChanges,
@@ -36,7 +38,17 @@ export function createEvents({
 } = {}, environment = globalThis) {
   const { window, document, requestAnimationFrame, ResizeObserver } = environment;
 
+  function bindChartKey() {
+    const key = document.querySelector('#chartKey');
+    key?.addEventListener('toggle', () => {
+      if (uiPreferences.showChartKey === key.open) return;
+      uiPreferences.showChartKey = key.open;
+      saveUiPreferences();
+    });
+  }
+
   function bindEvents() {
+    bindChartKey();
     bindSheetFocus();
     let lastChartWidth = 0;
     const chartResizeObserver = new ResizeObserver(entries => {
@@ -50,7 +62,9 @@ export function createEvents({
     const editIndoor = document.querySelector('#editIndoorButton');
     const summaryEdit = document.querySelector('#indoorSummaryEdit');
     const summaryVoice = document.querySelector('#indoorSummaryVoice');
-    const indoorOpeners = [editIndoor, summaryEdit, summaryVoice];
+    const summaryCamera = document.querySelector('#indoorSummaryCamera');
+    const settingsEdit = document.querySelector('#settingsEditIndoor');
+    const indoorOpeners = [editIndoor, summaryEdit, summaryVoice, summaryCamera];
     [indoorDialog, elements.planDialog, elements.locationDialog, elements.settingsDialog, elements.timerDialog].filter(Boolean).forEach(dialog => {
       dialog.addEventListener('close', dialogScrollLock.release);
       dialog.addEventListener('cancel', event => {
@@ -78,13 +92,19 @@ export function createEvents({
       dialog.addEventListener('close', () => { startedOutside = false; });
     });
     const openIndoorEditor = opener => {
-      rememberSheetFocus(indoorDialog, opener, elements.locationButton);
-      opener?.setAttribute('aria-expanded', 'true');
+      const fallback = uiPreferences.showRecommendation === false ? elements.settingsButton : elements.locationButton;
+      rememberSheetFocus(indoorDialog, opener, fallback);
+      if (opener?.getAttribute('aria-controls') === 'indoorDialog') opener.setAttribute('aria-expanded', 'true');
       dialogScrollLock.open(indoorDialog);
       document.querySelector('#indoor-heading').focus({ preventScroll: true });
     };
     editIndoor.addEventListener('click', () => openIndoorEditor(editIndoor));
     summaryEdit.addEventListener('click', () => openIndoorEditor(summaryEdit));
+    summaryCamera.addEventListener('click', () => { openIndoorEditor(summaryCamera); void startCameraInput(); });
+    settingsEdit.addEventListener('click', () => {
+      closeSheet(elements.settingsDialog);
+      openIndoorEditor(elements.settingsButton);
+    });
     document.querySelector('#indoorDoneButton').addEventListener('click', () => closeSheet(indoorDialog));
     indoorDialog.addEventListener('close', () => {
       if (!elements.voiceDialog.hidden) closeVoiceDialog();
@@ -101,11 +121,7 @@ export function createEvents({
       elements.settingsButton.setAttribute('aria-expanded', 'false');
       restoreSheetFocus(elements.settingsDialog);
     });
-    elements.showIndoorSummary.addEventListener('change', () => {
-      uiPreferences.showIndoorSummary = elements.showIndoorSummary.checked;
-      applyUiPreferences();
-      saveUiPreferences();
-    });
+
     elements.autoFlash?.addEventListener('change', () => { uiPreferences.autoFlash = elements.autoFlash.checked; saveUiPreferences(); });
     for (const key of ['useStillPhotos', 'showCameraButton', 'showVoiceButton']) {
       elements[key]?.addEventListener('change', () => {
@@ -221,18 +237,29 @@ export function createEvents({
   }
 
   function applyUiPreferences() {
-    document.documentElement.dataset.showIndoorSummary = String(uiPreferences.showIndoorSummary);
+    const chartKey = document.querySelector('#chartKey');
+    if (chartKey && chartKey.open !== (uiPreferences.showChartKey === true)) chartKey.open = uiPreferences.showChartKey === true;
+    applyPageLayout?.();
     elements.showIndoorSummary.checked = uiPreferences.showIndoorSummary;
     if (elements.autoFlash) elements.autoFlash.checked = uiPreferences.autoFlash;
     for (const key of ['useStillPhotos', 'showCameraButton', 'showVoiceButton']) {
       if (elements[key]) elements[key].checked = key === 'useStillPhotos' ? uiPreferences[key] === true : uiPreferences[key] !== false;
     }
-    if (elements.cameraInputButton) elements.cameraInputButton.hidden = uiPreferences.showCameraButton === false;
+    const cameraHidden = uiPreferences.showCameraButton === false;
+    if (elements.settingsCameraOptions) {
+      if (cameraHidden && elements.settingsCameraOptions.contains(document.activeElement)) {
+        elements.showCameraButton.focus({ preventScroll: true });
+      }
+      elements.settingsCameraOptions.hidden = cameraHidden;
+    }
+    if (elements.cameraInputButton) elements.cameraInputButton.hidden = cameraHidden;
+    const summaryCamera = document.querySelector('#indoorSummaryCamera');
+    if (summaryCamera) summaryCamera.hidden = cameraHidden;
     if (elements.voiceInputButton) elements.voiceInputButton.hidden = !voiceSupported || uiPreferences.showVoiceButton === false;
     const summaryVoice = document.querySelector('#indoorSummaryVoice');
     if (summaryVoice) summaryVoice.hidden = !voiceSupported || uiPreferences.showVoiceButton === false;
     elements.openIndoorOnLaunch.checked = uiPreferences.openIndoorOnLaunch;
   }
 
-  return { bindEvents, applyUiPreferences };
+  return { bindEvents, applyUiPreferences, bindChartKey };
 }

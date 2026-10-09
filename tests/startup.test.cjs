@@ -7,14 +7,14 @@ test('entry point wires features, restores values, opens Indoor readings and ref
   const nodes=new Map(),pageEvents=new Map(),windowEvents=new Map(),frames=[],intervals=[],registered=[];
   const node=selector=>{
     if(!nodes.has(selector)) {
-      const value=element();value.getBoundingClientRect=()=>({width:390,left:0,top:0});value.querySelector=()=>element();
+      const value=element();value.getBoundingClientRect=()=>({width:390,left:0,top:0});value.getBBox=()=>({x:12,y:58,width:100,height:20});value.querySelector=child=>node(`${selector} ${child}`);
       nodes.set(selector,value);
     }
     return nodes.get(selector);
   };
   const document={
     hidden:false,visibilityState:'visible',documentElement:element(),body:element(),
-    querySelector:selector=>selector==='dialog[open]'?[...nodes.values()].find(el=>el.open)||null:node(selector),querySelectorAll:()=>[],createElement:element,
+    querySelector:selector=>selector==='dialog[open]'?[...nodes.values()].find(el=>el.open)||null:node(selector),querySelectorAll:()=>[],createElement:element,createElementNS:()=>element(),
     addEventListener:(name,fn)=>pageEvents.set(name,fn),
   };
   const properties=new Map();

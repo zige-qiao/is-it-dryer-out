@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { createFlashTest } = require('../camera-flash-test.js');
+const { createFlashTest } = require('../diagnostics/camera-flash-test.js');
 const { element, environment } = require('./helpers/browser.cjs');
 
 function fixture(options = {}) {

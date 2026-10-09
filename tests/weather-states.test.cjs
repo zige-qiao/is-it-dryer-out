@@ -9,7 +9,7 @@ function fixture(width = 320) {
   const node = () => {
     const attrs = new Map(), classes = new Set();
     return {
-      dataset: {}, style: { setProperty() {} }, textContent: '', innerHTML: '', disabled: false,
+      append() {}, prepend() {}, remove() {}, dataset: {}, style: { setProperty() {} }, textContent: '', innerHTML: '', disabled: false,
       classList: { add: (...names) => names.forEach(n => classes.add(n)), remove: (...names) => names.forEach(n => classes.delete(n)), toggle: (n, on) => on ? classes.add(n) : classes.delete(n), contains: n => classes.has(n) },
       setAttribute: (n, v) => attrs.set(n, String(v)), getAttribute: n => attrs.get(n), removeAttribute: n => attrs.delete(n),
       getBoundingClientRect: () => ({ width, left: 0 }), querySelector: () => node(), querySelectorAll: () => [], getBBox: () => ({x:12,y:40,width:90,height:20}),
@@ -17,6 +17,7 @@ function fixture(width = 320) {
   };
   const elements = new Proxy({}, { get: (target, name) => target[name] ||= node() });
   const chart = node(), reading = node(), outdoor = node();
+  const rainFields = Object.fromEntries(["chartKey"].map(id=>[id,node()]));
   const canvasContext = {
     scale() {}, translate() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {},
     createLinearGradient: () => ({ addColorStop() {} }),
@@ -39,11 +40,12 @@ function fixture(width = 320) {
     Date: TestDate,
     setTimeout: (callback, delay) => { const id = ++nextTimer; timers.set(id, { callback, at: now + delay }); return id; },
     clearTimeout: id => timers.delete(id),
-    document: { activeElement: null, createElement: () => canvas, querySelector: s => s === '#ahChart' ? chart : s === '#ahChartReading' ? reading : outdoor, querySelectorAll: () => buttons },
+    document: { activeElement: null, createElement: () => canvas, createElementNS: () => node(), querySelector: s => s === '#ahChart' ? chart : s === '#ahChartReading' ? reading : rainFields[s.slice(1)] ?? outdoor, querySelectorAll: () => buttons },
     window: { devicePixelRatio: 2 },
     getComputedStyle: () => ({ getPropertyValue: name => name === '--chart-wet' ? '#ffb3a8' : '#ffd27a' }),
     formatTemp: v => `${v}°C`, formatRh: v => `${v}%`,
     formatShortTime: () => '12:00', formatWeatherTimestamp: () => 'earlier',
+    formatDuration: minutes => `${minutes} min`,
     renderReadingRulers() {},
     planLimitingExplanation: () => 'Check conditions again later.',
     setDecisionSummary: (a, b) => { elements.decisionPrimary.textContent = a; elements.decisionSecondary.textContent = b; },
@@ -58,7 +60,7 @@ function fixture(width = 320) {
   Object.assign(context, createDashboard({ ...context, ...callbacks(context, ['renderAhChart']) }, context));
   Object.assign(context, createWeatherController({ ...context, ...callbacks(context, ['render']) }, context));
   return {
-    context, state, elements, chart, canvas, reading, buttons, requests,
+    context, state, elements, chart, canvas, reading, rainFields, buttons, requests,
     advance: (ms, runTimers = true) => {
       now += ms;
       if (runTimers) {
@@ -93,6 +95,24 @@ test('initial checking and failure retain indoor data, clear outdoor data and ex
   assert.equal(f.elements.indoorAbsoluteHumidity.textContent, absoluteHumidity(20.1,65).toFixed(1));
 });
 
+test('weather metadata separates successful timestamps from loading and failure messages', () => {
+  const f = fixture();
+  for (const success of [null, new Date()]) {
+    for (const status of ['loading', 'failed', 'ready']) {
+      Object.assign(f.state, { lastSuccessfulUpdateAt: success, lastCheckedAt: new Date(),
+        weatherRequestPending: status === 'loading', weatherLoadFailed: status === 'failed' });
+      f.context.render();
+      assert.equal(f.elements.weatherDataUpdated.textContent, success ? 'earlier' : 'Not available yet');
+      const message = f.elements.weatherDataStatus.textContent;
+      if (status === 'failed') assert.match(message, /failed at earlier/);
+      if (status === 'loading') assert.match(message, /in progress/);
+      if (status === 'ready' && success) assert.equal(message, '');
+      if (!success) assert.match(message, /No successful/);
+      assert.equal(f.elements.weatherDataStatus.hidden, !message);
+    }
+  }
+});
+
 test('pending or failed refresh hides previous recommendations and preserves historical timestamp', () => {
   const f = fixture();
   Object.assign(f.state, { outdoorTemp: 15, outdoorRh: 70, lastSuccessfulUpdateAt: new Date() });
@@ -102,7 +122,7 @@ test('pending or failed refresh hides previous recommendations and preserves his
     assert.equal(f.elements.decisionLabel.textContent, failed ? 'NO DATA' : 'Checking');
     assert.equal(f.elements.outdoorTempValue.textContent, '--');
     assert.equal(f.elements.warmedOutdoorRh.textContent, '--');
-    assert.match(f.elements.weatherDataStatus.textContent, /Last successful update: earlier/);
+    assert.equal(f.elements.weatherDataUpdated.textContent, 'earlier');
     assert.doesNotMatch(f.elements.weatherDataStatus.textContent, /Showing/);
     assert.doesNotMatch(f.elements.explanationText.textContent, /No successful weather data/);
     assert.equal(f.context.renderPlan(), null);
@@ -123,7 +143,7 @@ test('recovery restores chart inspection with identical geometry at mobile and d
     assert.ok(f.buttons.every(b => !b.disabled));
     assert.doesNotMatch(f.chart.innerHTML, /ah-skeleton/);
     assert.equal(f.canvas.width, width * 4);
-    assert.match(f.chart.innerHTML, /<image x="0" y="8" width="480" height="150" href="data:image\/png/);
+    assert.match(f.chart.innerHTML, /<image x="0" y="[\d.]+" width="480" height="150" href="data:image\/png/);
     assert.equal(f.elements.refreshWeather.getAttribute('aria-label'), 'Refresh outdoor weather');
     assert.equal(f.elements.decisionLabel.textContent, 'OPEN WINDOWS');
   }
@@ -218,4 +238,64 @@ test('a new successful check restarts the just-now minute', async () => {
   assert.equal(f.elements.weatherStatus.textContent, 'Checked just now');
   f.advance(30_000);
   assert.equal(f.elements.weatherStatus.textContent, 'Checked 12:00');
+});
+
+
+test('rain graphics and accessible hourly reading disappear during refresh', () => {
+  const f = fixture();
+  Object.assign(f.state, { outdoorTemp:15, outdoorRh:70, weatherRequestPending:false });
+  const now = Date.now();
+  f.state.forecast = Array.from({length:5}, (_,i) => ({time:new Date(now+i*3600000),temp:15,rh:70,dewPoint:dewPoint(15,70),pressure:1013.25,wind:0,rainfall:i===0||i===4?0:1,precipitationProbability:80}));
+  f.context.renderAhChart();
+  f.rainFields.chartKey.open = true;
+  assert.match(f.chart.innerHTML, /class="rain-bar"/);
+  assert.match(f.chart.innerHTML, /class="rain-band"/);
+  assert.match(f.chart.getAttribute('aria-valuetext'), /Rain 1.0 mm/);
+  assert.match(f.chart.getAttribute('aria-valuetext'), /Precip. chance 80%/);
+  f.state.weatherRequestPending = true;
+  f.context.renderAhChart();
+  assert.doesNotMatch(f.chart.innerHTML, /class="rain-bar"|class="rain-band"/);
+  assert.equal(f.chart.getAttribute('aria-valuetext'), undefined);
+  assert.equal(f.rainFields.chartKey.open,true);
+});
+
+test('24-hour airflow bars fit numbers and wind arrows; 48-hour view stays compact', () => {
+  const f=fixture();
+  Object.assign(f.state,{outdoorTemp:15,outdoorRh:70,outdoorDewPoint:dewPoint(15,70),outdoorWind:8,outdoorWindDirection:90,weatherRequestPending:false});
+  f.state.forecast[0].wind=8; f.state.forecast[0].windDirection=90;
+  f.context.renderAhChart();
+  assert.equal((f.chart.innerHTML.match(/class="airflow-wind"/g)||[]).length,12);
+  assert.equal((f.chart.innerHTML.match(/class="airflow-label"/g)||[]).length,12);
+  assert.match(f.chart.innerHTML,/rotate\(270\)/);
+  assert.match(f.chart.getAttribute('aria-valuetext'),/Wind from 90 degrees/);
+  f.state.chartHours=48; f.context.renderAhChart();
+  assert.doesNotMatch(f.chart.innerHTML,/airflow-wind|airflow-label/);
+  f.state.chartHours=24; f.state.outdoorWindDirection=null; f.state.forecast[0].windDirection=null;
+  f.context.renderAhChart(); assert.doesNotMatch(f.chart.innerHTML,/airflow-wind/);
+});
+
+test('24-hour ACH heights stay proportional at low values and annotations sit below the plot', () => {
+ for (const width of [240,480]) {
+  const f=fixture(width);
+  Object.assign(f.state,{outdoorTemp:20,outdoorRh:70,outdoorDewPoint:dewPoint(20,70),outdoorWind:0,weatherRequestPending:false,openingSetup:'custom',customAirflow:10});
+  f.state.forecast[0]={...f.state.forecast[0],temp:20,dewPoint:dewPoint(20,70)};
+  f.context.renderAhChart();
+  const height = () => Number(f.chart.innerHTML.match(/class="airflow-bar"[^>]* height="([^"]+)"/)[1]);
+  const low=height();
+  f.state.customAirflow=20; f.context.renderAhChart();
+  assert.ok(Math.abs(height()-low*2)<1e-9);
+  assert.ok(low<34*480/width);
+  assert.equal(Number(f.chart.innerHTML.match(/class="airflow-label"[^>]* y="([^"]+)"/)[1]),158+13*480/width);
+  f.state.customAirflow=0; f.context.renderAhChart();
+  assert.ok(Math.abs(height()-50/30)<1e-9); // The airflow model retains its 0.1 ACH floor.
+  f.state.customAirflow=1000; f.context.renderAhChart();
+  assert.ok(height()>low && height()<=50);
+  const liveViewBox=f.chart.getAttribute('viewBox');
+  f.state.weatherRequestPending=true;f.context.renderAhChart();assert.equal(f.chart.getAttribute('viewBox'),liveViewBox);
+  f.state.weatherRequestPending=false;f.state.chartHours=24;f.context.renderAhChart();
+  const height24=height();
+  f.state.chartHours=48;f.context.renderAhChart();
+  assert.equal(height(),height24);
+  assert.equal(Number(liveViewBox.split(' ')[3])-Number(f.chart.getAttribute('viewBox').split(' ')[3]),34*480/width);
+ }
 });

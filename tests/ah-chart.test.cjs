@@ -3,16 +3,18 @@ const assert = require('node:assert/strict');
 const { createChart } = require('../src/ui/chart.js');
 const { absoluteHumidity, compareMoisture, dewPoint } = require('../src/domain/humidity.js');
 const context = createChart();
-function place(curve, line = 75) {
+function place(curve, line = 75, rainBoxes = [], height = 20) {
   let baseline = line - 6;
   let x = 12;
   const label = {
-    getBBox: () => ({ x: 12, y: baseline - 16, width: 90, height: 20 }),
+    getBBox: () => ({ x: 12, y: baseline - 16, width: 90, height }),
     getAttribute: () => baseline,
     setAttribute: (name, value) => { if (name === 'y') baseline = value; else if (name === 'x') x = value; },
   };
-  context.positionAhIndoorLabel({ querySelector: () => label }, curve, line);
-  return { top: baseline - 16, x };
+  const removed = [];
+  const rainLabels = rainBoxes.map((box, index) => ({ getBBox: () => box, remove: () => removed.push(index) }));
+  context.positionAhIndoorLabel({ querySelector: () => label, querySelectorAll: () => rainLabels }, curve, line);
+  return { top: baseline - 16, x, removed };
 }
 test('indoor label avoids crossing segments even when their endpoints are outside its width', () => {
   const shifted = place([{ x: 0, y: 60 }, { x: 150, y: 60 }]);
@@ -55,4 +57,29 @@ test('chart preserves actual AH values while semantic colour follows the moistur
   assert.equal(outlook.points[0].semantic, Math.max(0, Math.min(1, 0.5 + comparison.difference / (comparison.margin * 3.5))));
   assert.ok(outlook.points[0].value < outlook.indoor);
   assert.ok(outlook.points[0].semantic < 0.5);
+});
+
+
+test('indoor label avoids rain totals at either end of the reference line', () => {
+  const leftTotal = { x: 70, y: 48, width: 50, height: 20 };
+  const rightTotal = { x: 390, y: 48, width: 60, height: 20 };
+  assert.equal(place([], 75, [leftTotal]).x, 386);
+  const below = place([], 75, [leftTotal, rightTotal]);
+  assert.ok(below.top > 75);
+  assert.deepEqual(below.removed, []);
+});
+
+test('indoor label suppresses colliding rain totals when no placement is clear', () => {
+  const result = place([], 15, [{ x: 0, y: 14, width: 480, height: 110 }]);
+  assert.deepEqual(result.removed, [0]);
+  assert.ok(result.top >= 18);
+});
+
+
+test('indoor label keeps four pixels clear of the reference at fractional plot extremes', () => {
+  for (const line of [19.25, 35.75, 75.125, 110.5, 125.75]) {
+    const { top } = place([], line);
+    assert.ok(top + 20 + 4 <= line - .5 || top - 4 >= line + .5,
+      `Reference ${line} crosses padded label at ${top}`);
+  }
 });

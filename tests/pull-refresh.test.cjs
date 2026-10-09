@@ -33,16 +33,17 @@ function fixture({ reducedMotion = true, footerHeight = 64, verdictHeight = 400 
     forecastPanel: { offsetTop: verdictHeight - 12, offsetHeight: footerHeight },
   };
   let refreshes = 0;
-  let dialogOpen = false;
+  let dialogOpen = false; let popupOpen = false; let overlayChanged;
   const document = {
     body,
     addEventListener: (name, listener) => listeners.set(name, listener),
-    querySelector: () => dialogOpen ? {} : null,
+    querySelector: () => dialogOpen || popupOpen ? {} : null,
     hidden: false,
   };
   const window = { scrollY: 0, matchMedia: () => ({ matches: reducedMotion }) };
   const context = environment({
     document, window, state, elements,
+    MutationObserver: class { constructor(fn) { overlayChanged = fn; } observe() {} },
     setTimeout: callback => { const id = ++nextTimer; timers.set(id, callback); return id; },
     clearTimeout: id => timers.delete(id),
     requestAnimationFrame: callback => { const id = ++nextFrame; frames.set(id, callback); return id; },
@@ -65,7 +66,9 @@ function fixture({ reducedMotion = true, footerHeight = 64, verdictHeight = 400 
   return {
     start, move, end, classes, properties, state, elements, window,
     get refreshes() { return refreshes; },
-    set dialogOpen(value) { dialogOpen = value; },
+    set dialogOpen(value) { dialogOpen = value; overlayChanged(); },
+    set popupOpen(value) { popupOpen = value; overlayChanged(); },
+    click: event => listeners.get('click')(event),
     deferWeather: () => { waitForWeather = true; },
     resolveWeather: () => resolveWeather(),
     finishResult: () => { for (const callback of timers.values()) callback(); timers.clear(); },
@@ -100,7 +103,7 @@ test('only a deliberate downward pull at page top refreshes weather once', async
   assert.equal(f.properties.has('--pull-distance'), false);
 });
 
-test('pull ignores scrolling, open sheets, active requests, and controls', async () => {
+test('pull ignores scrolling, open sheets, active requests, and text editing', async () => {
   const f = fixture();
   f.window.scrollY = 12; f.start(); f.move(100, 200); await f.end();
   f.window.scrollY = 0; f.dialogOpen = true; f.start(); f.move(100, 200); await f.end();
@@ -246,4 +249,45 @@ test('interrupted pulls retract without refreshing', async () => {
   assert.equal(f.refreshes, 0);
   assert.equal(f.classes.has('pull-active'), false);
   assert.equal(f.properties.has('--pull-distance'), false);
+});
+
+for (const overlay of ['dialogOpen', 'popupOpen']) {
+  test(`${overlay} blocks starts and cancels a recognised pull before release`, async () => {
+    const f = fixture(); f[overlay] = true;
+    f.start(); f.move(100,300); await f.end(); assert.equal(f.refreshes,0);
+    f[overlay] = false; f.start(); f.move(100,300); f[overlay] = true;
+    assert.equal(f.properties.has('--pull-distance'),false);
+    f[overlay] = false; await f.end(); assert.equal(f.refreshes,0);
+    f.start(); f.move(100,300); await f.end(); assert.equal(f.refreshes,1);
+  });
+  test(`${overlay} during a pending request clears visuals and never restores feedback`, async () => {
+    const f=fixture(); f.deferWeather(); f.start(); f.move(100,300); const pending=f.end();
+    f[overlay]=true; assert.equal(f.classes.has('pull-refreshing'),false);
+    assert.equal(f.properties.has('--pull-distance'),false);
+    f[overlay]=false; f.resolveWeather(); await pending;
+    assert.equal(f.classes.has('pull-result'),false); assert.equal(f.refreshes,1);
+  });
+}
+test('pulls on interactive surfaces suppress only the resulting pointer click', async () => {
+  const f=fixture(); const control={closest:()=>null};
+  f.start(100,100,control); await f.end();
+  let blocked=false; const click={detail:1,preventDefault(){blocked=true},stopImmediatePropagation(){}};
+  f.click(click); assert.equal(blocked,false);
+  f.start(100,100,control); f.move(100,130); await f.end();
+  f.click(click); assert.equal(blocked,true);
+  blocked=false; f.start(100,100,control); await f.end(); f.click(click); assert.equal(blocked,false);
+});
+
+test('returning a ready pull to its origin never refreshes', async () => {
+  const f=fixture(); f.start(); f.move(100,300); f.move(100,100); await f.end();
+  assert.equal(f.refreshes,0); assert.equal(f.properties.has('--pull-distance'),false);
+});
+test('fractional rendered footer geometry keeps follower clearance exact', () => {
+  const f=fixture();
+  f.elements.verdictPanel.getBoundingClientRect=()=>({bottom:400.3125+(parseFloat(f.properties.get('--pull-distance'))||0)});
+  f.elements.forecastPanel.getBoundingClientRect=()=>({bottom:452.125+(parseFloat(f.properties.get('--pull-follow-distance'))||0)});
+  f.start(); f.move(100,300);
+  const distance=parseFloat(f.properties.get('--pull-distance')), follow=parseFloat(f.properties.get('--pull-follow-distance'));
+  assert.ok(Math.abs(distance-follow-51.8125)<.01);
+  f.cancel();
 });

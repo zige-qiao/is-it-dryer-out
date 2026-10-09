@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Voice diagnostics</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f2f0ed; color: #10231f; font: 16px/1.5 system-ui,sans-serif; }
+    main { max-width: 760px; margin: auto; padding: 24px 16px; }
+    h1 { font-size: 24px; margin: 0 0 8px; }
+    nav, .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
+    [hidden] { display: none !important; }
+    a { color: inherit; }
+    nav a { padding: 10px 0; }
+    nav a[aria-current] { font-weight: 700; text-decoration-thickness: 3px; }
+    button { min-height: 44px; padding: 8px 18px; border: 1px solid #b6c5c1; border-radius: 6px; background: white; color: inherit; font: inherit; }
+    button:disabled { opacity: .5; }
+    button:focus-visible, a:focus-visible { outline: 2px solid #1675b5; outline-offset: 3px; }
+    #status { min-height: 24px; font-weight: 600; }
+    #hold-waveform { min-height: 28px; display: flex; align-items: center; gap: 4px; margin: 12px 0; }
+    #hold-waveform span { width: 4px; height: 2px; border-radius: 2px; background: #1675b5; opacity: .72; transition: height 80ms ease-out, opacity 80ms linear; }
+    textarea { width: 100%; height: 48vh; min-height: 240px; padding: 12px; border: 1px solid #b6c5c1; border-radius: 6px; background: white; font: 12px/1.6 monospace; resize: vertical; }
+    #build { overflow-wrap: anywhere; }
+    @media (prefers-reduced-motion: reduce) { #hold-waveform span { transition: none; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Voice diagnostics</h1>
+    <div id="build"></div>
+    <nav aria-label="Recogniser mode">
+      <a id="reuse" href="?mode=reuse">Reuse one recogniser</a>
+      <a id="fresh" href="?mode=fresh">New recogniser each time</a>
+      <a id="interrupt" href="?mode=interrupt">Audio interruption test</a>
+      <a id="prime" href="?mode=prime">Microphone reset test</a>
+      <a id="hold" href="?mode=hold">Held microphone test</a>
+      <a id="hold-persist" href="?mode=hold-persist">Persistent manual-stop test</a>
+      <a id="track-pause" href="?mode=track-pause">Track pause test</a>
+      <a id="staged" href="?mode=track-pause&amp;staged=1">Staged microphone test</a>
+      <a id="stop-enabled" href="?mode=track-pause&amp;staged=1&amp;stopTrack=enabled">Stop with track enabled</a>
+    </nav>
+    <section id="interruption-guide" aria-labelledby="interruption-title" hidden>
+      <h2 id="interruption-title">Audio interruption test</h2>
+      <p>Start a recording and tap Mark before switching. Switch to another app, start and stop some audio, then return and tap Mark return. This mode does not stop recognition just because this page is hidden; iOS may still suspend it. The attempt is limited to 30 seconds. Logs include browser and recognition events, never your transcript.</p>
+    </section>
+    <section id="reset-guide" aria-labelledby="reset-title" hidden>
+      <h2 id="reset-title">Microphone reset test</h2>
+      <p>After a recording fails to hear speech, tap Reset microphone. This briefly opens and releases a standard microphone stream. When the reset completes, tap Start and speak again. The log records microphone and recognition events, never your transcript.</p>
+    </section>
+    <section id="hold-guide" aria-labelledby="hold-title" hidden>
+      <h2 id="hold-title">Held microphone stream test</h2>
+      <p id="hold-guide-copy">Start a recording and speak normally. Held mode opens a standard microphone stream first and releases it after recognition ends. Persistent manual-stop mode retains the live stream and waveform after Stop. Track pause mode instead immediately disables the retained audio track and pauses the waveform after Stop or Abort, then re-enables that same track for the next attempt. A disabled track is not proof that microphone hardware or capture has stopped: observe the iPhone microphone indicator and include what it does in your report. Natural completion and the Release microphone button fully release resources; a paused stream is also released after 30 seconds.</p>
+    </section>
+    <p id="status" role="status">Ready</p>
+    <p id="stop-enabled-guide" hidden>This control leaves the microphone and live waveform active after manual Stop. Wait for recognition to end, then press Release microphone and observe the amber dot. Reopen without reloading and check audio before starting recognition. Abort still disables the track. Retained capture is released after 30 seconds or when the page is hidden.</p>
+    <p id="staged-guide" hidden>Open microphone and speak for five seconds before starting recognition. After Stop or Abort, release the microphone and repeat without reloading. Compare audio levels before and after recognition starts. Microphone-only capture is limited to 30 seconds; Release microphone cancels it immediately.</p>
+    <div id="hold-waveform" aria-label="Live microphone level" hidden>
+      <span id="hold-wave-1"></span><span id="hold-wave-2"></span><span id="hold-wave-3"></span><span id="hold-wave-4"></span><span id="hold-wave-5"></span>
+    </div>
+    <div class="actions">
+      <button id="open-microphone" type="button" hidden>Open microphone</button>
+      <button id="start" type="button">Start</button>
+      <button id="stop" type="button" disabled>Stop</button>
+      <button id="abort" type="button" hidden disabled>Abort</button>
+      <button id="release-microphone" type="button" hidden disabled>Release microphone</button>
+      <button id="mark-interruption" type="button" hidden disabled>Mark before switching</button>
+      <button id="reset-microphone" type="button" hidden disabled>Reset microphone</button>
+      <button id="copy" type="button">Copy log</button>
+      <button id="clear" type="button">Clear log</button>
+    </div>
+    <textarea id="log" readonly aria-label="Diagnostic log" spellcheck="false"></textarea>
+    <p><a href="../?voice-debug=1">Back to app</a></p>
+  </main>
+  <script type="module" src="voice-test.js?v=127"></script>
+</body>
+</html>

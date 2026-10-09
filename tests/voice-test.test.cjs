@@ -67,8 +67,8 @@ function fixture(mode, options = {}) {
     cancelAnimationFrame(id) { animationFrames.delete(id); },
   };
   if (options.AudioContext) context.window.AudioContext = options.AudioContext;
-  const source = readFileSync(require.resolve('../voice-test.js'), 'utf8')
-    .replace('import.meta.url', JSON.stringify('https://example.test/voice-test.js?v=127'));
+  const source = readFileSync(require.resolve('../diagnostics/voice-test.js'), 'utf8')
+    .replace('import.meta.url', JSON.stringify('https://example.test/diagnostics/voice-test.js?v=127'));
   vm.runInNewContext(source, context);
   return {
     node, objects, timers, mediaTracks, animationFrames,

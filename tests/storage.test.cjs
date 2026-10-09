@@ -1,3 +1,4 @@
+const {pageLayoutDefaults}=require('../src/ui/page-layout.js');
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { createStorage } = require('../src/services/storage.js');
@@ -7,16 +8,16 @@ const { environment, memoryStorage } = require('./helpers/browser.cjs');
 test('preferences preserve defaults and restore saved booleans across controller instances',()=>{
   const localStorage=memoryStorage();
   const make=()=>{
-    const uiPreferences={showIndoorSummary:false,openIndoorOnLaunch:true};let applied=0;
+    const uiPreferences={...pageLayoutDefaults(),openIndoorOnLaunch:true};let applied=0;
     const storage=createStorage({uiPreferences,applyUiPreferences(){applied++;}},environment({localStorage}));
     return {storage,uiPreferences,get applied(){return applied;}};
   };
   const first=make();first.storage.loadUiPreferences();
-  assert.deepEqual(first.uiPreferences,{showIndoorSummary:false,openIndoorOnLaunch:true});assert.equal(first.applied,1);
+  assert.deepEqual(first.uiPreferences,{...pageLayoutDefaults(),openIndoorOnLaunch:true});assert.equal(first.applied,1);
   Object.assign(first.uiPreferences,{showIndoorSummary:true,openIndoorOnLaunch:false});first.storage.saveUiPreferences();
   const second=make();second.storage.loadUiPreferences();assert.deepEqual(second.uiPreferences,first.uiPreferences);
   localStorage.setItem(UI_PREFERENCES_STORAGE_KEY,'bad json');const invalid=make();invalid.storage.loadUiPreferences();
-  assert.deepEqual(invalid.uiPreferences,{showIndoorSummary:false,openIndoorOnLaunch:true});assert.equal(invalid.applied,1);
+  assert.deepEqual(invalid.uiPreferences,{...pageLayoutDefaults(),openIndoorOnLaunch:true});assert.equal(invalid.applied,1);
 });
 
 test('existing plan data migrates opening settings and preserves validated numeric values',()=>{
@@ -59,7 +60,7 @@ test('blocked or full storage keeps defaults and never interrupts saving',()=>{
 });
 
 test('capture and entry visibility preferences persist independently and invalid values retain defaults',()=>{
- const localStorage=memoryStorage(), defaults={useStillPhotos:false,showCameraButton:true,showVoiceButton:false};
+ const localStorage=memoryStorage(), defaults={...pageLayoutDefaults(),useStillPhotos:false,showCameraButton:true,showVoiceButton:false};
  const make=()=>{const uiPreferences={...defaults};return {uiPreferences,storage:createStorage({uiPreferences,applyUiPreferences(){}},environment({localStorage}))};};
  const fresh=make();fresh.storage.loadUiPreferences();assert.deepEqual(fresh.uiPreferences,defaults);
  for(const camera of [true,false])for(const voice of [true,false])for(const photos of [true,false]){
@@ -70,4 +71,14 @@ test('capture and entry visibility preferences persist independently and invalid
    localStorage.setItem(UI_PREFERENCES_STORAGE_KEY,JSON.stringify(saved));const f=make();f.storage.loadUiPreferences();assert.deepEqual(f.uiPreferences,defaults);
  }
  localStorage.setItem(UI_PREFERENCES_STORAGE_KEY,'bad json');const invalid=make();invalid.storage.loadUiPreferences();assert.deepEqual(invalid.uiPreferences,defaults);
+});
+
+
+test('Chart key defaults to collapsed and restores only valid saved booleans',()=>{
+ for(const saved of [undefined,true,false,'true',1,null]){
+  const localStorage=memoryStorage(),uiPreferences={showChartKey:false};
+  localStorage.setItem(UI_PREFERENCES_STORAGE_KEY,JSON.stringify({showChartKey:saved}));
+  createStorage({uiPreferences,applyUiPreferences(){}},environment({localStorage})).loadUiPreferences();
+  assert.equal(uiPreferences.showChartKey,saved===true);
+ }
 });

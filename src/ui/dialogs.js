@@ -9,6 +9,7 @@ export function createDialogs({
   const restoredTargets = new Set();
   const observedTargets = new WeakSet();
   let pointerFocus = null, focusBound = false;
+  let pointerGestureEligible = () => true;
 
   function clearRestoredFocus(target) {
     target.classList.remove('is-restored-pointer-focus', 'is-restored-keyboard-focus');
@@ -19,9 +20,56 @@ export function createDialogs({
     !target.classList.contains('is-restored-pointer-focus') &&
     (target.matches(':focus-visible') || target.classList.contains('is-restored-keyboard-focus'));
 
+  function bindGestureActivation() {
+    let press = null, suppressClick = false, touchScroll = false, lastScroll = -Infinity, scrollTouchUntil = -Infinity;
+    const now = () => environment.performance.now();
+    pointerGestureEligible = event => event.isPrimary !== false &&
+      !(event.pointerType === 'touch' && touchScroll && now() - lastScroll < 150);
+    const reset = () => { press = null; suppressClick = touchScroll = false; lastScroll = scrollTouchUntil = -Infinity; };
+    // Observe intent without capturing pointers or preventing native scrolling.
+    document.addEventListener('pointerdown', event => {
+      if (event.isPrimary === false) { press = null; suppressClick = true; return; }
+      if (event.button > 0) { reset(); return; }
+      suppressClick = event.pointerType === 'touch' && touchScroll && now() - lastScroll < 150;
+      touchScroll = suppressClick;
+      scrollTouchUntil = -Infinity;
+      if (!touchScroll) lastScroll = -Infinity;
+      press = { id: event.pointerId, x: event.clientX, y: event.clientY, type: event.pointerType };
+    }, { capture: true, passive: true });
+    document.addEventListener('pointermove', event => {
+      if (!press || press.id !== event.pointerId) return;
+      if (Math.hypot(event.clientX - press.x, event.clientY - press.y) >= 8) suppressClick = true;
+    }, { capture: true, passive: true });
+    document.addEventListener('pointerup', event => {
+      if (!press || press.id !== event.pointerId) return;
+      if (Math.hypot(event.clientX - press.x, event.clientY - press.y) >= 8) suppressClick = true;
+      press = null;
+    }, { capture: true, passive: true });
+    document.addEventListener('pointercancel', event => {
+      if (!press || press.id !== event.pointerId) return;
+      suppressClick = true;
+      // Native scrolling cancels pointer delivery before its first scroll event.
+      if (press.type === 'touch') scrollTouchUntil = now() + 200;
+      press = null;
+    }, { capture: true, passive: true });
+    document.addEventListener('scroll', () => {
+      if (press?.type !== 'touch' && now() >= scrollTouchUntil && !(touchScroll && now() - lastScroll < 200)) return;
+      suppressClick = touchScroll = true; lastScroll = now();
+    }, { capture: true, passive: true });
+    document.addEventListener('click', event => {
+      // Keyboard, assistive-technology and programmatic activations remain valid.
+      if (!suppressClick || event.detail === 0) return;
+      pointerFocus = null;
+      event.preventDefault(); event.stopImmediatePropagation();
+    }, true);
+    document.addEventListener('keydown', reset, true);
+    document.addEventListener('visibilitychange', reset);
+  }
+
   function bindSheetFocus() {
     if (focusBound) return;
     focusBound = true;
+    bindGestureActivation();
     // Snapshot before a pointer press changes the browser's focus-visible heuristic.
     document.addEventListener('pointerdown', event => {
       const focused = document.activeElement;
@@ -79,13 +127,36 @@ export function createDialogs({
   function enableSheetDrag(dialog) {
     const header = dialog.querySelector('.section-heading, .plan-dialog-heading, .location-dialog-heading, .settings-dialog-heading');
     const handle = dialog.querySelector('.sheet-handle');
+    const stickyHeader = dialog.querySelector('.sheet-header');
+    const footer = dialog.querySelector('.sheet-footer');
+    const measureHeader = () => {
+      const bounds = stickyHeader?.getBoundingClientRect();
+      if (!(bounds?.height > 0)) return;
+      dialog.style.setProperty('--sheet-header-height', `${bounds.height}px`);
+      const viewport = window.visualViewport;
+      const footerBounds = footer?.getBoundingClientRect();
+      const bottom = Math.min((viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight),
+        dialog.getBoundingClientRect?.().bottom ?? Infinity, footerBounds?.height > 0 ? footerBounds.top : Infinity);
+      dialog.style.setProperty('--sheet-help-height', `${Math.max(44, bottom - bounds.bottom - 16)}px`);
+    };
+    const HeaderObserver = environment.ResizeObserver || window.ResizeObserver;
+    if (stickyHeader && HeaderObserver) {
+      const observer = new HeaderObserver(measureHeader);
+      observer.observe(stickyHeader);
+      observer.observe(dialog);
+      if (footer) observer.observe(footer);
+    }
+    measureHeader();
+
     let gesture = null;
     const reset = () => {
       gesture = null;
       dialog.style.removeProperty('transform');
       dialog.classList.remove('sheet-dragging');
     };
-    [handle, header].filter(Boolean).forEach(surface => {
+    // Keep help popovers outside the drag surface so their text can scroll.
+    const titleSurface = header?.querySelector?.('h2') || header;
+    [handle, titleSurface].filter(Boolean).forEach(surface => {
       surface.classList.add('sheet-drag-surface');
       surface.addEventListener('pointerdown', event => {
         if (!window.matchMedia('(max-width: 39.999rem)').matches || !event.isPrimary || event.button !== 0 ||
@@ -113,7 +184,7 @@ export function createDialogs({
   }
 
   function createDialogScrollLock() {
-    let saved = null, viewportFrame = null;
+    let saved = null, viewportFrame = null, keyboardConstrained = false;
     const root = document.documentElement, body = document.body;
     const page = document.querySelector('.app-shell');
     const remember = (element, names) => names.map(name => [name, element.style.getPropertyValue(name), element.style.getPropertyPriority(name)]);
@@ -127,6 +198,14 @@ export function createDialogs({
       const height = viewport?.height || window.innerHeight;
       const top = viewport?.offsetTop || 0;
       if (!(height > 0)) return;
+      // Observe the real viewport reduction after editable focus, never a guessed keyboard height.
+      if (Math.abs((viewport?.scale || 1) - 1) < .01) {
+        const editable = document.activeElement?.matches?.('input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, [contenteditable="true"]');
+        if (height >= saved.viewportHeight - 1) { keyboardConstrained = false; saved.viewportHeight = height; }
+        else if (editable) keyboardConstrained = true;
+      } else keyboardConstrained = false;
+      if (keyboardConstrained) root.style.setProperty('--sheet-keyboard-safe-area', '0px');
+      else root.style.removeProperty('--sheet-keyboard-safe-area');
       root.style.setProperty('--sheet-visible-height', height + 'px');
       root.style.setProperty('--sheet-visible-bottom', (top + height) + 'px');
     };
@@ -135,10 +214,12 @@ export function createDialogs({
       window.visualViewport?.removeEventListener('resize', syncViewport);
       window.visualViewport?.removeEventListener('scroll', syncViewport);
       window.removeEventListener('resize', syncViewport);
+      document.removeEventListener?.('focusin', syncViewport);
       if (viewportFrame !== null) window.cancelAnimationFrame(viewportFrame);
       viewportFrame = null;
       const previous = saved;
       saved = null;
+      keyboardConstrained = false;
       restore(page, previous.page);
       restore(body, previous.body);
       restore(root, previous.root);
@@ -151,10 +232,10 @@ export function createDialogs({
       if (!saved) {
         const bounds = page.getBoundingClientRect();
         const height = Math.max(root.scrollHeight, body.scrollHeight);
-        saved = {x:window.scrollX,y:window.scrollY,
+        saved = {x:window.scrollX,y:window.scrollY,viewportHeight:window.visualViewport?.height || window.innerHeight,
           body:remember(body,['min-height','overflow']),
           page:remember(page,['position','top','left','width','margin']),
-          root:remember(root,['overflow','overscroll-behavior','--sheet-visible-height','--sheet-visible-bottom']),
+          root:remember(root,['overflow','overscroll-behavior','--sheet-visible-height','--sheet-visible-bottom','--sheet-keyboard-safe-area']),
           behavior:remember(root,['scroll-behavior'])};
         root.style.setProperty('overflow','hidden');
         root.style.setProperty('overscroll-behavior','none');
@@ -169,6 +250,7 @@ export function createDialogs({
         window.visualViewport?.addEventListener('resize', syncViewport);
         window.visualViewport?.addEventListener('scroll', syncViewport);
         window.addEventListener('resize', syncViewport);
+        document.addEventListener?.('focusin', syncViewport);
         syncViewport();
       }
       try {
@@ -192,5 +274,5 @@ export function createDialogs({
     closeSheet(elements.planDialog);
   }
 
-  return { bindSheetFocus, rememberSheetFocus, restoreSheetFocus, closeSheet, enableSheetDrag, createDialogScrollLock, openPlanDialog, closePlanDialog };
+  return { canStartPointerGesture: event => pointerGestureEligible(event), bindSheetFocus, rememberSheetFocus, restoreSheetFocus, closeSheet, enableSheetDrag, createDialogScrollLock, openPlanDialog, closePlanDialog };
 }

@@ -26,7 +26,7 @@ export function boundedCrop(crop) {
 }
 
 export function cameraErrorMessage(error, secure = true) {
-  if (!secure) return { title: 'A secure connection is needed', message: 'Open this app over HTTPS to use the camera.', help: '' };
+  if (!secure) return { title: 'Secure connection needed', message: 'Open this app over HTTPS to use the camera.', help: '' };
   if (error?.name === 'NotAllowedError' || error?.name === 'SecurityError') {
     return { title: 'Camera access is off', message: 'Allow camera access for this page, then try again.', help: 'Check Camera in your browser’s settings for this website. If it is still blocked, check camera permissions for your browser in your device settings.' };
   }

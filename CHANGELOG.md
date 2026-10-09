@@ -4,9 +4,17 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
-- Change the below-minimum KEEP CLOSED supporting line to “Drier out, but ventilation would cool it further.”
-- Update TARGET MET supporting lines to “Drier out, but your humidity target is met.” when outdoor air is clearly drier, and “Your humidity target is met.” otherwise.
-- Remove the unused timer Shortcut generator and macOS signing workflow; retain the shared iCloud Shortcut installation flow and document the abandoned signing experiment.
+## v0.7.7 - Page layout and sheet refinements - 2026-10-09
+
+- Pin Recommendation first and always show its chart and ventilation settings. Save order/visibility of Indoor summary (hidden by default), Moisture comparison and Supporting details; Reset restores only page-layout choices.
+- Group Settings into Page layout and Indoor readings, with handle menus and deliberate touch-hold reordering. Drag previews track the finger; neighbouring rows reveal the destination. Scroll only to reveal clipped reorder rows. Hide camera sub-options with the camera shortcut while retaining their saved values.
+- Use parent-owned 16px page-section spacing, plain-language labelled explanations for every recommendation state, compact More detail disclosure, lighter 1.2px category icons and divider-free recommendation entries. Refresh Chart key, Glossary and Weather data layouts; distinguish successful weather updates from pending or failed attempts.
+- Add advisory hourly rain/shower overlays, spell totals, precipitation chance and wind annotations without changing drying calculations. Share proportional ACH bars between chart ranges and keep Indoor labels/reference lines clear of rain totals.
+- Standardise sheets with stationary headers, content-only scrolling, 16px edge fades and pinned Done/Timer Start actions. Fit Location to its content and adapt keyboard spacing to the visible viewport; keep camera/voice actions in their bodies.
+- Prevent swipes and drags from also activating controls. Pull weather refresh from Recommendation, move following sections together, coordinate chart inspection and block refresh while sheets or popups are open.
+- Move standalone Voice and Camera flash diagnostics into diagnostics/ with compatible root-page redirects. Remove the unused Shortcut generator/signing workflow. Standardise document prose and visible app copy on UK English, preserving original quotations and code identifiers.
+- Verification: 550 unit tests, all 384 valid page-spacing configurations, 152 sheet/mode layouts, 184 recommendation-state checks, 256 chart-clearance layouts and the Settings/reorder/gesture/diagnostic browser regressions passed; JavaScript syntax and whitespace checks passed.
+- Set build identity to v0.7.7 and refresh app-shell cache revision 166. Automated touch and viewport checks do not establish physical iPhone Safari behaviour; device confirmation remains outstanding for the latest sheet/reorder refinements.
 
 ## v0.7.6 - Drying guidance and reliability - 2026-10-07
 
@@ -31,12 +39,12 @@ All notable changes to Is it dryer out are documented here.
 - Replace the camera zoom ruler with accessible 1×, 3× and 5× presets. Select identified telephoto devices where available, retain supported zoom/digital-crop fallback and coalesce rapid selections.
 - Place zoom and lighting controls inside the preview, show compact feedback at the top centre and blur only the preview image during switching. Add labelled translucent Retake and matching Take photo camera icons.
 - Group Settings into Indoor readings, Input buttons and Camera, with larger headings and rounded groups. Persist entry visibility, still-photo capture and Auto flash independently. Camera entry defaults on, voice entry and still photos off, and Auto flash on; saved choices are preserved.
-- Clarify second-line verdict explanations for limited drying benefit, cooling, uncertainty, target-met conditions and immediate temperature/condensation limits. The uncertainty line reads “Open for fresh air; drying benefit is uncertain.” Headlines, colors and opening durations remain unchanged.
+- Clarify second-line verdict explanations for limited drying benefit, cooling, uncertainty, target-met conditions and immediate temperature/condensation limits. The uncertainty line reads “Open for fresh air; drying benefit is uncertain.” Headlines, colours and opening durations remain unchanged.
 - Expand indoor readings to 10–45°C and 10–90% RH across manual, voice, camera and saved readings.
 - Establish LCD orientation and the dominant current integer row before accepting numbers, without gyro access. Preserve original coordinates and same-display row evidence through automatic/manual crops and preprocessing; require 80% relative integer height and 50% row overlap to prevent smaller historical readings from winning.
-- Improve narrow digits, uneven torch/flash illumination, separate fractions and humidity-guided temperature recognition. Retain grayscale, decimal, Fahrenheit and conflicting-digit safeguards; uncertain readings remain blank.
+- Improve narrow digits, uneven torch/flash illumination, separate fractions and humidity-guided temperature recognition. Retain greyscale, decimal, Fahrenheit and conflicting-digit safeguards; uncertain readings remain blank.
 - Enforce one ten-second recognition deadline, including preparation and refinement. Stop on validated success, preserve safe partial readings and withdraw candidates invalidated by stronger evidence.
-- Refine reading labels, review scrolling, sheet focus restoration and 4px control spacing while preserving existing ventilation and voice behavior.
+- Refine reading labels, review scrolling, sheet focus restoration and 4px control spacing while preserving existing ventilation and voice behaviour.
 - Set build identity v0.7.5 and app-shell cache revision 162. Reuse completed verification: 398 tests, 121 private cases and 43 browser checks. Actual-phone timing, capture framing and lighting checks remain outstanding.
 
 ## v0.7.4.1 - UI geometry and sheet refinements - 2026-10-04
@@ -56,7 +64,7 @@ All notable changes to Is it dryer out are documented here.
 - Preserve original verdict spacing, use dotted duration underlines at 50% opacity, and shorten minimum indoor temperature to min indoor temperature.
 - Match timer and Indoor title typography to Settings; restore the mobile drag handle, tighten timer spacing, remove duplicate unit labels and timing-context paragraphs, and retain a centred, compact help target.
 - Preserve temporary timer edits during weather refresh, validate whole minutes from 1 to 180, and restore opener focus on dismissal.
-- Record user-confirmed timer handoffs from Chrome, Safari and the Home Screen web app, plus an alarm that worked in airplane mode. Fresh installation and additional recovery/locked-phone scenarios remain separately unverified.
+- Record user-confirmed timer handoffs from Chrome, Safari and the Home Screen web app, plus an alarm that worked in flight mode. Fresh installation and additional recovery/locked-phone scenarios remain separately unverified.
 - Set the app build identity to `v0.7.4` and synchronise the app shell cache at revision 140.
 
 ## v0.7.3.1 — Structure, pull cue, and moisture estimates - 2026-09-30
@@ -69,13 +77,13 @@ All notable changes to Is it dryer out are documented here.
 - Compare indoor and outdoor moisture at a shared temperature so the recommendation follows the moisture ratio used by the ventilation estimate, while the cards and chart still display actual absolute humidity.
 - Colour the forecast curve by the moisture comparison at each forecast time, and allow a below-minimum room to benefit from warmer, drier incoming air.
 - Shorten the README and move detailed usage guidance into `docs/user-guide.md`; align the design records with the updated comparison and chart behaviour.
-- Set the app build identity to `v0.7.3.1` and synchronize the updated app shell cache at revision 138.
+- Set the app build identity to `v0.7.3.1` and synchronise the updated app shell cache at revision 138.
 
 ## v0.7.3 — iPhone chart rendering - 2026-09-29
 
 - Render the AH forecast curve as a continuous PNG at twice the previous bitmap resolution, displayed at the same size, to preserve its semantic colours after offscreen scrolling on iPhone and improve pinch-zoom sharpness.
 - Remove touch tap highlighting and pointer focus outlines from the chart while retaining a visible keyboard focus ring and chart inspection.
-- Set the app build identity to `v0.7.3` and synchronize the app shell cache at revision 136.
+- Set the app build identity to `v0.7.3` and synchronise the app shell cache at revision 136.
 
 ## v0.7.2 — Indoor controls and touch refresh - 2026-09-29
 
@@ -85,14 +93,14 @@ All notable changes to Is it dryer out are documented here.
 - Show `Checked just now` for the first minute after a successful outdoor weather check, then show the location's clock time.
 - Aligned outer card corners to 20px while retaining the 14px inner comparison cards; added a faint reading divider and 4px between the 24 h and 48 h options.
 - Moved keyboard focus rings outside most visible controls with a 2px clear gap, retaining distinct selected borders and the wider focus shapes on the ventilation summary and dashboard explainers.
-- Updated the design-system specification, visual board, README and UI guidance for these changes. Set the app build identity to `v0.7.2` and synchronized the app shell cache at revision 135.
+- Updated the design-system specification, visual board, README and UI guidance for these changes. Set the app build identity to `v0.7.2` and synchronised the app shell cache at revision 135.
 
 ## v0.7.1 — Forecast and reading refinements - 2026-09-28
 
 - Open Indoor readings on every full app load so current measurements can be entered, and default the outdoor outlook to 48 hours.
 - Shorten the chart skeleton sweep from 2.4 to 1.6 seconds.
 - Updated the four verdict gradients and the AH chart's amber/coral colours. The selected dot and g/m³ reading now match the curve at the inspected point.
-- Set the app build identity to `v0.7.1` and synchronized the app shell cache at revision 134.
+- Set the app build identity to `v0.7.1` and synchronised the app shell cache at revision 134.
 
 ## v0.7.0 — Layout and design system - 2026-09-28
 
@@ -101,7 +109,7 @@ All notable changes to Is it dryer out are documented here.
 - Refined sheet dismissal, scroll-position preservation and visible-viewport handling; added a visible mobile Location Close action, recent-place management, a glossary and a page-refresh action.
 - Applied the warm-neutral design system to light controls, borders and interaction states while retaining the distinct recommendation, comparison-card and AH-line semantic colours. Added an angled CHECKING and skeleton sweep with reduced-motion support.
 - Added the written design system and visual specimens; consolidated voice research and the unsubmitted WebKit report under `docs/voice/`, with the investigation as the current evidence index.
-- Set the app build identity to `v0.7.0` and synchronized the app shell cache at revision 133.
+- Set the app build identity to `v0.7.0` and synchronised the app shell cache at revision 133.
 
 ## v0.6.0 — Moisture Outlook - 2026-09-26
 
@@ -117,7 +125,7 @@ All notable changes to Is it dryer out are documented here.
 - Matched the Indoor readings microphone to the muted refresh-button style and moved all live waveform feedback into the voice dialog. The dialog now opens immediately when voice input is requested, including microphone preparation.
 - Added concise voice examples below the status box; they disappear when speech arrives or an error is shown. The live Hearing text and final review remain in their existing states.
 - Preserved the `.11` iPhone foreground-stream lifecycle and its unresolved post-release recovery risk. The `.13` release/reopen test failed on the affected iPhone, so this branch makes no capture-recovery change.
-- Matched the app diagnostic build name to `v0.5.5` and synchronized app cache revision 130. No release tag was requested.
+- Matched the app diagnostic build name to `v0.5.5` and synchronised app cache revision 130. No release tag was requested.
 
 - Live voice transcript now replaces Listening in the same status box instead of appearing in a second panel. Final review behaviour is unchanged; app assets revision 129.
 
@@ -125,7 +133,7 @@ All notable changes to Is it dryer out are documented here.
 
 - Adopted the user-approved iPhone foreground microphone retention trade-off: reuse the enabled stream across voice attempts, Apply and dialog close; cancel/reset waveform animation when not listening. Removed the retained-stream idle timeout, not the recognition duration limit.
 - Release capture on backgrounding and page exit. Added no Stop/Abort/Release buttons or readiness message. Recovery after background release remains unverified; underlying Safari issue is not resolved.
-- App log build matches the branch, with synchronized app cache revision 128. Diagnostic build remains .10 / revision 127.
+- App log build matches the branch, with synchronised app cache revision 128. Diagnostic build remains .10 / revision 127.
 
 ### Diagnostic build v0.5.4.10-cleanup-audit
 
@@ -191,9 +199,9 @@ All notable changes to Is it dryer out are documented here.
 
 ### Added
 
-- Added a separate voice comparison page for repeated recordings with a reused or newly created recognizer.
+- Added a separate voice comparison page for repeated recordings with a reused or newly created recogniser.
 - Added embedded build identification and asset revision to copied diagnostics, including after clearing logs.
-- Comparison logs identify recognizer objects, attempts, events, and safety timeouts without including recognised speech.
+- Comparison logs identify recogniser objects, attempts, events, and safety timeouts without including recognised speech.
 
 ## v0.5.3.1 - 2026-09-15
 
