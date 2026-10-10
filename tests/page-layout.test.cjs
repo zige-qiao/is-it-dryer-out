@@ -50,7 +50,10 @@ function fixture(blocked = false, eligible = () => true) {
   shell.insertBefore(footer, null);
   shell.querySelector = selector => boxes.get(selector.match(/"([^"]+)"/)[1]);
   list.querySelector = selector => rows.get(selector.match(/"([^"]+)"/)[1]);
-  const scroller = element(); scroller.scrollTop = 0; scroller.getBoundingClientRect = () => ({ top: 80, bottom: 240, left: 0, width: 320, height: 160 }); dialog.querySelector = () => scroller;
+  const scroller = element(), sheetHeader = element(); scroller.scrollTop = 0;
+  scroller.getBoundingClientRect = () => ({ top: 80, bottom: 240, left: 0, width: 320, height: 160 });
+  sheetHeader.getBoundingClientRect = () => ({ bottom: 80 });
+  dialog.querySelector = selector => selector === '.sheet-header' ? sheetHeader : scroller;
   list.getBoundingClientRect = () => ({ top: 0, bottom: 400 }); dialog.getBoundingClientRect = () => ({ top: 0, bottom: 300, left: 0, right: 320 }); dialog.scrollTop = 0;
   const document = element(); document.documentElement = element(); document.visibilityState = 'visible';
   const nodes = { '.app-shell': shell, '.project-credit-row': footer, '#pageLayoutList': list, '#settingsDialog': dialog,
@@ -65,7 +68,7 @@ function fixture(blocked = false, eligible = () => true) {
     setTimeout(fn, delay) { timers.set(++timerId, { fn, due: time + delay }); return timerId; }, clearTimeout(id) { timers.delete(id); },
   });
   controller.apply(); controller.bind();
-  return { preferences, shell, footer, list, rows, boxes, dialog, scroller, status, fallback, reset, document, frames, localStorage, menu, up, down, window,
+  return { preferences, shell, footer, list, rows, boxes, dialog, scroller, sheetHeader, status, fallback, reset, document, frames, localStorage, menu, up, down, window,
     advance(ms) { time += ms; for (const [id, timer] of timers) if (timer.due <= time) { timers.delete(id); timer.fn(); } }, timers,
     get saves() { return saves; }, get focused() { return focused; } };
 }
@@ -81,6 +84,19 @@ test('fully visible movable rows never scroll, even beyond either list edge', ()
     for (let time = 0; time <= 1000; time += 16) [...f.frames.values()].at(-1)?.(time);
     assert.equal(f.scroller.scrollTop, 0); h.emit('pointercancel', touchPointer);
   }
+});
+
+test('frosted header overlap leaves reorder edge scrolling below the header', () => {
+  const f = fixture(), handle = f.rows.get('indoor-summary').controls.handle;
+  f.scroller.getBoundingClientRect = () => ({ top: 0, bottom: 240, left: 0, width: 320, height: 240 });
+  handle.emit('pointerdown', touchPointer); f.advance(300);
+  handle.emit('pointermove', { ...touchPointer, clientY: 230 });
+  for (let time = 0; time <= 3000; time += 16) [...f.frames.values()].at(-1)?.(time);
+  assert.ok(Math.abs(f.scroller.scrollTop - 176) < .51);
+  handle.emit('pointermove', { ...touchPointer, clientY: 90 });
+  for (let time = 3016; time <= 6016; time += 16) [...f.frames.values()].at(-1)?.(time);
+  assert.ok(Math.abs(f.scroller.scrollTop - 4) < .51, 'the exposed body starts at the header bottom');
+  handle.emit('pointercancel', touchPointer);
 });
 
 test('edge scrolling waits 200ms, caps speed, stops at the last row and resets after leaving', () => {

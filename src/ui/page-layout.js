@@ -2,7 +2,7 @@ export const PAGE_BOXES = [
   { id: 'recommendation', label: 'Recommendation', preference: 'showRecommendation', visible: true, pinned: true },
   { id: 'indoor-summary', label: 'Indoor summary', preference: 'showIndoorSummary', visible: false },
   { id: 'moisture-comparison', label: 'Moisture comparison', preference: 'showMoistureComparison', visible: true },
-  { id: 'supporting-details', label: 'Supporting details', preference: 'showSupportingDetails', visible: true },
+  { id: 'supporting-details', label: 'Chart key', preference: 'showSupportingDetails', visible: true },
 ];
 
 export function normalizePageOrder(value) {
@@ -17,11 +17,11 @@ export function pageLayoutDefaults() {
 
 export function createPageLayout({ preferences, save, canStartPointerGesture = () => true }, environment = globalThis) {
   const { document, requestAnimationFrame, cancelAnimationFrame } = environment;
-  const shell = document.querySelector('.app-shell');
-  const footer = document.querySelector('.project-credit-row');
+  const shell = document.querySelector('#overviewPage') || document.querySelector('.app-shell');
   const list = document.querySelector('#pageLayoutList');
   const dialog = document.querySelector('#settingsDialog');
   const scroller = dialog.querySelector('.settings-dialog-content') || dialog;
+  const sheetHeader = dialog.querySelector('.sheet-header');
   const status = document.querySelector('#pageLayoutStatus');
   const menu = document.querySelector('#pageLayoutMenu');
   const actions = [...menu.querySelectorAll('[data-move]')];
@@ -79,7 +79,7 @@ export function createPageLayout({ preferences, save, canStartPointerGesture = (
     for (const [index, id] of preferences.pageOrder.entries()) {
       const box = PAGE_BOXES.find(box => box.id === id), row = rows.get(id);
       nodes.get(id).hidden = preferences[box.preference] !== true;
-      if (shell.children[index] !== nodes.get(id)) shell.insertBefore(nodes.get(id), shell.children[index] || footer);
+      if (shell.children[index] !== nodes.get(id)) shell.insertBefore(nodes.get(id), shell.children[index] || null);
       if (list.children[index] !== row) list.insertBefore(row, list.children[index] || null);
       if (!box.pinned) row.querySelector('input').checked = preferences[box.preference] === true;
     }
@@ -178,7 +178,9 @@ export function createPageLayout({ preferences, save, canStartPointerGesture = (
   }
 
   function edgeIntent() {
-    const viewport = scroller.getBoundingClientRect(), top = viewport.top + 16, bottom = viewport.bottom - 16;
+    const viewport = scroller.getBoundingClientRect();
+    const top = Math.max(viewport.top, sheetHeader?.getBoundingClientRect().bottom || viewport.top) + 16;
+    const bottom = viewport.bottom - 16;
     const scroll = scroller.scrollTop - drag.scrollStart;
     const first = drag.bounds.get(preferences.pageOrder[1]);
     const last = drag.bounds.get(preferences.pageOrder.at(-1));

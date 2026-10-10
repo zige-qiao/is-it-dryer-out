@@ -34,6 +34,7 @@ function fixture({ reducedMotion = true, footerHeight = 64, verdictHeight = 400 
   };
   let refreshes = 0;
   let dialogOpen = false; let popupOpen = false; let overlayChanged;
+  let onOverview = true;
   const document = {
     body,
     addEventListener: (name, listener) => listeners.set(name, listener),
@@ -52,6 +53,7 @@ function fixture({ reducedMotion = true, footerHeight = 64, verdictHeight = 400 
       refreshes++;
       if (waitForWeather) await new Promise(resolve => { resolveWeather = resolve; });
     },
+    isOverview: () => onOverview,
   });
   Object.assign(context, createPullRefresh(context, context));
   context.bindPullToRefresh();
@@ -68,6 +70,7 @@ function fixture({ reducedMotion = true, footerHeight = 64, verdictHeight = 400 
     get refreshes() { return refreshes; },
     set dialogOpen(value) { dialogOpen = value; overlayChanged(); },
     set popupOpen(value) { popupOpen = value; overlayChanged(); },
+    set onOverview(value) { onOverview = value; listeners.get('viewchange')(); },
     click: event => listeners.get('click')(event),
     deferWeather: () => { waitForWeather = true; },
     resolveWeather: () => resolveWeather(),
@@ -290,4 +293,59 @@ test('fractional rendered footer geometry keeps follower clearance exact', () =>
   const distance=parseFloat(f.properties.get('--pull-distance')), follow=parseFloat(f.properties.get('--pull-follow-distance'));
   assert.ok(Math.abs(distance-follow-51.8125)<.01);
   f.cancel();
+});
+
+
+test('Why and the fixed tab bar cannot start refresh; leaving Overview clears an active pull', () => {
+  const f = fixture();
+  f.onOverview = false; f.start(); f.move(100, 250); f.end();
+  assert.equal(f.refreshes, 0);
+  f.onOverview = true;
+  f.start(100, 100, { closest: selector => selector === 'nav' ? {} : null });
+  f.move(100, 250); f.end(); assert.equal(f.refreshes, 0);
+  f.start(); f.move(100, 250); assert.equal(f.classes.has('pull-active'), true);
+  f.onOverview = false; f.end();
+  assert.equal(f.refreshes, 0); assert.equal(f.properties.size, 0);
+});
+
+
+test('horizontal swipes and taps never measure or paint pull-to-refresh geometry', async () => {
+  for (const kind of ['horizontal', 'tap', 'vertical-scroll', 'short-downward', 'cancel', 'overlay']) {
+    const f = fixture();
+    let geometryReads = 0, styleWrites = 0, marked = false;
+    f.elements.verdictPanel.getBoundingClientRect = () => { geometryReads++; return { bottom: 400 }; };
+    f.elements.forecastPanel.getBoundingClientRect = () => { geometryReads++; return { bottom: 452 }; };
+    Object.defineProperty(f.elements.verdictPanel, 'offsetHeight', {get(){geometryReads++; return 400;}});
+    Object.defineProperty(f.elements.pullRefresh, 'offsetHeight', {get(){geometryReads++; return 76;}});
+    const follower = { dataset: {} }, recommendation = {};
+    recommendation.parentElement = { children: [recommendation, follower] };
+    f.elements.verdictPanel.closest = () => { marked = true; return recommendation; };
+    const setProperty = f.properties.set.bind(f.properties);
+    f.properties.set = (...args) => { styleWrites++; return setProperty(...args); };
+    f.start();
+    if (kind === 'horizontal') f.move(20, 103);
+    if (kind === 'vertical-scroll') { f.window.scrollY = 20; f.move(100, 140); }
+    if (kind === 'short-downward') f.move(100, 108);
+    if (kind === 'cancel') f.cancel();
+    if (kind === 'overlay') f.dialogOpen = true;
+    await f.end();
+    assert.equal(geometryReads, 0, `${kind} must not measure a pull that never starts`);
+    assert.equal(styleWrites, 0, `${kind} must not paint zero-distance transforms`);
+    assert.equal(marked, false, `${kind} must not change follower styles`);
+    assert.equal(f.refreshes, 0);
+  }
+});
+
+test('downward intent prepares pull geometry using the current card size', async () => {
+  const f = fixture();
+  let measured = false;
+  f.elements.verdictPanel.getBoundingClientRect = () => { measured = true; return { bottom: 400 }; };
+  f.elements.forecastPanel.getBoundingClientRect = () => ({ bottom: 452 });
+  f.start(); assert.equal(measured, false);
+  // Weather or text layout can change between touch-down and recognised intent.
+  f.elements.verdictPanel.offsetHeight = 600;
+  f.move(100, 220);
+  assert.equal(measured, true);
+  assert.ok(Math.abs(parseFloat(f.properties.get('--pull-distance')) - 300 * (1 - Math.exp(-120 / 300))) < .01);
+  await f.end(); assert.equal(f.refreshes, 1);
 });

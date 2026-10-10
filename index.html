@@ -17,6 +17,9 @@
   </head>
   <body>
     <main class="app-shell">
+      <div class="page-stage" id="pageStage">
+        <div class="page-track" id="pageTrack">
+        <section class="page-view" id="overviewPage" data-view="overview" aria-label="Overview">
       <section data-page-box="indoor-summary" class="indoor-summary" aria-labelledby="indoorSummaryHeading">
         <div class="indoor-summary-content">
           <div class="indoor-summary-meta">
@@ -128,21 +131,7 @@
 
         </section>
 
-        <section data-page-box="supporting-details" class="details-footnotes" aria-label="Recommendation and weather details">
-          <details class="dashboard-explainer recommendation-explainer" open>
-            <summary id="explanationToggle">Why this recommendation?</summary>
-            <p id="explanationStatus">Checking outdoor weather for Sale, Greater Manchester. The recommendation will appear when current data arrives.</p>
-            <div id="explanationOverview" class="explanation-overview" hidden></div>
-            <details id="explanationDetails" class="recommendation-more secondary-disclosure" hidden>
-              <summary id="explanationDetailsSummary">More detail</summary>
-              <div class="explanation-detail" hidden><strong>Moisture</strong><p id="explanationText" hidden></p></div>
-              <div class="explanation-detail" hidden><strong>Drier-air window</strong><p id="explanationHorizon" hidden></p></div>
-              <div class="explanation-detail" hidden><strong>Rain</strong><p id="explanationRain" hidden></p></div>
-              <div class="explanation-detail" hidden><strong>Wind</strong><p id="explanationWind" hidden></p></div>
-              <div class="explanation-detail" hidden><strong>Model assumptions</strong><p id="explanationModel" hidden></p></div>
-            </details>
-          </details>
-
+        <section data-page-box="supporting-details" class="details-footnotes" aria-label="Chart key">
           <details class="dashboard-explainer chart-key-explainer" id="chartKey">
             <summary>Chart key</summary>
                 <div class="chart-key-content" role="region" aria-label="Chart key">
@@ -164,6 +153,24 @@
                 </div>
           </details>
 
+
+        </section>
+        </section>
+        <section class="page-view" id="whyPage" data-view="why" aria-labelledby="explanationToggle" hidden inert>
+          <div class="details-footnotes why-details">
+          <section class="dashboard-explainer recommendation-explainer" aria-labelledby="explanationToggle">
+            <h1 class="page-heading" id="explanationToggle" tabindex="-1">Why this recommendation?</h1>
+            <p id="explanationStatus">Checking outdoor weather for Sale, Greater Manchester. The recommendation will appear when current data arrives.</p>
+            <div id="explanationOverview" class="explanation-overview" hidden></div>
+            <details id="explanationDetails" class="recommendation-more secondary-disclosure" hidden>
+              <summary id="explanationDetailsSummary">More detail</summary>
+              <div class="explanation-detail" hidden><strong>Moisture</strong><p id="explanationText" hidden></p></div>
+              <div class="explanation-detail" hidden><strong>Drier-air window</strong><p id="explanationHorizon" hidden></p></div>
+              <div class="explanation-detail" hidden><strong>Rain</strong><p id="explanationRain" hidden></p></div>
+              <div class="explanation-detail" hidden><strong>Wind</strong><p id="explanationWind" hidden></p></div>
+              <div class="explanation-detail" hidden><strong>Model assumptions</strong><p id="explanationModel" hidden></p></div>
+            </details>
+          </section>
           <details class="dashboard-explainer glossary-explainer">
             <summary>Glossary</summary>
             <dl class="stacked-definitions">
@@ -203,8 +210,7 @@
               >View weather data<svg class="external-link-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M5 15 15 5M6 5h9v9"/></svg></a>
             </p>
           </details>
-
-        </section>
+          </div>
           <div class="project-credit-row">
             <p class="project-credit">
               By Ziggy Qiao <span aria-hidden="true">&middot;</span>
@@ -217,10 +223,24 @@
               <button class="page-refresh-button" id="pageRefreshButton" type="button">Refresh page</button>
             </div>
           </div>
+        </section>
+        </div>
+      </div>
     </main>
+    <!-- Navigation icons: Lucide; licence in docs/lucide-icons-license.txt. -->
+    <nav class="bottom-tabs" aria-label="Main navigation">
+      <a href="#overview" data-page-link="overview" aria-controls="overviewPage" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+        <span>Overview</span>
+      </a>
+      <a href="#why" data-page-link="why" aria-controls="whyPage">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+        <span>Why</span>
+      </a>
+    </nav>
 
 <dialog class="settings-dialog white-sheet" id="settingsDialog" aria-labelledby="settingsDialogTitle">
-  <div class="sheet-header">
+  <div class="sheet-header"><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span>
     <div class="sheet-handle" aria-hidden="true"><span></span></div>
     <div class="settings-dialog-heading sheet-title-row">
       <h2 id="settingsDialogTitle" tabindex="-1" autofocus>Settings</h2>
@@ -246,8 +266,8 @@
           <label class="settings-toggle"><span>Moisture comparison</span><input id="showMoistureComparison" type="checkbox" role="switch" aria-label="Show Moisture comparison" checked /><span class="settings-switch" aria-hidden="true"></span></label>
         </li>
         <li class="page-layout-row" data-layout-row="supporting-details" tabindex="-1">
-          <button type="button" class="layout-drag-handle" data-drag-handle aria-label="Reorder Supporting details" title="Tap for move options; touch and hold to drag" aria-haspopup="menu" aria-controls="pageLayoutMenu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01"/></svg></button>
-          <label class="settings-toggle"><span>Supporting details</span><input id="showSupportingDetails" type="checkbox" role="switch" aria-label="Show Supporting details" checked /><span class="settings-switch" aria-hidden="true"></span></label>
+          <button type="button" class="layout-drag-handle" data-drag-handle aria-label="Reorder Chart key" title="Tap for move options; touch and hold to drag" aria-haspopup="menu" aria-controls="pageLayoutMenu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01"/></svg></button>
+          <label class="settings-toggle"><span>Chart key</span><input id="showSupportingDetails" type="checkbox" role="switch" aria-label="Show Chart key" checked /><span class="settings-switch" aria-hidden="true"></span></label>
         </li>
       </ol>
       <p id="pageLayoutStatus" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></p>
@@ -276,7 +296,7 @@
 </dialog>
 
 <dialog class="indoor-dialog white-sheet" id="indoorDialog" aria-labelledby="indoor-heading">
-<div class="sheet-header"><div class="sheet-handle" aria-hidden="true"><span></span></div>
+<div class="sheet-header"><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><div class="sheet-handle" aria-hidden="true"><span></span></div>
 <div class="section-heading sheet-title-row">
     <div class="indoor-title"><div class="camera-title-row"><h2 id="indoor-heading" tabindex="-1">Indoor readings</h2><button id="cameraHelpButton" class="camera-help-button" type="button" aria-label="Reading box help" aria-expanded="false" aria-controls="cameraCropHint" aria-describedby="cameraCropHint" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 16h.01"></path></svg></button></div><div id="cameraCropHint" class="camera-help-content" role="region" aria-label="Camera help" hidden><span id="cameraCaptureHint" hidden>Choose 1×, 3× or 5×. The higher presets select an available telephoto camera; the multiplier does not guarantee an exact optical ratio. Keep the main digits sharp and visible. Avoid reflections. Higher digital zoom enlarges existing pixels; moving closer preserves more detail. <span class="camera-auto-help">Auto flash turns on lighting in low light. Camera-frame capture uses torch where supported; still-photo flash requires Still photos to be on. Change it in <a id="cameraAutoFlashSettings" href="#autoFlash">Settings</a>.</span></span><span id="cameraReviewHint">Drag on the photo to add a box including °C or %. Move a box or resize its corners; release to read. <span id="cameraEditHint">Tap a value to correct it.</span></span></div><p id="indoorLastSet" hidden></p></div>
     <div class="sheet-heading-actions">
@@ -420,7 +440,7 @@
 </dialog>
 
 <dialog class="plan-dialog white-sheet" id="planDialog" aria-labelledby="planDialogTitle">
-<div class="sheet-header"><div class="sheet-handle" aria-hidden="true"><span></span></div>
+<div class="sheet-header"><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><div class="sheet-handle" aria-hidden="true"><span></span></div>
 <div class="plan-dialog-heading sheet-title-row">
           <h2 id="planDialogTitle" tabindex="-1" autofocus>Ventilation settings</h2>
           <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close ventilation settings" title="Close">&times;</button>
@@ -506,7 +526,7 @@
 </dialog>
 
 <dialog class="location-dialog white-sheet" id="locationDialog" aria-labelledby="locationDialogTitle">
-<div class="sheet-header"><div class="sheet-handle" aria-hidden="true"><span></span></div>
+<div class="sheet-header"><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><div class="sheet-handle" aria-hidden="true"><span></span></div>
 <div class="location-dialog-heading sheet-title-row">
           <h2 id="locationDialogTitle" tabindex="-1" autofocus>Location</h2>
           <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close location" title="Close">&times;</button>
@@ -540,7 +560,7 @@
     </dialog>
 
     <dialog class="indoor-dialog timer-dialog white-sheet" id="timerDialog" aria-labelledby="timerDialogTitle">
-<div class="sheet-header"><div class="sheet-handle" aria-hidden="true"><span></span></div>
+<div class="sheet-header"><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><div class="sheet-handle" aria-hidden="true"><span></span></div>
 <div class="section-heading sheet-title-row">
           <div class="timer-title">
             <h2 id="timerDialogTitle" tabindex="-1">Ventilation timer</h2>

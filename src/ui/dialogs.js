@@ -10,6 +10,7 @@ export function createDialogs({
   const observedTargets = new WeakSet();
   let pointerFocus = null, focusBound = false;
   let pointerGestureEligible = () => true;
+  let suppressClick = false;
 
   function clearRestoredFocus(target) {
     target.classList.remove('is-restored-pointer-focus', 'is-restored-keyboard-focus');
@@ -21,7 +22,7 @@ export function createDialogs({
     (target.matches(':focus-visible') || target.classList.contains('is-restored-keyboard-focus'));
 
   function bindGestureActivation() {
-    let press = null, suppressClick = false, touchScroll = false, lastScroll = -Infinity, scrollTouchUntil = -Infinity;
+    let press = null, touchScroll = false, lastScroll = -Infinity, scrollTouchUntil = -Infinity;
     const now = () => environment.performance.now();
     pointerGestureEligible = event => event.isPrimary !== false &&
       !(event.pointerType === 'touch' && touchScroll && now() - lastScroll < 150);
@@ -274,5 +275,5 @@ export function createDialogs({
     closeSheet(elements.planDialog);
   }
 
-  return { canStartPointerGesture: event => pointerGestureEligible(event), bindSheetFocus, rememberSheetFocus, restoreSheetFocus, closeSheet, enableSheetDrag, createDialogScrollLock, openPlanDialog, closePlanDialog };
+  return { suppressGestureClick: () => { suppressClick = true; }, canStartPointerGesture: event => pointerGestureEligible(event), bindSheetFocus, rememberSheetFocus, restoreSheetFocus, closeSheet, enableSheetDrag, createDialogScrollLock, openPlanDialog, closePlanDialog };
 }

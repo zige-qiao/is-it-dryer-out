@@ -10,8 +10,10 @@ import { createDashboard } from './src/ui/dashboard.js';
 import { createChart } from './src/ui/chart.js';
 import { createReadingControls } from './src/ui/readings.js';
 import { createDialogs } from './src/ui/dialogs.js';
+import { createSheetChrome } from './src/ui/sheet-chrome.js';
 import { createPullRefresh } from './src/ui/pull-refresh.js';
 import { createPageLayout, pageLayoutDefaults } from './src/ui/page-layout.js';
+import { createPageNavigation } from './src/ui/page-navigation.js';
 import { createEvents } from './src/ui/events.js';
 import { createTimerController, isAppleMobile } from './src/ui/timer.js';
 import { DEFAULT_LOCATION, DEFAULT_PRESSURE_HPA, DEFAULT_TIMEZONE, WEATHER_REFRESH_INTERVAL_MS } from './src/config.js';
@@ -306,10 +308,16 @@ const dialogs = createDialogs({
   elements,
   dialogScrollLock,
 });
+const pageNavigation = createPageNavigation({
+  renderChart: () => chart.renderAhChart(),
+  suppressGestureClick: () => dialogs.suppressGestureClick(),
+  canStartPointerGesture: event => dialogs.canStartPointerGesture(event),
+});
 const pullRefresh = createPullRefresh({
   state,
   elements,
   fetchWeather: (...args) => weatherController.fetchWeather(...args),
+  isOverview: () => pageNavigation.isOverview(),
 });
 const pageLayout = createPageLayout({ preferences: uiPreferences, save: () => storage.saveUiPreferences(),
   canStartPointerGesture: event => dialogs.canStartPointerGesture(event) });
@@ -370,6 +378,8 @@ locationController.updateLocationUi();
 timerController.initialize();
 pageLayout.bind();
 events.bindEvents();
+document.querySelectorAll('.white-sheet').forEach(dialog => createSheetChrome({ dialog }).bind());
+pageNavigation.bind();
 pullRefresh.bindPullToRefresh();
 dashboard.render();
 locationController.initializeLocation(hasSavedLocation);

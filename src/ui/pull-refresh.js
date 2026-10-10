@@ -4,6 +4,7 @@ export function createPullRefresh({
   state,
   elements,
   fetchWeather,
+  isOverview = () => true,
 } = {}, environment = globalThis) {
   const { window, document, setTimeout, clearTimeout, requestAnimationFrame, cancelAnimationFrame } = environment;
 
@@ -23,7 +24,7 @@ export function createPullRefresh({
     let feedbackBlocked = false;
     let suppressClick = false;
     let followers = [];
-    let paintedDistance = 0, paintedFollow = 0;
+    let paintedDistance = 0, paintedFollow = 0, hasPullPaint = false;
     const overlayOpen = () => Boolean(document.querySelector(
       'dialog[open], .camera-help-content:not([hidden]), .timer-help[open], #pageLayoutMenu:not([hidden]), [popover]:popover-open'));
     const markFollowers = () => {
@@ -38,7 +39,7 @@ export function createPullRefresh({
       document.body.style.removeProperty('--pull-distance');
       document.body.style.removeProperty('--pull-follow-distance');
       followers.forEach(node => delete node.dataset.pullFollower);
-      followers = []; paintedDistance = 0; paintedFollow = 0;
+      followers = []; paintedDistance = 0; paintedFollow = 0; hasPullPaint = false;
     };
     const measureFooterClearance = () => {
       // DOM offset dimensions round to integers; use rendered fractional geometry.
@@ -49,6 +50,7 @@ export function createPullRefresh({
         elements.verdictPanel.offsetTop - elements.verdictPanel.offsetHeight);
     };
     const paintDistance = value => {
+      hasPullPaint = true;
       footerClearance = measureFooterClearance();
       visibleDistance = Math.max(0, value);
       const followDistance = Math.max(0, visibleDistance - footerClearance);
@@ -109,6 +111,12 @@ export function createPullRefresh({
         document.body.classList.remove('pull-result', 'pull-failed');
         elements.pullRefreshText.textContent = 'Keep pulling';
       };
+      // Rejected horizontal gestures and ordinary taps have never painted a
+      // pull. Do not measure layout or write zero-distance transforms for them.
+      if (!hasPullPaint && !visibleDistance && animationFrame === null && !followers.length) {
+        resetResult();
+        return;
+      }
       if (immediate) {
         stopAnimation();
         paintDistance(0);
@@ -119,13 +127,14 @@ export function createPullRefresh({
       }
     };
     const cancelForOverlay = () => {
-      if (!overlayOpen()) return;
+      if (isOverview() && !overlayOpen()) return;
       if (requestActive) feedbackBlocked = true;
       if (start || visibleDistance || requestActive || resultTimer) closePull(true);
     };
     if (environment.MutationObserver) new environment.MutationObserver(cancelForOverlay).observe(document.body,
       { subtree: true, attributes: true, attributeFilter: ['open', 'hidden', 'aria-expanded'] });
     document.addEventListener('toggle', cancelForOverlay, true);
+    document.addEventListener('viewchange', cancelForOverlay);
     const resize = () => {
       if (visibleDistance && !feedbackBlocked) {
         paintDistance(visibleDistance);
@@ -146,20 +155,13 @@ export function createPullRefresh({
     document.addEventListener('touchstart', event => {
       if (event.touches.length !== 1) { if (start) closePull(); return; }
       suppressClick = false;
-      if (event.touches.length !== 1 || window.scrollY > 0 || settling || state.weatherRequestPending ||
+      if (!isOverview() || event.target.closest('nav') || event.touches.length !== 1 || window.scrollY > 0 || settling || state.weatherRequestPending ||
           document.body.classList.contains('pull-refreshing') || document.body.classList.contains('pull-result') ||
           overlayOpen() || requestActive ||
           event.target.closest('input, select, textarea, [contenteditable="true"]') ||
           document.activeElement?.matches?.('input, textarea, [contenteditable="true"]')) return;
       const touch = event.touches[0];
       start = { x: touch.clientX, y: touch.clientY };
-      markFollowers();
-      footerClearance = measureFooterClearance();
-      pullLimit = elements.verdictPanel.offsetHeight / 2;
-      const cueHeight = elements.pullRefresh.offsetHeight;
-      threshold = pullLimit > cueHeight
-        ? Math.max(100, Math.ceil(-pullLimit * Math.log(1 - cueHeight / pullLimit)))
-        : 100;
       distance = 0;
       active = false;
     }, { passive: true });
@@ -185,6 +187,18 @@ export function createPullRefresh({
           paintDistance(0);
         }
         return;
+      }
+      if (!start.prepared) {
+        // Defer pull geometry and follower styles until downward intent. Page
+        // swipes otherwise pay for this work at their first horizontal move.
+        markFollowers();
+        footerClearance = measureFooterClearance();
+        pullLimit = elements.verdictPanel.offsetHeight / 2;
+        const cueHeight = elements.pullRefresh.offsetHeight;
+        threshold = pullLimit > cueHeight
+          ? Math.max(100, Math.ceil(-pullLimit * Math.log(1 - cueHeight / pullLimit)))
+          : 100;
+        start.prepared = true;
       }
       event.preventDefault();
       suppressClick = true;

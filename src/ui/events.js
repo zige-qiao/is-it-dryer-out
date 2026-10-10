@@ -53,7 +53,9 @@ export function createEvents({
     let lastChartWidth = 0;
     const chartResizeObserver = new ResizeObserver(entries => {
       const width = entries[0].contentRect.width;
-      if (Math.abs(width - lastChartWidth) < .5) return;
+      // Hidden Overview reports zero. Retain its last visible width so revealing
+      // a swipe preview does not rebuild the SVG unless its actual size changed.
+      if (!(width > 0) || Math.abs(width - lastChartWidth) < .5) return;
       lastChartWidth = width;
       renderAhChart();
     });
@@ -133,9 +135,10 @@ export function createEvents({
       uiPreferences.openIndoorOnLaunch = elements.openIndoorOnLaunch.checked;
       saveUiPreferences();
     });
-    if (uiPreferences.openIndoorOnLaunch) {
+    const launchOnOverview = window.location?.hash !== '#why';
+    if (uiPreferences.openIndoorOnLaunch && launchOnOverview) {
       requestAnimationFrame(() => {
-        if (!document.querySelector('dialog[open]')) openIndoorEditor(null);
+        if (window.location?.hash !== '#why' && !document.querySelector('dialog[open]')) openIndoorEditor(null);
       });
     }
     document.querySelectorAll('[data-chart-hours]').forEach(button => button.addEventListener('click', () => {

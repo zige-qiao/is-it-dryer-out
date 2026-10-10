@@ -73,3 +73,11 @@ test('multitouch invalidates activation; unrelated pointer moves and cancels do 
   f.document.emit('pointerdown', f.point()); f.document.emit('pointerdown', { ...f.point(), pointerId: 2, isPrimary: false });
   f.document.emit('pointerup', f.point()); assert.equal(f.click(), true);
 });
+
+
+test('page swipes can suppress their click through the shared guard without locking the next tap', () => {
+  const f = fixture(); f.dialogs.suppressGestureClick();
+  assert.equal(f.click(), true); assert.equal(f.click(0), false);
+  f.document.emit('pointerdown', f.point()); f.document.emit('pointerup', f.point());
+  assert.equal(f.click(), false);
+});
