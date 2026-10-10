@@ -29,7 +29,7 @@ The user confirmed that the handoff works from Chrome, Safari and the Home Scree
 
 ## Recent changes
 
-- [v0.7.8](CHANGELOG.md#v078---pill-tabs-and-frosted-sheet-headers---2026-10-10) adds Overview/Why pill tabs, swipe navigation, Settings in Why's footer, saved Chart key layout preferences and sheet-coloured headers with a graduated blur fade.
+- [v0.7.8](CHANGELOG.md#v078---pill-tabs-and-frosted-sheet-headers---2026-10-10) adds Overview/Why pill tabs, swipe navigation, Settings in Why's footer, saved Chart key layout preferences and sheet-coloured headers with a graduated blur fade confined to content within each sheet.
 
 - [v0.7.7](CHANGELOG.md#v077---page-layout-and-sheet-refinements---2026-10-09): pinned Recommendation, saved optional layouts, plain-language explanations, advisory rain/wind chart details, clearer supporting sections, stationary sheet headers and actions, safer touch gestures and deliberate Settings reordering. Diagnostic tools now live in `diagnostics/`; old page links still work.
 

@@ -8,8 +8,8 @@ All notable changes to Is it dryer out are documented here.
 
 - Split the app into Overview and Why, with a centred floating pill navigation bar. Tab activation is instant; horizontal swipes track the finger and settle over 360ms. Slow drags must pass halfway; deliberate flicks can switch sooner. Preserve chart inspection, sheet gestures, browser history and each view's scroll position.
 - Move the explanation, More detail, Glossary, How estimates work and Weather data to Why. Keep Settings, Refresh page and credits in Why's footer. Rename the saved Supporting details layout row to Chart key while preserving saved order, visibility and expansion preferences.
-- Match sheet headers to their surfaces with 55% tint and a 16px graduated blur fade. Keep native content scrolling, a separate scrollbar below the header, opaque actions and supported-browser/forced-colour fallbacks across all five sheets and voice/camera variants.
-- Update the written and visual design systems, navigation documentation and offline module coverage. Set diagnostic identity to v0.7.8 and synchronise app-shell cache revision 167.
+- Match sheet headers to their surfaces with 55% tint and a 16px graduated blur fade. Keep native content scrolling, a separate scrollbar below the header, opaque actions and supported-browser/forced-colour fallbacks across all five sheets and voice/camera variants. Confine header blur to the rounded sheet shell so it reveals internal content without sampling the page underneath.
+- Update the written and visual design systems, navigation documentation and offline module coverage. Set diagnostic identity to v0.7.8 and synchronise app-shell cache revision 168.
 - Desktop and mobile-sized Chromium previews were inspected; the full regression suite passed 595 tests. Fresh installed iPhone Home Screen/Safari rendering, performance and offline-upgrade checks remain pending.
 
 ## v0.7.7 - Page layout and sheet refinements - 2026-10-09

@@ -2749,6 +2749,11 @@ html.layout-pending .app-shell { visibility: hidden; }
   .sheet-blur-layer:nth-child(3) { --layer-blur: 2px; --fade-start: 0px; --fade-end: 8px; }
   .sheet-blur-layer:nth-child(4) { --layer-blur: 4px; --fade-start: -4px; --fade-end: 4px; }
 }
+/* Bound header backdrop sampling to the sheet, including its rounded corners. */
+.white-sheet.has-frosted-header { clip-path: inset(0 round 24px); }
+@media (max-width: 39.999rem) {
+  .white-sheet.has-frosted-header { clip-path: inset(0 round 24px 24px 0 0); }
+}
 .white-sheet.has-frosted-header .sheet-body {
   padding-top: calc(var(--sheet-header-height) + var(--space-16));
   scroll-padding-top: calc(var(--sheet-header-height) + var(--space-16) + 4px);
