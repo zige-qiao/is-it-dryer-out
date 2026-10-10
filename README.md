@@ -13,6 +13,12 @@ It compares the amount of moisture indoors and outdoors, then uses the weather f
 3. **Read the recommendation.** Check the suggested opening time and the 24- or 48-hour outlook. Tap or drag the chart to inspect the forecast, with a separate Chart key accordion explaining the symbols. The 24-hour view has proportional ACH bars with numbers and wind arrows underneath; accessible inspection text includes rain details. Translucent white bars and blue hatched bands show forecast rain; it is advisory and does not change the drying recommendation.
 4. **Adjust your plan.** Set your target humidity, minimum temperature, room size and window opening using the ventilation summary below the chart.
 
+## Navigation and settings
+
+Overview contains the recommendation, forecast and optional indoor sections. Why contains the live explanation and supporting accordions; its footer opens Settings and includes Refresh page. Use the bottom pill tabs for instant switching, or swipe horizontally between pages. Chart gestures inspect the forecast; open sheets retain their own gestures. Each view keeps its scroll position, and switching needs no weather request.
+
+Settings saves section order and visibility immediately. Recommendation stays first; Indoor summary, Moisture comparison and Chart key can be reordered or hidden. Why stays independently accessible.
+
 ## Ventilation timer
 
 On iPhone/iPad, tap a time in either verdict line to open the timer sheet. Adjust the minutes with the ruler or typed entry, then choose Start iPhone timer. Each time retains its own meaning; the drier-air forecast window is not a recommended opening duration.
@@ -22,6 +28,8 @@ This uses one reusable Shortcut named **Ventilation Timer**, which starts the Cl
 The user confirmed that the handoff works from Chrome, Safari and the Home Screen web app, and that the alarm worked in flight mode. The web app cannot confirm that a timer started or track its cancellation. Once started, Clock owns the alarm and works offline. See the [user guide](docs/user-guide.md#ventilation-timer) for usage and [timer development](docs/timer-development.md) for remaining test gaps.
 
 ## Recent changes
+
+- [v0.7.8](CHANGELOG.md#v078---pill-tabs-and-frosted-sheet-headers---2026-10-10) adds Overview/Why pill tabs, swipe navigation, Settings in Why's footer, saved Chart key layout preferences and sheet-coloured headers with a graduated blur fade.
 
 - [v0.7.7](CHANGELOG.md#v077---page-layout-and-sheet-refinements---2026-10-09): pinned Recommendation, saved optional layouts, plain-language explanations, advisory rain/wind chart details, clearer supporting sections, stationary sheet headers and actions, safer touch gestures and deliberate Settings reordering. Diagnostic tools now live in `diagnostics/`; old page links still work.
 
