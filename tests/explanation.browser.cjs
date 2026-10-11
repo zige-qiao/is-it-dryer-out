@@ -12,15 +12,21 @@ const cases = [
   { name: 'wetter', status: 'wetter', state: { outdoorTemp: 24, outdoorRh: 90 } },
   { name: 'uncertain', status: 'uncertain', state: { outdoorTemp: 24, outdoorRh: 58 } },
   { name: 'good', status: 'good', plan: { minutes: 8, dryAirHorizon: { minutes: 58, capped: false } } },
+  { name: 'good-hour', status: 'good', plan: { minutes: 8, dryAirHorizon: { minutes: 60, capped: false } } },
+  { name: 'good-hour-plus', status: 'good', plan: { minutes: 8, dryAirHorizon: { minutes: 90, capped: false } } },
   { name: 'capped', status: 'good', plan: { minutes: 8, dryAirHorizon: { minutes: 180, capped: true } } },
   { name: 'forecast-limit', status: 'forecast-limit', plan: { limitMinutes: 20 } },
+  { name: 'forecast-limit-hour-plus', status: 'forecast-limit', plan: { limitMinutes: 90 } },
   { name: 'forecast-immediate', status: 'forecast-limit' },
   { name: 'settling', status: 'settling', plan: { minutes: 20, limitMinutes: 20 } },
+  { name: 'settling-hour', status: 'settling', plan: { minutes: 60, limitMinutes: 7 } },
   { name: 'settling-immediate', status: 'settling' },
   { name: 'too-cold', status: 'too-cold', plan: { limitMinutes: 20, projectedTemp: 18.1 } },
+  { name: 'too-cold-hour-plus', status: 'too-cold', plan: { limitMinutes: 90, projectedTemp: 18.1 } },
   { name: 'too-cold-immediate', status: 'too-cold' },
   { name: 'cold-room-reversal', status: 'too-cold', state: { indoorTemp: 16, outdoorTemp: 22, outdoorRh: 5 }, plan: { limitMinutes: 1, projectedTemp: 16.01 } },
   { name: 'condensation', status: 'condensation', plan: { limitMinutes: 20 } },
+  { name: 'condensation-hour', status: 'condensation', plan: { limitMinutes: 60 } },
   { name: 'condensation-immediate', status: 'condensation' },
   { name: 'slow', status: 'slow', plan: { limitMinutes: 180 } },
   { name: 'minimal-impact', status: 'minimal-impact' },
@@ -54,6 +60,7 @@ const cases = [
     });
     await page.goto(preview);
     await page.waitForFunction(() => document.querySelector('.recommendation').dataset.weatherState === 'ready');
+    await page.locator('[data-page-link="why"]').click();
     assert.equal(await page.locator('#explanationDetails').evaluate(node => node.open), false);
     assert.equal(await page.locator('#explanationDetailsSummary').isVisible(), true);
     const closedChevron = await page.locator('#explanationDetailsSummary').evaluate(node => getComputedStyle(node, '::after').transform);
@@ -67,7 +74,9 @@ const cases = [
       const ring = getComputedStyle(node);
       return parseFloat(ring.outlineWidth) === 2 && ring.outlineStyle === 'solid' && parseFloat(ring.outlineOffset) === 2;
     }));
+    await page.locator('[data-page-link="overview"]').click();
     await page.locator('[data-chart-hours="24"]').click();
+    await page.locator('[data-page-link="why"]').click();
     assert.equal(await page.locator('#explanationDetails').evaluate(node => node.open), true);
     await page.locator('#explanationDetailsSummary').focus();
     await page.keyboard.press('Space');
@@ -101,7 +110,9 @@ const cases = [
           const facts = explanationFacts(state, plan, comparison);
           verdict.renderRecommendation(facts.known ? plan : { status: 'unknown' });
           view.render(plan, comparison, humidity.relativeHumidityAtTemperature(humidity.vaporPressure(state.outdoorTemp, state.outdoorRh), state.indoorTemp), false);
-          return { unavailable: facts.unavailable, known: facts.known };
+          const duration = formats.formatDuration(item.status === 'good' ? plan.dryAirHorizon?.minutes
+            : item.status === 'settling' ? plan.minutes : plan.limitMinutes);
+          return { unavailable: facts.unavailable, known: facts.known, useful: facts.useful, duration };
         },
       };
     });
@@ -132,7 +143,11 @@ const cases = [
               gaps: paragraphs.slice(1).map((node, i) => node.getBoundingClientRect().top - paragraphs[i].getBoundingClientRect().bottom) };
           });
           assert.equal(measured.overflow, false, `${item.name}: overflow at ${width}/${scale}: ${measured.overflowNodes.join(', ')}`);
-          assert.doesNotMatch(measured.text, /NaN|undefined/);
+          assert.doesNotMatch(measured.text, /NaN|undefined|\babove\b/);
+          if (facts.known && !facts.unavailable && facts.useful &&
+            ['good', 'forecast-limit', 'settling', 'too-cold', 'condensation'].includes(item.status) && item.name !== 'cold-room-reversal') {
+            assert.ok(measured.text.includes(facts.duration), `${item.name}: Why includes ${facts.duration}`);
+          }
           assert.equal(measured.detailEntries.length, 5);
           assert.ok(measured.detailEntries.every(entry => entry.hidden === entry.paragraphHidden));
           assert.equal(measured.detailEntries.filter(entry => !entry.hidden).length, facts.known && !facts.unavailable ? (item.status === "good" ? 5 : 4) : 0);

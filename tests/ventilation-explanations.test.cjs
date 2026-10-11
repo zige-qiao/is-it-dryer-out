@@ -136,7 +136,7 @@ test('explanation quantifies comparable moisture and distinguishes the target fr
   assert.match(f.elements.explanationModel.textContent, /50 m³.*one window open.*air changes per hour.*23\.5°C.*18\.0°C/);
   plan.dryAirHorizon = { minutes: 180, capped: true };
   f.dashboard.renderRecommendationExplanation(plan, compareMoisture(24, 58, 12, 75));
-  assert.match(f.elements.explanationHorizon.textContent, /three-hour limit; drying may continue/);
+  assert.match(f.elements.explanationHorizon.textContent, /3 hr limit; drying may continue/);
   assert.doesNotMatch(f.elements.explanationHorizon.textContent, /After that/);
 });
 

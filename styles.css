@@ -75,6 +75,10 @@
   white-space: nowrap;
   cursor: pointer;
 }
+.why-details .verdict-time { font-weight: 700; text-decoration-color: currentColor; }
+.why-details .verdict-time:active { background: var(--surface-pressed); }
+.why-details .verdict-time:is(:focus-visible, .is-restored-keyboard-focus:focus):not(.is-restored-pointer-focus) { outline-color: var(--ink); }
+@media (hover: hover) { .why-details .verdict-time:hover { background: var(--surface-hover); } }
 .verdict-time:active { background: rgb(255 255 255 / 20%); }
 .verdict-time:is(:focus-visible, .is-restored-keyboard-focus:focus):not(.is-restored-pointer-focus) { outline: 2px solid white; outline-offset: 2px; }
 @media (hover: hover) { .verdict-time:hover { background: rgb(255 255 255 / 12%); } }

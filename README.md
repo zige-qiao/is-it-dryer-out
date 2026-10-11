@@ -15,13 +15,13 @@ It compares the amount of moisture indoors and outdoors, then uses the weather f
 
 ## Navigation and settings
 
-Overview contains the recommendation, forecast and optional indoor sections. Why contains the live explanation and supporting accordions; its footer opens Settings and includes Refresh page. Use the bottom pill tabs for instant switching, or swipe horizontally between pages. Chart gestures inspect the forecast; open sheets retain their own gestures. Each view keeps its scroll position, and switching needs no weather request.
+Overview contains the recommendation, forecast and optional indoor sections. Why contains the live explanation and supporting accordions, with the relevant stopping times and drier-air window repeated so the advice can be read on its own; its footer opens Settings and includes Refresh page. Use the bottom pill tabs for instant switching, or swipe horizontally between pages. Chart gestures inspect the forecast; open sheets retain their own gestures. Each view keeps its scroll position, and switching needs no weather request.
 
 Settings saves section order and visibility immediately. Recommendation stays first; Indoor summary, Moisture comparison and Chart key can be reordered or hidden. Why stays independently accessible.
 
 ## Ventilation timer
 
-On iPhone/iPad, tap a time in either verdict line to open the timer sheet. Adjust the minutes with the ruler or typed entry, then choose Start iPhone timer. Each time retains its own meaning; the drier-air forecast window is not a recommended opening duration.
+On iPhone/iPad, tap an opening duration on Overview or Why (including More detail) to open the timer sheet. Supported durations show a dotted underline; other devices keep plain emphasised durations. Adjust the minutes with the ruler or typed entry, then choose Start iPhone timer. Each time retains its own meaning; the drier-air forecast window is not a recommended opening duration.
 
 This uses one reusable Shortcut named **Ventilation Timer**, which starts the Clock timer. Open the help popup beside the timer title and choose Install Shortcut to [add the ready-made Shortcut](https://www.icloud.com/shortcuts/d16fde94799a414bb11a3a40c484f080) once; no Mac or manual action-building is needed. Starting a timer closes the sheet, then switches your iPhone to the Shortcuts app.
 

@@ -11,6 +11,7 @@ export function createDashboard({
   formatTemp,
   formatRh,
   formatDuration,
+  timerSupported = false,
   formatWeatherTimestamp,
   formatForecastOpeningTime,
   setDecisionSummary,
@@ -75,7 +76,7 @@ export function createDashboard({
     return plan;
   }
 
-  const explanationView = createExplanationView({ state, elements, formatTemp, formatRh, formatDuration,
+  const explanationView = createExplanationView({ state, elements, formatTemp, formatRh, formatDuration, timerSupported,
     formatForecastOpeningTime, formatVentilationSummary, planLimitingExplanation }, environment);
   function renderRecommendationExplanation(...args) {
     explanationView.render(...args);

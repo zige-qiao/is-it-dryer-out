@@ -14,40 +14,116 @@ const variants = [
   ['target-met', {}, /little to gain/], ['below-minimum', {}, /Heat escapes.*Keep windows closed/],
   ['wetter', {}, /bring extra moisture/], ['uncertain', {}, /too close to tell/],
   ['good', { minutes: 8, dryAirHorizon: { minutes: 58, capped: false } }, /remove moisture|Recheck the readings/],
-  ['forecast-limit', { limitMinutes: 20 }, /expected to become less useful.*Close at the limit/],
+  ['forecast-limit', { limitMinutes: 20 }, /expected to become less useful.*Close after 20 min/],
   ['forecast-limit', { limitMinutes: 0 }, /not expected to stay drier/],
   ['settling', { minutes: 20, limitMinutes: 20 }, /benefit gradually reduces.*Continuing/],
   ['settling', { minutes: null, limitMinutes: 0 }, /too similar/],
-  ['too-cold', { limitMinutes: 20 }, /cool the room too much.*Stop at the limit/],
+  ['too-cold', { limitMinutes: 20 }, /cool the room too much.*Stop after 20 min/],
   ['too-cold', { limitMinutes: 0 }, /Keep windows closed/],
-  ['condensation', { limitMinutes: 20 }, /saturated.*Stop at the limit/],
+  ['condensation', { limitMinutes: 20 }, /saturated.*Stop after 20 min/],
   ['condensation', { limitMinutes: 0 }, /saturated almost immediately.*Keep windows closed/],
   ['slow', { limitMinutes: 180 }, /removal is gradual.*Fresh indoor readings/],
   ['minimal-impact', {}, /Little noticeable improvement/],
 ];
-function fixture(overrides = {}) {
+function fixture(overrides = {}, timerSupported = false) {
   const state = { indoorTemp: 24, indoorRh: 58, targetRh: 55, minTemp: 18, outdoorTemp: 12, outdoorRh: 75,
     outdoorWind: 12, outdoorWindAvailable: true, outdoorWindDirection: 225, outdoorPressure: 1013.25,
     roomPreset: 'medium', openingSetup: 'single', timezone: 'Europe/London', location: { name: 'Sale' },
     weatherRequestPending: false, weatherLoadFailed: false,
     forecast: [1, 2, 3, 4].map(i => ({ time: new Date(now + i * 3600000), rainfall: 1, precipitationProbability: 60 })), ...overrides };
   const elements = new Proxy({}, { get: (obj, key) => obj[key] ||= element() });
-  const document = { activeElement: null, createElement: () => element(), createElementNS: () => element() };
+  const document = { activeElement: null, createElement: tag => ({ ...element(), tag }), createElementNS: () => element() };
   class TestDate extends Date { static now() { return now; } }
   const env = environment({ document, Date: TestDate });
   const formats = createFormatters({ state });
-  const recommendation = createRecommendationView({ state, elements, ...formats }, env);
-  const view = createExplanationView({ state, elements, ...formats,
+  const recommendation = createRecommendationView({ state, elements, ...formats, timerSupported }, env);
+  const view = createExplanationView({ state, elements, ...formats, timerSupported,
     formatVentilationSummary: () => '50 m³ · One window open', ...recommendation }, env);
   const plan = changes => ({ status: 'good', minutes: null, limitMinutes: 0, projectedTemp: 23.2, projectedRh: 55, ...changes });
   const comparison = () => compareMoisture(state.indoorTemp, state.indoorRh, state.outdoorTemp, state.outdoorRh);
   const rows = candidate => {
     const comp = comparison();
     const facts = explanationFacts(state, candidate, comp, now);
-    return explanationRows(state, candidate, comp, facts, formats.formatForecastOpeningTime);
+    return explanationRows(state, candidate, comp, facts, formats.formatForecastOpeningTime, formats.formatDuration);
   };
-  return { state, elements, document, view, plan, comparison, rows, formats };
+  return { state, elements, document, view, plan, comparison, rows, formats, recommendation };
 }
+
+test('Why durations stay self-contained and match Overview after plan and reading edits', () => {
+  const f = fixture();
+  for (const minutes of [1, 20, 58, 60, 90, 180]) {
+    const duration = f.formats.formatDuration(minutes);
+    for (const status of ['too-cold', 'condensation', 'forecast-limit', 'settling', 'good']) {
+      const candidate = f.plan({ status, minutes: status === 'good' ? 8 : minutes,
+        limitMinutes: status === 'settling' ? 7 : minutes,
+        dryAirHorizon: { minutes, capped: minutes === 180 } });
+      // Fresh indoor edits rerender the same timing values in both views.
+      f.state.targetRh = minutes % 2 ? 50 : 55;
+      f.recommendation.renderRecommendation(candidate);
+      f.view.render(candidate, f.comparison());
+      const expected = status === 'good'
+        ? `The ${duration} drier-air window is not how long you need to leave windows open. Close when your target is reached.`
+        : status === 'settling' ? `Continuing beyond ${duration} is unlikely to help much.`
+          : `${status === 'forecast-limit' ? 'Close' : 'Stop'} after ${duration}.`;
+      assert.ok(text(f.elements.explanationOverview).includes(expected), `${status}: ${expected}`);
+      const verdict = text(status === 'good' ? f.elements.decisionSecondary : f.elements.decisionPrimary);
+      assert.ok(verdict.includes(duration), `${status}: Overview uses ${duration}`);
+      assert.doesNotMatch(text(f.elements.explanationOverview), /\babove\b|--|undefined|NaN/);
+    }
+  }
+});
+
+const descendants = node => (node.children || []).flatMap(child => typeof child === 'string' ? [] : [child, ...descendants(child)]);
+const timers = node => descendants(node).filter(child => child.dataset?.timerMinutes !== undefined);
+test('Why main and detailed opening durations share timer controls and keep weather periods plain', () => {
+  for (const supported of [true, false]) {
+    const f = fixture({}, supported);
+    for (const minutes of [1, 60, 90, 180, 181, 1.5]) {
+      for (const status of ['good', 'forecast-limit', 'settling', 'too-cold', 'condensation', 'slow']) {
+        const candidate = f.plan({ status, minutes, limitMinutes: minutes,
+          dryAirHorizon: { minutes, capped: minutes === 180 } });
+        f.view.render(candidate, f.comparison());
+        const main = timers(f.elements.explanationOverview);
+        const moisture = timers(f.elements.explanationText);
+        const horizon = timers(f.elements.explanationHorizon);
+        const rain = timers(f.elements.explanationRain);
+        const eligible = supported && Number.isInteger(minutes) && minutes <= 180;
+        assert.equal(main.length, eligible && status !== 'slow' ? 1 : 0, `${status}/${minutes} main`);
+        assert.equal(moisture.length, supported && (status === 'slow' || eligible) ? 1 : 0, `${status}/${minutes} detail`);
+        assert.equal(horizon.length, eligible && status === 'good' ? (minutes === 180 ? 2 : 1) : 0);
+        assert.equal(rain.length, eligible ? 1 : 0);
+        assert.equal(timers(f.elements.explanationWind).length, 0);
+        assert.equal(timers(f.elements.explanationModel).length, 0);
+        for (const control of [...main, ...moisture, ...horizon, ...rain]) {
+          assert.equal(control.tag, 'button');
+          assert.equal(control.dataset.timerMinutes, status === 'slow' && moisture.includes(control) ? 180 : minutes);
+          assert.equal(control.getAttribute('aria-haspopup'), 'dialog');
+          assert.equal(control.getAttribute('aria-controls'), 'timerDialog');
+          assert.equal(control.children.length, 0);
+        }
+      }
+    }
+    f.view.render(f.plan({ status: 'condensation', limitMinutes: 0,
+      nextUsefulOpeningTime: new Date(now + 3600000) }), f.comparison());
+    assert.equal(timers(f.elements.explanationOverview).length, 0, 'future clock time is plain');
+    assert.equal(timers(f.elements.explanationText).length, 0);
+    assert.equal(timers(f.elements.explanationRain).length, 0, 'next-hour rain period is plain');
+    f.view.render(f.plan({ status: 'good', minutes: 8, dryAirHorizon: { minutes: 58 } }), f.comparison());
+    f.state.weatherRequestPending = true;
+    f.view.render(null, null);
+    for (const key of ['explanationOverview', 'explanationText', 'explanationHorizon', 'explanationRain']) assert.equal(timers(f.elements[key]).length, 0);
+  }
+});
+
+test('immediate limits and no useful settling keep their existing advice without a zero duration', () => {
+  const f = fixture();
+  for (const status of ['too-cold', 'condensation', 'forecast-limit', 'settling']) {
+    const candidate = f.plan({ status, minutes: status === 'settling' ? 0 : null, limitMinutes: 0 });
+    const reason = rowText(f.rows(candidate)[0]);
+    assert.doesNotMatch(reason, /0 min|Stop after|Close after|Continuing beyond/);
+    assert.match(reason, ['too-cold', 'condensation'].includes(status) ? /Keep windows closed/ : /not expected|too similar/);
+  }
+});
 
 for (const [status, changes, expected] of variants) {
   for (const relation of ['drier', 'wetter', 'uncertain']) {
@@ -59,7 +135,7 @@ for (const [status, changes, expected] of variants) {
         (status === 'wetter' ? relation === 'wetter' : status === 'uncertain' ? relation === 'uncertain' : relation === 'drier');
       assert.match(rowText(rows[0]), consistent ? expected : /do not give a clear recommendation/);
       assert.ok(rows.length <= 5);
-      assert.doesNotMatch(rows.map(rowText).join(' '), /undefined|NaN|g\/m³|ACH|\b58 min\b|\b8 min\b|55% RH/);
+      assert.doesNotMatch(rows.map(rowText).join(' '), /undefined|NaN|g\/m³|ACH|\b8 min\b|55% RH|\babove\b/);
       if (relation === 'uncertain') assert.doesNotMatch(rows.map(rowText).join(' '), /\d+% (less|more) moisture/);
       const weather = rows.filter(item => ['rain', 'wind'].includes(item.key)).map(rowText).join(' ');
       const immediate = ['too-cold', 'condensation'].includes(status) && changes.limitMinutes === 0;

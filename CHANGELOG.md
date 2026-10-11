@@ -4,6 +4,10 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Extend iPhone/iPad ventilation timer controls to all opening durations on Why, including More detail and the longer drier-air window. Share dotted-underlined duration buttons with Overview; preserve duration eligibility, meaning and focus return.
+
+- Make Why self-contained with the same formatted stopping times and drier-air window as Overview. Name Overview explicitly in the chart explanation; preserve immediate limits and cold-room reversal advice.
+
 ## v0.7.8 - Pill tabs and frosted sheet headers - 2026-10-10
 
 - Split the app into Overview and Why, with a centred floating pill navigation bar. Tab activation is instant; horizontal swipes track the finger and settle over 360ms. Slow drags must pass halfway; deliberate flicks can switch sooner. Preserve chart inspection, sheet gestures, browser history and each view's scroll position.

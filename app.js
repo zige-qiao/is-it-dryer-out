@@ -279,6 +279,7 @@ const recommendationView = createRecommendationView({
   formatDuration: (...args) => formatters.formatDuration(...args),
 });
 const dashboard = createDashboard({
+  timerSupported: isAppleMobile(),
   state,
   elements,
   weatherUrlForLocation: (...args) => weatherController.weatherUrlForLocation(...args),

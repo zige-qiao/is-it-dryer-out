@@ -1,7 +1,8 @@
 import { vaporPressure, relativeHumidityAtTemperature } from '../domain/humidity.js';
 import { currentWeather } from '../domain/forecast.js';
 import { effectiveAirExchange } from '../domain/ventilation.js';
-import { MINIMUM_NOTICEABLE_RH_CHANGE } from '../config.js';
+import { MAX_OPEN_MINUTES, MINIMUM_NOTICEABLE_RH_CHANGE } from '../config.js';
+import { createTimerDuration, TIMER_CONTEXTS } from './timer.js';
 
 // Explanations need hourly observations, independently of the chart overlay.
 function normalizeWindDirection(value) {
@@ -19,6 +20,12 @@ const statuses = new Set(['target-met', 'below-minimum', 'wetter', 'uncertain', 
   'forecast-limit', 'settling', 'too-cold', 'condensation', 'slow', 'minimal-impact']);
 const compass = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
 const bold = text => ({ strong: text });
+const durationPart = (minutes, formatDuration, context) => ({ strong: formatDuration(minutes), timer: { minutes, context } });
+// Mark only a known opening-duration token, never clock times or weather periods.
+function durationInText(text, token, part) {
+  const index = text.indexOf(token);
+  return index < 0 ? [text] : [text.slice(0, index), part, text.slice(index + token.length)];
+}
 const row = (key, label, ...parts) => ({ key, label, parts });
 
 // One set of facts supplies both the short overview and the expanded detail.
@@ -77,7 +84,7 @@ export function explanationFacts(state, plan, comparison, now = Date.now()) {
     windAvailable, calm: windAvailable && state.outdoorWind < 1, delta, coolingHidden, forecastLimited, forecastAvailable: forecast.length > 0 };
 }
 
-export function explanationRows(state, plan, comparison, facts, formatForecastOpeningTime) {
+export function explanationRows(state, plan, comparison, facts, formatForecastOpeningTime, formatDuration) {
   const rows = [];
   const moisture = comparison?.status === 'drier'
     ? facts.percent === null ? ['Outdoor air holds less moisture. '] : ['Outdoor air has about ', bold(`${facts.percent}% less moisture`), '. ']
@@ -101,26 +108,27 @@ export function explanationRows(state, plan, comparison, facts, formatForecastOp
         rows.push(row('window', 'Longer time', plan.dryAirHorizon.capped
           ? 'The longer time reaches the model’s limit; drying may continue beyond it. '
           : 'As moisture leaves the room, the drying benefit gradually reduces. ',
-        'Close when your target is reached; the longer time above is not how long you need to leave windows open.')); break;
+        'The ', durationPart(plan.dryAirHorizon.minutes, formatDuration, TIMER_CONTEXTS.horizon),
+        ' drier-air window is not how long you need to leave windows open. Close when your target is reached.')); break;
       case 'forecast-limit':
-        rows.push(row('reason', 'Changing weather', facts.useful
-          ? 'Outdoor air is expected to become less useful for drying. Close at the limit shown above.'
-          : 'Outdoor air is not expected to stay drier long enough to noticeably help.')); break;
+        rows.push(row('reason', 'Changing weather', ...(facts.useful
+          ? ['Outdoor air is expected to become less useful for drying. Close after ', durationPart(plan.limitMinutes, formatDuration, TIMER_CONTEXTS.forecast), '.']
+          : ['Outdoor air is not expected to stay drier long enough to noticeably help.']))); break;
       case 'settling':
-        rows.push(row('reason', 'Drying benefit', facts.useful
-          ? 'As moisture leaves the room, the drying benefit gradually reduces. Continuing after the limit above is unlikely to help much.'
-          : 'Indoor and outdoor air are too similar for much drying to be expected.')); break;
+        rows.push(row('reason', 'Drying benefit', ...(facts.useful
+          ? ['As moisture leaves the room, the drying benefit gradually reduces. Continuing beyond ', durationPart(plan.minutes, formatDuration, TIMER_CONTEXTS.settling), ' is unlikely to help much.']
+          : ['Indoor and outdoor air are too similar for much drying to be expected.']))); break;
       case 'too-cold': {
         const reversal = state.indoorTemp < state.minTemp && plan.projectedTemp < state.minTemp;
-        rows.push(row('reason', 'Temperature', facts.useful
-          ? reversal ? 'Opening initially helps, but stop before the room starts cooling again. It is already below your minimum temperature.'
-            : 'Further opening would cool the room too much. Stop at the limit shown above.'
-          : 'Opening would cool the room further than your settings allow. Keep windows closed.')); break;
+        rows.push(row('reason', 'Temperature', ...(facts.useful
+          ? reversal ? ['Opening initially helps, but stop before the room starts cooling again. It is already below your minimum temperature.']
+            : ['Further opening would cool the room too much. Stop after ', durationPart(plan.limitMinutes, formatDuration, TIMER_CONTEXTS.temperature), '.']
+          : ['Opening would cool the room further than your settings allow. Keep windows closed.']))); break;
       }
       case 'condensation':
-        rows.push(row('reason', 'Condensation', facts.useful
-          ? 'The model expects room air to become saturated, when moisture can turn into water. Stop at the limit shown above.'
-          : 'The model expects room air to become saturated almost immediately, when moisture can turn into water. Keep windows closed.',
+        rows.push(row('reason', 'Condensation', ...(facts.useful
+          ? ['The model expects room air to become saturated, when moisture can turn into water. Stop after ', durationPart(plan.limitMinutes, formatDuration, TIMER_CONTEXTS.condensation), '.']
+          : ['The model expects room air to become saturated almost immediately, when moisture can turn into water. Keep windows closed.']),
         ' Condensation on cold windows or walls is not assessed.')); break;
       case 'slow':
         rows.push(row('reason', 'Gradual drying', ...(comparison.status === 'drier' ? moisture : []), 'Moisture removal is gradual. Fresh indoor readings will show whether ventilation is helping.')); break;
@@ -195,8 +203,15 @@ function explanationIcon(document, item) {
 }
 
 export function createExplanationView({ state, elements, formatTemp, formatRh, formatDuration,
-  formatForecastOpeningTime, formatVentilationSummary, planLimitingExplanation } = {}, environment = globalThis) {
+  formatForecastOpeningTime, formatVentilationSummary, planLimitingExplanation, timerSupported = false } = {}, environment = globalThis) {
   const { document, Date } = environment;
+  const renderPart = part => {
+    if (typeof part === 'string') return part;
+    if (part.timer) return createTimerDuration(document, part.strong, part.timer.minutes, part.timer.context, timerSupported);
+    const emphasis = document.createElement('strong');
+    emphasis.textContent = part.strong;
+    return emphasis;
+  };
   function hideDetail() {
     const detail = elements.explanationDetails;
     if (detail?.contains?.(document.activeElement) || document.activeElement === elements.explanationDetailsSummary) {
@@ -209,13 +224,16 @@ export function createExplanationView({ state, elements, formatTemp, formatRh, f
     for (const key of ['explanationText', 'explanationHorizon', 'explanationRain', 'explanationWind', 'explanationModel']) {
       if (!elements[key]) continue;
       elements[key].textContent = '';
+      elements[key].replaceChildren?.();
       elements[key].hidden = true;
       const section = elements[key].closest?.(".explanation-detail");
       if (section) section.hidden = true;
     }
     const put = (key, value) => {
       if (!elements[key]) return;
-      elements[key].textContent = value;
+      const parts = Array.isArray(value) ? value : [value];
+      elements[key].textContent = parts.map(part => typeof part === 'string' ? part : part.strong).join('');
+      if (Array.isArray(value) && elements[key].replaceChildren) elements[key].replaceChildren(...parts.map(renderPart));
       elements[key].hidden = !value;
       const section = elements[key].closest?.(".explanation-detail");
       if (section) section.hidden = !value;
@@ -236,7 +254,7 @@ export function createExplanationView({ state, elements, formatTemp, formatRh, f
       return;
     }
     put('explanationStatus', '');
-    const rows = explanationRows(state, plan, comparison, facts, formatForecastOpeningTime);
+    const rows = explanationRows(state, plan, comparison, facts, formatForecastOpeningTime, formatDuration);
     if (elements.explanationOverview?.replaceChildren) {
       const nodes = rows.map(item => {
         const paragraph = document.createElement('p');
@@ -248,12 +266,7 @@ export function createExplanationView({ state, elements, formatTemp, formatRh, f
         content.className = "explanation-copy";
         const body = document.createElement("span");
         body.className = "explanation-row-text";
-        body.append(...item.parts.map(part => {
-          if (typeof part === 'string') return part;
-          const emphasis = document.createElement('strong');
-          emphasis.textContent = part.strong;
-          return emphasis;
-        }));
+        body.append(...item.parts.map(renderPart));
         content.append(label, body);
         paragraph.append(explanationIcon(document, item), content);
         return paragraph;
@@ -274,17 +287,31 @@ export function createExplanationView({ state, elements, formatTemp, formatRh, f
       (['too-cold', 'condensation'].includes(plan.status) && !facts.useful);
     const next = closed && Number.isFinite(plan.nextUsefulOpeningTime?.getTime())
       ? ` Assuming your indoor readings stay the same, the next suitable time to open windows for drying is forecast around ${formatForecastOpeningTime(plan.nextUsefulOpeningTime)}.` : '';
-    put('explanationText', `${relationship} ${planLimitingExplanation(plan, comparison)}${next}`);
+    const limitText = planLimitingExplanation(plan, comparison);
+    const context = ({ good: TIMER_CONTEXTS.target, 'forecast-limit': TIMER_CONTEXTS.forecast,
+      settling: TIMER_CONTEXTS.settling, 'too-cold': state.indoorTemp < state.minTemp && plan.projectedTemp < state.minTemp
+        ? TIMER_CONTEXTS.reversal : TIMER_CONTEXTS.temperature, condensation: TIMER_CONTEXTS.condensation,
+      slow: TIMER_CONTEXTS.recheck })[plan.status];
+    const limitMinutes = plan.status === 'good' ? plan.minutes : plan.status === 'slow' ? MAX_OPEN_MINUTES : plan.limitMinutes;
+    const limitParts = context && Number.isFinite(limitMinutes) && limitMinutes > 0
+      ? durationInText(limitText, plan.status === 'slow' ? `${MAX_OPEN_MINUTES / 60}-hour` : formatDuration(limitMinutes),
+        durationPart(limitMinutes, formatDuration, context)) : [limitText];
+    put('explanationText', [`${relationship} `, ...limitParts, next]);
     if (plan.status === 'good') {
       const horizon = plan.dryAirHorizon;
-      put('explanationHorizon', `The ${formatDuration(horizon.minutes)} drier-air window compares outdoor air with the changing room as it dries and cools, allowing for reading uncertainty. ${horizon.capped
-        ? 'It reaches the model’s three-hour limit; drying may continue beyond it.'
-        : 'After that, the moisture difference becomes too small for confident further drying.'} Close when your target is reached. This is not a rain or comfort limit.`);
+      put('explanationHorizon', ['The ', durationPart(horizon.minutes, formatDuration, TIMER_CONTEXTS.horizon),
+        ' drier-air window compares outdoor air with the changing room as it dries and cools, allowing for reading uncertainty. ', ...(horizon.capped
+          ? ['It reaches the model’s ', durationPart(MAX_OPEN_MINUTES, formatDuration, TIMER_CONTEXTS.horizon), ' limit; drying may continue beyond it.']
+          : ['After that, the moisture difference becomes too small for confident further drying.']),
+        ' Close when your target is reached. This is not a rain or comfort limit.']);
     }
     const period = facts.useful ? `during the suggested ${formatDuration(facts.minutes)} opening` : 'over the next hour';
     const amount = facts.peak === null ? 'Forecast rain amounts are unavailable.'
       : `The highest hourly rain-and-shower amount ${period} is ${facts.peak < .1 && facts.peak > 0 ? facts.peak.toFixed(2) : facts.peak.toFixed(1)} mm in an overlapping forecast hour.`;
-    put('explanationRain', `${amount}${facts.rainComplete ? '' : ' Rain coverage is incomplete for this period.'}${facts.chance === null ? ' Precipitation chance is unavailable.' : ` Highest available hourly precipitation chance: ${Math.round(facts.chance)}%.${facts.chanceComplete ? '' : ' Chance data is incomplete.'}`} Hourly averages can hide heavier showers. Precipitation chance can include snow; rain amounts exclude snow. Hourly totals are not prorated into an opening-period total. The drying verdict does not assess rain entering the room.`);
+    const rainParts = facts.useful && facts.peak !== null
+      ? durationInText(amount, formatDuration(facts.minutes), durationPart(facts.minutes, formatDuration,
+        plan.status === 'good' ? TIMER_CONTEXTS.target : context)) : [amount];
+    put('explanationRain', [...rainParts, `${facts.rainComplete ? '' : ' Rain coverage is incomplete for this period.'}${facts.chance === null ? ' Precipitation chance is unavailable.' : ` Highest available hourly precipitation chance: ${Math.round(facts.chance)}%.${facts.chanceComplete ? '' : ' Chance data is incomplete.'}`} Hourly averages can hide heavier showers. Precipitation chance can include snow; rain amounts exclude snow. Hourly totals are not prorated into an opening-period total. The drying verdict does not assess rain entering the room.`]);
     put('explanationWind', `${facts.calm ? 'Little or no wind is reported.' : facts.from ? `Wind comes from the ${facts.from} and blows towards the ${facts.to}.` : 'Wind direction is unavailable.'} ${facts.windAvailable ? `Reported 10m wind speed: ${Math.round(state.outdoorWind)} km/h.` : 'Wind speed is unavailable.'} Actual exposure depends on your building; window positions and gusts are not modelled.`);
     const airflow = effectiveAirExchange(state, currentWeather(state), state.indoorTemp).airChangesPerHour;
     put('explanationModel', `The estimate assumes ${formatVentilationSummary().toLowerCase()}, about ${airflow.toFixed(1)} air changes per hour.${facts.useful ? ` Estimated room temperature then: ${formatTemp(plan.projectedTemp)}; your minimum is ${formatTemp(state.minTemp)}.` : ''}${facts.forecastLimited ? ' Forecast coverage is limited; beyond it, the estimate holds the last available conditions unchanged.' : ''} Actual airflow and drying time vary; recheck your indoor reading after ventilation.`);
