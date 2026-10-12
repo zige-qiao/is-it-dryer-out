@@ -29,7 +29,7 @@ const preview = process.argv[2] || 'http://127.0.0.1:8780/';
         assert.deepEqual(result, { allowed: false, activated: false }, `${selector} ${dx}/${dy}`); checks++;
       }
     };
-    for (const selector of ['#settingsButton', '#locationButton', '#editIndoorButton', '#planSummaryButton', '[data-chart-hours="24"]', '#explanationToggle', '#explanationDetailsSummary', '#refreshWeather']) await suppressed(selector);
+    for (const selector of ['#settingsButton', '#locationButton', '#indoorDockButton', '#planSummaryButton', '[data-chart-hours="24"]', '#explanationToggle', '#explanationDetailsSummary', '#refreshWeather']) await suppressed(selector);
     await page.locator('[data-page-link="why"]').click(); await page.locator('#settingsButton').click();
     for (const selector of ['#showIndoorSummary', '#showMoistureComparison', '#showCameraButton', '#useStillPhotos', '#autoFlash', '#resetPageLayout', '#settingsDialog .sheet-close-button', ...['indoor-summary', 'moisture-comparison', 'supporting-details'].map(id => `[data-layout-row="${id}"] [data-drag-handle]`)]) await suppressed(selector);
     const cdp = await context.newCDPSession(page);
@@ -105,7 +105,7 @@ const preview = process.argv[2] || 'http://127.0.0.1:8780/';
     await page.locator('#settingsDialog .sheet-close-button').click(); assert.equal(await page.locator('#settingsDialog').evaluate(n => n.open), false);
     await page.locator('[data-page-link="overview"]').click();
     for (const [opener, selectors, close] of [
-      ['#editIndoorButton', ['#cameraInputButton', '#indoorDialog .sheet-close-button'], '#indoorDialog .sheet-close-button'],
+      ['#indoorDockButton', ['#cameraInputButton', '#indoorDialog .sheet-close-button'], '#indoorDialog .sheet-close-button'],
       ['#planSummaryButton', ['#planDialog .sheet-close-button', '[data-room-volume]'], '#planDialog .sheet-close-button'],
       ['#locationButton', ['#locationUpdateButton', '#locationClearButton'], '#locationDialog [data-close-dialog]'],
     ]) {

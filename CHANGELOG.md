@@ -17,6 +17,10 @@ All notable changes to Is it dryer out are documented here.
 - Keep camera-style circular header actions in one row with equal 8px gaps and consistent 20px icons. Left-align titles without Back, centre them with Back, and vertically align actions with the title/subtitle block. Remove Settings, manual Indoor and Ventilation Done footers; keep the Settings tick visible in a white circle against its warm sheet surface. Reclaim unused camera header space, keep enlarged headings readable, and anchor help overlays within the sheet without moving or blurring header controls.
 - Keep voice prompts visible in their own plain section above a separate neutral live/final transcription panel. Match the full-width recording action to Take photo, with a contained white listening waveform; preserve explicit review and Apply, manual Stop and draft cancellation.
 
+- Extend iPhone/iPad ventilation timer controls to all opening durations on Why, including More detail and the longer drier-air window. Share dotted-underlined duration buttons with Overview; preserve duration eligibility, meaning and focus return.
+
+- Make Why self-contained with the same formatted stopping times and drier-air window as Overview. Name Overview explicitly in the chart explanation; preserve immediate limits and cold-room reversal advice.
+
 ## v0.7.8 - Pill tabs and frosted sheet headers - 2026-10-10
 
 - Split the app into Overview and Why, with a centred floating pill navigation bar. Tab activation is instant; horizontal swipes track the finger and settle over 360ms. Slow drags must pass halfway; deliberate flicks can switch sooner. Preserve chart inspection, sheet gestures, browser history and each view's scroll position.

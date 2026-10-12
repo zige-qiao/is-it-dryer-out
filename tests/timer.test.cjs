@@ -117,3 +117,37 @@ test('timer sheet preserves temporary edits and hands off only validated minutes
   elements.recommendation.emit('click', { target: { closest: () => button } });
   button.isConnected = false; elements.timerDialog.close(); elements.timerDialog.emit('close'); assert.equal(focus, 'heading');
 });
+
+test('Why delegates main and detail durations and restores the Why heading when rerender removes the opener', () => {
+  const state = { timerMinutes: 1 };
+  const names = ['recommendation', 'explanationOverview', 'explanationDetails', 'explanationToggle', 'decisionLabel',
+    'timerDialog', 'timerDialogTitle', 'timerMinutes', 'timerMinutesInput', 'timerStartButton', 'timerInstallLink'];
+  const elements = Object.fromEntries(names.map(name => [name, element()]));
+  Object.defineProperty(elements.timerMinutesInput, 'valueAsNumber', { get() { return Number(this.value); } });
+  let focused;
+  const document = { activeElement: null };
+  const dialogs = createDialogs({}, environment({ document }));
+  const controller = createTimerController({ state, elements, renderRulers() {},
+    dialogScrollLock: { open: dialog => dialog.showModal() }, closeSheet: dialogs.closeSheet,
+    rememberSheetFocus: dialogs.rememberSheetFocus, restoreSheetFocus: dialogs.restoreSheetFocus }, environment({ window: {} }));
+  controller.initialize();
+  elements.explanationToggle.focus = () => { focused = 'why'; };
+  for (const container of [elements.explanationOverview, elements.explanationDetails]) {
+    const button = element();
+    button.dataset.timerMinutes = '90';
+    button.isConnected = true;
+    button.focus = () => { focused = button; };
+    container.contains = node => node === button;
+    container.emit('click', { target: { closest: () => button } });
+    assert.equal(elements.timerDialog.open, true);
+    assert.equal(state.timerMinutes, 90);
+    assert.equal(button.getAttribute('aria-expanded'), 'true');
+    dialogs.closeSheet(elements.timerDialog);
+    assert.equal(focused, button);
+    assert.equal(button.getAttribute('aria-expanded'), 'false');
+    container.emit('click', { target: { closest: () => button } });
+    button.isConnected = false;
+    dialogs.closeSheet(elements.timerDialog);
+    assert.equal(focused, 'why');
+  }
+});

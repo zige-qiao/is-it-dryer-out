@@ -32,8 +32,8 @@ const key = 'is-it-dryer-out-ui-preferences';
     const down = menu.getByRole('menuitem', { name: 'Move down', exact: true });
     await page.goto(preview);
     await page.waitForFunction(() => !document.documentElement.classList.contains('layout-pending'));
-    assert.deepEqual(await page.locator('.app-shell > [data-page-box]').evaluateAll(nodes => nodes.map(node => [node.dataset.pageBox, node.hidden])),
-      defaults.map(id => [id, id === 'indoor-summary']));
+    assert.deepEqual(await page.locator('#overviewPage > [data-page-box]').evaluateAll(nodes => nodes.map(node => [node.dataset.pageBox, node.hidden])),
+      defaults.map(id => [id, id === 'indoor-summary' || id === 'moisture-comparison']));
     await page.locator('[data-page-link="why"]').click(); await page.locator('#settingsButton').click();
     assert.deepEqual(await page.locator('#settingsDialog').evaluate(node => ({ x: getComputedStyle(node).overscrollBehaviorX, y: getComputedStyle(node).overscrollBehaviorY })), { x: 'contain', y: 'contain' });
     for (const selector of ['#indoorDialog', '#planDialog', '#locationDialog', '#timerDialog']) {
@@ -101,7 +101,7 @@ const key = 'is-it-dryer-out-ui-preferences';
     assert.equal(await page.locator('#autoFlash').isChecked(), false);
     await page.locator('#showCameraButton').check(); await page.locator('#useStillPhotos').uncheck(); await page.locator('#autoFlash').check();
     await page.locator('#showIndoorSummary').check();
-    assert.deepEqual(await page.locator('.app-shell > [data-page-box]').evaluateAll(nodes => nodes.map(node => node.dataset.pageBox)), defaults);
+    assert.deepEqual(await page.locator('#overviewPage > [data-page-box]').evaluateAll(nodes => nodes.map(node => node.dataset.pageBox)), defaults);
     await page.locator('#showIndoorSummary').uncheck(); await page.locator('#showMoistureComparison').uncheck();
     assert.equal(await page.locator('#settingsEditIndoor').count(), 0);
     await page.locator('#settingsDialog .sheet-close-button').click();
@@ -115,24 +115,26 @@ const key = 'is-it-dryer-out-ui-preferences';
       await page.setViewportSize({ width, height: 900 });
       for (const scale of [100, 200]) {
         await page.evaluate(scale => { document.documentElement.style.fontSize = scale + '%'; document.querySelector('.settings-dialog-content').scrollTop = 0; }, scale);
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
         const fixed = await page.locator('#settingsDialog').evaluate(node => {
-          const body=node.querySelector('.sheet-body'), header=node.querySelector('.sheet-header'), footer=node.querySelector('.settings-dialog-footer');
-          const before=[header.getBoundingClientRect().top,footer.getBoundingClientRect().top];
+          const body=node.querySelector('.sheet-body'), header=node.querySelector('.sheet-header');
+          const before=[header.getBoundingClientRect().top];
           body.scrollTop=body.scrollHeight;
-          const after=[header.getBoundingClientRect().top,footer.getBoundingClientRect().top], b=body.getBoundingClientRect();
+          const after=[header.getBoundingClientRect().top], b=body.getBoundingClientRect();
           body.scrollTop=0;
-          return {before,after,bodyTop:b.top,bodyBottom:b.bottom,headerBottom:header.getBoundingClientRect().bottom,footerTop:footer.getBoundingClientRect().top,
+          return {before,after,bodyTop:b.top,bodyBottom:b.bottom,headerBottom:header.getBoundingClientRect().bottom,sheetBottom:node.getBoundingClientRect().bottom,headerHeight:header.getBoundingClientRect().height,frosted:node.classList.contains('has-frosted-header'),footerCount:node.querySelectorAll('.sheet-footer').length,
             outerOverflow:getComputedStyle(node).overflowY,innerOverflow:getComputedStyle(body).overflowY,outerScroll:node.scrollTop,outerExtent:node.scrollHeight-node.clientHeight,
-            fades:[getComputedStyle(header,'::after'),getComputedStyle(footer,'::before')].map(style=>({height:style.height,left:style.left,right:style.right,pointer:style.pointerEvents,background:style.backgroundImage,position:style.position})),
-            contentGap:body.firstElementChild.getBoundingClientRect().top-header.querySelector('.sheet-title-row').getBoundingClientRect().bottom,
+            fade:getComputedStyle(header,'::after').height,fadePointer:getComputedStyle(header,'::after').pointerEvents,
+            contentGap:body.firstElementChild.getBoundingClientRect().top-header.getBoundingClientRect().bottom,
             bodyPadding:[getComputedStyle(body).paddingTop,getComputedStyle(body).paddingBottom],scrollPadding:getComputedStyle(body).scrollPaddingTop};
         });
-        assert.deepEqual(fixed.before,fixed.after,'Header and Done remain stationary while options scroll');
+        assert.deepEqual(fixed.before,fixed.after,'Header confirmation remains stationary while options scroll');
         assert.deepEqual([fixed.outerOverflow,fixed.innerOverflow,fixed.outerScroll],['hidden','auto',0]);
-        assert.ok(fixed.outerExtent<=1 && fixed.bodyTop>=fixed.headerBottom-.1 && fixed.bodyBottom<=fixed.footerTop+.1,'Scrollbar container excludes header and footer');
+        assert.ok(fixed.outerExtent<=1 && fixed.bodyBottom<=fixed.sheetBottom+.1,`Options scroll within the sheet ${width}/${scale}: ${JSON.stringify(fixed)}`);
+        assert.equal(fixed.footerCount,0);
         assert.equal(fixed.contentGap,16,'Fade reserves the existing gap, without extra spacing');
-        assert.deepEqual(fixed.bodyPadding,['16px','16px']);assert.equal(fixed.scrollPadding,'20px');
-        for(const fade of fixed.fades){assert.deepEqual([fade.height,fade.left,fade.right,fade.pointer,fade.position],['16px','20px','20px','none','absolute']);assert.match(fade.background,/linear-gradient/);}
+        if(fixed.frosted){assert.ok(fixed.bodyTop<fixed.headerBottom);assert.ok(Math.abs(parseFloat(fixed.scrollPadding)-fixed.headerHeight-20)<.1);}else{assert.ok(fixed.bodyTop>=fixed.headerBottom-.1);assert.equal(fixed.scrollPadding,'20px');}
+        assert.equal(fixed.fade,'16px');assert.equal(fixed.fadePointer,'none');
         const measured = await page.locator('#settingsDialog').evaluate(node => ({ overflow: node.scrollWidth > node.clientWidth + 1,
           targets: [...node.querySelectorAll('[data-drag-handle],#resetPageLayout,#settingsDialog .sheet-close-button')].map(control => {
             const box = control.getBoundingClientRect(); return { name: control.id || control.getAttribute('aria-label'), width: box.width, height: box.height };
@@ -213,8 +215,8 @@ const key = 'is-it-dryer-out-ui-preferences';
       assert.ok(initialDone.y >= 0 && initialDone.y + initialDone.height <= height, `Done initially visible at height ${height}`);
       await page.locator('#showVoiceButton').focus();
       const focusedRow = await page.locator('#showVoiceButton').evaluate(node => node.closest('label').getBoundingClientRect().bottom);
-      const footerTop = await page.locator('.settings-dialog-footer').evaluate(node => node.getBoundingClientRect().top);
-      assert.ok(focusedRow <= footerTop + 1, `Focused option clears Done at height ${height}`);
+      const bodyBottom = await page.locator('#settingsDialog .sheet-body').evaluate(node => node.getBoundingClientRect().bottom);
+      assert.ok(focusedRow <= bodyBottom + 1, `Focused option stays within the body at height ${height}`);
       await page.evaluate(() => { const body = document.querySelector('.settings-dialog-content'); body.scrollTop = body.scrollHeight; });
       const extent = await page.locator('#settingsDialog').evaluate(node => {
         const sheet = node.getBoundingClientRect(), header = node.querySelector('.sheet-header').getBoundingClientRect();
@@ -277,7 +279,7 @@ const key = 'is-it-dryer-out-ui-preferences';
     await page.locator('#settingsDialog .sheet-close-button').click();
     assert.equal(await page.locator('#settingsButton').evaluate(node => node === document.activeElement), true);
     // Exercise the real camera help link with a synthetic browser camera, without capturing readings.
-    await page.locator('#editIndoorButton').click(); await page.locator('#cameraInputButton').click();
+    await page.locator('#indoorDockButton').click(); await page.locator('#cameraInputButton').click();
     await page.waitForFunction(() => !document.querySelector('#cameraPanel').hidden && !document.querySelector('#cameraHelpButton').hidden);
     await page.locator('#cameraHelpButton').click(); await page.locator('#cameraAutoFlashSettings').click();
     assert.equal(await page.locator('#autoFlash').evaluate(node => node === document.activeElement), true);
@@ -298,7 +300,8 @@ const key = 'is-it-dryer-out-ui-preferences';
     const blocked = await browser.newContext({ serviceWorkers: 'block' });
     await blocked.addInitScript(() => { Storage.prototype.getItem = Storage.prototype.setItem = () => { throw Error('blocked'); }; });
     const blockedPage = await blocked.newPage(); await blockedPage.goto(preview);
-    await blockedPage.locator('#indoorDialog .sheet-close-button').click(); await blockedPage.locator('#settingsButton').click();
+    await blockedPage.locator('#indoorDialog .sheet-close-button').click();
+    await blockedPage.locator('[data-page-link="why"]').click(); await blockedPage.locator('#settingsButton').click();
     await blockedPage.locator('#useStillPhotos').check(); await blockedPage.locator('#autoFlash').uncheck();
     await blockedPage.locator('#showCameraButton').uncheck();
     assert.equal(await blockedPage.locator('#settingsCameraOptions').isVisible(), false);
