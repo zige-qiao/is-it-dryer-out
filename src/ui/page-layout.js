@@ -15,6 +15,57 @@ export function pageLayoutDefaults() {
   return { pageOrder: normalizePageOrder(), ...Object.fromEntries(PAGE_BOXES.map(box => [box.preference, box.visible])) };
 }
 
+// The summary keeps its natural layout; only the legend follows its divider.
+export function bindChartKeyAlignment(environment = globalThis) {
+  const { document, window, ResizeObserver, MutationObserver, requestAnimationFrame, cancelAnimationFrame, getComputedStyle } = environment;
+  const legend = document.querySelector('#chartKey .chart-key-legend');
+  const primary = document.querySelector('.plan-summary-primary');
+  const secondary = document.querySelector('.plan-summary-secondary');
+  const divider = document.querySelector('.plan-summary-divider');
+  const overview = document.querySelector('#overviewPage');
+  const card = document.querySelector('#chartKey');
+  if (!legend || !primary || !secondary || !divider || !ResizeObserver || !MutationObserver) return () => {};
+  let frame = null, disposed = false;
+  function update() {
+    frame = null;
+    const bounds = legend.getBoundingClientRect();
+    const first = primary.getBoundingClientRect(), second = secondary.getBoundingClientRect();
+    if (!bounds.width || !first.width || second.top >= first.bottom - .5) {
+      legend.style.removeProperty('grid-template-columns');
+      return;
+    }
+    const marker = divider.getBoundingClientRect();
+    const gap = parseFloat(getComputedStyle(legend).columnGap) || 0;
+    const border = parseFloat(getComputedStyle(legend.children[1]).borderLeftWidth) || 0;
+    const width = marker.left + marker.width / 2 - bounds.left - gap - border / 2;
+    if (width <= 0 || width >= bounds.width - gap) {
+      legend.style.removeProperty('grid-template-columns');
+      return;
+    }
+    const columns = `${width.toFixed(3)}px minmax(0, 1fr)`;
+    if (legend.style.gridTemplateColumns !== columns) legend.style.gridTemplateColumns = columns;
+  }
+  function schedule() {
+    if (!disposed && frame === null) frame = requestAnimationFrame(update);
+  }
+  const resize = new ResizeObserver(schedule);
+  [primary, secondary, card].forEach(node => resize.observe(node));
+  const mutations = new MutationObserver(schedule);
+  [primary, secondary].forEach(node => mutations.observe(node, { childList: true, characterData: true, subtree: true }));
+  [overview, card].filter(Boolean).forEach(node => mutations.observe(node, { attributes: true, attributeFilter: ['hidden', 'inert'] }));
+  window.addEventListener('resize', schedule);
+  document.fonts?.addEventListener?.('loadingdone', schedule);
+  document.fonts?.ready?.then(schedule);
+  schedule();
+  return () => {
+    disposed = true;
+    if (frame !== null) cancelAnimationFrame(frame);
+    resize.disconnect(); mutations.disconnect();
+    window.removeEventListener('resize', schedule);
+    document.fonts?.removeEventListener?.('loadingdone', schedule);
+  };
+}
+
 export function createPageLayout({ preferences, save, canStartPointerGesture = () => true }, environment = globalThis) {
   const { document, requestAnimationFrame, cancelAnimationFrame } = environment;
   const shell = document.querySelector('#overviewPage') || document.querySelector('.app-shell');

@@ -318,3 +318,34 @@ test('pinned Recommendation cannot be hidden or dragged across by other rows', (
   assert.equal(f.boxes.get('recommendation').hidden,false);
   assert.equal(f.rows.get('recommendation').dataset.insert,undefined);
 });
+const { bindChartKeyAlignment } = require('../src/ui/page-layout.js');
+
+test('Chart key follows the natural summary divider and falls back for wrapped or hidden layouts', () => {
+  const legend = element(), primary = element(), secondary = element(), divider = element(), overview = element(), card = element();
+  const right = element(); legend.children = [element(), right];
+  let columns = '';
+  legend.style = { get gridTemplateColumns() { return columns; }, set gridTemplateColumns(value) { columns = value; }, removeProperty() { columns = ''; } };
+  let visible = true, wrapped = false, markerLeft = 190;
+  legend.getBoundingClientRect = () => ({ left: 28, width: visible ? 360 : 0 });
+  primary.getBoundingClientRect = () => ({ width: 150, top: 10, bottom: 30 });
+  secondary.getBoundingClientRect = () => ({ top: wrapped ? 34 : 10, bottom: wrapped ? 54 : 30 });
+  divider.getBoundingClientRect = () => ({ left: markerLeft, width: 3 });
+  const nodes = { '#chartKey .chart-key-legend': legend, '.plan-summary-primary': primary, '.plan-summary-secondary': secondary,
+    '.plan-summary-divider': divider, '#overviewPage': overview, '#chartKey': card };
+  const callbacks = [], frames = new Map(); let id = 0;
+  class Observer { constructor(callback) { callbacks.push(callback); } observe() {} disconnect() {} }
+  const window = element(), fonts = element();
+  const env = { document: { querySelector: selector => nodes[selector], fonts }, window, ResizeObserver: Observer, MutationObserver: Observer,
+    requestAnimationFrame: callback => { frames.set(++id, callback); return id; }, cancelAnimationFrame: frame => frames.delete(frame),
+    getComputedStyle: node => node === legend ? { columnGap: '12px' } : { borderLeftWidth: '1px' } };
+  const flush = () => { const pending = [...frames.values()]; frames.clear(); pending.forEach(callback => callback()); };
+  const dispose = bindChartKeyAlignment(env); flush();
+  assert.equal(columns, '151.000px minmax(0, 1fr)');
+  markerLeft = 215; callbacks.forEach(callback => callback()); assert.equal(frames.size, 1); flush();
+  assert.equal(columns, '176.000px minmax(0, 1fr)');
+  wrapped = true; callbacks[0](); flush(); assert.equal(columns, '');
+  wrapped = false; visible = false; callbacks[1](); flush(); assert.equal(columns, '');
+  visible = true; window.emit('resize'); flush(); assert.equal(columns, '176.000px minmax(0, 1fr)');
+  markerLeft = 225; fonts.emit('loadingdone'); flush(); assert.equal(columns, '186.000px minmax(0, 1fr)');
+  callbacks[0](); dispose(); assert.equal(frames.size, 0); callbacks[1](); assert.equal(frames.size, 0);
+});

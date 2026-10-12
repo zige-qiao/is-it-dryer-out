@@ -131,29 +131,27 @@
 
         </section>
 
-        <section data-page-box="supporting-details" class="details-footnotes" aria-label="Chart key">
-          <section class="dashboard-explainer chart-key-explainer" id="chartKey" aria-labelledby="chartKeyHeading">
-            <h2 id="chartKeyHeading" class="chart-key-heading">Chart key</h2>
-                <div class="chart-key-content" role="region" aria-label="Chart key">
-                  <div class="chart-key-legend">
-                    <section class="chart-key-group" aria-labelledby="chartKeyLines"><h3 id="chartKeyLines" class="detail-category">Lines</h3>
-                      <div class="chart-key-entry"><i class="chart-key-symbol key-indoor" aria-hidden="true"></i><span>Indoor AH</span></div>
-                      <div class="chart-key-entry"><i class="chart-key-symbol key-drier" aria-hidden="true"></i><span>Outdoor AH · drier</span></div>
-                      <div class="chart-key-entry"><i class="chart-key-symbol key-uncertain" aria-hidden="true"></i><span>Outdoor AH · uncertain</span></div>
-                      <div class="chart-key-entry"><i class="chart-key-symbol key-wetter" aria-hidden="true"></i><span>Outdoor AH · wetter</span></div>
-                      <p>Colours show the drying benefit of ventilation.</p>
-                    </section>
-                    <section class="chart-key-group" aria-labelledby="chartKeyBars"><h3 id="chartKeyBars" class="detail-category">Bars &amp; markers</h3>
-                      <div class="chart-key-entry"><i class="chart-key-symbol key-rain" aria-hidden="true"></i><span>Rain, mm/h <span class="legend-duration">· 1-hour bars</span></span></div>
-                      <div class="chart-key-entry"><i class="chart-key-symbol key-ach" aria-hidden="true"></i><span>Est. ACH <span class="legend-duration">· 2-hour bars</span></span></div>
-                      <div class="chart-key-entry"><svg class="chart-key-wind" viewBox="-8 -8 16 16" aria-hidden="true" focusable="false"><path d="M-1 -5.8Q0 -7.4 1 -5.8L5.7 4.5Q6.6 6.2 4.8 5.4L.9 3.2Q0 2.7 -.9 3.2L-4.8 5.4Q-6.6 6.2 -5.7 4.5Z"/></svg><span>Wind direction</span></div>
-                      <div class="chart-key-notes"><p>Arrows point where the wind is blowing.</p><p>≥ means the rain-spell total is incomplete.</p></div>
-                    </section>
-                  </div>
-                </div>
-          </section>
-
-
+        <section data-page-box="supporting-details" class="panel dashboard-panel chart-key-card" id="chartKey" aria-label="Chart key">
+          <div class="chart-key-content">
+            <div class="chart-key-legend">
+              <section class="chart-key-group" aria-labelledby="chartKeyLines">
+                <h3 id="chartKeyLines" class="detail-category">Lines</h3>
+                <div class="chart-key-entry"><i class="chart-key-symbol key-indoor" aria-hidden="true"></i><span>Indoor AH</span></div>
+                <p class="chart-key-outdoor">Outdoor AH</p>
+                <div class="chart-key-entry"><i class="chart-key-symbol key-drier" aria-hidden="true"></i><span>Drier</span></div>
+                <div class="chart-key-entry"><i class="chart-key-symbol key-uncertain" aria-hidden="true"></i><span>Uncertain</span></div>
+                <div class="chart-key-entry"><i class="chart-key-symbol key-wetter" aria-hidden="true"></i><span>Wetter</span></div>
+              </section>
+              <section class="chart-key-group" aria-labelledby="chartKeyBars">
+                <h3 id="chartKeyBars" class="detail-category">Bars &amp; markers</h3>
+                <div class="chart-key-entry"><i class="chart-key-symbol key-rain-amount" aria-hidden="true"></i><span>Rain amount (relative)<span class="chart-key-caption">1-hour bars</span></span></div>
+                <div class="chart-key-entry"><i class="chart-key-symbol key-rain-period" aria-hidden="true"></i><span>Rain period<span class="chart-key-caption">Shaded hours</span></span></div>
+                <div class="chart-key-entry"><i class="chart-key-symbol key-ach" aria-hidden="true"></i><span>Est. ACH<span class="chart-key-caption">2-hour bars</span></span></div>
+                <div class="chart-key-entry"><svg class="chart-key-wind" viewBox="-8 -8 16 16" aria-hidden="true" focusable="false"><path d="M-1 -5.8Q0 -7.4 1 -5.8L5.7 4.5Q6.6 6.2 4.8 5.4L.9 3.2Q0 2.7 -.9 3.2L-4.8 5.4Q-6.6 6.2 -5.7 4.5Z"/></svg><span>Wind<span class="chart-key-caption">Points where it blows</span></span></div>
+              </section>
+            </div>
+            <p class="chart-key-note">Line colour shows the drying benefit of ventilation. ≥ means the rain-spell total is incomplete.</p>
+          </div>
         </section>
         </section>
         <section class="page-view" id="whyPage" data-view="why" aria-labelledby="explanationToggle" hidden inert>
@@ -220,7 +218,7 @@
               <button class="settings-button" id="settingsButton" type="button" aria-label="Settings" aria-haspopup="dialog" aria-controls="settingsDialog" aria-expanded="false" title="Settings">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.4 2h3.2l.5 2.1a8.2 8.2 0 0 1 1.8.8l1.9-1.1 2.3 2.3L19 8a8.2 8.2 0 0 1 .8 1.8l2.2.6v3.2l-2.2.5a8.2 8.2 0 0 1-.8 1.8l1.1 1.9-2.3 2.3-1.9-1.1a8.2 8.2 0 0 1-1.8.8l-.5 2.2h-3.2l-.5-2.2a8.2 8.2 0 0 1-1.8-.8l-1.9 1.1-2.3-2.3L5 15.9a8.2 8.2 0 0 1-.8-1.8L2 13.6v-3.2l2.2-.6A8.2 8.2 0 0 1 5 8L3.9 6.1l2.3-2.3 1.9 1.1a8.2 8.2 0 0 1 1.8-.8L10.4 2Z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
-              <button class="page-refresh-button" id="pageRefreshButton" type="button">Refresh page</button>
+              <button class="page-refresh-button" id="pageRefreshButton" type="button">Refresh app</button>
             </div>
           </div>
         </section>

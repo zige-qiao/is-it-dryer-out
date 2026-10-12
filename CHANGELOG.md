@@ -4,6 +4,10 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Update Why’s footer with an outlined Settings circle and a full-height dark Refresh app pill, grouped with an 8px gap and responsive wrapping below the credit.
+
+- Compact Chart key into an existing-style two-column card, with separate neutral rain amount and rain period symbols, grouped outdoor line labels and a shared explanatory note. Give the right column 60% of the available column space on screens up to 480px and match the rain/ACH bars’ 2px corners. Make its divider follow the original ventilation summary while that summary stays on one row, retaining the normal split when it wraps. Shorten the rain label to Rain amount (relative), with 1-hour bars beneath.
+
 - Rename the Settings group to Overview layout and remove its duplicate Edit Indoor readings action; use the persistent thermometer button.
 
 - Keep Chart key expanded with a permanent heading and hide Moisture comparison in the default page layout. Preserve saved section visibility choices.

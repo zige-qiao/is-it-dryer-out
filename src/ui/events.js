@@ -1,4 +1,5 @@
 import { INDOOR_LIMITS } from '../config.js';
+import { bindChartKeyAlignment } from './page-layout.js';
 
 
 export function createEvents({
@@ -39,6 +40,7 @@ export function createEvents({
   const { window, document, requestAnimationFrame, ResizeObserver } = environment;
 
   function bindEvents() {
+    bindChartKeyAlignment(environment);
     bindSheetFocus();
     let lastChartWidth = 0;
     const chartResizeObserver = new ResizeObserver(entries => {
