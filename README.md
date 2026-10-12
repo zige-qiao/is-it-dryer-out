@@ -10,24 +10,20 @@ It compares the amount of moisture indoors and outdoors, then uses the weather f
 
 1. **Enter your indoor readings.** Add temperature and relative humidity from your room sensor. You can type, adjust the rulers, scan a new photo with the camera button, or use the microphone button in supported browsers. Review photo results before confirming.
 2. **Choose your location.** Search for a town or UK postcode, or use your device's location.
-3. **Read the recommendation.** Check the suggested opening time and the 24- or 48-hour outlook. Tap or drag the chart to inspect the forecast, with a separate always-expanded Chart key explaining the symbols. The 24-hour view has proportional ACH bars with numbers and wind arrows underneath; accessible inspection text includes rain details. Translucent white bars and blue hatched bands show forecast rain; it is advisory and does not change the drying recommendation.
+3. **Read the recommendation.** Check the suggested opening time and the 24- or 48-hour outlook.
 4. **Adjust your plan.** Set your target humidity, minimum temperature, room size and window opening using the ventilation summary below the chart.
 
-## Navigation and settings
+## Basic actions
 
-Overview contains the recommendation, forecast and optional indoor sections. Why contains the live explanation and supporting accordions, with the relevant stopping times and drier-air window repeated so the advice can be read on its own; its footer opens Settings and includes Refresh app. Use the bottom pill tabs for instant switching, or swipe horizontally between pages. The separate circular thermometer button (Indoor) to the right of the tabs opens manual readings from either page. Chart gestures inspect the forecast; open sheets retain their own gestures. Each view keeps its scroll position, and switching needs no weather request.
+Switch between Overview and Why with the bottom tabs or a horizontal swipe. The thermometer button opens Indoor readings from either page.
 
-Settings saves section order and visibility immediately. Recommendation stays first; Indoor summary, Moisture comparison and Chart key can be reordered or hidden. Why stays independently accessible. Settings, manual Indoor readings and Ventilation settings close with a circled tick in the header; Location and Timer use a circled X. Camera and voice use a top-left circled Back control to discard drafts and return to manual readings. Voice examples stay visible above the grey transcription box, with a centred waveform inside the full-width recording button and explicit review before Apply.
+Open Settings from the Why footer to show, hide or reorder Overview sections and adjust Indoor reading options. Changes save immediately.
 
-## Ventilation timer
-
-On iPhone/iPad, tap an opening duration on Overview or Why (including More detail) to open the timer sheet. Supported durations show a dotted underline; other devices keep plain emphasised durations. Adjust the minutes with the ruler or typed entry, then choose Start iPhone timer. Each time retains its own meaning; the drier-air forecast window is not a recommended opening duration.
-
-This uses one reusable Shortcut named **Ventilation Timer**, which starts the Clock timer. Open the help popup beside the timer title and choose Install Shortcut to [add the ready-made Shortcut](https://www.icloud.com/shortcuts/d16fde94799a414bb11a3a40c484f080) once; no Mac or manual action-building is needed. Starting a timer closes the sheet, then switches your iPhone to the Shortcuts app.
-
-The user confirmed that the handoff works from Chrome, Safari and the Home Screen web app, and that the alarm worked in flight mode. The web app cannot confirm that a timer started or track its cancellation. Once started, Clock owns the alarm and works offline. See the [user guide](docs/user-guide.md#ventilation-timer) for usage and [timer development](docs/timer-development.md) for remaining test gaps.
+On iPhone/iPad, tap an eligible opening duration to open the timer. See the [user guide's timer section](docs/user-guide.md#ventilation-timer) for Shortcut setup and full instructions.
 
 ## Recent changes
+
+- [v0.7.9](CHANGELOG.md#v079---settings-chart-and-ventilation-refinements---2026-10-12) refines Settings and Chart key, adds persistent Indoor access and Why timers, and improves sheet and voice controls.
 
 - [v0.7.8](CHANGELOG.md#v078---pill-tabs-and-frosted-sheet-headers---2026-10-10) adds Overview/Why pill tabs, swipe navigation, Settings in Why's footer, saved Chart key layout preferences and sheet-coloured headers with a graduated blur fade confined to content within each sheet.
 
@@ -52,6 +48,7 @@ node --test tests/*.test.cjs
 ```
 
 - [Development guide](docs/development.md) — local serving, modules, tests and caching
+- [User guide](docs/user-guide.md)
 - [Design system](docs/design-system.md)
 - [Voice investigation](docs/voice/VOICE-INVESTIGATION.md)
 - [Changelog](CHANGELOG.md)

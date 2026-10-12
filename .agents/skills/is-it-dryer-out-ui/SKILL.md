@@ -46,6 +46,10 @@ The root `app.js` owns state, DOM lookup and feature wiring. Native modules unde
 
 At the end of a change, check whether a durable visual or interaction rule belongs in the design system, user-facing behaviour needs the README, or a notable change needs the changelog. Update this skill only when the way we work or a critical product constraint changes. Follow an explicit documentation request immediately; otherwise consolidate routine documentation during local iteration and reconcile it before a requested push. Do not record transient experiments or rewrite historical release notes as current behaviour.
 
+## README Format
+
+Keep the README a quick introduction and basic-actions guide. Preserve this order: title, concise purpose statement, prominent app link, brief explanation, **Get started**, **Basic actions**, **Recent changes**, **Development and documentation**, and author credit. Keep **Get started** to the main user flow. In **Basic actions**, briefly cover Overview/Why navigation, opening Indoor readings, adjusting the ventilation plan, accessing Settings from the Why footer, and the iPhone timer action. Link to the user guide for detailed settings, navigation, timer setup and other step-by-step instructions instead of duplicating them in the README. Keep release history and development/test information in their existing sections, and retain a clear user-guide link.
+
 ## Information Hierarchy
 
 Keep Recommendation always shown and pinned first. Indoor summary is hidden by default and follows it in the default optional-section order. Follow the [design system](../../../docs/design-system.md) for page order and layout.

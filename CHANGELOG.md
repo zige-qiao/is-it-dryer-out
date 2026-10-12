@@ -2,7 +2,7 @@
 
 All notable changes to Is it dryer out are documented here.
 
-## Unreleased
+## v0.7.9 - Settings, chart and ventilation refinements - 2026-10-12
 
 - Update Why’s footer with an outlined Settings circle and a full-height dark Refresh app pill, grouped with an 8px gap and responsive wrapping below the credit.
 
@@ -20,6 +20,9 @@ All notable changes to Is it dryer out are documented here.
 - Extend iPhone/iPad ventilation timer controls to all opening durations on Why, including More detail and the longer drier-air window. Share dotted-underlined duration buttons with Overview; preserve duration eligibility, meaning and focus return.
 
 - Make Why self-contained with the same formatted stopping times and drier-air window as Overview. Name Overview explicitly in the chart explanation; preserve immediate limits and cold-room reversal advice.
+
+- Set the app build identity to `v0.7.9` and synchronise the app-shell cache revision to 170.
+- Verification: 599 Node tests passed with `--test-isolation=none`; `git diff --check` passed. Fresh installed iPhone Home Screen/Safari and offline-upgrade checks remain pending.
 
 ## v0.7.8 - Pill tabs and frosted sheet headers - 2026-10-10
 
