@@ -2082,8 +2082,7 @@ input[type="range"] {
   min-height: 48px; border-radius: 12px; padding: var(--space-12) var(--space-16);
   font: inherit; font-weight: 650; line-height: 1.25; cursor: pointer;
 }
-:is(.indoor-dialog, .plan-dialog, .location-dialog, .settings-dialog) .sheet-primary,
-.project-credit-row .page-refresh-button {
+:is(.indoor-dialog, .plan-dialog, .location-dialog, .settings-dialog) .sheet-primary {
   border: 1px solid #202725; background: #202725; color: #fff;
 }
 :is(.indoor-dialog, .location-dialog) .sheet-secondary {
@@ -2109,7 +2108,7 @@ input[type="range"] {
 .project-credit-row .project-credit { margin: 0; }
 .page-refresh-button {
   height: 44px; min-height: 44px; flex: 0 0 auto; border: 0; border-radius: 999px;
-  padding: 0 var(--space-16); background: var(--button-bg); color: var(--ink-inverse);
+  padding: 0 var(--space-16); background: var(--button-bg); color: var(--button-text);
   font: inherit; font-size: .75rem; font-weight: 650; white-space: nowrap; cursor: pointer;
 }
 
@@ -2286,12 +2285,18 @@ input[type="range"]:active:not(:disabled)::-moz-range-thumb { filter: brightness
   --button-pressed: var(--button-pill-pressed);
 }
 .indoor-dialog .voice-dialog-input-button { --button-bg: var(--surface-control); }
-:is(.indoor-dialog, .plan-dialog, .location-dialog, .settings-dialog) .sheet-primary,
-.project-credit-row .page-refresh-button {
+:is(.indoor-dialog, .plan-dialog, .location-dialog, .settings-dialog) .sheet-primary {
   --button-bg: var(--button-primary);
   --button-hover: var(--button-primary-hover);
   --button-pressed: var(--button-primary-pressed);
   --button-text: var(--ink-inverse);
+}
+.project-credit-row .page-refresh-button {
+  --button-bg: transparent;
+  --button-hover: var(--surface-hover);
+  --button-pressed: var(--surface-pressed);
+  --button-text: var(--ink-main);
+  border: 1px solid var(--line);
 }
 .voice-debug-panel .voice-debug-actions button {
   --button-bg: transparent;

@@ -23,7 +23,7 @@ On iPhone/iPad, tap an eligible opening duration to open the timer. See the [use
 
 ## Recent changes
 
-- [v0.7.9](CHANGELOG.md#v079---settings-chart-and-ventilation-refinements---2026-10-12) refines Settings and Chart key, adds persistent Indoor access and Why timers, and improves sheet and voice controls.
+- [v0.7.9](CHANGELOG.md#v079---settings-chart-and-ventilation-refinements---2026-10-12) refines Settings and Chart key, adds persistent Indoor access and Why timers, and improves sheet and voice controls. Refresh app matches the light Settings control; Chart key uses shorter rain and wind labels.
 
 - [v0.7.8](CHANGELOG.md#v078---pill-tabs-and-frosted-sheet-headers---2026-10-10) adds Overview/Why pill tabs, swipe navigation, Settings in Why's footer, saved Chart key layout preferences and sheet-coloured headers with a graduated blur fade confined to content within each sheet.
 
