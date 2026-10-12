@@ -4,6 +4,15 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Rename the Settings group to Overview layout and remove its duplicate Edit Indoor readings action; use the persistent thermometer button.
+
+- Keep Chart key expanded with a permanent heading and hide Moisture comparison in the default page layout. Preserve saved section visibility choices.
+
+- Add a separate circular thermometer button (Indoor) to the right of Overview/Why, matching the navigation height and light surface, with a white thermometer in a dark inner disc. Open manual readings from either page and return focus to the action on dismissal.
+
+- Keep camera-style circular header actions in one row with equal 8px gaps and consistent 20px icons. Left-align titles without Back, centre them with Back, and vertically align actions with the title/subtitle block. Remove Settings, manual Indoor and Ventilation Done footers; keep the Settings tick visible in a white circle against its warm sheet surface. Reclaim unused camera header space, keep enlarged headings readable, and anchor help overlays within the sheet without moving or blurring header controls.
+- Keep voice prompts visible in their own plain section above a separate neutral live/final transcription panel. Match the full-width recording action to Take photo, with a contained white listening waveform; preserve explicit review and Apply, manual Stop and draft cancellation.
+
 ## v0.7.8 - Pill tabs and frosted sheet headers - 2026-10-10
 
 - Split the app into Overview and Why, with a centred floating pill navigation bar. Tab activation is instant; horizontal swipes track the finger and settle over 360ms. Slow drags must pass halfway; deliberate flicks can switch sooner. Preserve chart inspection, sheet gestures, browser history and each view's scroll position.

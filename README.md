@@ -10,14 +10,14 @@ It compares the amount of moisture indoors and outdoors, then uses the weather f
 
 1. **Enter your indoor readings.** Add temperature and relative humidity from your room sensor. You can type, adjust the rulers, scan a new photo with the camera button, or use the microphone button in supported browsers. Review photo results before confirming.
 2. **Choose your location.** Search for a town or UK postcode, or use your device's location.
-3. **Read the recommendation.** Check the suggested opening time and the 24- or 48-hour outlook. Tap or drag the chart to inspect the forecast, with a separate Chart key accordion explaining the symbols. The 24-hour view has proportional ACH bars with numbers and wind arrows underneath; accessible inspection text includes rain details. Translucent white bars and blue hatched bands show forecast rain; it is advisory and does not change the drying recommendation.
+3. **Read the recommendation.** Check the suggested opening time and the 24- or 48-hour outlook. Tap or drag the chart to inspect the forecast, with a separate always-expanded Chart key explaining the symbols. The 24-hour view has proportional ACH bars with numbers and wind arrows underneath; accessible inspection text includes rain details. Translucent white bars and blue hatched bands show forecast rain; it is advisory and does not change the drying recommendation.
 4. **Adjust your plan.** Set your target humidity, minimum temperature, room size and window opening using the ventilation summary below the chart.
 
 ## Navigation and settings
 
-Overview contains the recommendation, forecast and optional indoor sections. Why contains the live explanation and supporting accordions; its footer opens Settings and includes Refresh page. Use the bottom pill tabs for instant switching, or swipe horizontally between pages. Chart gestures inspect the forecast; open sheets retain their own gestures. Each view keeps its scroll position, and switching needs no weather request.
+Overview contains the recommendation, forecast and optional indoor sections. Why contains the live explanation and supporting accordions; its footer opens Settings and includes Refresh page. Use the bottom pill tabs for instant switching, or swipe horizontally between pages. The separate circular thermometer button (Indoor) to the right of the tabs opens manual readings from either page. Chart gestures inspect the forecast; open sheets retain their own gestures. Each view keeps its scroll position, and switching needs no weather request.
 
-Settings saves section order and visibility immediately. Recommendation stays first; Indoor summary, Moisture comparison and Chart key can be reordered or hidden. Why stays independently accessible.
+Settings saves section order and visibility immediately. Recommendation stays first; Indoor summary, Moisture comparison and Chart key can be reordered or hidden. Why stays independently accessible. Settings, manual Indoor readings and Ventilation settings close with a circled tick in the header; Location and Timer use a circled X. Camera and voice use a top-left circled Back control to discard drafts and return to manual readings. Voice examples stay visible above the grey transcription box, with a centred waveform inside the full-width recording button and explicit review before Apply.
 
 ## Ventilation timer
 

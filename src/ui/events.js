@@ -38,17 +38,7 @@ export function createEvents({
 } = {}, environment = globalThis) {
   const { window, document, requestAnimationFrame, ResizeObserver } = environment;
 
-  function bindChartKey() {
-    const key = document.querySelector('#chartKey');
-    key?.addEventListener('toggle', () => {
-      if (uiPreferences.showChartKey === key.open) return;
-      uiPreferences.showChartKey = key.open;
-      saveUiPreferences();
-    });
-  }
-
   function bindEvents() {
-    bindChartKey();
     bindSheetFocus();
     let lastChartWidth = 0;
     const chartResizeObserver = new ResizeObserver(entries => {
@@ -65,8 +55,8 @@ export function createEvents({
     const summaryEdit = document.querySelector('#indoorSummaryEdit');
     const summaryVoice = document.querySelector('#indoorSummaryVoice');
     const summaryCamera = document.querySelector('#indoorSummaryCamera');
-    const settingsEdit = document.querySelector('#settingsEditIndoor');
-    const indoorOpeners = [editIndoor, summaryEdit, summaryVoice, summaryCamera];
+    const indoorDock = document.querySelector('#indoorDockButton');
+    const indoorOpeners = [editIndoor, summaryEdit, summaryVoice, summaryCamera, indoorDock].filter(Boolean);
     [indoorDialog, elements.planDialog, elements.locationDialog, elements.settingsDialog, elements.timerDialog].filter(Boolean).forEach(dialog => {
       dialog.addEventListener('close', dialogScrollLock.release);
       dialog.addEventListener('cancel', event => {
@@ -101,13 +91,9 @@ export function createEvents({
       document.querySelector('#indoor-heading').focus({ preventScroll: true });
     };
     editIndoor.addEventListener('click', () => openIndoorEditor(editIndoor));
+    indoorDock?.addEventListener('click', () => openIndoorEditor(indoorDock));
     summaryEdit.addEventListener('click', () => openIndoorEditor(summaryEdit));
     summaryCamera.addEventListener('click', () => { openIndoorEditor(summaryCamera); void startCameraInput(); });
-    settingsEdit.addEventListener('click', () => {
-      closeSheet(elements.settingsDialog);
-      openIndoorEditor(elements.settingsButton);
-    });
-    document.querySelector('#indoorDoneButton').addEventListener('click', () => closeSheet(indoorDialog));
     indoorDialog.addEventListener('close', () => {
       if (!elements.voiceDialog.hidden) closeVoiceDialog();
       indoorOpeners.forEach(opener => opener.setAttribute('aria-expanded', 'false'));
@@ -219,7 +205,6 @@ export function createEvents({
       rememberSheetFocus(elements.planDialog, elements.planSummaryButton, elements.planSummaryButton);
       openPlanDialog();
     });
-    elements.planDoneButton.addEventListener("click", closePlanDialog);
     elements.planDialog.addEventListener("close", () => {
       restoreSheetFocus(elements.planDialog);
     });
@@ -240,8 +225,6 @@ export function createEvents({
   }
 
   function applyUiPreferences() {
-    const chartKey = document.querySelector('#chartKey');
-    if (chartKey && chartKey.open !== (uiPreferences.showChartKey === true)) chartKey.open = uiPreferences.showChartKey === true;
     applyPageLayout?.();
     elements.showIndoorSummary.checked = uiPreferences.showIndoorSummary;
     if (elements.autoFlash) elements.autoFlash.checked = uiPreferences.autoFlash;
@@ -264,5 +247,5 @@ export function createEvents({
     elements.openIndoorOnLaunch.checked = uiPreferences.openIndoorOnLaunch;
   }
 
-  return { bindEvents, applyUiPreferences, bindChartKey };
+  return { bindEvents, applyUiPreferences };
 }

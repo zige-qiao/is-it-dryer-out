@@ -1,7 +1,7 @@
 export const PAGE_BOXES = [
   { id: 'recommendation', label: 'Recommendation', preference: 'showRecommendation', visible: true, pinned: true },
   { id: 'indoor-summary', label: 'Indoor summary', preference: 'showIndoorSummary', visible: false },
-  { id: 'moisture-comparison', label: 'Moisture comparison', preference: 'showMoistureComparison', visible: true },
+  { id: 'moisture-comparison', label: 'Moisture comparison', preference: 'showMoistureComparison', visible: false },
   { id: 'supporting-details', label: 'Chart key', preference: 'showSupportingDetails', visible: true },
 ];
 
@@ -83,7 +83,6 @@ export function createPageLayout({ preferences, save, canStartPointerGesture = (
       if (list.children[index] !== row) list.insertBefore(row, list.children[index] || null);
       if (!box.pinned) row.querySelector('input').checked = preferences[box.preference] === true;
     }
-    document.querySelector('#settingsEditIndoor').hidden = preferences.showIndoorSummary || preferences.showMoistureComparison;
     document.documentElement.classList.remove('layout-pending');
     updateMenuActions();
   }
@@ -346,7 +345,7 @@ export function createPageLayout({ preferences, save, canStartPointerGesture = (
     document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') { finish(true, true); closeMenu(); } });
     document.querySelector('#resetPageLayout').addEventListener('click', () => {
       finish(true, true); closeMenu(); Object.assign(preferences, pageLayoutDefaults()); apply(); save();
-      status.textContent = 'Page layout reset to defaults.';
+      status.textContent = 'Overview layout reset to defaults.';
     });
   }
 

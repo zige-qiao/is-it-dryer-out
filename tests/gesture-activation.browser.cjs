@@ -30,8 +30,8 @@ const preview = process.argv[2] || 'http://127.0.0.1:8780/';
       }
     };
     for (const selector of ['#settingsButton', '#locationButton', '#editIndoorButton', '#planSummaryButton', '[data-chart-hours="24"]', '#explanationToggle', '#explanationDetailsSummary', '#refreshWeather']) await suppressed(selector);
-    await page.locator('#settingsButton').click();
-    for (const selector of ['#showIndoorSummary', '#showMoistureComparison', '#showCameraButton', '#useStillPhotos', '#autoFlash', '#resetPageLayout', '#settingsDoneButton', ...['indoor-summary', 'moisture-comparison', 'supporting-details'].map(id => `[data-layout-row="${id}"] [data-drag-handle]`)]) await suppressed(selector);
+    await page.locator('[data-page-link="why"]').click(); await page.locator('#settingsButton').click();
+    for (const selector of ['#showIndoorSummary', '#showMoistureComparison', '#showCameraButton', '#useStillPhotos', '#autoFlash', '#resetPageLayout', '#settingsDialog .sheet-close-button', ...['indoor-summary', 'moisture-comparison', 'supporting-details'].map(id => `[data-layout-row="${id}"] [data-drag-handle]`)]) await suppressed(selector);
     const cdp = await context.newCDPSession(page);
     const initialOrder = await page.locator('#pageLayoutList > li').evaluateAll(nodes => nodes.map(n => n.dataset.layoutRow));
     // Start real native swipes directly on each handle, in both scroll directions.
@@ -92,7 +92,7 @@ const preview = process.argv[2] || 'http://127.0.0.1:8780/';
       assert.equal(await page.locator('#settingsDialog').evaluate(n => n.open), true);
     }
     for (const dy of [-60, 20]) {
-      const b = await page.locator('#settingsDoneButton').boundingBox();
+      const b = await page.locator('#settingsDialog .sheet-close-button').boundingBox();
       const point = offset => [{ x: b.x + b.width / 2, y: b.y + 5 + offset, id: 1 }];
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: point(0) });
       for (const fraction of [.2, .5, 1]) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: point(dy * fraction) });
@@ -102,10 +102,11 @@ const preview = process.argv[2] || 'http://127.0.0.1:8780/';
     // Mouse and keyboard still work immediately after a swipe/cancellation.
     await page.locator('#showCameraButton').click(); assert.equal(await page.locator('#showCameraButton').isChecked(), false);
     await page.locator('#showCameraButton').focus(); await page.keyboard.press('Space'); assert.equal(await page.locator('#showCameraButton').isChecked(), true);
-    await page.locator('#settingsDoneButton').click(); assert.equal(await page.locator('#settingsDialog').evaluate(n => n.open), false);
+    await page.locator('#settingsDialog .sheet-close-button').click(); assert.equal(await page.locator('#settingsDialog').evaluate(n => n.open), false);
+    await page.locator('[data-page-link="overview"]').click();
     for (const [opener, selectors, close] of [
-      ['#editIndoorButton', ['#cameraInputButton', '#indoorDoneButton'], '#indoorDoneButton'],
-      ['#planSummaryButton', ['#planDoneButton', '[data-room-volume]'], '#planDoneButton'],
+      ['#editIndoorButton', ['#cameraInputButton', '#indoorDialog .sheet-close-button'], '#indoorDialog .sheet-close-button'],
+      ['#planSummaryButton', ['#planDialog .sheet-close-button', '[data-room-volume]'], '#planDialog .sheet-close-button'],
       ['#locationButton', ['#locationUpdateButton', '#locationClearButton'], '#locationDialog [data-close-dialog]'],
     ]) {
       await page.locator(opener).click();
@@ -119,7 +120,7 @@ const preview = process.argv[2] || 'http://127.0.0.1:8780/';
     await page.keyboard.press('Escape');
     if (await page.locator('#timerDialog').evaluate(n => n.open)) await page.keyboard.press('Escape');
     assert.deepEqual(errors, []);
-    await page.locator('#settingsButton').click();
+    await page.locator('[data-page-link="why"]').click(); await page.locator('#settingsButton').click();
     fs.mkdirSync('work/page-layout/gestures', { recursive: true });
     await page.screenshot({ path: 'work/page-layout/gestures/settings-swipe-guard.png' });
     console.log(`PASS ${checks} up/down/left/right compatibility-click protections, six native handle swipes, stationary holds and quick taps, native Settings swipes, keyboard/mouse recovery and disclosure activation.`);

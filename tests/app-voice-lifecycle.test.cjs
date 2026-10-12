@@ -58,28 +58,28 @@ test('voice changes require review and Apply, preserving the foreground stream',
   assert.deepEqual(f.state,{indoorTemp:21,indoorRh:55}); assert.equal(f.saved,1);assert.equal(f.renders,1);
   assert.equal(f.tracks[0].readyState,'live'); assert.equal(f.elements.voiceDialog.hidden,true);
 });
-test('live hearing replaces listening until review, with examples hidden', async () => {
+test('live hearing replaces listening until review, with persistent examples', async () => {
   const f=voiceFixture(); f.controller.startVoiceInput(); await flush();
   assert.equal(f.elements.voiceStatus.textContent,'Listening...');
   f.recognizers[0].result('21 degrees',false);
   assert.equal(f.elements.voiceStatus.textContent,'Hearing: “21 degrees”');
-  assert.equal(f.elements.voiceTranscriptPanel.hidden,true); assert.equal(f.elements.voiceExamples.hidden,true);
+  assert.equal(f.elements.voiceTranscriptPanel.hidden,true); assert.equal(f.elements.voiceExamples.hidden,false);
   f.recognizers[0].emit('end');
   assert.equal(f.elements.voiceStatus.textContent,'Review the changes before applying.');
   assert.equal(f.elements.voiceTranscriptPanel.hidden,false);
 });
-test('voice examples stay below status and waveform stays inside the dialog', () => {
+test('voice examples stay above status and waveform stays inside the dialog', () => {
   const dialog=index.slice(index.indexOf('id="voiceDialog"'));
   assert.doesNotMatch(index.slice(index.indexOf('id="voiceInputButton"'),index.indexOf('id="voiceDialog"')),/voice-waveform/);
-  assert.match(dialog,/id="voiceStatus"[^]*?id="voiceExamples"[^]*?id="voiceTranscriptPanel"/);
+  assert.match(dialog,/id="voiceExamples"[^]*?id="voiceStatus"[^]*?id="voiceTranscriptPanel"/);
   assert.match(dialog,/Try “21 degrees, 55 percent” or just “21 and 55”\./);
   assert.match(dialog,/To change one reading, say “Humidity 60 percent”\./);
   assert.match(dialog,/voice-waveform/);
 });
-test('recognition errors hide examples and retain the iOS stream after end', async () => {
+test('recognition errors preserve examples and retain the iOS stream after end', async () => {
   const f=voiceFixture();f.controller.startVoiceInput();await flush();
   f.recognizers[0].emit('error',{error:'network'});f.recognizers[0].emit('end');
-  assert.equal(f.elements.voiceExamples.hidden,true);assert.equal(f.elements.voiceApplyButton.disabled,true);
+  assert.equal(f.elements.voiceExamples.hidden,false);assert.equal(f.elements.voiceApplyButton.disabled,true);
   assert.match(f.elements.voiceTranscript.textContent,/unavailable/);assert.equal(f.tracks[0].readyState,'live');
 });
 test('background and navigation abort recognition before releasing active or retained capture', async () => {

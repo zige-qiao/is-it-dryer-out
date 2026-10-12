@@ -97,7 +97,7 @@ export function createVoiceController({
 
   function showVoiceResult(transcript, allowApply = true, session = activeVoiceSession) {
     if (session) session.hadResult = true;
-    elements.voiceExamples.hidden = true;
+    elements.voiceExamples.hidden = false;
     const parsed = parseVoiceCommand(transcript);
     const rows = voiceChangeRows(parsed.values);
     pendingVoiceChanges = rows.length ? parsed.values : null;
@@ -125,6 +125,7 @@ export function createVoiceController({
     if (allowApply) {
       elements.voiceListenButton.setAttribute("aria-label", "Record again");
       elements.voiceListenButton.title = "Record again";
+      setRecordLabel("Record again");
     }
   }
 
@@ -381,7 +382,7 @@ export function createVoiceController({
 
   function showVoiceError(message) {
     pendingVoiceChanges = null;
-    elements.voiceExamples.hidden = true;
+    elements.voiceExamples.hidden = false;
     elements.voiceStatus.textContent = "";
     elements.voiceStatus.hidden = true;
     elements.voiceTranscript.textContent = message;
@@ -420,6 +421,7 @@ export function createVoiceController({
     elements.voiceListenButton.disabled = false;
     elements.voiceListenButton.setAttribute("aria-label", "Record again");
     elements.voiceListenButton.title = "Record again";
+      setRecordLabel("Record again");
   }
 
   function completeVoiceSession(session) {
@@ -435,8 +437,18 @@ export function createVoiceController({
     const entering = elements.voiceDialog.hidden;
     if (!indoorDialog.open) dialogScrollLock.open(indoorDialog);
     indoorDialog.classList.add('voice-mode');
+    const closeButton = document.querySelector?.('#indoorDialog .sheet-close-button');
+    closeButton?.setAttribute('aria-label', 'Close indoor readings');
+    if (closeButton) closeButton.title = 'Close';
+    document.querySelector('#indoor-heading').textContent = 'Update by voice';
+    elements.voiceDialogCloseButton.hidden = false;
     elements.voiceDialog.hidden = false;
     if (entering) document.querySelector('#indoor-heading').focus({ preventScroll: true });
+  }
+
+  function setRecordLabel(label) {
+    const text = elements.voiceListenButton.querySelector?.('.voice-button-label');
+    if (text) text.textContent = label;
   }
 
   function resetVoiceResult() {
@@ -449,7 +461,8 @@ export function createVoiceController({
     elements.voiceApplyButton.disabled = true;
     elements.voiceApplyButton.hidden = true;
     elements.voiceListenButton.setAttribute("aria-label", "Record indoor readings");
-    elements.voiceListenButton.title = "Record indoor readings";
+    elements.voiceListenButton.title = "Record readings";
+    setRecordLabel("Record readings");
     elements.voiceStatus.hidden = false;
     elements.voiceStatus.textContent = "Ready to listen.";
     elements.voiceStatus.classList.remove("is-listening");
@@ -490,6 +503,7 @@ export function createVoiceController({
     }, session.id);
     resetVoiceResult();
     elements.voiceStatus.textContent = "Starting microphone...";
+    setRecordLabel("Starting microphone…");
     elements.voiceInputButton.disabled = true;
     elements.voiceListenButton.disabled = true;
     showVoiceDialog();
@@ -553,7 +567,7 @@ export function createVoiceController({
       session.finalTimer = null;
       const transcript = [...event.results].map((result) => result[0].transcript).join(" ").trim();
       session.latestTranscript = transcript;
-      if (transcript) elements.voiceExamples.hidden = true;
+      elements.voiceExamples.hidden = false;
       elements.voiceStatus.textContent = `Hearing: “${transcript}”`;
       elements.voiceTranscriptPanel.hidden = true;
       const latestResult = event.results[event.results.length - 1];
@@ -670,6 +684,7 @@ export function createVoiceController({
     elements.voiceListenButton.disabled = true;
     elements.voiceListenButton.setAttribute("aria-label", "Finishing recording");
     elements.voiceListenButton.title = "Finishing recording";
+    setRecordLabel("Finishing…");
     if (showDialogImmediately) showVoiceDialog();
     try {
       session.recognition.stop();
@@ -716,6 +731,11 @@ export function createVoiceController({
     elements.voiceDialog.hidden = true;
     const indoorDialog = document.querySelector('#indoorDialog');
     indoorDialog.classList.remove('voice-mode');
+    const closeButton = document.querySelector?.('#indoorDialog .sheet-close-button');
+    closeButton?.setAttribute('aria-label', 'Done with indoor readings');
+    if (closeButton) closeButton.title = 'Done';
+    document.querySelector('#indoor-heading').textContent = 'Indoor readings';
+    elements.voiceDialogCloseButton.hidden = true;
     if (indoorDialog.open) (elements.voiceInputButton.hidden ? document.querySelector('#indoor-heading') : elements.voiceInputButton)?.focus({ preventScroll: true });
   }
 

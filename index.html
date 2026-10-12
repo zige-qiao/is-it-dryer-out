@@ -132,8 +132,8 @@
         </section>
 
         <section data-page-box="supporting-details" class="details-footnotes" aria-label="Chart key">
-          <details class="dashboard-explainer chart-key-explainer" id="chartKey">
-            <summary>Chart key</summary>
+          <section class="dashboard-explainer chart-key-explainer" id="chartKey" aria-labelledby="chartKeyHeading">
+            <h2 id="chartKeyHeading" class="chart-key-heading">Chart key</h2>
                 <div class="chart-key-content" role="region" aria-label="Chart key">
                   <div class="chart-key-legend">
                     <section class="chart-key-group" aria-labelledby="chartKeyLines"><h3 id="chartKeyLines" class="detail-category">Lines</h3>
@@ -151,7 +151,7 @@
                     </section>
                   </div>
                 </div>
-          </details>
+          </section>
 
 
         </section>
@@ -228,6 +228,7 @@
       </div>
     </main>
     <!-- Navigation icons: Lucide; licence in docs/lucide-icons-license.txt. -->
+    <div class="bottom-controls">
     <nav class="bottom-tabs" aria-label="Main navigation">
       <a href="#overview" data-page-link="overview" aria-controls="overviewPage" aria-current="page">
         <svg viewBox="0 0 24 24" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
@@ -238,18 +239,22 @@
         <span>Why</span>
       </a>
     </nav>
+    <button class="indoor-dock-button" id="indoorDockButton" type="button" aria-label="Indoor" title="Indoor" aria-haspopup="dialog" aria-controls="indoorDialog" aria-expanded="false">
+      <span class="indoor-dock-icon" aria-hidden="true"><svg viewBox="0 0 20 20"><path d="M8 11V4a2 2 0 0 1 4 0v7a3 3 0 1 1-4 0ZM10 7v7"/></svg></span>
+    </button>
+    </div>
 
 <dialog class="settings-dialog white-sheet" id="settingsDialog" aria-labelledby="settingsDialogTitle">
   <div class="sheet-header"><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span>
     <div class="sheet-handle" aria-hidden="true"><span></span></div>
     <div class="settings-dialog-heading sheet-title-row">
       <h2 id="settingsDialogTitle" tabindex="-1" autofocus>Settings</h2>
-      <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close settings" title="Close">&times;</button>
+      <button class="sheet-close-button" type="button" data-close-dialog aria-label="Done with settings" title="Done"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg></button>
     </div>
   </div>
   <div class="settings-dialog-content sheet-body">
     <section class="settings-group" aria-labelledby="settingsLayoutTitle">
-      <div class="settings-group-heading"><h3 id="settingsLayoutTitle">Page layout</h3><button class="layout-reset" id="resetPageLayout" type="button" aria-label="Reset page layout">Reset</button></div>
+      <div class="settings-group-heading"><h3 id="settingsLayoutTitle">Overview layout</h3><button class="layout-reset" id="resetPageLayout" type="button" aria-label="Reset Overview layout">Reset</button></div>
       <ol class="settings-group-card page-layout-list" id="pageLayoutList">
         <li class="page-layout-row page-layout-pinned" data-layout-row="recommendation">
           <div class="layout-pinned-copy">
@@ -263,7 +268,7 @@
         </li>
         <li class="page-layout-row" data-layout-row="moisture-comparison" tabindex="-1">
           <button type="button" class="layout-drag-handle" data-drag-handle aria-label="Reorder Moisture comparison" title="Tap for move options; touch and hold to drag" aria-haspopup="menu" aria-controls="pageLayoutMenu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01"/></svg></button>
-          <label class="settings-toggle"><span>Moisture comparison</span><input id="showMoistureComparison" type="checkbox" role="switch" aria-label="Show Moisture comparison" checked /><span class="settings-switch" aria-hidden="true"></span></label>
+          <label class="settings-toggle"><span>Moisture comparison</span><input id="showMoistureComparison" type="checkbox" role="switch" aria-label="Show Moisture comparison" /><span class="settings-switch" aria-hidden="true"></span></label>
         </li>
         <li class="page-layout-row" data-layout-row="supporting-details" tabindex="-1">
           <button type="button" class="layout-drag-handle" data-drag-handle aria-label="Reorder Chart key" title="Tap for move options; touch and hold to drag" aria-haspopup="menu" aria-controls="pageLayoutMenu" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5h.01M16 5h.01M8 12h.01M16 12h.01M8 19h.01M16 19h.01"/></svg></button>
@@ -276,7 +281,6 @@
       <h3 id="settingsIndoorTitle">Indoor readings</h3>
       <div class="settings-group-card">
         <label class="settings-toggle"><span>Open on launch</span><input id="openIndoorOnLaunch" type="checkbox" role="switch" aria-label="Open Indoor readings on launch" checked /><span class="settings-switch" aria-hidden="true"></span></label>
-        <button id="settingsEditIndoor" class="settings-edit-indoor" type="button" aria-haspopup="dialog" aria-controls="indoorDialog" hidden>Edit Indoor readings</button>
         <label class="settings-toggle"><span>Show camera button</span><input id="showCameraButton" type="checkbox" role="switch" checked /><span class="settings-switch" aria-hidden="true"></span></label>
         <div id="settingsCameraOptions" class="settings-nested-options" role="group" aria-label="Camera options">
           <label class="settings-toggle"><span class="settings-option-copy"><span>Still photos</span><span class="settings-help" id="stillPhotoSettingHelp">Can capture more detail; may take longer.</span></span><input id="useStillPhotos" type="checkbox" role="switch" aria-label="Still photos" aria-describedby="stillPhotoSettingHelp" /><span class="settings-switch" aria-hidden="true"></span></label>
@@ -286,9 +290,7 @@
       </div>
     </section>
   </div>
-  <div class="settings-dialog-footer sheet-footer">
-    <button class="sheet-primary" id="settingsDoneButton" type="button" data-close-dialog>Done</button>
-  </div>
+
   <div id="pageLayoutMenu" class="layout-menu" role="menu" aria-label="Reorder page section" hidden>
     <button type="button" role="menuitem" tabindex="-1" data-move="up">Move up</button>
     <button type="button" role="menuitem" tabindex="-1" data-move="down">Move down</button>
@@ -298,19 +300,22 @@
 <dialog class="indoor-dialog white-sheet" id="indoorDialog" aria-labelledby="indoor-heading">
 <div class="sheet-header"><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><div class="sheet-handle" aria-hidden="true"><span></span></div>
 <div class="section-heading sheet-title-row">
-    <div class="indoor-title"><div class="camera-title-row"><h2 id="indoor-heading" tabindex="-1">Indoor readings</h2><button id="cameraHelpButton" class="camera-help-button" type="button" aria-label="Reading box help" aria-expanded="false" aria-controls="cameraCropHint" aria-describedby="cameraCropHint" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 2-2.5 2-2.5 4M12 16h.01"></path></svg></button></div><div id="cameraCropHint" class="camera-help-content" role="region" aria-label="Camera help" hidden><span id="cameraCaptureHint" hidden>Choose 1×, 3× or 5×. The higher presets select an available telephoto camera; the multiplier does not guarantee an exact optical ratio. Keep the main digits sharp and visible. Avoid reflections. Higher digital zoom enlarges existing pixels; moving closer preserves more detail. <span class="camera-auto-help">Auto flash turns on lighting in low light. Camera-frame capture uses torch where supported; still-photo flash requires Still photos to be on. Change it in <a id="cameraAutoFlashSettings" href="#autoFlash">Settings</a>.</span></span><span id="cameraReviewHint">Drag on the photo to add a box including °C or %. Move a box or resize its corners; release to read. <span id="cameraEditHint">Tap a value to correct it.</span></span></div><p id="indoorLastSet" hidden></p></div>
+    <div class="sheet-leading-slot"><button class="camera-back sheet-nav-button" type="button" id="cameraBackButton" aria-label="Back to indoor readings" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg></button><button class="sheet-nav-button" type="button" id="voiceDialogCloseButton" aria-label="Back to indoor readings" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 6-6 6 6 6"></path></svg></button></div>
+    <div class="indoor-title"><div class="camera-title-row"><h2 id="indoor-heading" tabindex="-1">Indoor readings</h2></div><p id="indoorLastSet" hidden></p></div>
     <div class="sheet-heading-actions">
-    <button class="indoor-speak-button indoor-icon-button" type="button" id="cameraInputButton" aria-label="Scan indoor readings" title="Scan indoor readings" aria-controls="cameraPanel">
+<button class="indoor-speak-button indoor-icon-button" type="button" id="cameraInputButton" aria-label="Scan indoor readings" title="Scan indoor readings" aria-controls="cameraPanel">
       <span class="camera-load-spinner" aria-hidden="true"></span>
       <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"></path><circle cx="12" cy="13" r="3"></circle></svg>
     </button>
     <button class="indoor-speak-button indoor-icon-button" type="button" id="voiceInputButton" aria-label="Update indoor readings by voice" title="Update indoor readings by voice" hidden>
       <svg class="refresh-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"></path></svg>
     </button>
-    <button class="camera-back" type="button" id="cameraBackButton" aria-label="Back to indoor readings" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 6-6 6 6 6"></path></svg><span>Back</span></button>
-    <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close indoor readings" title="Close">&times;</button>
+
+<button id="cameraHelpButton" class="camera-help-button" type="button" aria-label="Reading box help" aria-expanded="false" aria-controls="cameraCropHint" aria-describedby="cameraCropHint" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 8a3.5 3.5 0 0 1 7 0c0 3-3.5 3-3.5 6M12 18h.01"></path></svg></button>
+    <button class="sheet-close-button" type="button" data-close-dialog aria-label="Done with indoor readings" title="Done"><svg class="sheet-done-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg><svg class="sheet-cancel-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12m0-12L6 18"></path></svg></button>
     </div>
   </div>
+<div id="cameraCropHint" class="camera-help-content" role="region" aria-label="Camera help" hidden><span id="cameraCaptureHint" hidden>Choose 1×, 3× or 5×. The higher presets select an available telephoto camera; the multiplier does not guarantee an exact optical ratio. Keep the main digits sharp and visible. Avoid reflections. Higher digital zoom enlarges existing pixels; moving closer preserves more detail. <span class="camera-auto-help">Auto flash turns on lighting in low light. Camera-frame capture uses torch where supported; still-photo flash requires Still photos to be on. Change it in <a id="cameraAutoFlashSettings" href="#autoFlash">Settings</a>.</span></span><span id="cameraReviewHint">Drag on the photo to add a box including °C or %. Move a box or resize its corners; release to read. <span id="cameraEditHint">Tap a value to correct it.</span></span></div>
 </div>
 
 <div class="sheet-body">
@@ -342,24 +347,29 @@
 <section class="voice-panel" id="voiceDialog" aria-label="Update by voice" hidden>
       <div class="voice-dialog-content">
 
-        <p class="voice-status" id="voiceStatus" role="status">Ready to listen.</p>
         <div class="voice-examples" id="voiceExamples">
           <p>Try “21 degrees, 55 percent” or just “21 and 55”.</p>
           <p>To change one reading, say “Humidity 60 percent”.</p>
         </div>
+        <div class="voice-guidance-panel">
+        <div class="voice-dynamic-lines">
+        <p class="voice-status" id="voiceStatus" role="status">Ready to listen.</p>
         <div class="voice-transcript-panel" id="voiceTranscriptPanel" hidden>
           <p class="voice-transcript" id="voiceTranscript"></p>
+        </div>
+        </div>
         </div>
         <dl class="voice-changes" id="voiceChanges"></dl>
         <p class="voice-update-note" id="voiceUpdateNote" hidden>Will update the current indoor readings.</p>
         <div class="voice-dialog-actions">
-<button class="secondary-button sheet-secondary" type="button" id="voiceDialogCloseButton">Back to manual</button>
-          <button class="voice-input-button voice-dialog-input-button" type="button" id="voiceListenButton" aria-label="Record again" title="Record again">
+
+          <button class="voice-input-button voice-dialog-input-button sheet-primary" type="button" id="voiceListenButton" aria-label="Record again" title="Record again">
             <svg class="voice-input-icon" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
               <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
               <path d="M12 19v3"></path>
             </svg>
+            <span class="voice-button-label">Record readings</span>
             <span class="voice-waveform voice-button-waveform" aria-hidden="true">
               <span></span>
               <span></span>
@@ -436,14 +446,14 @@
   </div>
 </section>
 </div>
-<div class="sheet-footer"><button class="indoor-done sheet-primary" id="indoorDoneButton" type="button">Done</button></div>
+
 </dialog>
 
 <dialog class="plan-dialog white-sheet" id="planDialog" aria-labelledby="planDialogTitle">
 <div class="sheet-header"><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><div class="sheet-handle" aria-hidden="true"><span></span></div>
 <div class="plan-dialog-heading sheet-title-row">
           <h2 id="planDialogTitle" tabindex="-1" autofocus>Ventilation settings</h2>
-          <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close ventilation settings" title="Close">&times;</button>
+          <button class="sheet-close-button" type="button" data-close-dialog aria-label="Done with ventilation settings" title="Done"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg></button>
         </div>
 </div>
 
@@ -522,14 +532,14 @@
         </div>
 
       </div>
-    <div class="sheet-footer"><button class="indoor-done sheet-primary" id="planDoneButton" type="button">Done</button></div>
+
 </dialog>
 
 <dialog class="location-dialog white-sheet" id="locationDialog" aria-labelledby="locationDialogTitle">
 <div class="sheet-header"><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><div class="sheet-handle" aria-hidden="true"><span></span></div>
 <div class="location-dialog-heading sheet-title-row">
           <h2 id="locationDialogTitle" tabindex="-1" autofocus>Location</h2>
-          <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close location" title="Close">&times;</button>
+          <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close location" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12m0-12L6 18"></path></svg></button>
         </div>
 </div>
 
@@ -562,18 +572,15 @@
     <dialog class="indoor-dialog timer-dialog white-sheet" id="timerDialog" aria-labelledby="timerDialogTitle">
 <div class="sheet-header"><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><span class="sheet-blur-layer" aria-hidden="true"></span><div class="sheet-handle" aria-hidden="true"><span></span></div>
 <div class="section-heading sheet-title-row">
-          <div class="timer-title">
-            <h2 id="timerDialogTitle" tabindex="-1">Ventilation timer</h2>
-            <details class="timer-help" id="timerHelp">
-              <summary aria-label="Timer setup" title="Timer setup"><span aria-hidden="true">?</span></summary>
+<div class="timer-title"><h2 id="timerDialogTitle" tabindex="-1">Ventilation timer</h2></div>
+<div class="sheet-heading-actions"><details class="timer-help" id="timerHelp">
+              <summary aria-label="Timer setup" title="Timer setup"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 8a3.5 3.5 0 0 1 7 0c0 3-3.5 3-3.5 6M12 18h.01"></path></svg></summary>
               <div class="timer-help-content">
                 <p>Add the Shortcut once, then tap Start iPhone timer whenever you need a timer. Your iPhone will switch to the Shortcuts app to set the timer.</p>
                 <a id="timerInstallLink" class="timer-install-link" href="https://www.icloud.com/shortcuts/d16fde94799a414bb11a3a40c484f080" target="_blank" rel="noopener">Install Shortcut</a>
               </div>
-            </details>
-          </div>
-          <button class="sheet-close-button" type="button" data-close-dialog aria-label="Close ventilation timer" title="Close">&times;</button>
-        </div>
+            </details><button class="sheet-close-button" type="button" data-close-dialog aria-label="Close ventilation timer" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12m0-12L6 18"></path></svg></button></div>
+</div>
 </div>
 
       <div class="sheet-body"><section class="inputs-panel">

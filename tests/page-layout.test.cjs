@@ -27,7 +27,7 @@ test('layout preferences migrate missing fields and preserve explicit booleans',
 
 function fixture(blocked = false, eligible = () => true) {
   const preferences = { ...pageLayoutDefaults(), showCameraButton: false, openIndoorOnLaunch: false };
-  const shell = element(), footer = element(), list = element(), dialog = element(), status = element(), fallback = element(), reset = element();
+  const shell = element(), footer = element(), list = element(), dialog = element(), status = element(), reset = element();
   const menu = element(), up = element(), down = element(), window = element();
   up.dataset.move = 'up'; down.dataset.move = 'down'; menu.insertBefore(up, null); menu.insertBefore(down, null);
   menu.querySelectorAll = () => [up, down]; menu.hidden = true;
@@ -57,7 +57,7 @@ function fixture(blocked = false, eligible = () => true) {
   list.getBoundingClientRect = () => ({ top: 0, bottom: 400 }); dialog.getBoundingClientRect = () => ({ top: 0, bottom: 300, left: 0, right: 320 }); dialog.scrollTop = 0;
   const document = element(); document.documentElement = element(); document.visibilityState = 'visible';
   const nodes = { '.app-shell': shell, '.project-credit-row': footer, '#pageLayoutList': list, '#settingsDialog': dialog,
-    '#pageLayoutStatus': status, '#settingsEditIndoor': fallback, '#resetPageLayout': reset, '#pageLayoutMenu': menu };
+    '#pageLayoutStatus': status, '#resetPageLayout': reset, '#pageLayoutMenu': menu };
   for (const action of [up, down]) action.focus = () => { focused = action; document.activeElement = action; };
   document.querySelector = selector => nodes[selector];
   document.createElement = () => { const node = element(); node.remove = () => { dialog.children = dialog.children.filter(child => child !== node); }; return node; };
@@ -68,7 +68,7 @@ function fixture(blocked = false, eligible = () => true) {
     setTimeout(fn, delay) { timers.set(++timerId, { fn, due: time + delay }); return timerId; }, clearTimeout(id) { timers.delete(id); },
   });
   controller.apply(); controller.bind();
-  return { preferences, shell, footer, list, rows, boxes, dialog, scroller, sheetHeader, status, fallback, reset, document, frames, localStorage, menu, up, down, window,
+  return { preferences, shell, footer, list, rows, boxes, dialog, scroller, sheetHeader, status, reset, document, frames, localStorage, menu, up, down, window,
     advance(ms) { time += ms; for (const [id, timer] of timers) if (timer.due <= time) { timers.delete(id); timer.fn(); } }, timers,
     get saves() { return saves; }, get focused() { return focused; } };
 }
@@ -212,16 +212,16 @@ test('keyboard moves preserve nodes, focus, hidden visibility and footer positio
   assert.equal(f.saves, 2);
 });
 
-test('visibility, reset and all-hidden fallback work with blocked storage', () => {
+test('visibility and reset work with blocked storage', () => {
   const f = fixture(true);
   for (const box of PAGE_BOXES) {
     const input = f.rows.get(box.id).controls.input; input.checked = false; input.emit('change', { target: input });
   }
-  assert.equal(f.fallback.hidden, false); assert.ok([...f.boxes.entries()].every(([id, box]) => box.hidden === (id !== 'recommendation'))); assert.equal(f.footer.hidden, false);
+  assert.ok([...f.boxes.entries()].every(([id, box]) => box.hidden === (id !== 'recommendation'))); assert.equal(f.footer.hidden, false);
   f.rows.get('supporting-details').controls.handle.emit('click'); f.up.emit('click'); assert.equal(f.preferences.pageOrder[2], 'supporting-details');
   f.reset.emit('click');
   for (const [key, value] of Object.entries(pageLayoutDefaults())) assert.deepEqual(f.preferences[key], value);
-  assert.equal(f.preferences.showCameraButton, false); assert.equal(f.preferences.openIndoorOnLaunch, false); assert.equal(f.fallback.hidden, true);
+  assert.equal(f.preferences.showCameraButton, false); assert.equal(f.preferences.openIndoorOnLaunch, false);
 });
 
 test('pointer dragging defers commits, supports edge scrolling and restores order on Escape or cancellation', () => {
@@ -243,9 +243,9 @@ test('pointer dragging defers commits, supports edge scrolling and restores orde
   }
 });
 
-test('new defaults hide the first Indoor box, show comparison, and retain saved layouts', () => {
+test('new defaults hide both indoor boxes and retain saved layouts', () => {
   assert.deepEqual(pageLayoutDefaults(), { pageOrder: ['recommendation', 'indoor-summary', 'moisture-comparison', 'supporting-details'],
-    showIndoorSummary: false, showRecommendation: true, showMoistureComparison: true, showSupportingDetails: true });
+    showIndoorSummary: false, showRecommendation: true, showMoistureComparison: false, showSupportingDetails: true });
   const localStorage = memoryStorage(), saved = { pageOrder: ['supporting-details', 'moisture-comparison', 'recommendation', 'indoor-summary'],
     showIndoorSummary: true, showRecommendation: false, showMoistureComparison: false, showSupportingDetails: true };
   localStorage.setItem(UI_PREFERENCES_STORAGE_KEY, JSON.stringify(saved));

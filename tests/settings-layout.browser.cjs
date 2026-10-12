@@ -34,7 +34,7 @@ const key = 'is-it-dryer-out-ui-preferences';
     await page.waitForFunction(() => !document.documentElement.classList.contains('layout-pending'));
     assert.deepEqual(await page.locator('.app-shell > [data-page-box]').evaluateAll(nodes => nodes.map(node => [node.dataset.pageBox, node.hidden])),
       defaults.map(id => [id, id === 'indoor-summary']));
-    await page.locator('#settingsButton').click();
+    await page.locator('[data-page-link="why"]').click(); await page.locator('#settingsButton').click();
     assert.deepEqual(await page.locator('#settingsDialog').evaluate(node => ({ x: getComputedStyle(node).overscrollBehaviorX, y: getComputedStyle(node).overscrollBehaviorY })), { x: 'contain', y: 'contain' });
     for (const selector of ['#indoorDialog', '#planDialog', '#locationDialog', '#timerDialog']) {
       assert.equal(await page.locator(selector).evaluate(node => getComputedStyle(node).overscrollBehaviorY), 'contain', `${selector} keeps its existing edge behaviour`);
@@ -82,16 +82,16 @@ const key = 'is-it-dryer-out-ui-preferences';
     await page.locator('#resetPageLayout').click();
     assert.deepEqual(await order(), defaults);
     assert.equal(await page.locator('#showIndoorSummary').isChecked(), false);
-    assert.equal(await page.locator('#showMoistureComparison').isChecked(), true);
+    assert.equal(await page.locator('#showMoistureComparison').isChecked(), false);
     assert.equal(await page.locator('#showCameraButton').isChecked(), false);
     assert.equal(await page.locator('#useStillPhotos').isChecked(), true);
     assert.equal(await page.locator('#autoFlash').isChecked(), false);
     assert.equal(await page.locator('#openIndoorOnLaunch').isChecked(), true);
     assert.equal(await page.locator('#settingsCameraOptions').isVisible(), false);
     await page.locator('#openIndoorOnLaunch').uncheck();
-    await page.locator('#settingsDoneButton').click(); await page.reload();
+    await page.locator('#settingsDialog .sheet-close-button').click(); await page.reload();
     await page.waitForFunction(() => !document.documentElement.classList.contains('layout-pending'));
-    await page.locator('#settingsButton').click();
+    await page.locator('[data-page-link="why"]').click(); await page.locator('#settingsButton').click();
     assert.equal(await page.locator('#settingsCameraOptions').isVisible(), false);
     assert.equal(await page.locator('#useStillPhotos').isChecked(), true);
     assert.equal(await page.locator('#autoFlash').isChecked(), false);
@@ -103,10 +103,12 @@ const key = 'is-it-dryer-out-ui-preferences';
     await page.locator('#showIndoorSummary').check();
     assert.deepEqual(await page.locator('.app-shell > [data-page-box]').evaluateAll(nodes => nodes.map(node => node.dataset.pageBox)), defaults);
     await page.locator('#showIndoorSummary').uncheck(); await page.locator('#showMoistureComparison').uncheck();
-    await page.locator('#settingsEditIndoor').click(); assert.equal(await page.locator('#indoorDialog').evaluate(node => node.open), true);
-    await page.locator('#indoorDoneButton').click();
-    assert.equal(await page.locator('#settingsButton').evaluate(node => node === document.activeElement), true);
-    await page.locator('#settingsButton').click(); await page.locator('#resetPageLayout').click();
+    assert.equal(await page.locator('#settingsEditIndoor').count(), 0);
+    await page.locator('#settingsDialog .sheet-close-button').click();
+    await page.locator('#indoorDockButton').click(); assert.equal(await page.locator('#indoorDialog').evaluate(node => node.open), true);
+    await page.locator('#indoorDialog .sheet-close-button').click();
+    assert.equal(await page.locator('#indoorDockButton').evaluate(node => node === document.activeElement), true);
+    await page.locator('[data-page-link="why"]').click(); await page.locator('#settingsButton').click(); await page.locator('#resetPageLayout').click();
 
     let views = 0;
     for (const width of [320, 390, 768, 1280]) {
@@ -132,7 +134,7 @@ const key = 'is-it-dryer-out-ui-preferences';
         assert.deepEqual(fixed.bodyPadding,['16px','16px']);assert.equal(fixed.scrollPadding,'20px');
         for(const fade of fixed.fades){assert.deepEqual([fade.height,fade.left,fade.right,fade.pointer,fade.position],['16px','20px','20px','none','absolute']);assert.match(fade.background,/linear-gradient/);}
         const measured = await page.locator('#settingsDialog').evaluate(node => ({ overflow: node.scrollWidth > node.clientWidth + 1,
-          targets: [...node.querySelectorAll('[data-drag-handle],#resetPageLayout,#settingsDoneButton')].map(control => {
+          targets: [...node.querySelectorAll('[data-drag-handle],#resetPageLayout,#settingsDialog .sheet-close-button')].map(control => {
             const box = control.getBoundingClientRect(); return { name: control.id || control.getAttribute('aria-label'), width: box.width, height: box.height };
           }), rows: [...node.querySelectorAll('.settings-toggle')].map(control => control.getBoundingClientRect().height),
           gaps: [...node.querySelectorAll('.settings-toggle')].map(control => getComputedStyle(control).gap) }));
@@ -158,7 +160,7 @@ const key = 'is-it-dryer-out-ui-preferences';
         assert.deepEqual([pinnedRow.gap, pinnedRow.iconWidth, pinnedRow.iconHeight, pinnedRow.stroke], ['8px', 20, 20, '1.5px']);
         assert.ok(pinnedRow.helperWidth <= 1 && pinnedRow.helperHeight <= 1);
         assert.equal(pinnedRow.strokeInside, true, `lock stroke bounds ${width}/${scale}`);
-        const initialDone = await page.locator('#settingsDoneButton').boundingBox();
+        const initialDone = await page.locator('#settingsDialog .sheet-close-button').boundingBox();
         assert.ok(initialDone.y >= 0 && initialDone.y + initialDone.height <= 900, `Done visible without scrolling ${width}/${scale}`);
         await page.screenshot({ path: path.join(artifacts, `settings-${width}-${scale}-top.png`) });
         for (const id of ['indoor-summary', 'moisture-comparison', 'supporting-details']) {
@@ -185,17 +187,17 @@ const key = 'is-it-dryer-out-ui-preferences';
         await page.screenshot({ path: path.join(artifacts, `settings-${width}-${scale}-camera-hidden.png`) });
         if (width === 390 && scale === 100) await page.locator('#settingsIndoorTitle').locator('..').screenshot({ path: path.join(artifacts, 'settings-camera-hidden.png') });
         await page.locator('#showCameraButton').check();
-        await page.locator('#settingsDoneButton').scrollIntoViewIfNeeded();
+        await page.locator('#settingsDialog .sheet-close-button').scrollIntoViewIfNeeded();
         const pinned = await page.locator('#settingsDialog').evaluate(node => {
           const sheet = node.getBoundingClientRect(), header = node.querySelector('.sheet-header').getBoundingClientRect();
-          const title = node.querySelector('#settingsDialogTitle').getBoundingClientRect(), done = node.querySelector('#settingsDoneButton').getBoundingClientRect();
+          const title = node.querySelector('#settingsDialogTitle').getBoundingClientRect(), done = node.querySelector('#settingsDialog .sheet-close-button').getBoundingClientRect();
           return { top: header.top, sheetTop: sheet.top + node.clientTop, titleTop: title.top, titleBottom: title.bottom, headerBottom: header.bottom,
             doneTop: done.top, doneBottom: done.bottom, sheetBottom: sheet.bottom, maxHeight: parseFloat(getComputedStyle(node).maxHeight),
             viewportHeight: visualViewport.height };
         });
         assert.ok(Math.abs(pinned.top - pinned.sheetTop) < 1, `sticky header ${width}/${scale}`);
         assert.ok(pinned.titleTop >= pinned.top && pinned.titleBottom <= pinned.headerBottom);
-        assert.ok(pinned.doneTop >= pinned.headerBottom && pinned.doneBottom <= pinned.sheetBottom);
+        assert.ok(pinned.doneTop >= pinned.top && pinned.doneBottom <= pinned.headerBottom);
         if (width < 640) assert.ok(Math.abs(pinned.maxHeight - (pinned.viewportHeight - 16)) < 1, `available mobile height ${width}/${scale}`);
         await page.screenshot({ path: path.join(artifacts, `settings-${width}-${scale}-bottom.png`) });
         views++;
@@ -207,7 +209,7 @@ const key = 'is-it-dryer-out-ui-preferences';
       await page.setViewportSize({ width: 390, height });
       await page.waitForFunction(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sheet-visible-height')) === visualViewport.height);
       await page.evaluate(() => { document.querySelector('.settings-dialog-content').scrollTop = 0; });
-      const initialDone = await page.locator('#settingsDoneButton').boundingBox();
+      const initialDone = await page.locator('#settingsDialog .sheet-close-button').boundingBox();
       assert.ok(initialDone.y >= 0 && initialDone.y + initialDone.height <= height, `Done initially visible at height ${height}`);
       await page.locator('#showVoiceButton').focus();
       const focusedRow = await page.locator('#showVoiceButton').evaluate(node => node.closest('label').getBoundingClientRect().bottom);
@@ -240,7 +242,7 @@ const key = 'is-it-dryer-out-ui-preferences';
     await touch.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await page.waitForFunction(() => !document.querySelector('#settingsDialog').open);
     assert.equal(await page.locator('#settingsButton').evaluate(node => node === document.activeElement), true);
-    await page.locator('#settingsButton').click();
+    await page.locator('[data-page-link="why"]').click(); await page.locator('#settingsButton').click();
     await page.evaluate(() => { document.querySelector('.settings-dialog-content').scrollTop = 0; });
     const touchHandle = await handle('indoor-summary').boundingBox(), touchLast = await row('supporting-details').boundingBox();
     const touchPoint = y => ({ x: touchHandle.x + 22, y, id: 1 });
@@ -268,11 +270,11 @@ const key = 'is-it-dryer-out-ui-preferences';
     assert.equal(await page.locator('.layout-drag-layer').evaluate(node => node.inert && node.getAttribute('aria-hidden') === 'true'), true);
     await page.mouse.up(); assert.equal(await menu.isVisible(), false);
     assert.deepEqual(await order(), ['recommendation', 'moisture-comparison', 'supporting-details', 'indoor-summary']);
-    await page.locator('#settingsDoneButton').click(); await page.reload();
+    await page.locator('#settingsDialog .sheet-close-button').click(); await page.reload();
     await page.waitForFunction(() => !document.documentElement.classList.contains('layout-pending'));
     assert.deepEqual(await order(), ['recommendation', 'moisture-comparison', 'supporting-details', 'indoor-summary']);
-    await page.locator('#settingsButton').click(); await page.locator('#resetPageLayout').click();
-    await page.locator('#settingsDoneButton').click();
+    await page.locator('[data-page-link="why"]').click(); await page.locator('#settingsButton').click(); await page.locator('#resetPageLayout').click();
+    await page.locator('#settingsDialog .sheet-close-button').click();
     assert.equal(await page.locator('#settingsButton').evaluate(node => node === document.activeElement), true);
     // Exercise the real camera help link with a synthetic browser camera, without capturing readings.
     await page.locator('#editIndoorButton').click(); await page.locator('#cameraInputButton').click();
@@ -281,13 +283,13 @@ const key = 'is-it-dryer-out-ui-preferences';
     assert.equal(await page.locator('#autoFlash').evaluate(node => node === document.activeElement), true);
     await page.locator('#showCameraButton').uncheck();
     assert.equal(await page.locator('#cameraPanel').evaluate(node => node.hidden), false);
-    await page.locator('#settingsDoneButton').click();
+    await page.locator('#settingsDialog .sheet-close-button').click();
     await page.locator('#cameraHelpButton').click(); await page.locator('#cameraAutoFlashSettings').click();
     assert.equal(await page.locator('#showCameraButton').evaluate(node => node === document.activeElement), true);
     assert.equal(await page.locator('#settingsCameraOptions').isVisible(), false);
     assert.equal(await page.locator('#showCameraButton').isChecked(), false);
-    await page.locator('#showCameraButton').check(); await page.locator('#settingsDoneButton').click();
-    await page.locator('#cameraBackButton').click(); await page.locator('#indoorDoneButton').click();
+    await page.locator('#showCameraButton').check(); await page.locator('#settingsDialog .sheet-close-button').click();
+    await page.locator('#cameraBackButton').click(); await page.locator('#indoorDialog .sheet-close-button').click();
     assert.deepEqual(errors, []);
     const board = await context.newPage(); await board.goto(`${preview}docs/design-system.html#settings-pattern`);
     await board.locator('#settings-pattern').screenshot({ path: path.join(artifacts, 'design-system-settings.png') });
@@ -296,7 +298,7 @@ const key = 'is-it-dryer-out-ui-preferences';
     const blocked = await browser.newContext({ serviceWorkers: 'block' });
     await blocked.addInitScript(() => { Storage.prototype.getItem = Storage.prototype.setItem = () => { throw Error('blocked'); }; });
     const blockedPage = await blocked.newPage(); await blockedPage.goto(preview);
-    await blockedPage.locator('#indoorDoneButton').click(); await blockedPage.locator('#settingsButton').click();
+    await blockedPage.locator('#indoorDialog .sheet-close-button').click(); await blockedPage.locator('#settingsButton').click();
     await blockedPage.locator('#useStillPhotos').check(); await blockedPage.locator('#autoFlash').uncheck();
     await blockedPage.locator('#showCameraButton').uncheck();
     assert.equal(await blockedPage.locator('#settingsCameraOptions').isVisible(), false);
@@ -311,7 +313,7 @@ const key = 'is-it-dryer-out-ui-preferences';
     assert.deepEqual(await blockedPage.locator('#pageLayoutList > li').evaluateAll(nodes => nodes.map(node => node.dataset.layoutRow)),
       ['recommendation', 'moisture-comparison', 'indoor-summary', 'supporting-details']);
     await blockedPage.locator('#resetPageLayout').click(); assert.equal(await blockedPage.locator('#showIndoorSummary').isChecked(), false);
-    assert.equal(await blockedPage.locator('#showMoistureComparison').isChecked(), true);
+    assert.equal(await blockedPage.locator('#showMoistureComparison').isChecked(), false);
     console.log(`PASS ${views} responsive Settings views in both camera visibility states, 24 menu placements, keyboard/touch moves, drag/drop, saved/default layouts, camera-help focus routes, retained camera values and blocked storage.`);
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

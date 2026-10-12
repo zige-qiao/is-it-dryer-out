@@ -24,7 +24,7 @@ Use UK English for all document prose and visible app copy, including help, acce
 
 Apply clearly requested, small, reversible UI edits directly, without a separate approval step. Discuss choices that are unclear, consequential, or materially expand the request before making those changes. A request to edit does not also request a commit, branch, push, merge, tag, or release; perform those operations only when requested.
 
-When providing a UI preview, always include a clickable link the user can open on their iPhone. Discover the current LAN address and verify the preview server is reachable on it; say when the phone must share the computer's Wi-Fi and the computer must remain running. Prefer an existing HTTPS preview when available. Do not present a localhost-only link as the phone preview.
+When providing a UI preview, always include a clickable link the user can open on their iPhone. Discover the current LAN address and verify the preview server is reachable on it; say when the phone must share the computer's Wi-Fi and the computer must remain running. Serve local previews with Cache-Control: no-store and a fresh asset URL when replacing an older cached preview; verify the browser loaded the current stylesheet. Prefer an existing HTTPS preview when available. Do not present a localhost-only link as the phone preview.
 
 ## Files And Existing Work
 
@@ -57,8 +57,8 @@ The whole ventilation summary opens Ventilation settings, where changes persist 
 ## Responsive Controls
 
 - Keep indoor rulers stacked and ventilation rulers paired. Preserve typed entry, keyboard adjustment, snapping, and horizontal gestures without hijacking vertical scrolling. Cancel momentum on interruption, close, or backgrounding.
-- Keep room and opening choices as accessible single-selection groups. Sheets support Done, Escape, and mobile drag-to-dismiss; preserve scroll position, visible focus, and opener focus. Adapt to the visible viewport when the keyboard opens.
-- Hide all sheet header close buttons below 640px and retain them on larger screens; preserve existing Done actions, outside-tap dismissal, Escape and mobile drag dismissal. Restore opener focus quietly unless it had visible keyboard focus when activated, even if the user typed inside the sheet. Follow the [design system](../../../docs/design-system.md) for exact breakpoints, dimensions, time labels, radii, and focus treatment.
+- Keep room and opening choices as accessible single-selection groups. Sheets support header confirmation/dismissal, Escape, and mobile drag-to-dismiss; preserve scroll position, visible focus, and opener focus. Adapt to the visible viewport when the keyboard opens.
+- Keep 44px neutral circular SVG header controls visible on mobile and desktop, titles left-aligned without Back and centred between the visible controls with Back, and all header actions grouped in one row with equal 8px gaps. Use a tick for immediately saved settings/manual readings, an X for dismissal, and a left chevron to return from camera/voice to manual input while cancelling drafts. Preserve outside-tap dismissal, Escape and mobile drag dismissal. Restore opener focus quietly unless it had visible keyboard focus when activated, even if the user typed inside the sheet. Centre actions against the full title/subtitle block. Settings uses white filled circles against its warm sheet surface; other sheets use the camera control surface. Follow the [design system](../../../docs/design-system.md) for exact breakpoints, dimensions, time labels, radii, and focus treatment.
 
 ## Recommendation Language
 

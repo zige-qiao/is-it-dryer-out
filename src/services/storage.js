@@ -97,7 +97,7 @@ export function createStorage({
       }
       uiPreferences.pageOrder = normalizePageOrder(saved?.pageOrder);
       if (typeof saved?.autoFlash === 'boolean') uiPreferences.autoFlash = saved.autoFlash;
-      for (const key of ['useStillPhotos', 'showCameraButton', 'showVoiceButton', 'showChartKey']) {
+      for (const key of ['useStillPhotos', 'showCameraButton', 'showVoiceButton']) {
         if (typeof saved?.[key] === 'boolean') uiPreferences[key] = saved[key];
       }
       if (typeof saved?.openIndoorOnLaunch === 'boolean') uiPreferences.openIndoorOnLaunch = saved.openIndoorOnLaunch;

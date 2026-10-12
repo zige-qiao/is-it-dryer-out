@@ -18,7 +18,7 @@ import { createEvents } from './src/ui/events.js';
 import { createTimerController, isAppleMobile } from './src/ui/timer.js';
 import { DEFAULT_LOCATION, DEFAULT_PRESSURE_HPA, DEFAULT_TIMEZONE, WEATHER_REFRESH_INTERVAL_MS } from './src/config.js';
 
-const uiPreferences = { showChartKey: false, ...pageLayoutDefaults(), openIndoorOnLaunch: true, autoFlash: true,
+const uiPreferences = { ...pageLayoutDefaults(), openIndoorOnLaunch: true, autoFlash: true,
   useStillPhotos: false, showCameraButton: true, showVoiceButton: false };
 
 const state = {
@@ -140,7 +140,6 @@ const elements = {
   planSummaryText: document.querySelector("#planSummaryText"),
   planSummaryVentilationText: document.querySelector("#planSummaryVentilationText"),
   planDialog: document.querySelector("#planDialog"),
-  planDoneButton: document.querySelector("#planDoneButton"),
   planDialogTitle: document.querySelector("#planDialogTitle"),
   locationName: document.querySelector("#locationName"),
   sourceLocationName: document.querySelector("#sourceLocationName"),

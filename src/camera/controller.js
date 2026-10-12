@@ -104,6 +104,9 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     const request = session;
     if (!active) { beforeCamera(); active = true; }
     elements.indoorDialog.classList.add('camera-mode');
+    const closeButton = document.querySelector?.('#indoorDialog .sheet-close-button');
+    closeButton?.setAttribute('aria-label', 'Close indoor readings');
+    if (closeButton) closeButton.title = 'Close';
     elements.cameraPanel.hidden = false;
     view('capture');
     elements.cameraCaptureButton.disabled = true;
@@ -261,6 +264,9 @@ export function createCameraController({ elements, beforeCamera, saveIndoorReadi
     elements.cameraPanel.hidden = true; elements.cameraBackButton.hidden = true;
     help.close(); elements.cameraHelpButton.hidden = true;
     elements.indoorDialog.classList.remove('camera-mode');
+    const closeButton = document.querySelector?.('#indoorDialog .sheet-close-button');
+    closeButton?.setAttribute('aria-label', 'Done with indoor readings');
+    if (closeButton) closeButton.title = 'Done';
     elements.cameraTitle.textContent = 'Indoor readings';
     elements.cameraReviewPanel.setAttribute('aria-busy', 'false');
     if (focus && elements.indoorDialog.open) returnFocus();
