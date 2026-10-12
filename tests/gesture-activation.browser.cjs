@@ -97,7 +97,7 @@ const preview = process.argv[2] || 'http://127.0.0.1:8780/';
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: point(0) });
       for (const fraction of [.2, .5, 1]) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: point(dy * fraction) });
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-      assert.equal(await page.locator('#settingsDialog').evaluate(n => n.open), true, `swiping ${dy} over sticky Done cannot close Settings`);
+      assert.equal(await page.locator('#settingsDialog').evaluate(n => n.open), true, `swiping ${dy} over the Settings header cannot close Settings`);
     }
     // Mouse and keyboard still work immediately after a swipe/cancellation.
     await page.locator('#showCameraButton').click(); assert.equal(await page.locator('#showCameraButton').isChecked(), false);
