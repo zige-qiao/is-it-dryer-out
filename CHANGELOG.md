@@ -5,6 +5,7 @@ All notable changes to Is it dryer out are documented here.
 ## v0.7.10 - Chart and input reliability refinements - 2026-10-13
 
 - Match rain and estimated ACH legend fills and show rain amount with paired bars. Preserve the chart scales and wind direction.
+- Shorten the outdoor weather status to “Just now” for the first minute after a successful refresh, preserving the later checked time and loading/failure messages.
 - Start weather as soon as device coordinates arrive, resolving the locality name independently with a bounded lookup. Recover fallback weather when first-launch location selection is cancelled, and prevent late name results from replacing a newer selection.
 - Keep voice Apply available only after recording finishes. Preserve the latest correction, recognise “degrees Celsius”, honour negated reading commands and reject negative readings instead of turning them positive.
 - Explain rejected manual readings and plan values with the allowed range while restoring the saved value. Keep valid edits, ruler snapping and immediate saving.

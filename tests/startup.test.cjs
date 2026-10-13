@@ -39,7 +39,7 @@ for (const initialHash of ['', '#why']) test(`entry point restores values and we
     assert.equal(node('#overviewPage').hidden,initialHash === '#why');
     assert.equal(node('#whyPage').inert,initialHash !== '#why');
     assert.equal(node('#indoorTempValue').textContent,'24.0°C');
-    assert.equal(node('#weatherStatus').textContent,'Checked just now');
+    assert.equal(node('#weatherStatus').textContent,'Just now');
     assert.equal(node('#decisionLabel').textContent,'OPEN WINDOWS');
     assert.deepEqual(registered,['service-worker.js']);assert.equal(intervals.length,2);
     assert.ok(pageEvents.has('visibilitychange'));assert.ok(windowEvents.has('pagehide'));
