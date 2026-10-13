@@ -18,8 +18,8 @@ const preview = process.argv[2] || 'http://127.0.0.1:8780/';
         hourly:{time,temperature_2m:repeat(12),relative_humidity_2m:repeat(70),dew_point_2m:repeat(7),surface_pressure:repeat(1013),wind_speed_10m:repeat(9),wind_direction_10m:repeat(90),rain:repeat(0),showers:repeat(0),precipitation_probability:repeat(0)}}});
     });
     const page=await context.newPage(), errors=[]; page.on('pageerror',e=>errors.push(e.message));
-    await page.goto(preview); await page.waitForFunction(()=>!document.querySelector('#refreshWeather').disabled && document.querySelector('#ahChart').hasAttribute('aria-valuenow'));
-    assert.deepEqual(await page.locator('.app-shell > [data-page-box]').evaluateAll(nodes=>nodes.map(n=>n.dataset.pageBox)),
+    await page.goto(preview); await page.waitForFunction(()=>document.querySelector('.recommendation').dataset.weatherState==='ready' && !document.querySelector('#refreshWeather').disabled && document.querySelector('#ahChart').hasAttribute('aria-valuenow'));
+    assert.deepEqual(await page.locator('#overviewPage > [data-page-box]').evaluateAll(nodes=>nodes.map(n=>n.dataset.pageBox)),
       ['recommendation','supporting-details','moisture-comparison','indoor-summary']);
     assert.equal(await page.locator('.recommendation').evaluate(n=>n.hidden),false);
     let popups=0; context.on('page',()=>popups++);
@@ -45,6 +45,8 @@ const preview = process.argv[2] || 'http://127.0.0.1:8780/';
     let starts=0;
     for(const selector of ['.recommendation h1','#locationButton','#refreshWeather','[data-chart-hours="24"]','#ahChart','#explanationToggle','#liveWeatherRequest']) {
       if(!await page.locator(selector).count()) continue;
+      // Why-only content is mounted but hidden on Overview, where pull to refresh is available.
+      if(!await page.locator(selector).isVisible()) continue;
       // Expanded supporting content remains compatible with a top-of-page pull.
       if(selector==='#liveWeatherRequest') { await page.locator('.weather-data-explainer').evaluate(n=>n.open=true); await page.setViewportSize({width:390,height:2600}); }
       const b=await page.locator(selector).boundingBox(); if(!b || b.y>2400) continue;
@@ -64,6 +66,12 @@ const preview = process.argv[2] || 'http://127.0.0.1:8780/';
     await touch('touchStart',cx,cy); await touch('touchMove',cx+80,cy+2); await touch('touchEnd');
     assert.notEqual(await page.locator('#ahChart').getAttribute('aria-valuenow'),initial); assert.equal(requests,count);
     await settled();
+    // Why is independent of the Overview-only refresh gesture.
+    await page.locator('[data-page-link="why"]').click();
+    const whyRequests=requests;
+    await begin('#explanationToggle'); await touch('touchEnd');
+    assert.equal(requests,whyRequests); assert.equal(await page.locator('body').evaluate(n=>n.classList.contains('pull-active')),false);
+    await page.locator('[data-page-link="overview"]').click();
     // A cancelled pull must not consume the next ordinary tap.
     await begin('#locationButton',35); await touch('touchCancel'); await settled(); await page.locator('#locationButton').tap();
     assert.equal(await page.locator('#locationDialog').evaluate(n=>n.open),true); await page.locator('#locationDialog').evaluate(n=>n.close());

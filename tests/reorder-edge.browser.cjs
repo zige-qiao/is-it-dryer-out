@@ -14,7 +14,7 @@ const preview = process.argv[2] || 'http://127.0.0.1:8780/';
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(preview); await page.waitForFunction(() => !document.documentElement.classList.contains('layout-pending') && document.querySelector('#decisionLabel').textContent !== 'CHECKING');
 
-
+ await page.locator('[data-page-link="why"]').click();
  await page.locator('#settingsButton').click();
  const cdp=await context.newCDPSession(page);
  let checks=0;
@@ -45,9 +45,12 @@ const preview = process.argv[2] || 'http://127.0.0.1:8780/';
  }
  // A short screen with large text must reveal clipped destinations, then stop before unrelated settings.
  await page.evaluate(()=>document.querySelector('.settings-dialog-content').style.maxHeight='');
- await page.setViewportSize({width:390,height:568});await page.evaluate(()=>document.documentElement.style.fontSize='200%');
+ await page.setViewportSize({width:390,height:400});await page.evaluate(()=>document.documentElement.style.fontSize='200%');
  await page.locator('#resetPageLayout').click();
+ await page.locator('.settings-dialog-content').evaluate(n=>{n.scrollTop=0;});
  const body=await page.locator('.settings-dialog-content').boundingBox();
+ const clippedList=await page.locator('#pageLayoutList').boundingBox();
+ assert.ok(clippedList.y+clippedList.height>body.y+body.height-16,'fixture includes clipped destinations');
  const h=await page.locator('[data-layout-row="indoor-summary"] [data-drag-handle]').boundingBox();
  await page.mouse.move(h.x+22,h.y+22);await page.mouse.down();await page.mouse.move(h.x+22,body.y+body.height-17);
 
