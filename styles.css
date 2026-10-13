@@ -2630,15 +2630,15 @@ body.pull-result.pull-failed .pull-refresh-result-icon::after { content: '!'; }
 .legend-duration { color: var(--muted); }
 .chart-key-note { margin: var(--space-16) 0 0; padding-top: var(--space-16); border-top: 1px solid var(--line); }
 .chart-key-symbol { display: inline-block; width: 16px; height: 3px; border-radius: 2px; }
-.key-rain-amount { height: 10px; border-radius: 2px; background: var(--muted); }
+.key-rain-amount { height: 12px; fill: var(--muted); }
 .key-rain-period { height: 16px; border-radius: 0; background: repeating-linear-gradient(135deg, var(--muted) 0 1px, transparent 1px 5px); }
 .key-indoor { height: 0; border-top: 2px dashed var(--muted); border-radius: 0; }
 .key-drier { background: white; box-shadow: 0 0 0 1px var(--muted); }
 .key-uncertain { background: #ffd27a; box-shadow: 0 0 0 1px #9b7433; }
 .key-wetter { background: #ffb3a8; box-shadow: 0 0 0 1px #a55a51; }
-.key-ach { height: 12px; border-radius: 2px; background: var(--surface-control); box-shadow: inset 0 0 0 1px var(--muted); }
+.key-ach { height: 12px; border-radius: 2px; background: var(--muted); }
 .chart-key-wind { width: 16px; height: 16px; fill: var(--muted); }
-@media (forced-colors: active) { .chart-key-symbol { forced-color-adjust: none; } .key-rain-amount { background: CanvasText; } .key-rain-period { background: repeating-linear-gradient(135deg, CanvasText 0 1px, Canvas 1px 5px); } .key-ach { background: Canvas; box-shadow: inset 0 0 0 1px CanvasText; } .chart-key-wind { fill: CanvasText; } }
+@media (forced-colors: active) { .chart-key-symbol { forced-color-adjust: none; } .key-rain-amount { fill: CanvasText; } .key-ach { background: CanvasText; } .key-rain-period { background: repeating-linear-gradient(135deg, CanvasText 0 1px, Canvas 1px 5px); } .chart-key-wind { fill: CanvasText; } }
 
 .airflow-wind { fill: #fff; stroke: none; opacity: .85; pointer-events: none; }
 

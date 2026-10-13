@@ -46,15 +46,15 @@
 .legend-duration { color: var(--muted); }
 .chart-key-note { margin: var(--space-16) 0 0; padding-top: var(--space-16); border-top: 1px solid var(--line); }
 .chart-key-symbol { display: inline-block; width: 16px; height: 3px; border-radius: 2px; }
-.key-rain-amount { height: 10px; border-radius: 2px; background: var(--muted); }
+.key-rain-amount { height: 12px; fill: var(--muted); }
 .key-rain-period { height: 16px; border-radius: 0; background: repeating-linear-gradient(135deg, var(--muted) 0 1px, transparent 1px 5px); }
 .key-indoor { height: 0; border-top: 2px dashed var(--muted); border-radius: 0; }
 .key-drier { background: white; box-shadow: 0 0 0 1px var(--muted); }
 .key-uncertain { background: #ffd27a; box-shadow: 0 0 0 1px #9b7433; }
 .key-wetter { background: #ffb3a8; box-shadow: 0 0 0 1px #a55a51; }
-.key-ach { height: 12px; border-radius: 2px; background: var(--surface-control); box-shadow: inset 0 0 0 1px var(--muted); }
+.key-ach { height: 12px; border-radius: 2px; background: var(--muted); }
 .chart-key-wind { width: 16px; height: 16px; fill: var(--muted); }
-@media (forced-colors: active) { .chart-key-symbol { forced-color-adjust: none; } .key-rain-amount { background: CanvasText; } .key-rain-period { background: repeating-linear-gradient(135deg, CanvasText 0 1px, Canvas 1px 5px); } .key-ach { background: Canvas; box-shadow: inset 0 0 0 1px CanvasText; } .chart-key-wind { fill: CanvasText; } }
+@media (forced-colors: active) { .chart-key-symbol { forced-color-adjust: none; } .key-rain-amount { fill: CanvasText; } .key-ach { background: CanvasText; } .key-rain-period { background: repeating-linear-gradient(135deg, CanvasText 0 1px, Canvas 1px 5px); } .chart-key-wind { fill: CanvasText; } }
 .board-explanation .explanation-detail{display:grid;gap:8px}.board-explanation .explanation-detail+.explanation-detail{margin-top:16px}.board-detail .chart-key-group{margin:0}
 .dashboard-explainer > summary {
   width: 100%;
@@ -274,7 +274,7 @@
               </section>
               <section class="chart-key-group" aria-labelledby="boardKeyBars">
                 <h3 id="boardKeyBars" class="detail-category">Bars &amp; markers</h3>
-                <div class="chart-key-entry"><i class="chart-key-symbol key-rain-amount" aria-hidden="true"></i><span>Rain amount<span class="chart-key-caption">1-hour bars</span></span></div>
+                <div class="chart-key-entry"><svg class="chart-key-symbol key-rain-amount" viewBox="0 0 16 12" aria-hidden="true" focusable="false"><rect width="7" height="8" rx="2"/><rect x="9" width="7" height="12" rx="2"/></svg><span>Rain amount<span class="chart-key-caption">1-hour bars</span></span></div>
                 <div class="chart-key-entry"><i class="chart-key-symbol key-rain-period" aria-hidden="true"></i><span>Rain period<span class="chart-key-caption">Shaded hours</span></span></div>
                 <div class="chart-key-entry"><i class="chart-key-symbol key-ach" aria-hidden="true"></i><span>Est. ACH<span class="chart-key-caption">2-hour bars</span></span></div>
                 <div class="chart-key-entry"><svg class="chart-key-wind" viewBox="-8 -8 16 16" aria-hidden="true" focusable="false"><path d="M-1 -5.8Q0 -7.4 1 -5.8L5.7 4.5Q6.6 6.2 4.8 5.4L.9 3.2Q0 2.7 -.9 3.2L-4.8 5.4Q-6.6 6.2 -5.7 4.5Z"/></svg><span>Wind<span class="chart-key-caption">Blows towards</span></span></div>
@@ -346,7 +346,7 @@
               </section>
               <section class="chart-key-group" aria-labelledby="sampleKeyBars">
                 <h3 id="sampleKeyBars" class="detail-category">Bars &amp; markers</h3>
-                <div class="chart-key-entry"><i class="chart-key-symbol key-rain-amount" aria-hidden="true"></i><span>Rain amount<span class="chart-key-caption">1-hour bars</span></span></div>
+                <div class="chart-key-entry"><svg class="chart-key-symbol key-rain-amount" viewBox="0 0 16 12" aria-hidden="true" focusable="false"><rect width="7" height="8" rx="2"/><rect x="9" width="7" height="12" rx="2"/></svg><span>Rain amount<span class="chart-key-caption">1-hour bars</span></span></div>
                 <div class="chart-key-entry"><i class="chart-key-symbol key-rain-period" aria-hidden="true"></i><span>Rain period<span class="chart-key-caption">Shaded hours</span></span></div>
                 <div class="chart-key-entry"><i class="chart-key-symbol key-ach" aria-hidden="true"></i><span>Est. ACH<span class="chart-key-caption">2-hour bars</span></span></div>
                 <div class="chart-key-entry"><svg class="chart-key-wind" viewBox="-8 -8 16 16" aria-hidden="true" focusable="false"><path d="M-1 -5.8Q0 -7.4 1 -5.8L5.7 4.5Q6.6 6.2 4.8 5.4L.9 3.2Q0 2.7 -.9 3.2L-4.8 5.4Q-6.6 6.2 -5.7 4.5Z"/></svg><span>Wind<span class="chart-key-caption">Blows towards</span></span></div>
