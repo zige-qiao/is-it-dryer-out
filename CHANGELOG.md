@@ -2,6 +2,10 @@
 
 All notable changes to Is it dryer out are documented here.
 
+## Unreleased
+
+- Match rain and estimated ACH legend fills and show rain amount with paired bars. Preserve the chart scales and wind direction.
+
 ## v0.7.9 - Settings, chart and ventilation refinements - 2026-10-12
 
 - Update Why’s footer with an outlined Settings circle and a matching full-height transparent Refresh app pill with a subtle outline, dark text and neutral interaction states, grouped with an 8px gap and responsive wrapping below the credit.
