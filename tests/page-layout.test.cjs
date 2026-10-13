@@ -251,7 +251,8 @@ test('new defaults hide both indoor boxes and retain saved layouts', () => {
   localStorage.setItem(UI_PREFERENCES_STORAGE_KEY, JSON.stringify(saved));
   const preferences = {};
   createStorage({ uiPreferences: preferences, applyUiPreferences() {} }, environment({ localStorage })).loadUiPreferences();
-  assert.deepEqual(preferences, { ...saved, showRecommendation: true, pageOrder: ['recommendation', 'supporting-details', 'moisture-comparison', 'indoor-summary'] });
+  const layoutPreferences = Object.fromEntries(Object.keys(pageLayoutDefaults()).map(key => [key, preferences[key]]));
+  assert.deepEqual(layoutPreferences, { ...saved, showRecommendation: true, pageOrder: ['recommendation', 'supporting-details', 'moisture-comparison', 'indoor-summary'] });
 });
 
 test('a tap or sub-threshold movement opens the menu without saving or dragging', () => {

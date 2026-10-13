@@ -88,6 +88,15 @@ export function createVoiceController({
 
   let pendingVoiceChanges = null;
 
+  function clearVoiceDraft() {
+    pendingVoiceChanges = null;
+    elements.voiceApplyButton.disabled = true;
+    elements.voiceApplyButton.hidden = true;
+    elements.voiceChanges.replaceChildren();
+    elements.voiceChanges.classList.remove("has-single-change");
+    elements.voiceUpdateNote.hidden = true;
+  }
+
   function voiceChangeRows(values) {
     const rows = [];
     if (values.indoorTemp !== undefined) rows.push(["Indoor temperature", formatTemp(values.indoorTemp)]);
@@ -95,14 +104,14 @@ export function createVoiceController({
     return rows;
   }
 
-  function showVoiceResult(transcript, allowApply = true, session = activeVoiceSession) {
+  function showVoiceResult(transcript, session) {
     if (session) session.hadResult = true;
     elements.voiceExamples.hidden = false;
     const parsed = parseVoiceCommand(transcript);
     const rows = voiceChangeRows(parsed.values);
-    pendingVoiceChanges = rows.length ? parsed.values : null;
+    pendingVoiceChanges = rows.length && !parsed.errors.length ? parsed.values : null;
     elements.voiceTranscript.textContent = `Heard: “${transcript}”`;
-    elements.voiceTranscriptPanel.hidden = !allowApply;
+    elements.voiceTranscriptPanel.hidden = false;
     elements.voiceChanges.classList.toggle("has-single-change", rows.length === 1);
     elements.voiceChanges.replaceChildren(...rows.map(([label, value]) => {
       const row = document.createElement("div");
@@ -115,18 +124,14 @@ export function createVoiceController({
       return row;
     }));
     elements.voiceUpdateNote.hidden = rows.length === 0;
-    elements.voiceStatus.textContent = allowApply
-      ? parsed.errors.length
-        ? parsed.errors.join(" ")
-        : rows.length ? "Review the changes before applying." : "Couldn't find a temperature or humidity reading."
-      : `Hearing: “${transcript}”`;
-    elements.voiceApplyButton.disabled = !pendingVoiceChanges || parsed.errors.length > 0;
+    elements.voiceStatus.textContent = parsed.errors.length
+      ? parsed.errors.join(" ")
+      : rows.length ? "Review the changes before applying." : "Couldn't find a temperature or humidity reading.";
+    elements.voiceApplyButton.disabled = !pendingVoiceChanges;
     elements.voiceApplyButton.hidden = elements.voiceApplyButton.disabled;
-    if (allowApply) {
-      elements.voiceListenButton.setAttribute("aria-label", "Record again");
-      elements.voiceListenButton.title = "Record again";
-      setRecordLabel("Record again");
-    }
+    elements.voiceListenButton.setAttribute("aria-label", "Record again");
+    elements.voiceListenButton.title = "Record again";
+    setRecordLabel("Record again");
   }
 
   function resetVoiceMeter() {
@@ -381,17 +386,12 @@ export function createVoiceController({
   }
 
   function showVoiceError(message) {
-    pendingVoiceChanges = null;
+    clearVoiceDraft();
     elements.voiceExamples.hidden = false;
     elements.voiceStatus.textContent = "";
     elements.voiceStatus.hidden = true;
     elements.voiceTranscript.textContent = message;
     elements.voiceTranscriptPanel.hidden = false;
-    elements.voiceChanges.replaceChildren();
-    elements.voiceChanges.classList.remove("has-single-change");
-    elements.voiceUpdateNote.hidden = true;
-    elements.voiceApplyButton.disabled = true;
-    elements.voiceApplyButton.hidden = true;
   }
 
   function clearVoiceSessionTimers(session) {
@@ -426,10 +426,11 @@ export function createVoiceController({
 
   function completeVoiceSession(session) {
     if (activeVoiceSession !== session || session.finished) return;
-    if (session.latestTranscript) showVoiceResult(session.latestTranscript, true, session);
-    else if (!session.hadError) showVoiceError("No speech detected. Try again.");
     finishVoiceListening(session);
-    if (!session.dialogCancelled) showVoiceDialog();
+    if (session.dialogCancelled) return;
+    if (session.latestTranscript) showVoiceResult(session.latestTranscript, session);
+    else if (!session.hadError) showVoiceError("No speech detected. Try again.");
+    showVoiceDialog();
   }
 
   function showVoiceDialog() {
@@ -452,14 +453,9 @@ export function createVoiceController({
   }
 
   function resetVoiceResult() {
-    pendingVoiceChanges = null;
+    clearVoiceDraft();
     elements.voiceExamples.hidden = false;
-    elements.voiceChanges.replaceChildren();
-    elements.voiceChanges.classList.remove("has-single-change");
     elements.voiceTranscriptPanel.hidden = true;
-    elements.voiceUpdateNote.hidden = true;
-    elements.voiceApplyButton.disabled = true;
-    elements.voiceApplyButton.hidden = true;
     elements.voiceListenButton.setAttribute("aria-label", "Record indoor readings");
     elements.voiceListenButton.title = "Record readings";
     setRecordLabel("Record readings");
@@ -567,12 +563,14 @@ export function createVoiceController({
       session.finalTimer = null;
       const transcript = [...event.results].map((result) => result[0].transcript).join(" ").trim();
       session.latestTranscript = transcript;
+      clearVoiceDraft();
       elements.voiceExamples.hidden = false;
+      elements.voiceStatus.hidden = false;
       elements.voiceStatus.textContent = `Hearing: “${transcript}”`;
       elements.voiceTranscriptPanel.hidden = true;
       const latestResult = event.results[event.results.length - 1];
       if (latestResult.isFinal) {
-        showVoiceResult(transcript, false, session);
+        session.hadResult = true;
         if (!IS_IOS) {
           session.finalTimer = setTimeout(() => {
             voiceDebugLog("final result silence fallback", { durationMs: VOICE_SILENCE_DURATION_MS }, session.id);
@@ -671,6 +669,7 @@ export function createVoiceController({
     });
     session.isListening = false;
     session.isStopping = true;
+    clearVoiceDraft();
     if (session.meter?.frame != null) cancelAnimationFrame(session.meter.frame);
     if (session.meter) session.meter.frame = null;
     resetVoiceMeter();
@@ -727,7 +726,7 @@ export function createVoiceController({
       }
       finishVoiceListening(session);
     }
-    pendingVoiceChanges = null;
+    clearVoiceDraft();
     elements.voiceDialog.hidden = true;
     const indoorDialog = document.querySelector('#indoorDialog');
     indoorDialog.classList.remove('voice-mode');
@@ -740,7 +739,8 @@ export function createVoiceController({
   }
 
   function applyVoiceChanges() {
-    if (!pendingVoiceChanges) return;
+    if (!pendingVoiceChanges || activeVoiceSession || document.hidden || elements.voiceDialog.hidden ||
+        elements.voiceApplyButton.disabled || elements.voiceApplyButton.hidden) return;
     Object.assign(state, pendingVoiceChanges);
     saveIndoorReadings();
     closeVoiceDialog();
@@ -752,6 +752,7 @@ export function createVoiceController({
     if (session) {
       voiceDebugLog(reason + " during session", {}, session.id);
       session.dialogCancelled = true;
+      clearVoiceDraft();
       try { session.recognition.abort(); } catch { /* Continue releasing capture. */ }
       finishVoiceListening(session, false);
     }

@@ -43,6 +43,9 @@ export const WEATHER_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
 // A stalled mobile connection otherwise leaves the dashboard in its loading state.
 export const WEATHER_REQUEST_TIMEOUT_MS = 15_000;
 
+// A locality label is optional; it must never delay weather for GPS coordinates.
+export const REVERSE_GEOCODING_TIMEOUT_MS = 5_000;
+
 export const MAX_OPEN_MINUTES = 180;
 
 export const TARGET_MARGIN_RH = 0.5;

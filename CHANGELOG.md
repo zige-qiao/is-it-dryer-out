@@ -2,6 +2,13 @@
 
 All notable changes to Is it dryer out are documented here.
 
+## Unreleased
+
+- Start weather as soon as device coordinates arrive, resolving the locality name independently with a bounded lookup. Recover fallback weather when first-launch location selection is cancelled, and prevent late name results from replacing a newer selection.
+- Keep voice Apply available only after recording finishes. Preserve the latest correction, recognise “degrees Celsius”, honour negated reading commands and reject negative readings instead of turning them positive.
+- Explain rejected manual readings and plan values with the allowed range while restoring the saved value. Keep valid edits, ruler snapping and immediate saving.
+- Expand the outdoor-weather refresh target to 44px while retaining its compact icon.
+
 ## v0.7.9 - Settings, chart and ventilation refinements - 2026-10-12
 
 - Update Why’s footer with an outlined Settings circle and a matching full-height transparent Refresh app pill with a subtle outline, dark text and neutral interaction states, grouped with an 8px gap and responsive wrapping below the credit.

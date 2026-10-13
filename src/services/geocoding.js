@@ -1,7 +1,7 @@
-import { GEOCODING_ENDPOINT, UK_POSTCODE_ENDPOINT, UK_OUTCODE_ENDPOINT, REVERSE_GEOCODING_ENDPOINT, LOCATION_LABEL_OVERRIDES } from '../config.js';
+import { GEOCODING_ENDPOINT, UK_POSTCODE_ENDPOINT, UK_OUTCODE_ENDPOINT, REVERSE_GEOCODING_ENDPOINT, REVERSE_GEOCODING_TIMEOUT_MS, LOCATION_LABEL_OVERRIDES } from '../config.js';
 
 export function createGeocoding({  } = {}, environment = globalThis) {
-  const { navigator, fetch } = environment;
+  const { navigator, fetch, AbortController, setTimeout, clearTimeout } = environment;
 
   function formatBrowserLocation(data) {
     const locality = data.locality || data.city || "Nearby location";
@@ -13,11 +13,42 @@ export function createGeocoding({  } = {}, environment = globalThis) {
     return LOCATION_LABEL_OVERRIDES.get(label) || label;
   }
 
-  async function reverseGeocodeLocation(latitude, longitude) {
+  function reverseGeocodeLocation(latitude, longitude, { signal } = {}) {
     const params = new URLSearchParams({ latitude: String(latitude), longitude: String(longitude), localityLanguage: "en" });
-    const response = await fetch(`${REVERSE_GEOCODING_ENDPOINT}?${params}`);
-    if (!response.ok) throw new Error("Reverse geocoding failed");
-    return formatBrowserLocation(await response.json());
+    return new Promise((resolve, reject) => {
+      const abort = new AbortController();
+      let settled = false, timer = null;
+      const finish = (error, name) => {
+        if (settled) return;
+        settled = true;
+        if (timer !== null) clearTimeout(timer);
+        signal?.removeEventListener('abort', cancel);
+        if (error) reject(error); else resolve(name);
+      };
+      const cancel = () => {
+        const error = signal.reason ?? Object.assign(new Error('Location lookup cancelled'), { name: 'AbortError' });
+        finish(error);
+        abort.abort(error);
+      };
+      if (signal?.aborted) { cancel(); return; }
+      signal?.addEventListener('abort', cancel, { once: true });
+      timer = setTimeout(() => {
+        const error = Object.assign(new Error('Location lookup timed out'), { name: 'TimeoutError' });
+        finish(error);
+        abort.abort(error);
+      }, REVERSE_GEOCODING_TIMEOUT_MS);
+      // Settle independently of fetch/body cancellation: a stalled or mocked
+      // transport may ignore AbortSignal, and decoding shares this deadline.
+      void Promise.resolve().then(() => {
+        if (!settled) return fetch(`${REVERSE_GEOCODING_ENDPOINT}?${params}`, { signal: abort.signal });
+      }).then(response => {
+        if (settled) return;
+        if (!response.ok) throw new Error('Reverse geocoding failed');
+        return response.json();
+      }).then(data => {
+        if (!settled) finish(null, formatBrowserLocation(data));
+      }).catch(error => finish(error));
+    });
   }
 
   function formatSearchLocation(result) {

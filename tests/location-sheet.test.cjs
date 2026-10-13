@@ -22,12 +22,14 @@ function fixture() {
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) },
     setTimeout: (fn, delay) => { assert.equal(delay, 300); timers.set(++nextTimer, fn); return nextTimer; },
     clearTimeout: id => timers.delete(id),
-    setLocation: location => { state.location = location; }, fetchWeather: async () => { weatherCalls++; },
+    setLocation: location => { state.location = location; },
+    renameLocation: (location, name) => { if (state.location !== location) return false; state.location = { ...location, name }; return true; },
+    fetchWeather: async () => { weatherCalls++; },
     formatSearchLocation: result => result.name, isUkPostcodeQuery: query => /^M\d/.test(query),
     searchLocations: async () => [], reverseGeocodeLocation: async () => 'Device place'
   });
   const persistence = createStorage(context, context);
-  Object.assign(context, createLocationController({ ...context, readLocationHistory:persistence.loadLocationHistory, writeLocationHistory:persistence.saveLocationHistory, ...callbacks(context, ['setLocation','fetchWeather','formatSearchLocation','isUkPostcodeQuery','searchLocations','reverseGeocodeLocation','getBrowserLocation']) }, context));
+  Object.assign(context, createLocationController({ ...context, readLocationHistory:persistence.loadLocationHistory, writeLocationHistory:persistence.saveLocationHistory, ...callbacks(context, ['setLocation','renameLocation','fetchWeather','formatSearchLocation','isUkPostcodeQuery','searchLocations','reverseGeocodeLocation','getBrowserLocation']) }, context));
   return { context, elements, state, storage, timers, get focus() { return focus; }, get weatherCalls() { return weatherCalls; }, history: () => {
     context.renderRecentLocations();
     return elements.locationRecentList.children.map(row => ({name:row.children[0].children[0].textContent}));
@@ -88,7 +90,7 @@ test('selection and dismissal invalidate pending device location and reverse loo
     const pending = f.context.useCurrentLocation(); await new Promise(setImmediate);
     await f.context.selectLocation(place('Chosen',2));
     finish(phase === 'coordinates' ? {coords:{latitude:1,longitude:1}} : 'Device place'); await pending;
-    assert.equal(f.state.location.name, 'Chosen'); assert.equal(f.weatherCalls, 1);
+    assert.equal(f.state.location.name, 'Chosen'); assert.equal(f.weatherCalls, phase === 'name' ? 2 : 1);
   }
   const f = fixture(); let finish;
   f.context.getBrowserLocation = () => new Promise(resolve => { finish = resolve; });
