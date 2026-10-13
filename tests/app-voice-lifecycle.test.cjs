@@ -58,6 +58,76 @@ test('voice changes require review and Apply, preserving the foreground stream',
   assert.deepEqual(f.state,{indoorTemp:21,indoorRh:55}); assert.equal(f.saved,1);assert.equal(f.renders,1);
   assert.equal(f.tracks[0].readyState,'live'); assert.equal(f.elements.voiceDialog.hidden,true);
 });
+test('final results and later interim corrections cannot Apply during an active attempt', async () => {
+  for (const ios of [false, true]) {
+    const f=voiceFixture({ios}); f.controller.startVoiceInput(); await flush();
+    f.recognizers[0].result('21 and 55');
+    assert.equal(f.elements.voiceApplyButton.hidden,true); assert.equal(f.elements.voiceApplyButton.disabled,true);
+    assert.equal(f.elements.voiceChanges.children.length,0);
+    f.controller.applyVoiceChanges(); assert.equal(f.saved,0);
+    f.recognizers[0].result('temperature 90 degrees',false);
+    assert.equal(f.elements.voiceStatus.textContent,'Hearing: “temperature 90 degrees”');
+    assert.equal(f.elements.voiceApplyButton.hidden,true); assert.equal(f.elements.voiceApplyButton.disabled,true);
+    f.controller.applyVoiceChanges(); assert.deepEqual(f.state,{indoorTemp:24,indoorRh:58});
+    f.recognizers[0].emit('end');
+    assert.match(f.elements.voiceStatus.textContent,/Indoor temperature must be between/);
+    assert.equal(f.elements.voiceApplyButton.hidden,true); f.controller.applyVoiceChanges(); assert.equal(f.saved,0);
+  }
+});
+test('review uses the latest interim transcript only after recording finishes', async () => {
+  const f=voiceFixture(); f.controller.startVoiceInput(); await flush();
+  f.recognizers[0].result('21 and 55'); f.recognizers[0].result('22 degrees Celsius and 60 percent',false);
+  f.controller.applyVoiceChanges(); assert.equal(f.saved,0);
+  f.recognizers[0].emit('end');
+  assert.equal(f.elements.voiceApplyButton.hidden,false); assert.equal(f.elements.voiceApplyButton.disabled,false);
+  assert.equal(f.elements.voiceStatus.textContent,'Review the changes before applying.');
+  f.controller.applyVoiceChanges(); assert.deepEqual(f.state,{indoorTemp:22,indoorRh:60}); assert.equal(f.saved,1);
+  assert.equal(f.tracks[0].readyState,'live');
+});
+test('Apply stays blocked throughout preparation and Stop, including a final result during cleanup', async () => {
+  const f=voiceFixture({deferred:true}); f.controller.startVoiceInput(); f.controller.applyVoiceChanges();
+  assert.equal(f.saved,0); assert.equal(f.elements.voiceApplyButton.hidden,true);
+  f.resolveMedia(); await flush(); f.recognizers[0].result('21 and 55'); f.controller.toggleVoiceListening();
+  assert.equal(f.elements.voiceApplyButton.hidden,true); assert.equal(f.elements.voiceApplyButton.disabled,true);
+  f.controller.applyVoiceChanges(); assert.equal(f.saved,0);
+  f.recognizers[0].result('humidity 60 percent'); f.controller.applyVoiceChanges(); assert.equal(f.saved,0);
+  assert.equal(f.elements.voiceApplyButton.hidden,true); assert.equal(f.frames.size,0); assert.equal(f.tracks[0].readyState,'live');
+  f.recognizers[0].emit('end'); f.controller.applyVoiceChanges();
+  assert.deepEqual(f.state,{indoorTemp:24,indoorRh:60}); assert.equal(f.saved,1);
+});
+test('cleanup timeout completes review without exposing Apply during the pending Stop', async () => {
+  const f=voiceFixture(); f.controller.startVoiceInput(); await flush();
+  f.recognizers[0].result('21 and 55'); f.controller.toggleVoiceListening();
+  f.controller.applyVoiceChanges(); assert.equal(f.saved,0);
+  f.tick(3000);
+  assert.equal(f.elements.voiceApplyButton.hidden,false); assert.equal(f.elements.voiceApplyButton.disabled,false);
+  assert.equal(f.tracks[0].readyState,'live'); assert.equal(f.frames.size,0);
+  f.recognizers[0].result('10 and 20'); f.recognizers[0].emit('end');
+  f.controller.applyVoiceChanges(); assert.deepEqual(f.state,{indoorTemp:21,indoorRh:55}); assert.equal(f.saved,1);
+});
+test('automatic duration timeout waits for recognition cleanup before review', async () => {
+  for (const ios of [false,true]) {
+    const f=voiceFixture({ios}); f.controller.startVoiceInput(); await flush();
+    f.recognizers[0].result('21 and 55'); f.tick(ios?30000:15000);
+    assert.equal(f.elements.voiceApplyButton.hidden,true); f.controller.applyVoiceChanges(); assert.equal(f.saved,0);
+    f.recognizers[0].emit('end'); assert.equal(f.elements.voiceApplyButton.hidden,false);
+    f.controller.applyVoiceChanges(); assert.deepEqual(f.state,{indoorTemp:21,indoorRh:55});
+    assert.equal(f.tracks[0].readyState,ios?'live':'ended');
+  }
+});
+test('dismissal and background cancellation cannot leave an applicable draft or accept late results', async () => {
+  for (const action of ['closeVoiceDialog','handleVoiceHidden']) {
+    const f=voiceFixture(); f.controller.startVoiceInput(); await flush(); f.recognizers[0].result('21 and 55');
+    if(action==='handleVoiceHidden') f.document.hidden=true;
+    f.controller[action](); f.recognizers[0].result('22 and 60'); f.recognizers[0].emit('end');
+    assert.equal(f.elements.voiceApplyButton.hidden,true); assert.equal(f.elements.voiceApplyButton.disabled,true);
+    f.controller.applyVoiceChanges(); assert.equal(f.saved,0); assert.deepEqual(f.state,{indoorTemp:24,indoorRh:58});
+    assert.equal(f.tracks[0].readyState,action==='closeVoiceDialog'?'live':'ended');
+  }
+  const f=voiceFixture(); f.controller.startVoiceInput(); await flush(); f.recognizers[0].result('21 and 55');
+  f.recognizers[0].emit('end'); f.controller.closeVoiceDialog(); f.controller.applyVoiceChanges();
+  assert.equal(f.saved,0); assert.equal(f.elements.voiceApplyButton.hidden,true); assert.equal(f.tracks[0].readyState,'live');
+});
 test('live hearing replaces listening until review, with persistent examples', async () => {
   const f=voiceFixture(); f.controller.startVoiceInput(); await flush();
   assert.equal(f.elements.voiceStatus.textContent,'Listening...');

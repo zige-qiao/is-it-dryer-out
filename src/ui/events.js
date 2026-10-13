@@ -24,6 +24,7 @@ export function createEvents({
   openLocationDialog,
   closeLocationDialog,
   cancelLocationWork,
+  handleLocationDialogClosed = cancelLocationWork,
   render,
   renderAhChart,
   bindTypedValue,
@@ -185,7 +186,7 @@ export function createEvents({
       openLocationDialog();
     });
     elements.locationDialog.addEventListener("close", () => {
-      cancelLocationWork();
+      handleLocationDialogClosed();
       restoreSheetFocus(elements.locationDialog);
     });
     elements.locationUpdateButton.addEventListener("click", useCurrentLocation);

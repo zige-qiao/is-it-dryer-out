@@ -15,10 +15,11 @@ export function createLocationController({
   weatherUrlForLocation,
   fetchWeather,
   setLocation,
+  renameLocation,
   readLocationHistory,
   writeLocationHistory,
 } = {}, environment = globalThis) {
-  const { document, setTimeout, clearTimeout } = environment;
+  const { document, setTimeout, clearTimeout, AbortController } = environment;
 
   let recentLocations = [];
 
@@ -27,6 +28,12 @@ export function createLocationController({
   let locationSearchRequestId = 0;
 
   let locationAttemptId = 0;
+
+  let nameRequestId = 0, nameAbort = null;
+
+  let startupLocationPending = false;
+
+  let committedDialogCloses = 0;
 
   let locationFinding = false;
 
@@ -56,13 +63,46 @@ export function createLocationController({
 
   async function selectLocation(location) {
     locationAttemptId += 1;
+    cancelNameLookup();
     locationFinding = false;
     locationStatus = "";
     locationRetry = false;
     rememberLocation(location);
     setLocation(location, "search");
-    closeLocationDialog();
-    await fetchWeather();
+    startupLocationPending = false;
+    const weather = fetchWeather();
+    closeCommittedLocationDialog();
+    await weather;
+  }
+
+  function cancelNameLookup() {
+    nameRequestId += 1;
+    nameAbort?.abort();
+    nameAbort = null;
+  }
+
+  function lookupLocationName(location) {
+    const requestId = ++nameRequestId;
+    const abort = new AbortController();
+    nameAbort = abort;
+    void Promise.resolve().then(() => reverseGeocodeLocation(location.latitude, location.longitude, { signal: abort.signal }))
+      .then(name => {
+        if (abort.signal.aborted || requestId !== nameRequestId || state.location !== location) return;
+        if (!renameLocation(location, name)) return;
+        recentLocations = recentLocations.map(item => sameLocation(item, location) ? { ...item, name: state.location.name } : item);
+        saveLocationHistory();
+        renderLocationIdle();
+      }).catch(() => {
+        // Coordinates and their weather remain useful without a locality label.
+      }).finally(() => { if (nameAbort === abort) nameAbort = null; });
+  }
+
+  function closeCommittedLocationDialog() {
+    cancelLocationSearch();
+    if (!elements.locationDialog.open) return;
+    // Native close is queued; distinguish our completed selection from dismissal.
+    committedDialogCloses += 1;
+    closeSheet(elements.locationDialog);
   }
 
   function renderRecentLocations() {
@@ -210,6 +250,7 @@ export function createLocationController({
 
   async function useCurrentLocation() {
     const attemptId = ++locationAttemptId;
+    cancelNameLookup();
     locationFinding = true;
     locationRetry = false;
     locationStatus = "";
@@ -218,24 +259,22 @@ export function createLocationController({
     try {
       const position = await getBrowserLocation();
       if (attemptId !== locationAttemptId) return;
-      let locationName = "Nearby location";
-      try {
-        locationName = await reverseGeocodeLocation(position.coords.latitude, position.coords.longitude);
-      } catch {
-        // Weather can still be fetched when the locality lookup is unavailable.
-      }
-      if (attemptId !== locationAttemptId) return;
       setLocation(
         {
-          name: locationName,
+          name: "Nearby location",
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
         },
         "current",
       );
       rememberLocation(state.location);
-      closeLocationDialog();
-      await fetchWeather();
+      startupLocationPending = false;
+      locationFinding = false;
+      renderLocationIdle();
+      const weather = fetchWeather();
+      lookupLocationName(state.location);
+      closeCommittedLocationDialog();
+      await weather;
     } catch (error) {
       if (attemptId !== locationAttemptId) return;
       locationStatus = error.code === 1
@@ -246,7 +285,8 @@ export function createLocationController({
       locationRetry = true;
       locationFinding = false;
       renderLocationIdle();
-      if (!state.lastCheckedAt) await fetchWeather();
+      startupLocationPending = false;
+      if (!state.weatherRequestPending && !state.lastCheckedAt) await fetchWeather();
     } finally {
       if (attemptId === locationAttemptId) {
         locationFinding = false;
@@ -274,7 +314,17 @@ export function createLocationController({
   function cancelLocationWork() {
     cancelLocationSearch();
     locationAttemptId += 1;
+    cancelNameLookup();
     locationFinding = false;
+    if (startupLocationPending) {
+      startupLocationPending = false;
+      if (!state.weatherRequestPending && !state.lastCheckedAt) void fetchWeather();
+    }
+  }
+
+  function handleLocationDialogClosed() {
+    if (committedDialogCloses) { committedDialogCloses -= 1; return; }
+    cancelLocationWork();
   }
 
   async function initializeLocation(hasSavedLocation) {
@@ -283,9 +333,10 @@ export function createLocationController({
       return;
     }
 
+    startupLocationPending = true;
     markLocationRequested();
     await useCurrentLocation();
   }
 
-  return { updateLocationUi, loadLocationHistory, rememberLocation, selectLocation, renderRecentLocations, renderLocationIdle, cancelLocationSearch, handleLocationInput, handleLocationSearch, runLocationSearch, useCurrentLocation, openLocationDialog, closeLocationDialog, cancelLocationWork, initializeLocation };
+  return { updateLocationUi, loadLocationHistory, rememberLocation, selectLocation, renderRecentLocations, renderLocationIdle, cancelLocationSearch, handleLocationInput, handleLocationSearch, runLocationSearch, useCurrentLocation, openLocationDialog, closeLocationDialog, cancelLocationWork, handleLocationDialogClosed, initializeLocation };
 }

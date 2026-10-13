@@ -12,7 +12,7 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon.png" />
-    <link rel="stylesheet" href="styles.css?v=172" />
+    <link rel="stylesheet" href="styles.css?v=173" />
     <script>document.documentElement.classList.add("layout-pending");</script>
   </head>
   <body>
@@ -329,6 +329,7 @@
       <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
       <input id="indoorTemp" type="range" min="10" max="45" step="0.1" value="24" aria-describedby="rulerHelp" />
     </div>
+    <span id="indoorTempInputFeedback" class="reading-feedback visually-hidden" role="status" aria-live="polite" aria-atomic="true"></span>
   </div>
   <div class="control ruler-control">
     <label for="indoorRh">Relative humidity</label>
@@ -339,6 +340,7 @@
       <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
       <input id="indoorRh" type="range" min="10" max="90" step="1" value="58" aria-describedby="rulerHelp" />
     </div>
+    <span id="indoorRhInputFeedback" class="reading-feedback visually-hidden" role="status" aria-live="polite" aria-atomic="true"></span>
   </div>
   <p id="rulerHelp" class="ruler-help">Drag the ruler or use arrow keys to adjust. Tap the number to type.</p>
 </section>
@@ -469,6 +471,7 @@
               <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
               <input id="minTemp" type="range" min="8" max="28" step="1" value="21" aria-describedby="planRulerHelp" />
             </div>
+            <span id="minTempInputFeedback" class="reading-feedback visually-hidden" role="status" aria-live="polite" aria-atomic="true"></span>
           </div>
 
           <div class="ruler-control">
@@ -481,6 +484,7 @@
               <div class="ruler-ticks" aria-hidden="true"></div><span class="ruler-marker" aria-hidden="true"></span>
               <input id="targetRh" type="range" min="35" max="65" step="1" value="55" aria-describedby="planRulerHelp" />
             </div>
+            <span id="targetRhInputFeedback" class="reading-feedback visually-hidden" role="status" aria-live="polite" aria-atomic="true"></span>
           </div>
           <p id="planRulerHelp" class="ruler-help">Drag the ruler or use arrow keys to adjust. Tap the number to type.</p>
 
@@ -497,15 +501,18 @@
           <div class="custom-fields" id="customRoomFields" hidden>
             <label>
               <span>Length</span>
-              <span class="dimension-field"><input id="roomLength" type="number" min="1" max="20" step="0.1" value="4" inputmode="decimal" /><span>m</span></span>
+              <span class="dimension-field"><input id="roomLength" type="number" min="1" max="20" step="0.1" value="4" inputmode="decimal" aria-label="Room length in metres" /><span>m</span></span>
+              <span id="roomLengthFeedback" class="reading-feedback visually-hidden" role="status" aria-live="polite" aria-atomic="true"></span>
             </label>
             <label>
               <span>Width</span>
-              <span class="dimension-field"><input id="roomWidth" type="number" min="1" max="20" step="0.1" value="5" inputmode="decimal" /><span>m</span></span>
+              <span class="dimension-field"><input id="roomWidth" type="number" min="1" max="20" step="0.1" value="5" inputmode="decimal" aria-label="Room width in metres" /><span>m</span></span>
+              <span id="roomWidthFeedback" class="reading-feedback visually-hidden" role="status" aria-live="polite" aria-atomic="true"></span>
             </label>
             <label>
               <span>Height</span>
-              <span class="dimension-field"><input id="roomHeight" type="number" min="1.8" max="5" step="0.1" value="2.5" inputmode="decimal" /><span>m</span></span>
+              <span class="dimension-field"><input id="roomHeight" type="number" min="1.8" max="5" step="0.1" value="2.5" inputmode="decimal" aria-label="Room height in metres" /><span>m</span></span>
+              <span id="roomHeightFeedback" class="reading-feedback visually-hidden" role="status" aria-live="polite" aria-atomic="true"></span>
             </label>
             <p>Volume <strong id="roomVolume">50 m³</strong></p>
           </div>
@@ -526,6 +533,7 @@
           <label class="custom-flow-field" id="customFlowField" hidden>
             <span>Airflow<small>From a fan spec or measurement</small></span>
             <span class="dimension-field"><input id="customAirflow" type="number" min="10" max="500" step="5" value="80" inputmode="numeric" aria-label="Custom airflow in cubic metres per hour" /><span>m³/h</span></span>
+            <span id="customAirflowFeedback" class="reading-feedback visually-hidden" role="status" aria-live="polite" aria-atomic="true"></span>
           </label>
         </div>
 
@@ -596,6 +604,6 @@
       </section></div>
     <div class="sheet-footer"><button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button></div>
 </dialog>
-    <script src="app.js?v=172" type="module"></script>
+    <script src="app.js?v=173" type="module"></script>
   </body>
 </html>

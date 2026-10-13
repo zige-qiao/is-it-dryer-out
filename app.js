@@ -263,6 +263,7 @@ const locationController = createLocationController({
   weatherUrlForLocation: (...args) => weatherController.weatherUrlForLocation(...args),
   fetchWeather: (...args) => weatherController.fetchWeather(...args),
   setLocation: (...args) => weatherController.setLocation(...args),
+  renameLocation: (...args) => weatherController.renameLocation(...args),
   readLocationHistory: (...args) => storage.loadLocationHistory(...args),
   writeLocationHistory: (...args) => storage.saveLocationHistory(...args),
 });
@@ -343,6 +344,7 @@ const events = createEvents({
   openLocationDialog: (...args) => locationController.openLocationDialog(...args),
   closeLocationDialog: (...args) => locationController.closeLocationDialog(...args),
   cancelLocationWork: (...args) => locationController.cancelLocationWork(...args),
+  handleLocationDialogClosed: (...args) => locationController.handleLocationDialogClosed(...args),
   render: scheduleRender,
   renderAhChart: (...args) => chart.renderAhChart(...args),
   bindTypedValue: (...args) => readingControls.bindTypedValue(...args),

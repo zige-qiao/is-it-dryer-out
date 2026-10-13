@@ -33,6 +33,14 @@ White sheets keep a stationary flex shell, their existing native `.sheet-body` s
 
 The dialog helpers own opener-focus snapshots and synchronous focus return. Sheet activation records whether the opener had visible keyboard focus; dismissal prepares its styling before native focus restoration, then consumes the saved return target so a queued close event cannot overwrite later keyboard interaction. Timer initialisation precedes shared event binding so Escape dismisses its open help popup before the sheet. Start completes dismissal and scroll cleanup synchronously before the Shortcut URL handoff.
 
+## Location and reading recovery
+
+Device coordinates start weather immediately using “Nearby location”. The optional locality lookup has a five-second fetch-and-decoding deadline and supports cancellation. Selection generations reject superseded results even when two selections share coordinates. Name-only updates persist the current location and matching recent place without clearing weather, restarting a request or changing weather timestamps. First-launch cancellation starts fallback weather once; successful/manual selection resolves startup before its automatic sheet close.
+
+Voice results remain provisional while recognition is listening or stopping. Only completed recognition creates an Apply draft; new results, cancellation and invalid review clear obsolete drafts. Parser routes share field exclusions, preserve signs and accept adjacent temperature units. The existing foreground iOS microphone retention is unchanged.
+
+The typed-value binder owns rejection feedback for indoor readings, plan targets, custom dimensions and airflow. Invalid committed entries restore the saved value without saving, using permanent polite status nodes associated through `aria-describedby`. Feedback clears on a new input event, a paired ruler/stepper adjustment or sheet close. Numeric snapping and valid-input persistence remain unchanged. Restored fields are valid, so rejection feedback does not leave `aria-invalid="true"` on them.
+
 ## Run locally
 
 The shared document-level gesture activation guard is installed once alongside focus tracking in `src/ui/dialogs.js`. It observes all pointer movement and captured nested scroll events, suppresses compatibility clicks after movement/cancellation, and protects touches that stop actual scrolling. It leaves native scrolling and component pointer handlers intact; keyboard and assistive click activation bypass the pointer guard. Test both directions and a fresh tap after cancellation when adding interactive controls.

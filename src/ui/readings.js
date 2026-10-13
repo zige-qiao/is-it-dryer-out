@@ -10,20 +10,46 @@ export function createReadingControls({
   render,
 } = {}, environment = globalThis) {
   const { window, document, Date, performance, setTimeout, clearTimeout, setInterval, clearInterval, requestAnimationFrame, cancelAnimationFrame, ResizeObserver, Event } = environment;
+  const feedbackClearers = new Map();
 
   function bindTypedValue(input, stateKey, min, max, save) {
+    const feedback = input.id ? document.querySelector(`#${input.id}Feedback`) : null;
+    const units = { indoorTemp: '°C', indoorRh: '%', minTemp: '°C', targetRh: '%', roomLength: ' m', roomWidth: ' m', roomHeight: ' m', customAirflow: ' m³/h' };
+    const clearFeedback = () => {
+      if (!feedback) return;
+      feedback.textContent = '';
+      feedback.classList.add('visually-hidden');
+    };
+    if (feedback) {
+      const descriptions = new Set((input.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean));
+      descriptions.add(feedback.id);
+      input.setAttribute('aria-describedby', [...descriptions].join(' '));
+      input.addEventListener('input', clearFeedback);
+      input.closest('dialog')?.addEventListener('close', clearFeedback);
+      document.querySelector(`[data-ruler="${stateKey}"] input`)?.addEventListener('input', clearFeedback);
+      feedbackClearers.set(stateKey, clearFeedback);
+    }
     const applyValue = () => {
       const value = input.valueAsNumber;
       if (!Number.isFinite(value) || value < min || value > max) return false;
       state[stateKey] = ["indoorTemp", "indoorRh", "minTemp", "targetRh"].includes(stateKey)
         ? rulerValueFromDrag(value, 0, min, max, Number(input.step), 1) : value;
       input.value = stateKey === "indoorTemp" ? state[stateKey].toFixed(1) : state[stateKey];
+      clearFeedback();
       save();
       render();
       return true;
     };
     input.addEventListener("change", () => {
-      if (!applyValue()) { input.value = stateKey === "indoorTemp" ? state[stateKey].toFixed(1) : state[stateKey]; render(); }
+      if (!applyValue()) {
+        input.value = stateKey === "indoorTemp" ? state[stateKey].toFixed(1) : state[stateKey];
+        render();
+        if (feedback) {
+          const unit = units[stateKey] || '';
+          feedback.classList.remove('visually-hidden');
+          feedback.textContent = `Enter a value between ${min}${unit} and ${max}${unit}. Saved value restored.`;
+        }
+      }
     });
   }
 
@@ -46,6 +72,7 @@ export function createReadingControls({
       let repeated = false;
 
       const applyStep = () => {
+        feedbackClearers.get(stateKey)?.();
         const precision = setting.step < 1 ? 1 : 0;
         state[stateKey] = Number(
           clamp(state[stateKey] + setting.step * direction, setting.min, setting.max).toFixed(precision),

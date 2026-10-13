@@ -891,8 +891,8 @@ input[type="range"] {
 }
 
 .weather-refresh-button {
-  width: 2rem;
-  height: 2rem;
+  width: 44px;
+  height: 44px;
   display: inline-grid;
   flex: 0 0 auto;
   place-items: center;
@@ -1265,6 +1265,7 @@ input[type="range"] {
 
 .custom-fields label {
   display: grid;
+  align-content: start;
   gap: var(--space-4);
   color: var(--muted);
   font-size: var(--font-meta);
@@ -2230,6 +2231,9 @@ input[type="range"]:active:not(:disabled)::-moz-range-thumb { filter: brightness
 .indoor-speak-button { display:inline-flex; align-items:center; justify-content:center; gap:var(--space-8); flex-shrink:0; min-height:44px; border:0; border-radius:999px; padding:0 var(--space-16); background:var(--surface-control); color:var(--ink-main); font:inherit; font-size:14px; font-weight:650; cursor:pointer; }
 .indoor-speak-button[hidden] { display:none; }
 .ruler-control { display:flex; flex-direction:column; align-items:center; gap:var(--space-8); min-width:0; }
+.reading-feedback:not(.visually-hidden) { display: block; width: 100%; min-width: 0; margin: 0; color: var(--ink-muted); font-size: var(--font-ui); font-weight: 400; line-height: 1.4; text-align: left; overflow-wrap: anywhere; }
+.custom-fields .reading-feedback:not(.visually-hidden) { margin-top: var(--space-4); }
+.custom-flow-field .reading-feedback:not(.visually-hidden) { flex: 1 0 100%; }
 .ruler-control > label:first-child { color:var(--muted); font-size:13px; }
 :is(.indoor-dialog, .plan-dialog) .ruler-value { display:flex; align-items:baseline; gap:var(--space-4); width:auto; max-width:100%; height:52px; min-height:52px; border:1px solid var(--border-control); border-radius:12px; padding:var(--space-4) var(--space-12); background:var(--panel); }
 :is(.indoor-dialog, .plan-dialog) .ruler-value input { flex:0 0 auto; width:calc(4ch + var(--space-4)); min-width:0; min-height:0; height:calc(52px - 2px - 2 * var(--space-4)); font-size:34px; line-height:1; font-weight:700; text-align:right; }

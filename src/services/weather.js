@@ -116,7 +116,8 @@ export function createWeatherController({
     abortActiveRequest();
     if (checkedLabelTimer !== null) clearTimeout(checkedLabelTimer);
     checkedLabelTimer = null;
-    state.location = location;
+    // A fresh identity also invalidates a pending name for identical coordinates.
+    state.location = { ...location };
     state.locationMode = mode;
     state.outdoorTemp = null;
     state.outdoorRh = null;
@@ -133,5 +134,14 @@ export function createWeatherController({
     render();
   }
 
-  return { updateWeatherCheckedLabel, weatherUrlForLocation, fetchWeather, setLocation };
+  function renameLocation(location, name) {
+    if (state.location !== location || typeof name !== 'string' || !name.trim()) return false;
+    state.location = { ...location, name: name.trim() };
+    saveLocation();
+    updateLocationUi();
+    render();
+    return true;
+  }
+
+  return { updateWeatherCheckedLabel, weatherUrlForLocation, fetchWeather, setLocation, renameLocation };
 }
