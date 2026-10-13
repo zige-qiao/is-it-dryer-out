@@ -23,7 +23,7 @@ On iPhone/iPad, tap an eligible opening duration to open the timer. See the [use
 
 ## Recent changes
 
-- [Unreleased](CHANGELOG.md#unreleased): matching rain and ACH legend fills, more reliable location startup and voice review, clearer feedback for rejected manual entries, and a larger weather-refresh target.
+- [v0.7.10](CHANGELOG.md#v0710---chart-and-input-reliability-refinements---2026-10-13): matching rain and ACH legend fills, more reliable location startup and voice review, clearer feedback for rejected manual entries, and a taller weather-refresh target with its compact width retained.
 
 - [v0.7.9](CHANGELOG.md#v079---settings-chart-and-ventilation-refinements---2026-10-12) refines Settings and Chart key, adds persistent Indoor access and Why timers, and improves sheet and voice controls. Refresh app matches the light Settings control; Chart key uses shorter rain and wind labels.
 

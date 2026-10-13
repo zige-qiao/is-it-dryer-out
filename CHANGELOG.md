@@ -2,13 +2,14 @@
 
 All notable changes to Is it dryer out are documented here.
 
-## Unreleased
+## v0.7.10 - Chart and input reliability refinements - 2026-10-13
 
 - Match rain and estimated ACH legend fills and show rain amount with paired bars. Preserve the chart scales and wind direction.
 - Start weather as soon as device coordinates arrive, resolving the locality name independently with a bounded lookup. Recover fallback weather when first-launch location selection is cancelled, and prevent late name results from replacing a newer selection.
 - Keep voice Apply available only after recording finishes. Preserve the latest correction, recognise “degrees Celsius”, honour negated reading commands and reject negative readings instead of turning them positive.
 - Explain rejected manual readings and plan values with the allowed range while restoring the saved value. Keep valid edits, ruler snapping and immediate saving.
-- Expand the outdoor-weather refresh target to 44px while retaining its compact icon.
+- Increase the outdoor-weather refresh target height to 44px while retaining its compact 32px width and icon to preserve space in the mobile header.
+- Set the app build identity to `v0.7.10` and synchronise the app-shell cache revision to 174.
 
 ## v0.7.9 - Settings, chart and ventilation refinements - 2026-10-12
 

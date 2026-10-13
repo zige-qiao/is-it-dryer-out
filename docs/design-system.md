@@ -382,7 +382,7 @@ The existence of a rule is not proof of its implementation. Before calling the s
 
 Rejected typed values show “Enter a value between [minimum] and [maximum]. Saved value restored.” with the field's units. Use the existing muted ink and UI text size, 1.4 line height, normal weight and wrapping. In ruler controls, feedback follows the ruler with an 8px gap so the paired Ventilation tracks keep their alignment. Dimension feedback follows its field with an 8px total gap; custom airflow feedback occupies a full row. Empty status nodes remain visually hidden and available for polite announcements, with no layout space. Do not colour or outline a restored valid field as invalid. Keep dimensional labels and inputs aligned at the top when only one field has feedback.
 
-Outdoor weather refresh uses a 44 × 44px target with its existing 16px icon and compact hover/pressed/focus surface. Keep it clear of the location and last-checked controls at narrow widths.
+Outdoor weather refresh uses a 32px-wide, 44px-high target with its existing 16px icon and compact hover/pressed/focus surface. Its compact width is a deliberate exception to the general 44px target rule to preserve room for the location and last-checked text in the mobile header. Keep targets clear of neighbouring controls; allow long location names to wrap the header when needed.
 
 - [ ] 320, 390, 640 and 1280px widths; 200% text/zoom; no clipped labels or horizontal scrolling.
 - [ ] Whole sheet reachable with mobile keyboard open; Header tick/X reachable; focus returns and page scroll is restored.
