@@ -201,16 +201,16 @@ test('checked label changes at one minute, catches up on return, and does not re
   const first = f.context.fetchWeather();
   f.requests[0].resolve(response);
   await first;
-  assert.equal(f.elements.weatherStatus.textContent, 'Checked just now');
+  assert.equal(f.elements.weatherStatus.textContent, 'Just now');
   f.advance(59_999);
-  assert.equal(f.elements.weatherStatus.textContent, 'Checked just now');
+  assert.equal(f.elements.weatherStatus.textContent, 'Just now');
   f.advance(1);
   assert.equal(f.elements.weatherStatus.textContent, 'Checked 12:00');
 
   const second = f.context.fetchWeather();
   f.requests[1].resolve(response);
   await second;
-  assert.equal(f.elements.weatherStatus.textContent, 'Checked just now');
+  assert.equal(f.elements.weatherStatus.textContent, 'Just now');
   f.advance(61_000, false);
   f.context.updateWeatherCheckedLabel();
   assert.equal(f.elements.weatherStatus.textContent, 'Checked 12:00');
@@ -235,7 +235,7 @@ test('a new successful check restarts the just-now minute', async () => {
   f.requests[1].resolve(response);
   await second;
   f.advance(30_000);
-  assert.equal(f.elements.weatherStatus.textContent, 'Checked just now');
+  assert.equal(f.elements.weatherStatus.textContent, 'Just now');
   f.advance(30_000);
   assert.equal(f.elements.weatherStatus.textContent, 'Checked 12:00');
 });

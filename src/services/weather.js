@@ -28,7 +28,7 @@ export function createWeatherController({
     if (state.weatherRequestPending || state.weatherLoadFailed || !state.lastSuccessfulUpdateAt) return;
     const elapsed = Math.max(0, Date.now() - state.lastSuccessfulUpdateAt.getTime());
     if (elapsed < 60_000) {
-      elements.weatherStatus.textContent = "Checked just now";
+      elements.weatherStatus.textContent = "Just now";
       checkedLabelTimer = setTimeout(updateWeatherCheckedLabel, 60_000 - elapsed);
     } else {
       elements.weatherStatus.textContent = `Checked ${formatShortTime(state.lastSuccessfulUpdateAt)}`;
