@@ -5,150 +5,101 @@ description: Maintain the Is it dryer out app's UI, copy, weather states, voice 
 
 # Is It Dryer Out UI
 
-Maintain this small vanilla HTML, CSS, and JavaScript app as a calm decision tool. Read the current code before changing it; the code is authoritative when it differs from this guide.
+Maintain the static vanilla HTML, CSS and JavaScript app as a calm decision tool: will opening windows reduce indoor moisture, and approximately how long should they stay open? Keep the recommendation clear, controls easy to adjust and technical explanation available without dominating the page. Do not imply precise measured airflow or a guarantee.
 
-## Product Intent
+## Essential constraints
 
-Help a person answer two questions quickly:
+Follow [repository policy](../../../AGENTS.md). Use UK English, preserve uncommitted work and inspect the affected current code. Code establishes implemented behaviour; explicit requirements and accepted constraints remain instructions. Resolve discrepancies rather than implementing an obsolete document.
 
-1. Will opening windows reduce indoor moisture?
-2. If so, for approximately how long?
+Recommendation stays visible and pinned first. Manual readings/settings save immediately; camera/voice values need review and confirmation or Apply. Do not present old weather results as current during refresh/failure. Preserve focus, keyboard alternatives, reduced motion, accessible names and distinct selected/pressed/focused states.
 
-Keep the main recommendation decisive, the controls easy to adjust, and technical explanation available without dominating the page. Do not present the app as a precise airflow measurement or a guarantee.
+Voice presentation must preserve the accepted foreground-held iOS microphone policy. Stop waveform animation outside active attempts; release capture on hidden/pagehide and clean up invalid resources. Persistent indication is an accepted limited trade-off, and background-release recovery remains unresolved. Do not reintroduce release/reopen recovery without new device evidence. Read both voice references below before lifecycle changes.
 
-## Language convention
+Keep the existing static architecture, local persistence and data boundaries. Do not add a backend or transmit additional user data without a request. Keep private evidence under ignored work paths, outside commits/deployment. Ordinary edits do not request Git operations or a release.
 
-Use UK English for all document prose and visible app copy, including help, accessibility labels and diagnostics. Preserve code/API identifiers, filenames, URLs, machine-readable log fields and verbatim external quotations. Audio level meters remain meters; units of length use metres.
+## Inspect and choose a route
 
-## Working with the user
+Read only the relevant files. For changes crossing feature boundaries, start with [architecture](../../../docs/development.md): the entry point wires callbacks, pure domain functions stay DOM-independent, and controllers keep resources private. Retain existing IDs, helpers and render patterns unless the request needs otherwise. Tests import modules/controllers directly; do not extract function source.
 
-Apply clearly requested, small, reversible UI edits directly, without a separate approval step. Discuss choices that are unclear, consequential, or materially expand the request before making those changes. A request to edit does not also request a commit, branch, push, merge, tag, or release; perform those operations only when requested.
-
-When providing a UI preview, always include a clickable link the user can open on their iPhone. Discover the current LAN address and verify the preview server is reachable on it; say when the phone must share the computer's Wi-Fi and the computer must remain running. Serve local previews with Cache-Control: no-store and a fresh asset URL when replacing an older cached preview; verify the browser loaded the current stylesheet. Prefer an existing HTTPS preview when available. Do not present a localhost-only link as the phone preview.
-
-## Files And Existing Work
-
-Inspect only the files relevant to the requested change. Read broader context when the change crosses structural, behavioural, caching, documentation, or release boundaries.
-
-Preserve uncommitted user changes. Use existing IDs, classes, helpers, and rendering patterns unless the requested change requires otherwise.
-
-The root `app.js` owns state, DOM lookup and feature wiring. Native modules under `src/domain/`, `src/services/`, `src/ui/` and `src/voice/` own calculations, external/browser services, interface features and voice respectively. Read the [architecture guide](../../../docs/development.md) before changes crossing these boundaries. Keep calculations independent of the DOM, controller resources private, and cross-feature callbacks wired through the entry point. Tests import modules and controllers directly; do not reintroduce function-source extraction.
-
-## Where rules belong
-
-| File | Owns |
+| Task | Required reference after this skill |
 |---|---|
-| This skill | How to work on the app, decisions that are easy to break, verification, and documentation routing. |
-| [Written design system](../../../docs/design-system.md) and [visual board](../../../docs/design-system.html) | Current layout, tokens, component states, responsive behaviour, and visual examples. |
-| [README](../../../README.md) | Durable user-facing behaviour, setup, usage, and published release information. |
-| [CHANGELOG](../../../CHANGELOG.md) | Notable changes under **Unreleased** until published; numbered release history stays historical. |
-| [Voice investigation](../../../docs/voice/VOICE-INVESTIGATION.md) | Experiments, rejected approaches, device evidence, and unresolved microphone behaviour. |
+| Colours/appearance | [Foundations](../../../docs/design/foundations.md); [interface](../../../docs/development/interface.md) for logic |
+| Layout/navigation/reordering | [Layout](../../../docs/design/layout-navigation.md); [interface](../../../docs/development/interface.md) for controllers |
+| Sheets/rulers/focus | [Shared sheets/controls](../../../docs/design/sheets-controls.md) and affected component |
+| Verdict/chart/explanation | [Recommendation/chart](../../../docs/design/recommendation-chart.md); [model](../../../docs/explanation/moisture-and-estimates.md) for assumptions/calculations |
+| Camera capture | [Readings/media](../../../docs/design/readings-media.md) and [capture](../../../docs/development/camera.md) |
+| Camera recognition | [Recognition](../../../docs/development/camera-recognition.md), [testing](../../../docs/development/testing.md), relevant [evidence](../../../docs/history/camera-device-evidence.md) |
+| Voice lifecycle | [Voice policy](../../../docs/development/voice.md) and [current investigation](../../../docs/voice/VOICE-INVESTIGATION.md) |
+| User-facing documentation | [Documentation maintenance](../../../docs/documentation.md) and relevant [user guide](../../../docs/user-guide.md) |
+| Requested release/cache work | [Releases](../../../docs/development/releases.md) and [testing](../../../docs/development/testing.md) |
 
-At the end of a change, check whether a durable visual or interaction rule belongs in the design system, user-facing behaviour needs the README, or a notable change needs the changelog. Update this skill only when the way we work or a critical product constraint changes. Follow an explicit documentation request immediately; otherwise consolidate routine documentation during local iteration and reconcile it before a requested push. Do not record transient experiments or rewrite historical release notes as current behaviour.
+[The index](../../../docs/index.md) owns the complete map. Historical instructions are evidence, not current policy; read the specific experiment only when needed.
 
-## README Format
+## Change and verify
 
-Keep the README a quick introduction and basic-actions guide. Preserve this order: title, concise purpose statement, prominent app link, brief explanation, **Get started**, **Basic actions**, **Recent changes**, **Development and documentation**, and author credit. Keep **Get started** to the main user flow. In **Basic actions**, briefly cover Overview/Why navigation, opening Indoor readings, adjusting the ventilation plan, accessing Settings from the Why footer, and the iPhone timer action. Link to the user guide for detailed settings, navigation, timer setup and other step-by-step instructions instead of duplicating them in the README. Keep release history and development/test information in their existing sections, and retain a clear user-guide link.
+Apply clearly requested, reversible edits directly. Discuss choices that are materially ambiguous or expand the request. Keep the change within the user's scope. Reuse the named design roles and affected component contracts; do not replace conditional verdict wording with a universal secondary sentence.
 
-## Information Hierarchy
+Verify in proportion to the change: inspect rendered copy; check narrow mobile and wide desktop when layout/responsiveness changes; syntax-check changed JavaScript and run relevant imported-module tests with Node.js 24 or later. Structural changes need the complete Node suite, with --test-isolation=none when workers are restricted. Cache checks apply when cache code/references change. See Testing for exact commands and fixture policy.
 
-Keep Recommendation always shown and pinned first. Indoor summary is hidden by default and follows it in the default optional-section order. Follow the [design system](../../../docs/design-system.md) for page order and layout.
+Measure rendered spacing/clipping when investigating it, restore test-only states, and do not claim visual verification from unavailable/stale previews. For a shared UI preview, read [phone-preview requirements](../../../docs/development/testing.md#phone-previews) and give a verified phone-openable link. Real camera/microphone behaviour requires device evidence; mocks and live track state cannot prove it.
 
-The Indoor strip is hidden by default and the Indoor sheet opens on full page load by default; both are independent saved preferences in the footer Settings sheet. Edit on the strip or Indoor comparison card also opens the Indoor sheet; the strip's microphone action appears only when speech recognition is supported and starts listening from that tap. Manual values save immediately; voice values require review and Apply. Return focus to the opener for manually opened sheets, or to the location button after automatic opening.
+## Reconcile documentation and requested publishing
 
-The whole ventilation summary opens Ventilation settings, where changes persist immediately. Keep the detailed Indoor comparison card for AH and dew point context.
+Follow explicit documentation requests immediately. Otherwise consolidate routine updates during iteration and reconcile before a requested push. Update the canonical owner, its audience summary and relevant visual specimen. Add notable changes under Unreleased; retain dated evidence and numbered release history. Update this skill only when the workflow or a critical constraint changes.
 
-## Responsive Controls
+Only perform explicitly requested Git operations. For a requested production push, follow Releases to synchronise the cache once and deploy the full module graph. Run the complete relevant regression pass and git diff --check before pushing. Use requested branch/version names exactly, never move a public tag without explicit confirmation, and distinguish pushing a feature branch from a full release.
 
-- Keep indoor rulers stacked and ventilation rulers paired. Preserve typed entry, keyboard adjustment, snapping, and horizontal gestures without hijacking vertical scrolling. Cancel momentum on interruption, close, or backgrounding.
-- Keep room and opening choices as accessible single-selection groups. Sheets support header confirmation/dismissal, Escape, and mobile drag-to-dismiss; preserve scroll position, visible focus, and opener focus. Adapt to the visible viewport when the keyboard opens.
-- Keep 44px neutral circular SVG header controls visible on mobile and desktop, titles left-aligned without Back and centred between the visible controls with Back, and all header actions grouped in one row with equal 8px gaps. Use a tick for immediately saved settings/manual readings, an X for dismissal, and a left chevron to return from camera/voice to manual input while cancelling drafts. Preserve outside-tap dismissal, Escape and mobile drag dismissal. Restore opener focus quietly unless it had visible keyboard focus when activated, even if the user typed inside the sheet. Centre actions against the full title/subtitle block. Settings uses white filled circles against its warm sheet surface; other sheets use the camera control surface. Follow the [design system](../../../docs/design-system.md) for exact breakpoints, dimensions, time labels, radii, and focus treatment.
+<details>
+<summary>Previous section links</summary>
 
-## Recommendation Language
+These links preserve earlier bookmarks. Follow the named current reference or dated record.
 
-Use these main verdicts:
+<a id="product-intent"></a>
+- [Product Intent](SKILL.md)
 
-- `TARGET MET` when the current indoor humidity is at or near the target.
-- `OPEN WINDOWS` when ventilation provides a meaningful drying period.
-- `KEEP CLOSED` when outdoor air would worsen indoor moisture or another harmful limit applies.
-- `OPEN IF NEEDED` when there is no clear drying benefit but brief ventilation may still help with fresh air.
+<a id="language-convention"></a>
+- [Language convention](../../../AGENTS.md)
 
-For `OPEN IF NEEDED`, use:
+<a id="working-with-the-user"></a>
+- [Working with the user](../../../AGENTS.md)
 
-- Primary: `No clear drying benefit.`
-- Secondary: `Open briefly for fresh air; humidity may not fall.`
+<a id="files-and-existing-work"></a>
+- [Files And Existing Work](../../../AGENTS.md)
 
-When displaying forecast outcomes, use `Uncertain` instead of `Wait` and `Little benefit` instead of `Too small`. Do not introduce `Slow drying` unless the product logic and tile timing semantics are reconsidered together. Preserve the established closed-window wording unless the user explicitly asks to change it.
+<a id="where-rules-belong"></a>
+- [Where rules belong](../../../docs/documentation.md)
 
-## Forecast And Dashboard
+<a id="readme-format"></a>
+- [README Format](../../../docs/documentation.md)
 
-- Keep the outdoor outlook inside the recommendation, defaulting to 48 h with 24 h / 48 h controls, an AH line, indoor reference and estimated ACH bars. Derive both views' scales from the same 48-hour forecast and stop at available coverage.
-- Preserve pointer and keyboard inspection, local-time labels and a readable indoor reference label that avoids the curve. The selected dot and g/m³ reading follow the curve colour at the inspected point.
-- Plot actual outdoor AH against the actual indoor AH reference, but colour each forecast time using a shared-temperature moisture comparison and its uncertainty margin. Use the full uncertainty range for amber and retain soft semantic-colour transitions across time.
-- Keep loading and failure states clear; avoid displaying stale outdoor results as current. Preserve retry and weather refresh actions. The CHECKING label and chart skeleton use angled sweeps only while loading; reduced motion and failure are static.
-- Pulling down at the page top on touch devices refreshes outdoor weather without reloading the page. Keep the existing refresh controls as alternatives.
-- Keep Last checked with its muted refresh icon near the location. Refresh app belongs in the Why footer.
-- Show actual AH in the outdoor and indoor cards with warmed-outdoor RH between them. The outdoor card and warmed-RH colour use the shared-temperature moisture comparison, so do not infer their colour solely from the ordering of the displayed AH values.
+<a id="information-hierarchy"></a>
+- [Information Hierarchy](../../../docs/design/layout-navigation.md)
 
-## Supporting Details
+<a id="responsive-controls"></a>
+- [Responsive Controls](../../../docs/design/sheets-controls.md)
 
-Keep the five explainers in the order and presentation specified by the [design system](../../../docs/design-system.md). Preserve each open state during live updates, apply defaults only on initialisation, and never show an old recommendation or location explanation as current while weather reloads.
+<a id="recommendation-language"></a>
+- [Recommendation Language](../../../docs/design/recommendation-chart.md)
 
-## Visual Conventions
+<a id="forecast-and-dashboard"></a>
+- [Forecast And Dashboard](../../../docs/design/recommendation-chart.md)
 
-- Use the roles and component specifications in [the design system](../../../docs/design-system.md). Keep the AH chart's white/amber/coral line colours distinct from verdict and moisture-comparison semantics.
-- Keep selected, pressed, and keyboard-focused states distinct. Follow the design system's outer focus rule and its wider focus shapes for the ventilation summary and dashboard explainers.
-- Keep the recommendation and chart integrated, with a neutral ventilation-summary footer. Avoid decorative shadows and unnecessary explanatory copy in the primary interface.
-- Preserve accessible names for icon-only actions and reduced-motion behaviour. Measure rendered spacing when a mismatch is being investigated.
+<a id="supporting-details"></a>
+- [Supporting Details](../../../docs/design/readings-media.md)
 
-## Weather And Persistence
+<a id="visual-conventions"></a>
+- [Visual Conventions](../../../docs/design/foundations.md)
 
-Outdoor data comes from Open-Meteo. Device coordinates may be sent to BigDataCloud only to obtain a nearby locality name. Preserve the current fallback to the stored location or Sale, Greater Manchester.
+<a id="weather-and-persistence"></a>
+- [Weather And Persistence](../../../docs/development/interface.md)
 
-UK location search accepts complete postcodes with or without spaces and case-insensitive outward codes such as `M1`, `M33`, and `SW1A`.
+<a id="cache-updates"></a>
+- [Cache Updates](../../../docs/development/releases.md)
 
-Indoor readings, plan settings, and the most recent location stay in browser storage. Do not add a backend or transmit additional user data without an explicit request.
+<a id="verification"></a>
+- [Verification](../../../docs/development/testing.md)
 
-Voice input updates indoor temperature and RH only. Keep review before Apply, immediate manual Stop, session isolation, and the meterless fallback. On desktop, recognition must not wait for its optional meter. On iOS, prepare the standard meter before a fresh recognition attempt and retain its enabled stream after explicit voice activation throughout the foreground session, including Stop, Apply, sheet close, and recognition errors. Stop waveform animation outside active attempts; release capture on hidden/pagehide and clean up invalid resources. The persistent amber indicator is an accepted trade-off; background-release recovery remains unresolved. Do not reintroduce the rejected release-and-reopen recovery without new device evidence. Read [VOICE-INVESTIGATION.md](../../../docs/voice/VOICE-INVESTIGATION.md) for experiments and diagnostic rules when working on voice or microphone lifecycle.
+<a id="releases"></a>
+- [Releases](../../../docs/development/releases.md)
 
-## Cache Updates
-
-When preparing a GitHub push that changes `index.html`, `styles.css`, `app.js`, or production modules under `src/`, increment the numeric cache version once, consistently in all three places:
-
-- `styles.css?v=N` and `app.js?v=N` in `index.html`.
-- The corresponding asset URLs in `service-worker.js`.
-- `CACHE_NAME` in `service-worker.js`.
-
-This prevents the installed app from showing stale UI without creating a cache revision for every local iteration.
-
-Keep every production module in the service worker's `APP_FILES` list. Imported module URLs remain relative and unversioned; the new cache revision refreshes the complete graph. Deploy the root assets and `src/` together. Missing resources must never fall back to HTML unless the request is a navigation.
-
-## Verification
-
-For microphone diagnostics, use the [voice investigation](../../../docs/voice/VOICE-INVESTIGATION.md). A live track or completed JavaScript cleanup does not prove usable audio or that the device's microphone indicator has cleared.
-
-Verify in proportion to the change while iterating:
-
-- For copy changes, inspect the affected rendered state.
-- For layout or styling changes, inspect the affected viewport and include narrow mobile and wide desktop when responsive behaviour could change.
-- For JavaScript changes, syntax-check the entry point and changed modules, then run the relevant imported-module tests with Node.js 24 or later. For structural changes, run `node --test tests/*.test.cjs`, or add `--test-isolation=none` when test-worker creation is restricted.
-- Check `service-worker.js` only when its code or cache references change.
-- Measure rendered gaps, dimensions, clipping, or overflow when those properties are affected or under investigation.
-- Restore test-only UI states before finishing when appropriate.
-
-Before a GitHub push, run the complete relevant regression pass and `git diff --check` once.
-
-Do not claim visual verification if the live page was unavailable or stale.
-
-## Releases
-
-When the user requests a release:
-
-- For a user-specified version branch, use the exact requested branch name and make the app diagnostic build name match it; do not substitute the default `codex/` prefix.
-- Update both `README.md` and `CHANGELOG.md` with claims supported by the actual diff.
-- Use a patch version for refinements to an already published release; do not move an existing public tag without explicit confirmation.
-- Perform only the requested Git operations. Pushing a feature branch does not imply merging, tagging, or publishing a release.
-- When a full release is explicitly requested, merge into `main`, run final checks, create the requested annotated version tag, and push `main` and the tag.
-- Confirm the working tree is clean and `main` tracks `origin/main` before reporting completion.
-
-Network pushes, merges, tags, or releases require an explicit user request; ordinary UI edits do not imply release authorization.
+</details>
