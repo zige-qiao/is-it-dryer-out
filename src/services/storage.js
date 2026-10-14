@@ -1,4 +1,5 @@
 import { normalizePageOrder, PAGE_BOXES } from '../ui/page-layout.js';
+import { normalizeThemePreference } from '../ui/theme.js';
 import { INDOOR_LIMITS } from '../config.js';
 import { numberInRange } from '../domain/humidity.js';
 import { STORAGE_KEY, PLAN_STORAGE_KEY, UI_PREFERENCES_STORAGE_KEY, LOCATION_STORAGE_KEY, LOCATION_HISTORY_STORAGE_KEY, LOCATION_REQUESTED_STORAGE_KEY, ROOM_PRESETS, OPENING_SETUPS } from '../config.js';
@@ -90,8 +91,10 @@ export function createStorage({
   function loadUiPreferences() {
     for (const box of PAGE_BOXES) uiPreferences[box.preference] = box.visible;
     uiPreferences.pageOrder = normalizePageOrder();
+    uiPreferences.theme = 'system';
     try {
       const saved = JSON.parse(read(UI_PREFERENCES_STORAGE_KEY));
+      uiPreferences.theme = normalizeThemePreference(saved?.theme);
       for (const box of PAGE_BOXES) {
         uiPreferences[box.preference] = !box.pinned && typeof saved?.[box.preference] === 'boolean' ? saved[box.preference] : box.visible;
       }

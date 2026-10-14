@@ -3,26 +3,30 @@ const assert = require('node:assert/strict');
 const { element } = require('./helpers/browser.cjs');
 const { createSheetChrome } = require('../src/ui/sheet-chrome.js');
 
-function fixture({ supported = true, open = true, forced = false } = {}) {
+function fixture({ supported = true, scrollbar = true, withFooter = true, open = true, forced = false } = {}) {
   const dialog = element(), header = element(), body = element(), footer = element(), child = element();
   const document = element(), window = element(), media = element();
   const headerBox = { top: 100, bottom: 180, height: 80 };
-  const bodyBox = { top: 100, bottom: 540, height: 440 };
+  const bodyBox = { top: 100, bottom: 600, height: 500 };
+  const footerBox = { top: 540, bottom: 600, height: 60 };
   const shellBox = { top: 100, bottom: 600, left: 0, right: 500 };
   dialog.open = open; dialog.clientTop = dialog.clientLeft = 0;
   dialog.setAttribute('aria-labelledby', 'sheetTitle');
   const properties = new Map(); dialog.style.setProperty = (key, value) => properties.set(key, value);
-  dialog.querySelector = selector => ({ '.sheet-header': header, '.sheet-body': body, '.sheet-footer': footer })[selector];
+  dialog.querySelector = selector => ({ '.sheet-header': header, '.sheet-body': body, '.sheet-footer': withFooter ? footer : null })[selector];
   dialog.getBoundingClientRect = () => shellBox; header.getBoundingClientRect = () => headerBox;
   body.getBoundingClientRect = () => bodyBox;
-  body.scrollHeight = 840; body.clientHeight = 440; body.scrollTop = 0; body.children = [child];
+  footer.getBoundingClientRect = () => footerBox;
+  body.scrollHeight = 900; body.clientHeight = 500; body.scrollTop = 0; body.children = [child];
+  const childBox = { gap: 16, height: 300 };
+  child.getBoundingClientRect = () => ({ top: headerBox.bottom + childBox.gap - body.scrollTop, height: child.hidden ? 0 : childBox.height });
   body.contains = node => body.children.includes(node); body.focus = () => document.activeElement = body;
   const captures = new Set(); body.setPointerCapture = id => captures.add(id);
   body.hasPointerCapture = id => captures.has(id); body.releasePointerCapture = id => captures.delete(id);
   document.visibilityState = 'visible'; document.createElement = element;
   media.matches = forced; window.matchMedia = () => media;
   let next = 0; const frames = new Map(), callbacks = [], observers = [], mutations = [];
-  const env = { document, window, CSS: { supports: () => supported },
+  const env = { document, window, CSS: { supports: property => property === 'scrollbar-width' ? scrollbar : supported },
     requestAnimationFrame(fn) { frames.set(++next, fn); callbacks.push(fn); return next; }, cancelAnimationFrame(id) { frames.delete(id); },
     ResizeObserver: class { constructor(fn) { this.fn = fn; this.observed = new Set(); observers.push(this); } observe(n) { this.observed.add(n); } unobserve(n) { this.observed.delete(n); } },
     MutationObserver: class { constructor(fn) { mutations.push(fn); } observe() {} } };
@@ -34,7 +38,7 @@ function fixture({ supported = true, open = true, forced = false } = {}) {
       target: { closest: () => null }, preventDefault() { prevented = true; }, ...options });
     return prevented;
   };
-  return { dialog, body, headerBox, bodyBox, rail, thumb, document, window, media, properties, captures, mutations, observers, pointer, callbacks,
+  return { dialog, body, child, childBox, headerBox, bodyBox, footerBox, rail, thumb, document, window, media, properties, captures, mutations, observers, pointer, callbacks,
     get pending() { return frames.size; },
     paint() { const pending = [...frames.values()]; frames.clear(); pending.forEach(fn => fn()); } };
 }
@@ -53,6 +57,7 @@ test('enhancement is gated; native scrollbars remain until an open sheet has val
 
 test('rail clears the header and footer; thumb reflects the unobscured viewport at both ends', () => {
   const f = fixture(); assert.equal(f.properties.get('--sheet-header-height'), '80px');
+  assert.equal(f.properties.get('--sheet-footer-height'), '60px');
   assert.equal(f.rail.style.top, '84px'); assert.equal(f.rail.style.height, '352px');
   const height = 352 * 360 / 760;
   assert.equal(parseFloat(f.thumb.style.height), height);
@@ -61,6 +66,61 @@ test('rail clears the header and footer; thumb reflects the unobscured viewport 
     f.body.scrollTop = scroll; f.body.emit('scroll'); f.paint();
     assert.equal(f.thumb.style.transform, `translateY(${(352 - height) * fraction}px)`);
   }
+});
+
+test('glass geometry is independent of custom scrollbar support', () => {
+  const f = fixture({ scrollbar: false });
+  assert.equal(f.rail, undefined);
+  assert.equal(f.dialog.classList.contains('has-frosted-header'), true);
+  assert.equal(f.dialog.classList.contains('has-sheet-scrollbar'), false);
+  assert.equal(f.properties.get('--sheet-footer-height'), '60px');
+  f.body.scrollTop = 17; f.body.emit('scroll'); f.paint();
+  assert.equal(f.dialog.classList.contains('has-header-overlap'), true);
+  assert.equal(f.pointer('pointerdown', 492, 194), false);
+  f.footerBox.height = 100; f.footerBox.top = 500;
+  f.observers[0].fn(); f.paint();
+  assert.equal(f.properties.get('--sheet-footer-height'), '100px');
+  f.dialog.close(); assert.equal(f.pending, 0);
+});
+
+test('header cover starts at actual content overlap and restores continuous glass on return', () => {
+  const f = fixture();
+  for (const [scroll, covered] of [[0, false], [15, false], [16, false], [16.5, true], [400, true], [8, false], [-12, false]]) {
+    f.body.scrollTop = scroll; f.body.emit('scroll'); f.paint();
+    assert.equal(f.dialog.classList.contains('has-header-overlap'), covered, `scroll ${scroll}`);
+  }
+  f.childBox.gap = 40; f.body.scrollTop = 20; f.observers[0].fn(); f.paint();
+  assert.equal(f.dialog.classList.contains('has-header-overlap'), false);
+  f.childBox.gap = 8; f.observers[0].fn(); f.paint();
+  assert.equal(f.dialog.classList.contains('has-header-overlap'), true);
+  f.dialog.close(); assert.equal(f.dialog.classList.contains('has-header-overlap'), false);
+});
+
+test('hidden media regions, tiny accessibility text and decorative drag layers do not arm the header', () => {
+  const f = fixture(), hidden = element(), tiny = element(), decorative = element();
+  hidden.getBoundingClientRect = () => ({ top: 0, height: 0 });
+  tiny.getBoundingClientRect = () => ({ top: 0, height: 1 });
+  decorative.setAttribute('aria-hidden', 'true');
+  decorative.getBoundingClientRect = () => ({ top: 0, height: 500 });
+  f.body.children = [hidden, tiny, decorative, f.child];
+  f.mutations[0](); f.paint(); assert.equal(f.dialog.classList.contains('has-header-overlap'), false);
+  f.body.scrollTop = 20; f.body.emit('scroll'); f.paint();
+  assert.equal(f.dialog.classList.contains('has-header-overlap'), true);
+  f.child.hidden = true; f.mutations[0](); f.paint();
+  assert.equal(f.dialog.classList.contains('has-header-overlap'), false);
+});
+
+test('footer resize, hidden footer and absent footer keep the rail clear of pinned actions', () => {
+  const f = fixture();
+  f.footerBox.top = 500; f.footerBox.height = 100; f.observers[0].fn(); f.paint();
+  assert.equal(f.rail.style.height, '312px');
+  assert.equal(f.pointer('pointerdown', 492, 520), false);
+  f.footerBox.height = 0; f.observers[0].fn(); f.paint();
+  assert.equal(f.properties.get('--sheet-footer-height'), '0px');
+  assert.equal(f.rail.style.height, '412px');
+  const absent = fixture({ withFooter: false });
+  assert.equal(absent.properties.get('--sheet-footer-height'), '0px');
+  assert.equal(absent.rail.style.height, '412px');
 });
 
 test('content and viewport resizing update minimum thumb size and hide non-overflowing rails', () => {
@@ -74,6 +134,7 @@ test('content and viewport resizing update minimum thumb size and hide non-overf
 
 test('scroll and mutation events share one pending frame and follow replaced content', () => {
   const f = fixture(); const old = f.body.children[0], next = element(); f.body.children = [next];
+  next.getBoundingClientRect = old.getBoundingClientRect;
   f.mutations[0](); f.observers[0].fn(); f.body.emit('scroll'); assert.equal(f.pending, 1);
   assert.equal(f.observers[0].observed.has(old), false); assert.equal(f.observers[0].observed.has(next), true);
   f.body.scrollTop = 400; f.paint(); assert.equal(f.pending, 0);

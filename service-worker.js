@@ -23,6 +23,7 @@ const APP_FILES = [
   "docs/timer-shortcut.html",
   "src/ui/dialogs.js",
   "src/ui/sheet-chrome.js",
+  "src/ui/theme.js",
   "src/ui/location.js",
   "src/ui/events.js",
   "src/ui/page-layout.js",

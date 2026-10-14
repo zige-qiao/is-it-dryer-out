@@ -48,7 +48,7 @@ const key = 'is-it-dryer-out-ui-preferences';
     const pinnedTree = await pinnedAX.send('Accessibility.getFullAXTree');
     assert.ok(pinnedTree.nodes.some(node => !node.ignored && node.name?.value === 'Always shown · Pinned first'));
     await pinnedAX.detach();
-    assert.equal(await page.locator('#settingsDialog .settings-group').count(), 2);
+    assert.equal(await page.locator('#settingsDialog .settings-group').count(), 3);
     assert.equal(await page.locator('.layout-move-actions').count(), 0);
     await handle('indoor-summary').focus(); await page.keyboard.press('Enter');
     assert.equal(await menu.isVisible(), true); assert.equal(await up.isDisabled(), true);
@@ -124,7 +124,7 @@ const key = 'is-it-dryer-out-ui-preferences';
           body.scrollTop=0;
           return {before,after,bodyTop:b.top,bodyBottom:b.bottom,headerBottom:header.getBoundingClientRect().bottom,sheetBottom:node.getBoundingClientRect().bottom,headerHeight:header.getBoundingClientRect().height,frosted:node.classList.contains('has-frosted-header'),footerCount:node.querySelectorAll('.sheet-footer').length,
             outerOverflow:getComputedStyle(node).overflowY,innerOverflow:getComputedStyle(body).overflowY,outerScroll:node.scrollTop,outerExtent:node.scrollHeight-node.clientHeight,
-            fade:getComputedStyle(header,'::after').height,fadePointer:getComputedStyle(header,'::after').pointerEvents,
+            fade:getComputedStyle(header,'::after').content,
             contentGap:body.firstElementChild.getBoundingClientRect().top-header.getBoundingClientRect().bottom,
             bodyPadding:[getComputedStyle(body).paddingTop,getComputedStyle(body).paddingBottom],scrollPadding:getComputedStyle(body).scrollPaddingTop};
         });
@@ -132,9 +132,9 @@ const key = 'is-it-dryer-out-ui-preferences';
         assert.deepEqual([fixed.outerOverflow,fixed.innerOverflow,fixed.outerScroll],['hidden','auto',0]);
         assert.ok(fixed.outerExtent<=1 && fixed.bodyBottom<=fixed.sheetBottom+.1,`Options scroll within the sheet ${width}/${scale}: ${JSON.stringify(fixed)}`);
         assert.equal(fixed.footerCount,0);
-        assert.equal(fixed.contentGap,16,'Fade reserves the existing gap, without extra spacing');
+        assert.equal(fixed.contentGap,16,'Glass preserves the existing initial content gap');
         if(fixed.frosted){assert.ok(fixed.bodyTop<fixed.headerBottom);assert.ok(Math.abs(parseFloat(fixed.scrollPadding)-fixed.headerHeight-20)<.1);}else{assert.ok(fixed.bodyTop>=fixed.headerBottom-.1);assert.equal(fixed.scrollPadding,'20px');}
-        assert.equal(fixed.fade,'16px');assert.equal(fixed.fadePointer,'none');
+        assert.equal(fixed.fade,'none');
         const measured = await page.locator('#settingsDialog').evaluate(node => ({ overflow: node.scrollWidth > node.clientWidth + 1,
           targets: [...node.querySelectorAll('[data-drag-handle],#resetPageLayout,#settingsDialog .sheet-close-button')].map(control => {
             const box = control.getBoundingClientRect(); return { name: control.id || control.getAttribute('aria-label'), width: box.width, height: box.height };
