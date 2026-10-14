@@ -2,6 +2,16 @@
 
 All notable changes to Is it dryer out are documented here.
 
+## Unreleased
+
+- Unmerged `dark-mode` work: give all five sheets 95% white tint in Light and 55% tint in Dark with 4px blur, unchanged pill-menu styling, with content scrolling behind pinned headers and the existing Timer footer. Remove fades, keep scrollbar and focused controls clear of pinned areas, and retain solid/system-colour fallbacks and current text styling.
+
+- Add an offline `npm run docs:check` command to verify documentation links, navigation, README conventions and preserved heading destinations.
+
+- Reorganise documentation into task-based user, design and development references; add human and agent entry points, separate historical evidence, and preserve existing document links.
+
+- Unmerged `dark-mode` work: add saved System, Light and Dark appearance in Settings, with System as the default. Apply the chosen appearance before first paint, follow device changes while using System, and give page, sheets, controls and feedback a warm dark palette while preserving verdict and chart colours.
+
 ## v0.7.10 - Chart and input reliability refinements - 2026-10-13
 
 - Match rain and estimated ACH legend fills and show rain amount with paired bars. Preserve the chart scales and wind direction.

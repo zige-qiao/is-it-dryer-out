@@ -1,2023 +1,510 @@
 # iOS Web Speech / Microphone Behaviour - Detailed Video Analysis
 
-**Source video:** `IMG_0856.MP4`
-**Video duration:** 141.16 seconds (2:21.16)
-**Video resolution:** 880 × 1920
-**Browsers observed:** Safari and Chrome on iOS
-**Test page:** `zige-qiao.github.io`
-**Primary focus:** Web Speech recognition lifecycle, iOS microphone privacy indicators, browser switching, and the on-page event log.
+This historical record now lives in [the preserved record](../history/voice/ios_web_speech_microphone_video_analysis.md). Original dates, quotations, observations and uncertainty are retained.
 
-> **Important:** Timestamps in this report are approximate to the visible video timeline. Where an event occurs over only a few frames, the time is given to the nearest useful fraction of a second rather than treated as instrument-grade timing.
+For current implementation, read [voice policy](../development/voice.md) and [the current investigation](VOICE-INVESTIGATION.md). Historical proposals do not override the accepted foreground microphone policy.
 
----
+<details>
+<summary>Previous section links</summary>
 
-## 1. Executive summary
+These links preserve earlier bookmarks. Follow the named current reference or dated record.
 
-The video shows a repeatable mismatch between the Web Speech API's event lifecycle and iOS's system-level microphone state.
+<a id="1-executive-summary"></a>
+- [1. Executive summary](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-A successful recognition attempt generally follows this sequence:
+<a id="2-ios-indicators-visible-in-the-recording"></a>
+- [2. iOS indicators visible in the recording](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-recognizer created
-→ start requested
-→ start
-→ audiostart
-→ iOS amber microphone dot appears
-→ speechstart
-→ interim results
-→ final result
-→ speechend
-→ end
-→ amber dot disappears
-```
+<a id="21-red-status-indicator-around-the-clock"></a>
+- [2.1 Red status indicator around the clock](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-A failed immediate restart in the **same browser** often follows a different sequence:
+<a id="22-amberorange-dot-at-the-top-right"></a>
+- [2.2 Amber/orange dot at the top-right](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-recognizer created
-→ start requested
-→ start
-→ audiostart
-→ page says "Listening"
-→ NO iOS amber microphone dot
-→ NO speechstart
-→ NO recognition results
-→ manual stop
-→ audioend
-→ error=aborted
-→ end
-```
+<a id="23-safari-microphone-ui"></a>
+- [2.3 Safari microphone UI](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The key finding is therefore:
+<a id="24-chrome-microphone-ui"></a>
+- [2.4 Chrome microphone UI](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-> **`audiostart` is not a reliable indication that iOS has actually re-acquired the physical microphone in this test.**
+<a id="3-high-level-behaviour-observed"></a>
+- [3. High-level behaviour observed](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The iOS amber privacy dot is the strongest visible system-level signal. In several failed attempts, the page logs `audiostart`, but the amber dot never appears and no speech is detected.
+<a id="state-a---fully-working-recognition"></a>
+- [State A - fully working recognition](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-A second strong pattern is that switching between Safari and Chrome often causes the microphone to become usable again very quickly. After several browser switches, a new attempt in the newly foregrounded browser causes the amber dot to appear almost immediately and recognition succeeds.
+<a id="state-b---false-or-incomplete-listening-state"></a>
+- [State B - false or incomplete "Listening" state](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-This suggests that the issue is probably not a simple microphone-permission problem. The behaviour is more consistent with a problem involving one or more of:
+<a id="state-c---recovery-after-browser-switching"></a>
+- [State C - recovery after browser switching](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-- iOS audio-session ownership
-- microphone teardown/re-acquisition
-- browser foreground/background lifecycle
-- WebKit or browser audio capture state
-- a race between the Web Speech API state and the underlying iOS audio session
-- insufficient delay between one recognition session ending and another starting
+<a id="4-detailed-chronological-timeline"></a>
+- [4. Detailed chronological timeline](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The browser-switch behaviour is particularly interesting because foregrounding another browser seems to reset, release, or reinitialise something that a normal `SpeechRecognition.stop()` / `end` lifecycle does not always reset.
+<a id="000---control-centre-visible"></a>
+- [0:00 - Control Centre visible](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="visible-state"></a>
+- [Visible state](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-# 2. iOS indicators visible in the recording
+<a id="interpretation"></a>
+- [Interpretation](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-There are several distinct indicators in the video and they should not be treated as equivalent.
+<a id="001---control-centre-closes-safari-is-visible"></a>
+- [~0:01 - Control Centre closes, Safari is visible](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## 2.1 Red status indicator around the clock
+<a id="microphone"></a>
+- [Microphone](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The red pill/background around the time in the top-left is the **iOS screen-recording indicator**.
+<a id="5-safari---first-attempt"></a>
+- [5. Safari - first attempt](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-It is present because the demonstration itself is being screen-recorded.
+<a id="002---start-is-pressed"></a>
+- [~0:02 - Start is pressed](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-This is unrelated to whether the website currently owns the microphone.
+<a id="002-004---initial-microphone-permission-prompt"></a>
+- [~0:02-0:04 - Initial microphone permission prompt](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="004---microphone-activates"></a>
+- [~0:04 - microphone activates](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## 2.2 Amber/orange dot at the top-right
+<a id="important-system-behaviour"></a>
+- [Important system behaviour](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The small amber/orange dot at the top-right is the important system privacy indicator.
+<a id="log"></a>
+- [Log](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-On iOS, this is the visible indication that an application is using the microphone.
+<a id="interpretation-1"></a>
+- [Interpretation](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-For this test, the amber dot is more useful than the page's own `audiostart` event because there are multiple occasions where:
+<a id="005-012---speech-is-recognised"></a>
+- [~0:05-0:12 - speech is recognised](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-audiostart fires
-BUT
-the amber dot does not appear
-```
+<a id="log-behaviour"></a>
+- [Log behaviour](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-and the recognition session then receives no speech.
+<a id="microphone-1"></a>
+- [Microphone](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-That mismatch is one of the strongest pieces of evidence in the recording.
+<a id="012-013---recognition-completes"></a>
+- [~0:12-0:13 - recognition completes](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="log-1"></a>
+- [Log](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## 2.3 Safari microphone UI
+<a id="microphone-2"></a>
+- [Microphone](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-Safari sometimes displays its own microphone-related UI in or around the browser chrome/address area.
+<a id="6-safari---immediate-second-attempt-fails"></a>
+- [6. Safari - immediate second attempt fails](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-This is **browser UI**, not the same thing as the iOS privacy dot.
+<a id="014---start-is-pressed-again"></a>
+- [~0:14 - Start is pressed again](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The system amber dot should be treated as the more authoritative visible indication that iOS itself considers the microphone active.
+<a id="very-important-transition"></a>
+- [Very important transition](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="015-022---stuck-in-listening"></a>
+- [~0:15-0:22 - stuck in Listening](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## 2.4 Chrome microphone UI
+<a id="system-indicator"></a>
+- [System indicator](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-Chrome shows browser-specific microphone UI as well, including a blue microphone/access banner such as:
+<a id="interpretation-2"></a>
+- [Interpretation](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-> **Microphone access allowed**
+<a id="022-024---manually-stopped"></a>
+- [~0:22-0:24 - manually stopped](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-Again, this is browser-level UI.
+<a id="key-point"></a>
+- [Key point](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-It can coexist with the iOS amber privacy dot, but the two represent different layers:
+<a id="7-first-safari--chrome-switch"></a>
+- [7. First Safari → Chrome switch](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-Website / Web Speech API
-        ↓
-Browser state / browser permission UI
-        ↓
-iOS audio / privacy state
-```
+<a id="025---app-switcher-opens"></a>
+- [~0:25 - app switcher opens](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The video demonstrates that these layers can become out of sync.
+<a id="safari-log"></a>
+- [Safari log](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="8-chrome---first-attempt-succeeds"></a>
+- [8. Chrome - first attempt succeeds](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-# 3. High-level behaviour observed
+<a id="026---chrome-becomes-foreground-browser"></a>
+- [~0:26 - Chrome becomes foreground browser](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The test alternates between Safari and Chrome while repeatedly creating new speech-recognition objects.
+<a id="027-029---start-and-microphone-permission"></a>
+- [~0:27-0:29 - Start and microphone permission](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-There are three recurring states.
+<a id="029---microphone-becomes-active"></a>
+- [~0:29 - microphone becomes active](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## State A - fully working recognition
+<a id="030---chrome-permission-banner"></a>
+- [~0:30 - Chrome permission banner](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-Typical sequence:
+<a id="important-distinction"></a>
+- [Important distinction](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-start
-audiostart
-amber dot appears
-speechstart
-result final=false
-result final=false
-...
-result final=true
-speechend
-end
-```
+<a id="032-039---speech-recognition-succeeds"></a>
+- [~0:32-0:39 - speech recognition succeeds](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The spoken audio is recognised normally.
+<a id="039-040---chrome-attempt-completes"></a>
+- [~0:39-0:40 - Chrome attempt completes](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="9-chrome---immediate-second-attempt-fails"></a>
+- [9. Chrome - immediate second attempt fails](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## State B - false or incomplete "Listening" state
+<a id="040---another-recogniser-is-started"></a>
+- [~0:40 - another recogniser is started](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-Typical sequence:
+<a id="but"></a>
+- [But:](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-start
-audiostart
-page says Listening
-NO amber dot
-NO speechstart
-NO result
-```
+<a id="041-047---stuck"></a>
+- [~0:41-0:47 - stuck](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The browser/page thinks recognition has entered the audio phase, but the OS does not visibly indicate microphone use.
+<a id="this-creates-an-important-cross-browser-pattern"></a>
+- [This creates an important cross-browser pattern](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The attempt eventually has to be manually stopped.
+<a id="048---manually-stopped"></a>
+- [~0:48 - manually stopped](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The log then commonly shows:
+<a id="10-chrome--safari-switch"></a>
+- [10. Chrome → Safari switch](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-stop requested reason=manual
-audioend
-error=aborted
-end
-```
+<a id="049-050"></a>
+- [~0:49-0:50](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="page-lifecycle"></a>
+- [Page lifecycle](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## State C - recovery after browser switching
+<a id="11-safari---third-attempt-still-fails"></a>
+- [11. Safari - third attempt still fails](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-After switching from Safari to Chrome, or Chrome to Safari, the newly foregrounded browser often recovers microphone access very quickly.
+<a id="051"></a>
+- [~0:51](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-Typical sequence:
+<a id="however"></a>
+- [However](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-switch browser
-foreground target browser
-start recognition
-audiostart
-amber dot appears almost immediately
-speechstart follows
-recognition succeeds
-```
+<a id="052-059"></a>
+- [~0:52-0:59](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-This recovery is not absolutely guaranteed, especially earlier in the video, but it becomes a strong repeated pattern in the second half.
+<a id="12-101-103---control-centre-check"></a>
+- [12. ~1:01-1:03 - Control Centre check](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="important-observation"></a>
+- [Important observation](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-# 4. Detailed chronological timeline
+<a id="13-104-106---another-browser-switch"></a>
+- [13. ~1:04-1:06 - another browser switch](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## 0:00 - Control Centre visible
+<a id="14-chrome---later-attempt--transition-period"></a>
+- [14. Chrome - later attempt / transition period](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The recording begins with iOS Control Centre open.
+<a id="109"></a>
+- [~1:09](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-### Visible state
+<a id="117"></a>
+- [~1:17](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-- Screen recording is active.
-- No amber microphone dot is visible.
-- The red screen-recording indicator is present.
+<a id="important-lifecycle-behaviour"></a>
+- [Important lifecycle behaviour](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-### Interpretation
+<a id="why-this-matters"></a>
+- [Why this matters](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-At this point, the system does not visibly show the browser using the microphone.
+<a id="15-safari---strong-recovery-after-switch"></a>
+- [15. Safari - strong recovery after switch](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="119-121"></a>
+- [~1:19-1:21](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## ~0:01 - Control Centre closes, Safari is visible
+<a id="critical-observation"></a>
+- [Critical observation](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-Safari is open on the test page.
+<a id="124-onward"></a>
+- [~1:24 onward](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The page is labelled along the lines of:
+<a id="129-130"></a>
+- [~1:29-1:30](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-> **New recognizer each time / Audio interruption test**
+<a id="interpretation-3"></a>
+- [Interpretation](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The test is in a ready state.
+<a id="16-safari--chrome---another-rapid-recovery"></a>
+- [16. Safari → Chrome - another rapid recovery](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-### Microphone
+<a id="135"></a>
+- [~1:35](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-- No amber dot.
+<a id="138"></a>
+- [~1:38](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="141-145"></a>
+- [~1:41-1:45](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-# 5. Safari - first attempt
+<a id="146-147"></a>
+- [~1:46-1:47](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## ~0:02 - Start is pressed
+<a id="17-148-150---ios-privacy-inspection"></a>
+- [17. ~1:48-1:50 - iOS privacy inspection](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-A new speech-recognition object is created.
+<a id="particularly-important-evidence"></a>
+- [Particularly important evidence](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The visible log records the initial request.
+<a id="why-this-matters-1"></a>
+- [Why this matters](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-Approximate sequence:
+<a id="18-chrome--safari---successful-recovery-again"></a>
+- [18. Chrome → Safari - successful recovery again](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-recognizer created
-start requested
-```
+<a id="152-154"></a>
+- [~1:52-1:54](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="155"></a>
+- [~1:55](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## ~0:02-0:04 - Initial microphone permission prompt
+<a id="156-201"></a>
+- [~1:56-2:01](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-iOS/Safari presents a permission prompt:
+<a id="202"></a>
+- [~2:02](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-> **"zige-qiao.github.io" Would Like to Access the Microphone**
+<a id="19-safari---immediate-retry-fails-again"></a>
+- [19. Safari - immediate retry fails again](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-`Allow` is selected.
+<a id="202-206"></a>
+- [~2:02-2:06](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-This is the first-run permission flow.
+<a id="but-again"></a>
+- [But again](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="20-safari--chrome---very-fast-microphone-recovery"></a>
+- [20. Safari → Chrome - very fast microphone recovery](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## ~0:04 - microphone activates
+<a id="207"></a>
+- [~2:07](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The page changes to a microphone-starting/listening state.
+<a id="208"></a>
+- [~2:08](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-### Important system behaviour
+<a id="strong-timing-observation"></a>
+- [Strong timing observation](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The **amber microphone dot appears at roughly 0:04.5**.
+<a id="211-214"></a>
+- [~2:11-2:14](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-Safari also presents its own microphone-related browser UI.
+<a id="215"></a>
+- [~2:15](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-### Log
+<a id="21-chrome---immediate-sixth-attempt-fails"></a>
+- [21. Chrome - immediate sixth attempt fails](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The visible log shows:
+<a id="216"></a>
+- [~2:16](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-start
-audiostart
-```
+<a id="but-1"></a>
+- [But](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-### Interpretation
+<a id="216-220"></a>
+- [~2:16-2:20](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-For this attempt, all layers agree:
+<a id="220-221"></a>
+- [~2:20-2:21](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-Web Speech API says audio started
-+
-Safari shows microphone UI
-+
-iOS amber dot appears
-```
+<a id="22-attempt-level-pattern-summary"></a>
+- [22. Attempt-level pattern summary](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-This is a genuine microphone acquisition.
+<a id="safari"></a>
+- [Safari](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="chrome"></a>
+- [Chrome](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## ~0:05-0:12 - speech is recognised
+<a id="23-strongest-findings"></a>
+- [23. Strongest findings](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The page enters:
+<a id="finding-1---audiostart-does-not-prove-the-ios-microphone-is-actually-active"></a>
+- [Finding 1 - `audiostart` does not prove the iOS microphone is actually active](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-> **Listening**
+<a id="finding-2---the-amber-dot-correlates-strongly-with-actual-successful-recognition"></a>
+- [Finding 2 - the amber dot correlates strongly with actual successful recognition](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-and then:
+<a id="finding-3---immediate-same-browser-retries-are-unusually-failure-prone"></a>
+- [Finding 3 - immediate same-browser retries are unusually failure-prone](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-> **Speech received**
+<a id="finding-4---switching-between-safari-and-chrome-often-restores-the-mic-very-quickly"></a>
+- [Finding 4 - switching between Safari and Chrome often restores the mic very quickly](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-### Log behaviour
+<a id="finding-5---browser-switching-is-not-a-guaranteed-fix"></a>
+- [Finding 5 - browser switching is not a guaranteed fix](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The log shows:
+<a id="finding-6---foregroundbackground-lifecycle-may-be-part-of-the-recovery-mechanism"></a>
+- [Finding 6 - foreground/background lifecycle may be part of the recovery mechanism](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-speechstart
-result ... final=false
-result ... final=false
-...
-result ... final=true
-```
+<a id="24-unusual-patterns"></a>
+- [24. Unusual patterns](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-### Microphone
+<a id="241-successful-end-appears-capable-of-poisoning-the-next-attempt"></a>
+- [24.1 Successful end appears capable of "poisoning" the next attempt](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The amber dot remains visible.
+<a id="242-no-immediate-microphone-error-is-thrown"></a>
+- [24.2 No immediate microphone error is thrown](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="243-audioend-can-appear-after-a-session-that-seemingly-never-had-real-os-microphone-ownership"></a>
+- [24.3 `audioend` can appear after a session that seemingly never had real OS microphone ownership](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## ~0:12-0:13 - recognition completes
+<a id="244-app-switching-may-be-forcing-a-deeper-reset-than-stopping-recognition"></a>
+- [24.4 App switching may be forcing a deeper reset than stopping recognition](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The state changes to:
+<a id="245-the-issue-affects-both-safari-and-chrome"></a>
+- [24.5 The issue affects both Safari and Chrome](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-> **Recognition completed**
+<a id="25-likely-technical-interpretation"></a>
+- [25. Likely technical interpretation](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-### Log
+<a id="26-leading-hypotheses"></a>
+- [26. Leading hypotheses](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The attempt ends with the expected lifecycle:
+<a id="hypothesis-a---microphone-teardown-race"></a>
+- [Hypothesis A - microphone teardown race](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-speechend
-end
-```
+<a id="why-it-fits"></a>
+- [Why it fits](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-### Microphone
+<a id="hypothesis-b---stale-web-speech--webkit-audio-session-state"></a>
+- [Hypothesis B - stale Web Speech / WebKit audio-session state](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The amber dot remains briefly, then the microphone session appears to release.
+<a id="why-it-fits-1"></a>
+- [Why it fits](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-This first Safari attempt behaves normally.
+<a id="hypothesis-c---foregroundbackground-transition-resets-audio-ownership"></a>
+- [Hypothesis C - foreground/background transition resets audio ownership](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="why-it-fits-2"></a>
+- [Why it fits](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-# 6. Safari - immediate second attempt fails
+<a id="hypothesis-d---elapsed-time-is-partially-responsible"></a>
+- [Hypothesis D - elapsed time is partially responsible](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## ~0:14 - Start is pressed again
+<a id="why-this-remains-possible"></a>
+- [Why this remains possible](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-A **new recogniser** is created rather than reusing the previous one.
+<a id="hypothesis-e---both-timing-and-lifecycle-are-required"></a>
+- [Hypothesis E - both timing and lifecycle are required](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The log indicates a second object/attempt.
+<a id="27-what-the-recording-does-not-suggest"></a>
+- [27. What the recording does NOT suggest](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-### Very important transition
+<a id="not-simply-a-microphone-permission-denial"></a>
+- [Not simply a microphone permission denial](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The previous amber dot disappears around this point.
+<a id="not-simply-a-broken-microphone"></a>
+- [Not simply a broken microphone](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The new attempt logs:
+<a id="not-simply-a-speech-content-problem"></a>
+- [Not simply a speech-content problem](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-start requested
-start
-audiostart
-```
+<a id="not-a-single-browser-only-problem"></a>
+- [Not a single-browser-only problem](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The page says:
+<a id="not-merely-the-page-failing-to-render-an-indicator"></a>
+- [Not merely the page failing to render an indicator](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-> **Listening**
+<a id="28-recommended-controlled-experiments"></a>
+- [28. Recommended controlled experiments](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-However:
+<a id="test-1---delayed-restart-in-the-same-browser"></a>
+- [Test 1 - delayed restart in the same browser](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-> **the amber microphone dot does not return.**
+<a id="purpose"></a>
+- [Purpose](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="test-2---switch-browser-immediately-versus-wait"></a>
+- [Test 2 - switch browser immediately versus wait](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## ~0:15-0:22 - stuck in Listening
+<a id="condition-a"></a>
+- [Condition A](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The page remains in a listening state.
+<a id="condition-b"></a>
+- [Condition B](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-But the following events do **not** appear:
+<a id="condition-c"></a>
+- [Condition C](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-speechstart
-result
-```
+<a id="condition-d"></a>
+- [Condition D](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-### System indicator
+<a id="test-3---background-and-return-to-the-same-browser"></a>
+- [Test 3 - background and return to the SAME browser](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-- No amber dot.
+<a id="test-4---lockunlock-screen-between-attempts"></a>
+- [Test 4 - lock/unlock screen between attempts](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-### Interpretation
+<a id="test-5---explicitly-delay-after-audioend-versus-after-end"></a>
+- [Test 5 - explicitly delay after `audioend` versus after `end`](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-This is the first clear example of the Web Speech API lifecycle diverging from the iOS microphone state.
+<a id="test-6---log-visibilitychange"></a>
+- [Test 6 - log `visibilitychange`](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The browser dispatches:
+<a id="test-7---log-all-speechrecognition-events"></a>
+- [Test 7 - log all SpeechRecognition events](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-audiostart
-```
+<a id="test-8---capture-performancenow-deltas"></a>
+- [Test 8 - capture `performance.now()` deltas](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-but the operating system does not visibly show active microphone use.
+<a id="29-suggested-passfail-definition"></a>
+- [29. Suggested pass/fail definition](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-No speech reaches the recognition pipeline.
+<a id="capture-acquired"></a>
+- [Capture acquired](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="fully-successful"></a>
+- [Fully successful](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## ~0:22-0:24 - manually stopped
+<a id="suspected-false-audiostart-failure"></a>
+- [Suspected false-audiostart failure](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The user stops the attempt.
+<a id="30-suggested-machine-readable-attempt-log"></a>
+- [30. Suggested machine-readable attempt log](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The page reports:
+<a id="31-most-useful-comparison-from-the-recording"></a>
+- [31. Most useful comparison from the recording](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-> **No speech detected**
+<a id="chrome-successful-attempt"></a>
+- [Chrome successful attempt](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The log shows a sequence similar to:
+<a id="chrome-immediate-retry"></a>
+- [Chrome immediate retry](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-```text
-stop requested reason=manual
-audioend
-error=aborted
-end
-```
+<a id="32-why-the-browser-switch-recovery-matters"></a>
+- [32. Why the browser-switch recovery matters](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-### Key point
+<a id="33-potential-bug-statement"></a>
+- [33. Potential bug statement](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The attempt did not fail immediately with a microphone permission error.
+<a id="34-short-reproduction-sequence"></a>
+- [34. Short reproduction sequence](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-Instead, it entered a nominal listening/audio state and then produced nothing.
+<a id="35-evidence-hierarchy-from-this-recording"></a>
+- [35. Evidence hierarchy from this recording](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-That makes the failure look less like denied permission and more like a failed capture-session acquisition.
+<a id="strongest-evidence"></a>
+- [Strongest evidence](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
----
+<a id="intermediate-evidence"></a>
+- [Intermediate evidence](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-# 7. First Safari → Chrome switch
+<a id="weakest-evidence"></a>
+- [Weakest evidence](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-## ~0:25 - app switcher opens
+<a id="36-final-conclusions"></a>
+- [36. Final conclusions](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-The iOS app switcher is opened.
+<a id="37-condensed-diagnostic-signature"></a>
+- [37. Condensed diagnostic signature](../history/voice/ios_web_speech_microphone_video_analysis.md)
 
-Safari and Chrome are both visible with the test page open.
-
-Chrome is selected.
-
-### Safari log
-
-Safari records a page lifecycle event similar to:
-
-```text
-visibility state=hidden
-```
-
-This confirms that the browser switch is being reflected in the page visibility lifecycle.
-
----
-
-# 8. Chrome - first attempt succeeds
-
-## ~0:26 - Chrome becomes foreground browser
-
-Chrome shows its own instance of the test page.
-
-The Chrome log is independent from Safari's log.
-
-The page is ready.
-
----
-
-## ~0:27-0:29 - Start and microphone permission
-
-Start is pressed.
-
-Chrome presents a microphone permission request similar to:
-
-> **Allow "zige-qiao.github.io" to use your microphone?**
-
-`Allow` is selected.
-
----
-
-## ~0:29 - microphone becomes active
-
-The **amber iOS microphone dot appears at approximately 0:29.1**.
-
-The Chrome log records:
-
-```text
-start
-audiostart
-```
-
-Chrome also later shows browser-specific microphone permission UI.
-
----
-
-## ~0:30 - Chrome permission banner
-
-Chrome displays a blue message:
-
-> **Microphone access allowed**
-
-A browser microphone indicator is also visible.
-
-### Important distinction
-
-The Chrome banner is browser-specific.
-
-The amber dot is the OS privacy signal.
-
-For this successful attempt, both agree that the microphone is active.
-
----
-
-## ~0:32-0:39 - speech recognition succeeds
-
-The page changes to:
-
-> **Speech received**
-
-The log records:
-
-```text
-speechstart
-result ... final=false
-...
-result ... final=true
-```
-
-The amber dot remains visible throughout active capture.
-
----
-
-## ~0:39-0:40 - Chrome attempt completes
-
-The recognition completes.
-
-The log reaches:
-
-```text
-speechend
-end
-```
-
-The amber dot disappears around the end of this process, approximately 0:40.
-
----
-
-# 9. Chrome - immediate second attempt fails
-
-## ~0:40 - another recogniser is started
-
-A second Chrome recognition attempt starts immediately.
-
-The log again records:
-
-```text
-recognizer created
-start requested
-start
-audiostart
-```
-
-The page displays:
-
-> **Listening**
-
-### But:
-
-- the amber dot does not return
-- no `speechstart` occurs
-- no recognition results arrive
-
-This is highly similar to the Safari second-attempt failure.
-
----
-
-## ~0:41-0:47 - stuck
-
-Chrome remains nominally listening.
-
-No actual speech-recognition progress is visible.
-
-### This creates an important cross-browser pattern
-
-Safari:
-
-```text
-first attempt works
-immediate next attempt does not acquire real mic
-```
-
-Chrome:
-
-```text
-first attempt works
-immediate next attempt does not acquire real mic
-```
-
-That makes the issue less likely to be a one-off Safari UI problem.
-
----
-
-## ~0:48 - manually stopped
-
-The failed Chrome attempt is stopped.
-
-The log shows the familiar abort sequence:
-
-```text
-stop requested reason=manual
-audioend
-error=aborted
-end
-```
-
-The page reports:
-
-> **No speech detected**
-
----
-
-# 10. Chrome → Safari switch
-
-## ~0:49-0:50
-
-The app switcher is opened.
-
-Safari is selected.
-
-Chrome is backgrounded.
-
-### Page lifecycle
-
-The browsers add visibility events as their foreground/background state changes.
-
----
-
-# 11. Safari - third attempt still fails
-
-## ~0:51
-
-A fresh Safari recognition attempt is started.
-
-The log again reaches:
-
-```text
-start requested
-start
-audiostart
-```
-
-The page says:
-
-> **Listening**
-
-### However
-
-- no amber dot appears
-- no `speechstart`
-- no recognition results
-
-This is important because it shows that:
-
-> **simply switching browsers is not a guaranteed immediate fix in every instance.**
-
-The later part of the recording shows a much stronger recovery-after-switch pattern, but this early switch does not immediately restore Safari.
-
----
-
-## ~0:52-0:59
-
-Safari remains stuck in the listening state.
-
-The attempt is eventually manually stopped.
-
-The log again ends with:
-
-```text
-stop requested reason=manual
-audioend
-error=aborted
-end
-```
-
----
-
-# 12. ~1:01-1:03 - Control Centre check
-
-Control Centre is opened.
-
-### Important observation
-
-There is **no amber microphone dot** visible.
-
-This gives additional evidence that the failed Safari attempt was not actually holding an iOS microphone session, despite having emitted `audiostart`.
-
-This is one of the stronger corroborating observations in the video.
-
----
-
-# 13. ~1:04-1:06 - another browser switch
-
-The app switcher is used again.
-
-The test moves back towards Chrome.
-
-More `visibility state=...` entries are added to the logs.
-
----
-
-# 14. Chrome - later attempt / transition period
-
-## ~1:09
-
-Another Chrome recognition attempt begins.
-
-The page reaches a listening state and the log shows:
-
-```text
-start
-audiostart
-```
-
-The microphone state during this section is less cleanly separated than the earlier attempts because the user subsequently moves between apps.
-
----
-
-## ~1:17
-
-Chrome shows a microphone-access message.
-
-The app switcher is opened soon afterwards.
-
-### Important lifecycle behaviour
-
-Chrome's attempt is later stopped as a consequence of the page becoming hidden.
-
-The log records behaviour resembling:
-
-```text
-stop requested reason=page hidden
-audioend
-error=aborted
-end
-```
-
-### Why this matters
-
-The test code appears to react explicitly to page visibility changes.
-
-Switching browsers therefore does not merely wait for time to pass - it can also trigger real lifecycle code and browser-level audio-session changes.
-
-This makes app switching a meaningful state transition rather than just a passive delay.
-
----
-
-# 15. Safari - strong recovery after switch
-
-## ~1:19-1:21
-
-Safari is foregrounded again.
-
-A fresh recognition attempt begins.
-
-### Critical observation
-
-The amber microphone dot appears at approximately **1:21.5**, very shortly after the new Safari attempt starts.
-
-The log shows:
-
-```text
-start
-audiostart
-```
-
-and this time the system microphone genuinely activates.
-
----
-
-## ~1:24 onward
-
-Safari changes to:
-
-> **Speech received**
-
-The log records:
-
-```text
-speechstart
-result ... final=false
-...
-```
-
-Recognition is working again.
-
----
-
-## ~1:29-1:30
-
-The attempt completes successfully.
-
-The log reaches:
-
-```text
-result ... final=true
-speechend
-end
-```
-
-### Interpretation
-
-This is one of the clearest recovery examples:
-
-```text
-other browser was active
-→ switch to Safari
-→ create recogniser
-→ actual microphone comes back quickly
-→ speech works
-```
-
----
-
-# 16. Safari → Chrome - another rapid recovery
-
-## ~1:35
-
-The app switcher is opened.
-
-Chrome is brought to the foreground.
-
----
-
-## ~1:38
-
-A new Chrome recognition attempt starts.
-
-The amber dot is visible / active in association with the working microphone state.
-
-The log records:
-
-```text
-start
-audiostart
-```
-
----
-
-## ~1:41-1:45
-
-Chrome reaches:
-
-> **Speech received**
-
-The log shows multiple interim recognition results:
-
-```text
-speechstart
-result ... final=false
-result ... final=false
-...
-```
-
-Chrome's microphone banner also appears.
-
----
-
-## ~1:46-1:47
-
-The Chrome attempt completes successfully.
-
-The log reaches:
-
-```text
-result ... final=true
-speechend
-end
-```
-
-This is another example where switching to the other browser is followed by a successful real microphone session.
-
----
-
-# 17. ~1:48-1:50 - iOS privacy inspection
-
-Control Centre is pulled down while microphone activity is still relevant.
-
-The amber dot remains visible.
-
-An orange Chrome-related privacy control is visible.
-
-The privacy panel is then opened.
-
-### Particularly important evidence
-
-iOS explicitly identifies recent/current microphone usage.
-
-The panel shows entries along the lines of:
-
-- **Safari - Microphone, recently**
-- **Chrome / zige-qiao.github.io - Microphone**
-
-Under the audio/video section it indicates:
-
-> **zige-qiao.github.io in Chrome**
-
-and the microphone mode is shown as:
-
-> **Standard**
-
-### Why this matters
-
-This is direct system-level evidence that iOS itself associates Chrome/the website with a real microphone session during a successful attempt.
-
-It also provides a useful contrast with the failed `audiostart` attempts, where the amber dot never appeared.
-
----
-
-# 18. Chrome → Safari - successful recovery again
-
-## ~1:52-1:54
-
-The app switcher is opened.
-
-Safari is selected.
-
-Visibility events are added to the browser logs.
-
----
-
-## ~1:55
-
-Safari begins another fresh recognition attempt.
-
-There is a brief interruption/change in the amber indicator around this transition, after which the microphone becomes active again.
-
----
-
-## ~1:56-2:01
-
-Safari progresses normally:
-
-```text
-Listening
-→ Speech received
-```
-
-The log includes:
-
-```text
-speechstart
-result ... final=false
-...
-```
-
-The amber dot remains visible during active microphone use.
-
----
-
-## ~2:02
-
-The recognition completes successfully.
-
-The final lifecycle includes:
-
-```text
-result ... final=true
-speechend
-end
-```
-
-The amber dot disappears shortly afterwards, around 2:02.
-
----
-
-# 19. Safari - immediate retry fails again
-
-## ~2:02-2:06
-
-Another Safari attempt is started soon after the successful one.
-
-The page again reaches a nominal recognition state.
-
-The log reports the early lifecycle, including `audiostart`.
-
-### But again
-
-- the amber dot does not appear
-- no real speech is recognised
-- the attempt ends as a no-speech/failed attempt
-
-This reinforces the repeated same-browser pattern:
-
-```text
-successful recognition
-→ clean end
-→ immediate new recogniser
-→ page thinks audio started
-→ OS microphone does not actually reactivate
-```
-
----
-
-# 20. Safari → Chrome - very fast microphone recovery
-
-## ~2:07
-
-The app switcher is opened.
-
-Chrome is selected.
-
----
-
-## ~2:08
-
-Chrome starts a new recognition attempt.
-
-### Strong timing observation
-
-The amber microphone dot appears at approximately **2:08.6**, less than a second after the new attempt begins.
-
-This is one of the clearest examples of the "switch browser, microphone comes back quickly" behaviour.
-
----
-
-## ~2:11-2:14
-
-Chrome reaches:
-
-> **Speech received**
-
-The log records:
-
-```text
-speechstart
-result ... final=false
-...
-```
-
-The amber dot remains visible.
-
----
-
-## ~2:15
-
-Recognition completes normally.
-
-The log reaches:
-
-```text
-result ... final=true
-speechend
-end
-```
-
-The amber dot disappears at around **2:15.1**.
-
----
-
-# 21. Chrome - immediate sixth attempt fails
-
-## ~2:16
-
-Chrome immediately starts another recognition attempt.
-
-The log reports:
-
-```text
-start
-audiostart
-```
-
-The page says:
-
-> **Listening**
-
-### But
-
-- the amber dot does not return
-- there is no `speechstart`
-- there are no recognition results
-
-This is arguably the clearest single demonstration of the bug because it happens immediately after a fully successful Chrome attempt.
-
----
-
-## ~2:16-2:20
-
-The page remains stuck in Listening.
-
-There is no evidence of actual microphone acquisition.
-
----
-
-## ~2:20-2:21
-
-The attempt is manually stopped.
-
-The final visible log includes approximately:
-
-```text
-152.110s [attempt 6] stop requested reason=manual
-152.115s audioend
-152.146s error ... error=aborted
-152.146s end
-```
-
-The page ends in:
-
-> **No speech detected**
-
----
-
-# 22. Attempt-level pattern summary
-
-The exact attempt numbering is browser-local in the page log, but the overall visible behaviour can be summarised as follows.
-
-## Safari
-
-| Approx. attempt | Result | Amber dot | `audiostart` | `speechstart` / results | Notes |
-|---|---|---:|---:|---:|---|
-| First | Success | Yes | Yes | Yes | Initial permission flow |
-| Immediate next | Fail | No | Yes | No | Classic false-listening state |
-| After early switch back | Fail | No | Yes | No | Shows switching is not always sufficient |
-| Later after browser lifecycle changes | Success | Yes | Yes | Yes | Fast recovery |
-| Later post-switch | Success | Yes | Yes | Yes | Repeated recovery pattern |
-| Immediate retry after success | Fail | No | Yes | No | Same-browser failure returns |
-
-## Chrome
-
-| Approx. attempt | Result | Amber dot | `audiostart` | `speechstart` / results | Notes |
-|---|---|---:|---:|---:|---|
-| First | Success | Yes | Yes | Yes | Initial permission flow |
-| Immediate next | Fail | No | Yes | No | Mirrors Safari |
-| Mid-video attempt | Interrupted/backgrounded | Mixed | Yes | Incomplete | Page-hidden lifecycle involved |
-| Post-switch attempt | Success | Yes | Yes | Yes | Recovery |
-| Later post-switch attempt | Success | Yes | Yes | Yes | Very fast mic reacquisition |
-| Immediate next | Fail | No | Yes | No | Strong final reproduction |
-
----
-
-# 23. Strongest findings
-
-## Finding 1 - `audiostart` does not prove the iOS microphone is actually active
-
-This is the most significant finding.
-
-There are several failed attempts where the log reports:
-
-```text
-start
-audiostart
-```
-
-and the page says:
-
-> Listening
-
-but:
-
-- the iOS amber privacy dot is absent
-- `speechstart` never fires
-- no interim results arrive
-- no final result arrives
-
-This suggests the Web Speech event model has advanced further than the underlying iOS audio capture state.
-
----
-
-## Finding 2 - the amber dot correlates strongly with actual successful recognition
-
-Whenever the microphone clearly works, the amber dot is present.
-
-Successful pattern:
-
-```text
-amber dot appears
-→ speechstart
-→ results
-```
-
-Failed pattern:
-
-```text
-no amber dot
-→ no speechstart
-→ no results
-```
-
-Within this video, the amber dot is therefore a much better visible proxy for genuine capture than `audiostart`.
-
----
-
-## Finding 3 - immediate same-browser retries are unusually failure-prone
-
-Both Safari and Chrome show essentially the same behaviour:
-
-```text
-successful recognition
-→ end
-→ immediately create/start another recogniser
-→ audiostart fires
-→ actual mic does not reacquire
-```
-
-This cross-browser repetition is important.
-
-It suggests the issue may exist below the browser-specific UI layer.
-
----
-
-## Finding 4 - switching between Safari and Chrome often restores the mic very quickly
-
-In the later half of the recording, this becomes very noticeable.
-
-Examples include approximately:
-
-- Chrome → Safari around **1:19-1:21**
-- Safari → Chrome around **1:35-1:38**
-- Chrome → Safari around **1:52-1:56**
-- Safari → Chrome around **2:07-2:09**
-
-In several of these cases, the microphone becomes active almost immediately after starting recognition in the newly foregrounded browser.
-
-The ~2:08 Chrome recovery is especially clear because the amber dot appears in under roughly one second.
-
----
-
-## Finding 5 - browser switching is not a guaranteed fix
-
-The earlier Chrome → Safari switch at approximately **0:50-0:51** does not immediately restore microphone operation in Safari.
-
-Therefore the rule is not simply:
-
-```text
-switch browser = always fixed
-```
-
-A more accurate description is:
-
-> Browser foreground/background transitions appear to make successful re-acquisition substantially more likely, especially once the previous capture state has had time or lifecycle events to release.
-
----
-
-## Finding 6 - foreground/background lifecycle may be part of the recovery mechanism
-
-When switching browsers, the page logs visibility changes.
-
-At least one recognition attempt is explicitly terminated with a reason related to the page becoming hidden:
-
-```text
-stop requested reason=page hidden
-```
-
-This matters because switching browsers introduces more than a time delay.
-
-It may trigger:
-
-- page visibility changes
-- browser suspension/resumption
-- audio-session interruption
-- capture release
-- WebKit media-session state changes
-- iOS process/audio routing changes
-
-Any one of these could be involved in the recovery.
-
----
-
-# 24. Unusual patterns
-
-## 24.1 Successful end appears capable of "poisoning" the next attempt
-
-One of the strangest behaviours is that an attempt can complete perfectly:
-
-```text
-speechstart
-results
-final result
-speechend
-end
-```
-
-and yet the **very next new recogniser** in the same browser can fail to obtain real microphone input.
-
-Normally, one might expect a clean `end` to leave the browser ready for the next capture.
-
-That is not consistently happening here.
-
----
-
-## 24.2 No immediate microphone error is thrown
-
-The failed attempts do not simply report something like:
-
-```text
-not-allowed
-audio-capture
-permission-denied
-```
-
-Instead they reach:
-
-```text
-audiostart
-```
-
-and remain nominally listening.
-
-This makes the failure more unusual because the Web Speech layer appears unaware that useful microphone input is absent.
-
----
-
-## 24.3 `audioend` can appear after a session that seemingly never had real OS microphone ownership
-
-On failed attempts, stopping the recogniser still generates:
-
-```text
-audioend
-```
-
-even though the amber dot never appeared.
-
-This suggests `audiostart` / `audioend` are tracking the Web Speech recogniser's logical audio phase, not necessarily the physical iOS microphone session.
-
----
-
-## 24.4 App switching may be forcing a deeper reset than stopping recognition
-
-Calling stop/end inside one browser is often insufficient.
-
-Moving the browser into the background and foregrounding another browser appears more effective.
-
-That points towards a state that exists outside the lifetime of the individual JavaScript `SpeechRecognition` object.
-
----
-
-## 24.5 The issue affects both Safari and Chrome
-
-This is significant on iOS because both browsers ultimately rely heavily on Apple's browser/audio platform stack.
-
-The fact that similar symptoms occur in both browsers weakens explanations that depend purely on Chrome's page UI or purely on Safari's page UI.
-
----
-
-# 25. Likely technical interpretation
-
-The recording is most consistent with some kind of microphone/audio-session teardown or re-acquisition problem.
-
-A plausible conceptual model is:
-
-```text
-Web Speech recogniser A
-        ↓
-gets real microphone
-        ↓
-recognition succeeds
-        ↓
-recogniser A ends
-        ↓
-Web Speech API reports clean end
-        ↓
-underlying iOS/browser audio session is not yet fully reusable
-        ↓
-recogniser B is created immediately
-        ↓
-Web Speech state machine advances
-        ↓
-"audiostart" fires
-        ↓
-but physical microphone is not successfully reacquired
-        ↓
-no amber dot
-        ↓
-no speechstart
-        ↓
-no results
-```
-
-Then:
-
-```text
-browser is backgrounded
-        ↓
-visibility / interruption / audio lifecycle executes
-        ↓
-audio ownership is released or reset more fully
-        ↓
-other browser is foregrounded
-        ↓
-new recogniser starts
-        ↓
-iOS grants actual microphone capture
-        ↓
-amber dot appears
-        ↓
-speech recognition succeeds
-```
-
----
-
-# 26. Leading hypotheses
-
-These are hypotheses supported by the visible behaviour, not proven root causes.
-
-## Hypothesis A - microphone teardown race
-
-The previous recognition finishes, but the underlying iOS audio capture session has not finished releasing when the next recogniser starts.
-
-An immediate restart lands in a bad transitional state.
-
-### Why it fits
-
-- immediate same-browser retry often fails
-- switching browsers naturally adds time
-- later attempts after lifecycle transitions often succeed
-- the API can say `audiostart` before the OS microphone is truly active
-
----
-
-## Hypothesis B - stale Web Speech / WebKit audio-session state
-
-The speech recogniser may mark itself as having entered the audio phase while the underlying AVAudioSession or capture object remains stale or unavailable.
-
-### Why it fits
-
-The exact mismatch:
-
-```text
-audiostart = yes
-amber dot = no
-speech = no
-```
-
-suggests state disagreement between layers.
-
----
-
-## Hypothesis C - foreground/background transition resets audio ownership
-
-Putting a browser into the background may trigger a deeper release of capture resources.
-
-Foregrounding the other browser then starts with a cleaner audio state.
-
-### Why it fits
-
-The second half contains multiple successful recoveries immediately following browser switches.
-
----
-
-## Hypothesis D - elapsed time is partially responsible
-
-The apparent benefit from browser switching may partly be the delay introduced by:
-
-- opening app switcher
-- waiting for animations
-- foregrounding another app
-- pressing Start
-
-The actual fix could be "wait long enough after end", rather than "switch browser".
-
-### Why this remains possible
-
-The early switch back to Safari does not immediately fix the issue.
-
-This suggests timing and lifecycle may both matter.
-
----
-
-## Hypothesis E - both timing and lifecycle are required
-
-This may be the best combined explanation.
-
-For example:
-
-```text
-recognition end
-+
-minimum release delay
-+
-foreground/background audio-session transition
-=
-reliable reacquisition
-```
-
-The video does not isolate these variables, so a controlled test is required.
-
----
-
-# 27. What the recording does NOT suggest
-
-## Not simply a microphone permission denial
-
-Permissions are explicitly granted.
-
-Successful sessions occur repeatedly afterwards.
-
----
-
-## Not simply a broken microphone
-
-The physical microphone clearly works repeatedly.
-
----
-
-## Not simply a speech-content problem
-
-On the failed attempts there is no `speechstart` at all.
-
-The failure occurs before speech recognition meaningfully begins.
-
----
-
-## Not a single-browser-only problem
-
-Both Safari and Chrome exhibit the same basic immediate-retry failure.
-
----
-
-## Not merely the page failing to render an indicator
-
-The iOS system amber dot itself changes, and Control Centre confirms real microphone use during successful periods.
-
----
-
-# 28. Recommended controlled experiments
-
-The next tests should try to separate **time delay** from **browser lifecycle reset**.
-
-## Test 1 - delayed restart in the same browser
-
-After a successful `end`, retry at fixed delays:
-
-```text
-0 ms
-100 ms
-250 ms
-500 ms
-750 ms
-1 s
-1.5 s
-2 s
-3 s
-5 s
-10 s
-```
-
-Record for each attempt:
-
-- recogniser creation timestamp
-- `start()` timestamp
-- `start`
-- `audiostart`
-- visually observed amber-dot onset
-- `speechstart`
-- first result
-- final result
-- `speechend`
-- `audioend`
-- `end`
-- error, if any
-
-### Purpose
-
-Determine whether the problem disappears above a particular cooldown threshold.
-
----
-
-## Test 2 - switch browser immediately versus wait
-
-Compare:
-
-### Condition A
-
-```text
-Safari success
-→ immediately start Safari again
-```
-
-### Condition B
-
-```text
-Safari success
-→ wait 2 seconds
-→ start Safari again
-```
-
-### Condition C
-
-```text
-Safari success
-→ switch to Chrome
-→ immediately start Chrome
-```
-
-### Condition D
-
-```text
-Safari success
-→ switch to Chrome
-→ wait 2 seconds
-→ start Chrome
-```
-
-Repeat enough times to get a meaningful success rate.
-
----
-
-## Test 3 - background and return to the SAME browser
-
-This is particularly important.
-
-Instead of switching to another browser:
-
-```text
-Safari success
-→ open app switcher
-→ return to Safari
-→ start again
-```
-
-If that fixes the problem, the important mechanism is probably the background/foreground lifecycle rather than inter-browser ownership.
-
----
-
-## Test 4 - lock/unlock screen between attempts
-
-Try:
-
-```text
-successful recognition
-→ lock
-→ unlock
-→ same browser
-→ start recognition
-```
-
-If this consistently resets the microphone, it further implicates iOS audio-session lifecycle.
-
----
-
-## Test 5 - explicitly delay after `audioend` versus after `end`
-
-Measure separate cooldowns based on:
-
-```text
-audioend + delay
-```
-
-and:
-
-```text
-end + delay
-```
-
-This may reveal which Web Speech event most closely corresponds to the useful release point.
-
----
-
-## Test 6 - log `visibilitychange`
-
-Log exact high-resolution timestamps for:
-
-```javascript
-document.visibilityState
-visibilitychange
-pagehide
-pageshow
-freeze
-resume
-focus
-blur
-```
-
-where supported.
-
-Then correlate these with mic recovery.
-
----
-
-## Test 7 - log all SpeechRecognition events
-
-Capture every available event:
-
-```text
-start
-audiostart
-soundstart
-speechstart
-result
-speechend
-soundend
-audioend
-nomatch
-error
-end
-```
-
-The distinction between `soundstart` and `speechstart` may be particularly useful.
-
----
-
-## Test 8 - capture `performance.now()` deltas
-
-All log entries should use monotonic high-resolution time.
-
-For example:
-
-```text
-T+0.000 start() called
-T+0.014 start
-T+0.035 audiostart
-T+0.421 iOS amber dot visually appears
-T+1.312 soundstart
-T+1.438 speechstart
-```
-
-The amber dot still has to be observed visually, but everything else can be timestamped programmatically.
-
----
-
-# 29. Suggested pass/fail definition
-
-For future tests, do not classify an attempt as successful merely because `audiostart` fires.
-
-A better definition would be:
-
-## Capture acquired
-
-At least one of:
-
-```text
-iOS amber dot appears
-soundstart occurs
-speechstart occurs
-recognition result arrives
-```
-
-## Fully successful
-
-```text
-amber dot
-+
-speechstart
-+
-at least one result
-```
-
-## Suspected false-audiostart failure
-
-```text
-audiostart
-+
-no amber dot
-+
-no soundstart/speechstart
-+
-no results
-```
-
----
-
-# 30. Suggested machine-readable attempt log
-
-For debugging, each recogniser attempt could produce data such as:
-
-```json
-{
-  "browser": "Safari",
-  "attempt": 7,
-  "recognizerCreated": 12345.100,
-  "startRequested": 12345.150,
-  "startEvent": 12345.170,
-  "audioStart": 12345.190,
-  "amberDotObserved": false,
-  "soundStart": null,
-  "speechStart": null,
-  "firstResult": null,
-  "finalResult": null,
-  "audioEnd": 12352.400,
-  "error": "aborted",
-  "end": 12352.430,
-  "visibilityAtStart": "visible",
-  "previousAttemptEndedAgoMs": 210
-}
-```
-
-Then compare success against:
-
-```text
-previousAttemptEndedAgoMs
-browser foreground duration
-visibility transitions
-previous browser
-previous attempt outcome
-```
-
----
-
-# 31. Most useful comparison from the recording
-
-The strongest direct A/B-like comparison occurs near the end.
-
-## Chrome successful attempt
-
-Around **2:08-2:15**:
-
-```text
-switch to Chrome
-→ start
-→ amber dot appears ~2:08.6
-→ speechstart
-→ interim results
-→ final result
-→ speechend
-→ end
-→ amber dot disappears ~2:15.1
-```
-
-## Chrome immediate retry
-
-Around **2:16-2:21**:
-
-```text
-same Chrome tab/browser
-→ new recogniser
-→ start
-→ audiostart
-→ page says Listening
-→ NO amber dot
-→ NO speechstart
-→ NO results
-→ manual stop
-→ audioend
-→ error=aborted
-→ end
-```
-
-This pair is particularly valuable because:
-
-- it is the same browser
-- it happens within seconds
-- one attempt demonstrably owns the microphone
-- the following attempt claims `audiostart`
-- the following attempt demonstrably does not show OS microphone ownership
-
-This is probably the cleanest visual reproduction of the underlying problem in the entire video.
-
----
-
-# 32. Why the browser-switch recovery matters
-
-The browser-switch result changes the likely diagnosis.
-
-If the microphone simply required a long arbitrary timeout every time, switching browsers should not systematically help.
-
-If the problem were pure site permission, switching browsers would not produce this specific success/failure sequence either.
-
-Instead, the data suggests a resource/lifecycle problem.
-
-A useful mental model is:
-
-```text
-SpeechRecognition object lifecycle
-≠
-browser audio-capture lifecycle
-≠
-iOS microphone / AVAudioSession lifecycle
-```
-
-The test shows these layers can temporarily disagree.
-
----
-
-# 33. Potential bug statement
-
-A concise technical bug description based on this video would be:
-
-> On iOS, after a successful Web Speech `SpeechRecognition` session ends, immediately creating and starting a new recogniser in the same browser can dispatch `start` and `audiostart` and leave the page in a Listening state without actually reacquiring the system microphone. During the failed state the iOS amber microphone privacy indicator is absent, `speechstart` does not fire, and no recognition results are produced. Backgrounding/switching browsers often allows the next recognition session to reacquire the microphone almost immediately.
-
----
-
-# 34. Short reproduction sequence
-
-A minimal reproduction based on the strongest behaviour in the video:
-
-1. Open the test page in Safari or Chrome on iOS.
-2. Grant microphone permission.
-3. Create a new `SpeechRecognition`.
-4. Start recognition.
-5. Speak.
-6. Confirm:
-   - amber dot appears
-   - `speechstart` fires
-   - recognition results arrive
-7. Allow recognition to complete and emit `end`.
-8. Immediately create a second new `SpeechRecognition`.
-9. Start it.
-10. Observe that it may emit:
-    - `start`
-    - `audiostart`
-11. Observe:
-    - no amber dot
-    - no `speechstart`
-    - no recognition results
-12. Stop the attempt.
-13. Switch to the other browser.
-14. Start recognition there.
-15. Observe that the amber dot often reappears very quickly and recognition works again.
-
----
-
-# 35. Evidence hierarchy from this recording
-
-When judging whether the microphone really started, the signals in this video should be weighted roughly as follows.
-
-## Strongest evidence
-
-1. **iOS amber privacy dot**
-2. `speechstart`
-3. actual recognition results
-
-## Intermediate evidence
-
-4. `soundstart`, if logged
-5. browser microphone UI / permission banners
-
-## Weakest evidence
-
-6. `audiostart`
-7. page text saying **Listening**
-
-The surprising part of this recording is that the bottom two can occur without the top three.
-
----
-
-# 36. Final conclusions
-
-The recording demonstrates a reproducible iOS speech-recognition failure mode in which the browser's Web Speech API appears to enter the audio/listening phase without actually obtaining an active system microphone session.
-
-The strongest evidence is the repeated combination:
-
-```text
-audiostart
-+
-Listening
-+
-NO amber dot
-+
-NO speechstart
-+
-NO results
-```
-
-The problem occurs in both Safari and Chrome.
-
-Immediate retries in the same browser are particularly prone to this failed state.
-
-By contrast, changing browser foreground state - especially switching between Safari and Chrome - often allows the microphone to reactivate much more quickly. In the later part of the video this recovery happens repeatedly and, in at least one case, the amber dot returns in well under a second after the new attempt starts.
-
-The behaviour therefore points more strongly towards an iOS/browser audio-session teardown or ownership problem than towards ordinary microphone permission failure or speech-recognition failure.
-
-The main unresolved question is whether browser switching is itself the key recovery mechanism, or whether it merely introduces enough delay and lifecycle activity for the previous iOS audio session to be fully released.
-
-The next most useful experiment is therefore a controlled comparison of:
-
-```text
-same-browser immediate retry
-same-browser delayed retry
-background/foreground same browser
-switch browser immediately
-switch browser after controlled delay
-```
-
-with the amber privacy dot treated as an independent system-level signal rather than relying on `audiostart` alone.
-
----
-
-# 37. Condensed diagnostic signature
-
-If this needs to be recognised quickly in future recordings or logs, the characteristic signature is:
-
-```text
-WORKING:
-start
-→ audiostart
-→ 🟠 iOS mic indicator
-→ speechstart
-→ result
-→ end
-
-BROKEN:
-start
-→ audiostart
-→ no 🟠
-→ no speechstart
-→ no result
-→ manual abort
-
-RECOVERY OFTEN OBSERVED:
-background/switch browser
-→ foreground browser
-→ start
-→ 🟠 appears quickly
-→ speech works
-```
-
-That is the central finding from the video.
+</details>

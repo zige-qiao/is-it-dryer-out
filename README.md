@@ -23,21 +23,8 @@ On iPhone/iPad, tap an eligible opening duration to open the timer. See the [use
 
 ## Recent changes
 
+- [Unreleased](CHANGELOG.md#unreleased): documentation organised by task with link and structure checks. Appearance and uniform glass sheets remain on the separate, unmerged dark-mode branch.
 - [v0.7.10](CHANGELOG.md#v0710---chart-and-input-reliability-refinements---2026-10-13): matching rain and ACH legend fills, a shorter fresh-weather status, more reliable location startup and voice review, clearer feedback for rejected manual entries, and a taller weather-refresh target with its compact width retained.
-
-- [v0.7.9](CHANGELOG.md#v079---settings-chart-and-ventilation-refinements---2026-10-12) refines Settings and Chart key, adds persistent Indoor access and Why timers, and improves sheet and voice controls. Refresh app matches the light Settings control; Chart key uses shorter rain and wind labels.
-
-- [v0.7.8](CHANGELOG.md#v078---pill-tabs-and-frosted-sheet-headers---2026-10-10) adds Overview/Why pill tabs, swipe navigation, Settings in Why's footer, saved Chart key layout preferences and sheet-coloured headers with a graduated blur fade confined to content within each sheet.
-
-- [v0.7.7](CHANGELOG.md#v077---page-layout-and-sheet-refinements---2026-10-09): pinned Recommendation, saved optional layouts, plain-language explanations, advisory rain/wind chart details, clearer supporting sections, stationary sheet headers and actions, safer touch gestures and deliberate Settings reordering. Diagnostic tools now live in `diagnostics/`; old page links still work.
-
-- [v0.7.6](CHANGELOG.md#v076---drying-guidance-and-reliability---2026-10-07): recognise moisture removal when cooling masks the RH drop, show the next suitable opening time for KEEP CLOSED, shorten supporting verdict copy, expand minimum temperature to 8–28°C and target humidity to 35–65%, improve camera-loading cancellation and retries, and handle blocked storage and stalled weather requests.
-
-- [v0.7.5](CHANGELOG.md): on-device camera readings, frame/still capture, zoom presets, grouped Settings and stronger safeguards against historical LCD readings. See the [release notes](CHANGELOG.md).
-
-- [v0.7.4](CHANGELOG.md#v074---ventilation-timer---2026-10-03): iPhone ventilation timers from verdict times, adjustable minutes and one reusable Shortcut.
-- [v0.7.3.1](CHANGELOG.md): refined moisture estimates, forecast colours and pull-to-refresh feedback; reorganised the app into native modules.
-- [v0.7.3](CHANGELOG.md): improved iPhone forecast-curve rendering and chart focus behaviour.
 
 See the [full changelog](CHANGELOG.md) for all releases and detailed notes.
 
@@ -47,10 +34,13 @@ Built with HTML, CSS and native JavaScript modules. No build step or dependency 
 
 ```sh
 node --test tests/*.test.cjs
+npm run docs:check
 ```
 
-- [Development guide](docs/development.md) — local serving, modules, tests and caching
-- [User guide](docs/user-guide.md)
+- [User guide](docs/user-guide.md) — everyday actions and detailed help
+- [Camera instructions](docs/guides/camera.md) — capture, review and confirm
+- [Documentation index](docs/index.md) — tasks, ownership and evidence
+- [Developer quick start](docs/development.md) — local serving, architecture and checks
 - [Design system](docs/design-system.md)
 - [Voice investigation](docs/voice/VOICE-INVESTIGATION.md)
 - [Changelog](CHANGELOG.md)
