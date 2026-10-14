@@ -23,8 +23,8 @@ On iPhone/iPad, tap an eligible opening duration to open the timer. See the [use
 
 ## Recent changes
 
-- [Unreleased](CHANGELOG.md#unreleased): documentation organised by task with link and structure checks. Appearance and uniform glass sheets remain on the separate, unmerged dark-mode branch.
-- [v0.7.10](CHANGELOG.md#v0710---chart-and-input-reliability-refinements---2026-10-13): matching rain and ACH legend fills, a shorter fresh-weather status, more reliable location startup and voice review, clearer feedback for rejected manual entries, and a taller weather-refresh target with its compact width retained.
+- [Unreleased](CHANGELOG.md#unreleased): appearance modes and uniform glass sheets remain on the separate, unmerged dark-mode branch.
+- [v0.7.10](CHANGELOG.md#v0710---chart-and-input-reliability-refinements---2026-10-13): rain and ACH legend refinements, “Just now” weather status, location/voice/input recovery, a compact weather-refresh target, and task-based documentation with link and structure checks.
 
 See the [full changelog](CHANGELOG.md) for all releases and detailed notes.
 
