@@ -6,7 +6,7 @@
 
 **Owns:** Runnable checks, fixtures and the limits of automated/device evidence
 
-**Reviewed:** 14 October 2026
+**Reviewed:** 16 October 2026
 
 [Documentation index](../index.md) · [User guide](../user-guide.md)
 
@@ -41,7 +41,7 @@ Tests import the production functions and controller factories rather than extra
 
 ## Browser and offline checks
 
-With Playwright available on `NODE_PATH`, run `node tests/dark-mode.browser.cjs http://127.0.0.1:8776/` against an independent local preview. It uses isolated profiles, mocked weather, blocked service workers and screenshots under ignored `work/page-layout/dark-mode/`. The acceptance checks cover delayed-module first paint, system/override changes and foreground recovery, saved choice/Reset independence, native keyboard radios, rendered light/dark surfaces and contrast, narrow/enlarged layouts, all sheets, and mocked media presentation. Service-worker-enabled offline loading is a separate integration check. Emulated browsers cannot establish iPhone Safari/Home Screen chrome, keyboard behaviour or actual media capture.
+With Playwright available on `NODE_PATH`, run `node tests/dark-mode.browser.cjs http://127.0.0.1:8776/` against an independent local preview. It uses isolated profiles, mocked weather, blocked service workers and screenshots under ignored `work/page-layout/dark-mode/`. The acceptance checks cover delayed-module first paint, system/override changes and foreground recovery, saved choice/Reset independence, native keyboard radios, rendered light/dark surfaces and contrast, exact theme-specific verdict gradients from [Foundations](../design/foundations.md#a-recommendation-and-integrated-chart-surface), including the total 16% relative Dark lightness reduction, with unchanged chart colours, all four verdict backgrounds at mobile/desktop widths and 100%/200% text, all sheets, and mocked media presentation. Service-worker-enabled offline loading is a separate integration check. Emulated browsers cannot establish iPhone Safari/Home Screen chrome, keyboard behaviour or actual media capture.
 
 Run `node tests/theme-offline.browser.cjs http://127.0.0.1:8776/` for the separate service-worker-enabled check. It installs and activates the cache in an isolated context, selects Dark, reloads offline, and verifies the saved choice, cached stylesheet and theme module without browser runtime errors. It does not establish installed iPhone launch-screen behaviour.
 

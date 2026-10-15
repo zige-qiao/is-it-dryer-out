@@ -6,7 +6,7 @@
 
 **Owns:** Manual readings, ventilation settings, Overview layout, appearance and accessible controls
 
-**Reviewed:** 14 October 2026
+**Reviewed:** 16 October 2026
 
 [Documentation index](../index.md) · [User guide](../user-guide.md)
 
@@ -49,7 +49,7 @@ The camera-help Settings link focuses Auto flash when visible, otherwise Show ca
 
 The last Settings group, **Appearance**, follows **Indoor readings**. Choose **System**, **Light** or **Dark**. System is the default and follows your device's appearance, including changes while the app is open. Light and Dark keep their chosen appearance independently of the device. The choice saves immediately, survives refresh and applies before the interface appears. **Reset** in Overview layout changes layout only and keeps your appearance choice.
 
-Dark appearance covers both pages, sheets, controls and feedback. Recommendation gradients and the chart's white, amber and coral meanings stay the same. Browser toolbar colours and the installed app's launch screen retain their existing colours; those areas may differ from the chosen appearance.
+Dark appearance covers both pages, sheets, controls and feedback. Recommendation backgrounds use deeper colours in Dark mode while preserving their hues and meanings. This affects the coloured background only; Light mode and loading/unavailable backgrounds stay unchanged. Text, controls and the chart's white, amber and coral colours retain their existing treatment. Browser toolbar colours and the installed app's launch screen retain their existing colours; those areas may differ from the chosen appearance.
 
 ## Closing sheets and navigating
 

@@ -4,6 +4,8 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Deepen all four Dark-mode verdict gradients using a total 16% relative OKLCH lightness reduction from the Light endpoints, with hue-preserving gamut mapping. Keep Light backgrounds, text, chart colours, controls and unavailable surfaces unchanged.
+
 - Give all five sheets 95% white tint in Light and 55% tint in Dark with 4px blur, unchanged pill-menu styling, with content scrolling behind pinned headers and the existing Timer footer. Keep the background continuous through the header until scrolling content reaches it, then activate its pinned cover without double tint. Remove fades, keep scrollbar and focused controls clear of pinned areas, and retain solid/system-colour fallbacks and current text styling.
 
 - Add an offline `npm run docs:check` command to verify documentation links, navigation, README conventions and preserved heading destinations.

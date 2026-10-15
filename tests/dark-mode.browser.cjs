@@ -9,6 +9,11 @@ const preview = process.argv[2] || 'http://127.0.0.1:8776/';
 const artifacts = path.resolve('work/page-layout/dark-mode');
 const key = 'is-it-dryer-out-ui-preferences';
 const radio = value => `[data-theme-preference][value="${value}"]`;
+const verdictGradients = {
+  light: { open: ['025446', '137738'], windows: ['214487', '056b97'], closed: ['7b242e', '9e441d'], caution: ['633f03', '756202'] },
+  dark: { open: ['004136', '005e28'], windows: ['103273', '005377'], closed: ['670e1e', '832d00'], caution: ['4d3000', '5b4c00'] },
+};
+const gradientCss = stops => `linear-gradient(145deg, ${stops.map(hex => `rgb(${[0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`).join(', ')})`;
 const palette = {
   light: { page: 'rgb(242, 240, 237)', panel: 'rgb(255, 255, 255)', ink: 'rgb(64, 60, 55)', primary: 'rgb(32, 39, 37)', onPrimary: 'rgb(255, 255, 255)' },
   dark: { page: 'rgb(23, 22, 20)', panel: 'rgb(36, 34, 31)', ink: 'rgb(241, 237, 230)', primary: 'rgb(217, 214, 207)', onPrimary: 'rgb(36, 34, 31)' },
@@ -253,13 +258,31 @@ async function noOverflow(page, selector, label) {
       for (const verdict of ['open', 'windows', 'closed', 'caution']) {
         await page.locator('.recommendation').evaluate((node, verdict) => { node.classList.remove('open', 'windows', 'closed', 'caution'); node.classList.add(verdict); }, verdict);
         const surface = await page.locator('.verdict-panel').evaluate(node => ({ background: getComputedStyle(node).backgroundImage,
+          foreground: getComputedStyle(node).color, filter: getComputedStyle(node).filter, opacity: getComputedStyle(node).opacity,
           chartWet: getComputedStyle(node).getPropertyValue('--chart-wet').trim(), chartNear: getComputedStyle(node).getPropertyValue('--chart-near').trim(),
           gradientColours: [...node.querySelectorAll('#ahSemantic stop')].map(stop => stop.getAttribute('stop-color')) }));
-        assert.match(surface.background, /^linear-gradient\(/); assert.equal(surface.chartWet, '#ffb3a8'); assert.equal(surface.chartNear, '#ffd27a');
+        assert.equal(surface.background, gradientCss(verdictGradients[theme][verdict]));
+        assert.equal(surface.filter, 'none'); assert.equal(surface.opacity, '1');
+        assert.equal(surface.chartWet, '#ffb3a8'); assert.equal(surface.chartNear, '#ffd27a');
         assert.ok(surface.gradientColours.length > 0 && surface.gradientColours.every(Boolean), 'semantic SVG has actual gradient stops');
         for (const expected of ['rgb(255, 255, 255)', 'rgb(255, 210, 122)', 'rgb(255, 179, 168)']) assert.ok(surface.gradientColours.includes(expected), `semantic gradient includes ${expected}`);
-        if (theme === 'light') verdictSurfaces.set(verdict, surface); else assert.deepEqual(surface, verdictSurfaces.get(verdict), verdict + ' preserves verdict/chart palette');
+        const { background, ...foregrounds } = surface;
+        if (theme === 'light') verdictSurfaces.set(verdict, foregrounds); else assert.deepEqual(foregrounds, verdictSurfaces.get(verdict), verdict + ' preserves foreground and chart palette');
       }
+      for (const width of [390, 1280]) for (const scale of [100, 200]) {
+        await page.setViewportSize({ width, height: 900 });
+        await page.evaluate(scale => { document.documentElement.style.fontSize = scale + '%'; }, scale);
+        for (const verdict of ['open', 'windows', 'closed', 'caution']) {
+          await page.locator('.recommendation').evaluate((node, verdict) => {
+            node.classList.remove('open', 'windows', 'closed', 'caution'); node.classList.add(verdict);
+          }, verdict);
+          assert.equal(await page.locator('.verdict-panel').evaluate(node => getComputedStyle(node).backgroundImage), gradientCss(verdictGradients[theme][verdict]));
+          await noOverflow(page, '.verdict-panel', `${theme}/${verdict}/${width}/${scale}`);
+          await page.locator('.verdict-panel').screenshot({ path: path.join(artifacts, `${theme}-verdict-${verdict}-${width}-${scale}.png`) });
+        }
+      }
+      await page.setViewportSize({ width: 390, height: 900 });
+      await page.evaluate(() => { document.documentElement.style.fontSize = '100%'; });
       await page.locator('.recommendation').evaluate((node, value) => { node.className = value; }, originalRecommendation);
       await page.screenshot({ path: path.join(artifacts, `${theme}-overview-390.png`), fullPage: true });
       await page.locator('#indoorDockButton').click();

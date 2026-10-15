@@ -4,7 +4,7 @@
 
 **Status:** Current working-tree reference; labelled Unreleased work and proposals are separate
 
-**Reviewed:** 14 October 2026
+**Reviewed:** 16 October 2026
 
 This overview routes to the written contracts. The [visual review board](design-system.html) illustrates colour and component states; it does not define a second set of rules. Use [the documentation index](index.md) for user, implementation and historical references. Code establishes actual implemented behaviour; explicit requirements and accepted constraints remain instructions. Record mismatches rather than changing the product to match an old note.
 
@@ -12,7 +12,7 @@ This overview routes to the written contracts. The [visual review board](design-
 
 Help someone decide whether opening windows reduces indoor moisture and approximately how long to open them. Keep the recommendation decisive, controls easy to adjust and technical explanations available without dominating the page. This is a planning tool, not a precise airflow measurement or guarantee.
 
-Use UK English and named theme roles. Preserve independent selected, pressed, focused, disabled and loading states. Use labelled native controls, keyboard alternatives, restrained borders and no decorative shadows. Broader typography normalisation remains proposed; the documented local appearance work is Unreleased.
+Use UK English and named theme roles. Preserve independent selected, pressed, focused, disabled and loading states. Use labelled native controls, keyboard alternatives, restrained borders and no decorative shadows. Broader typography normalisation remains proposed; the documented local appearance work is Unreleased. Dark verdict backgrounds use the 16% lightness reduction in [Foundations](design/foundations.md#a-recommendation-and-integrated-chart-surface), preserving hue and foreground styling; Light backgrounds and loading/unavailable surfaces retain their existing colours.
 
 ## Current page hierarchy
 

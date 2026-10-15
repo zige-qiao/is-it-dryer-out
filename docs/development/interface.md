@@ -6,7 +6,7 @@
 
 **Owns:** UI controller coordination, preferences, appearance, gestures, startup and recovery
 
-**Reviewed:** 14 October 2026
+**Reviewed:** 16 October 2026
 
 [Documentation index](../index.md) · [User guide](../user-guide.md)
 
@@ -40,7 +40,7 @@ The dialog helpers own opener-focus snapshots and synchronous focus return. Shee
 
 The saved UI preferences include `theme: 'system' | 'light' | 'dark'`, defaulting to `system`; unknown values fall back to System. A small inline bootstrap before the stylesheet reads that value defensively, resolves device preference, and sets `html[data-theme]` and `color-scheme` before first paint. The imported theme controller binds native Appearance radios, persists changes through existing storage, observes the device media query while System is selected, and resynchronises on visible/`pageshow` return. Explicit Light or Dark remains stable. Overview layout Reset preserves theme and all existing non-layout preferences.
 
-CSS role tokens cover neutral and feedback surfaces while verdict gradients, chart data colours and original media pixels remain fixed. The static HTML theme-colour and manifest launch/chrome colours remain unchanged. The theme module belongs in the service worker's complete production graph; a local iteration does not increment the cache version.
+CSS role tokens cover neutral and feedback surfaces. Dark verdict backgrounds use precomputed hex endpoints from the [16% relative OKLCH lightness reduction](../design/foundations.md#a-recommendation-and-integrated-chart-surface), with no runtime colour conversion, overlay or brightness filter; Light verdict backgrounds, chart data colours and original media pixels retain their existing treatment. The static HTML theme-colour and manifest launch/chrome colours remain unchanged. The theme module belongs in the service worker's complete production graph; a local iteration does not increment the cache version.
 
 ## Location and reading recovery
 

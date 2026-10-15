@@ -23,7 +23,7 @@ On iPhone/iPad, tap an eligible opening duration to open the timer. See the [use
 
 ## Recent changes
 
-- [Unreleased](CHANGELOG.md#unreleased): saved System, Light and Dark appearance, matching glass sheets with pinned actions, shorter fresh weather status, and documentation organised by task for people and agents.
+- [Unreleased](CHANGELOG.md#unreleased): saved System, Light and Dark appearance, matching glass sheets with pinned actions, deeper Dark-mode verdict backgrounds, shorter fresh weather status, and documentation organised by task for people and agents.
 - [v0.7.10](CHANGELOG.md#v0710---chart-and-input-reliability-refinements---2026-10-13): chart legend refinements, more reliable location startup and voice review, inline guidance for rejected values, and a taller compact weather-refresh target.
 
 See the [full changelog](CHANGELOG.md) for all releases and detailed notes.

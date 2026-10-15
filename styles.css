@@ -298,6 +298,20 @@ select {
   background: linear-gradient(145deg, #633f03, #756202);
 }
 
+/* Dark verdicts lower OKLCH lightness by 16%, retaining hue and in-gamut chroma. */
+:root[data-theme="dark"] .recommendation.open .verdict-panel {
+  background: linear-gradient(145deg, #004136, #005e28);
+}
+:root[data-theme="dark"] .recommendation.windows .verdict-panel {
+  background: linear-gradient(145deg, #103273, #005377);
+}
+:root[data-theme="dark"] .recommendation.closed .verdict-panel {
+  background: linear-gradient(145deg, #670e1e, #832d00);
+}
+:root[data-theme="dark"] .recommendation.caution .verdict-panel {
+  background: linear-gradient(145deg, #4d3000, #5b4c00);
+}
+
 .location-row,
 .section-heading,
 .control-heading,
