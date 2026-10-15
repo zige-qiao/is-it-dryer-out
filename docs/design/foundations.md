@@ -2,18 +2,18 @@
 
 **Audience:** Designers and interface implementers
 
-**Status:** Current main reference; appearance and uniform glass sheets on the separate `dark-mode` branch remain Unreleased where labelled
+**Status:** Current main reference for v0.7.11
 
 **Owns:** Theme roles, semantic palettes, typography, spacing and formatting
 
-**Reviewed:** 14 October 2026
+**Reviewed:** 16 October 2026
 
 [Documentation index](../index.md) · [User guide](../user-guide.md)
 
 ## Contents
 
 - [Colour foundations — implemented](#colour-foundations--implemented)
-- [Appearance — Unreleased](#appearance--unreleased)
+- [Appearance — v0.7.11](#appearance--v0711)
 - [Light neutral role tokens](#light-neutral-role-tokens)
 - [Contrast checks](#contrast-checks)
 - [Semantic colours — current implementation](#semantic-colours--current-implementation)
@@ -27,9 +27,9 @@
 
 ## Colour foundations — implemented
 
-### Appearance — Unreleased
+<a id="appearance--unreleased"></a>
 
-**Unreleased — separate `dark-mode` branch.** Appearance controls are not available on main. The following describes that branch’s pending implementation.
+### Appearance — v0.7.11
 
 Settings ends with Appearance after Indoor readings. Its native single-selection group contains System, Light and Dark, saves immediately, and uses System by default. System follows device appearance changes and resynchronises on foreground return. Explicit Light or Dark stays selected independently of the device. Overview layout Reset preserves appearance. Resolve the saved preference before the stylesheet and entry module run, so the shell and automatically opened Indoor sheet start in the chosen theme.
 
@@ -53,15 +53,15 @@ Keep the existing light palette. Dark uses warm neutral roles below; geometry, t
 | Uncertain / attention | `#EDD27A` on `#3E3317` |
 | Ready / success | `#7CDDB7` on `#1D372E` |
 
-Inverse ink remains white. Dark primary buttons, their waveform and the Indoor dock use dark ink on the light primary surface; checked switch thumbs follow the same ink. Bright feedback circles use dark glyphs. Preserve existing verdict gradients, unavailable-panel surface and chart curve colours. Selected 24/48 h chart tabs remain light with dark ink (`#403C37`) in both themes; their hover and pressed surfaces stay `#E6E2DD` and `#D9D3CC`.
+Inverse ink remains white. Dark primary buttons, their waveform and the Indoor dock use dark ink on the light primary surface; checked switch thumbs follow the same ink. Bright feedback circles use dark glyphs. Preserve the Light verdict gradients, unavailable-panel surface and chart curve colours. Dark verdict gradients use the deeper endpoints documented below. Selected 24/48 h chart tabs remain light with dark ink (`#403C37`) in both themes; their hover and pressed surfaces stay `#E6E2DD` and `#D9D3CC`.
 
-Sheet glass uses white at 95% with 4px blur in Light, and the dark glass value above in Dark. The pill retains its 55% tint and 4px blur in both themes. Unsupported-blur fallbacks use opaque panel surfaces. Header, middle and existing footer glass occupy separate regions, with no fades or doubled tint. Content panels retain 90% opacity, with the existing white light-theme value. Camera photos, video, recognition pixels and chart semantics are never inverted. Forced colours retain system surfaces and native controls; custom Settings switches use Canvas/ButtonText while off and Highlight/HighlightText while on, with visible thumb and focus. Appearance's pressed fill takes precedence over hover while keeping the selected border. HTML browser theme colour and manifest colours remain static; browser toolbar and installed-app launch appearance need not match the selected theme.
+Sheet glass uses white at 95% with 4px blur in Light, and the dark glass value above in Dark. The pill retains its 55% tint and 4px blur in both themes. Unsupported-blur fallbacks use opaque panel surfaces. The base glass spans the header and body before overlap; when content reaches the pinned header, its own glass replaces the base there. The existing footer retains its separate glass. Each region receives one tint, without fades. Content panels retain 90% opacity, with the existing white light-theme value. Camera photos, video, recognition pixels and chart semantics are never inverted. Forced colours retain system surfaces and native controls; custom Settings switches use Canvas/ButtonText while off and Highlight/HighlightText while on, with visible thumb and focus. Appearance's pressed fill takes precedence over hover while keeping the selected border. HTML browser theme colour and manifest colours remain static; browser toolbar and installed-app launch appearance need not match the selected theme.
 
 Do not claim iPhone Safari/Home Screen appearance or real microphone/camera verification from emulation.
 
 ### Light neutral role tokens
 
-The palette values retain main’s Light appearance. Additional appearance roles introduced on `dark-mode` remain Unreleased; check [main’s stylesheet](../../styles.css) before using a token.
+The palette retains the Light appearance alongside the Dark roles above; check [the stylesheet](../../styles.css) before using a token.
 
 | Token | Value | Purpose |
 |---|---|---|
@@ -107,15 +107,15 @@ The following inventory is source-verified in `planTone()`, `renderRecommendatio
 
 #### A. Recommendation and integrated chart surface
 
-All gradients run at 145 degrees. These apply to the whole verdict panel, including its chart; the ventilation-summary footer remains neutral.
+All gradients run at 145 degrees. These apply to the whole verdict panel, including its chart; the ventilation-summary footer remains neutral. Dark endpoints use a total 16% relative reduction from each original Light endpoint (`L_dark = 0.84 × L_light`), preserve hue, and retain as much of the original chroma as fits sRGB using constant-hue gamut mapping. Calculate each Dark endpoint directly from its original Light endpoint. The precomputed hex colours require no runtime colour library, overlay, opacity or brightness filter. Text, chart colours and controls retain their current styling.
 
-| Meaning / actual state | Current colour | Exact condition and displayed intent |
-|---|---|---|
-| Target satisfied (`open`) | `#025446` → `#137738` | `target-met`: **TARGET MET**, at or near the target, no ventilation needed now. Green is active, not unused. |
-| Useful ventilation (`windows`) | `#214487` → `#056B97` | `good` and `slow`; also `forecast-limit`, `settling`, `too-cold` or `condensation` with a truthy `minutes ?? limitMinutes`. Normally **OPEN WINDOWS**, with duration/limit text. |
-| Unsafe or adverse now (`closed`) | `#7B242E` → `#9E441D` | `below-minimum`, `wetter`, and `too-cold`/`condensation` without useful time. **KEEP CLOSED**. |
-| Uncertain / no useful window (`caution`) | `#633F03` → `#756202` | Remaining plan outcomes, including uncertainty and forecast/settling outcomes without time. Usually **OPEN IF NEEDED**. |
-| No current outdoor data (no tone class) | Solid `#10231F` | **Checking** while pending; **NO DATA** on failure. All previous verdict tone classes are removed. |
+| Meaning / actual state | Light gradient | Dark gradient | Exact condition and displayed intent |
+|---|---|---|---|
+| Target satisfied (`open`) | `#025446` → `#137738` | `#004136` → `#005E28` | `target-met`: **TARGET MET**, at or near the target, no ventilation needed now. Green is active, not unused. |
+| Useful ventilation (`windows`) | `#214487` → `#056B97` | `#103273` → `#005377` | `good` and `slow`; also `forecast-limit`, `settling`, `too-cold` or `condensation` with a truthy `minutes ?? limitMinutes`. Normally **OPEN WINDOWS**, with duration/limit text. |
+| Unsafe or adverse now (`closed`) | `#7B242E` → `#9E441D` | `#670E1E` → `#832D00` | `below-minimum`, `wetter`, and `too-cold`/`condensation` without useful time. **KEEP CLOSED**. |
+| Uncertain / no useful window (`caution`) | `#633F03` → `#756202` | `#4D3000` → `#5B4C00` | Remaining plan outcomes, including uncertainty and forecast/settling outcomes without time. Usually **OPEN IF NEEDED**. |
+| No current outdoor data (no tone class) | Solid `#10231F` | Solid `#10231F` | **Checking** while pending; **NO DATA** on failure. All previous verdict tone classes are removed. |
 
 Panel base text is `#F9FFFC`; primary explanation and chart reading are `#FFFFFF`; secondary explanation is white at 78%; location metadata is white at 74%. These light-on-colour roles are separate from warm-grey text on white sheets. Keep white focus rings and translucent control feedback on the coloured panel.
 
@@ -123,7 +123,7 @@ Suggested semantic aliases for later implementation: `--verdict-target-start/end
 
 #### B. Outdoor card and “Let in” humidity
 
-The numeric foreground/fill table below records Light appearance. Dark uses the `--windows`, `--closed` and `--caution` role overrides documented under Appearance; comparison conditions and meanings are unchanged. Verdict gradients and chart curve colours remain the same in both themes.
+The numeric foreground/fill table below records Light appearance. Dark uses the `--windows`, `--closed` and `--caution` role overrides documented under Appearance; comparison conditions and meanings are unchanged. Dark verdict gradients use the deeper endpoints above; chart curve colours remain the same in both themes.
 
 The Outdoor and Indoor cards display absolute humidity at each reading's actual temperature. Their colour state is independent of the plan verdict: express both readings as vapour density at the indoor temperature, then compare that difference with its calculated uncertainty margin. At a shared air pressure, this has the same ordering as the humidity ratio used by the ventilation model. The displayed AH numbers can therefore have a different ordering from the colour state when temperatures differ.
 

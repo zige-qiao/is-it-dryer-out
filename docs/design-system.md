@@ -2,9 +2,9 @@
 
 **Audience:** Designers, maintainers and Codex agents
 
-**Status:** Current working-tree reference; labelled Unreleased work and proposals are separate
+**Status:** Current main reference for v0.7.11; proposals are labelled separately
 
-**Reviewed:** 14 October 2026
+**Reviewed:** 16 October 2026
 
 This overview routes to the written contracts. The [visual review board](design-system.html) illustrates colour and component states; it does not define a second set of rules. Use [the documentation index](index.md) for user, implementation and historical references. Code establishes actual implemented behaviour; explicit requirements and accepted constraints remain instructions. Record mismatches rather than changing the product to match an old note.
 
@@ -12,7 +12,7 @@ This overview routes to the written contracts. The [visual review board](design-
 
 Help someone decide whether opening windows reduces indoor moisture and approximately how long to open them. Keep the recommendation decisive, controls easy to adjust and technical explanations available without dominating the page. This is a planning tool, not a precise airflow measurement or guarantee.
 
-Use UK English and named theme roles. Preserve independent selected, pressed, focused, disabled and loading states. Use labelled native controls, keyboard alternatives, restrained borders and no decorative shadows. Broader typography normalisation remains proposed; the documented local appearance work is Unreleased.
+Use UK English and named theme roles. Preserve independent selected, pressed, focused, disabled and loading states. Use labelled native controls, keyboard alternatives, restrained borders and no decorative shadows. Broader typography normalisation remains proposed; appearance is included in v0.7.11. Dark verdict backgrounds use the 16% lightness reduction in [Foundations](design/foundations.md#a-recommendation-and-integrated-chart-surface), preserving hue and foreground styling; Light backgrounds and loading/unavailable surfaces retain their existing colours.
 
 ## Current page hierarchy
 
@@ -20,7 +20,7 @@ Recommendation is always shown and pinned first, with the chart and ventilation 
 
 Why owns the permanent recommendation explanation and its expandable More detail, followed by Glossary, How estimates work and Weather data. Settings, Refresh app and author/GitHub credit live in Why's footer. The separate Indoor thermometer button opens manual readings from either page. Indoor readings opens automatically on initial Overview launch by default; opening Why directly does not trigger it.
 
-Manual changes save immediately. Camera and voice values remain drafts until confirmation or Apply. Shared sheets preserve focus, dismissal, visible header actions and native scrolling; the Unreleased glass treatment uses 95% tint in Light and 55% in Dark, with content passing behind pinned headers and existing footers. The foreground iOS microphone policy remains an accepted limited mitigation; presentation changes must not alter it.
+Manual changes save immediately. Camera and voice values remain drafts until confirmation or Apply. Shared sheets preserve focus, dismissal, visible header actions and native scrolling; the glass treatment uses 95% tint in Light and 55% in Dark, with content passing behind pinned headers and existing footers. The foreground iOS microphone policy remains an accepted limited mitigation; presentation changes must not alter it.
 
 ## Read the relevant contract
 
@@ -36,7 +36,7 @@ Read only the affected contract; use [development](development.md) for controlle
 
 ## Status and verification
 
-Appearance and uniform glass sheets are implemented on the separate `dark-mode` branch, remain Unreleased, and are not part of main. Broader typography normalisation, suggested semantic token aliases and a shared token source for the standalone board remain proposals or maintenance follow-ups. Range feedback is implemented: rejected committed values restore the saved value with inline guidance; it is not an unfinished silent-reversion proposal.
+Appearance and uniform glass sheets are included in v0.7.11 on main. Broader typography normalisation, suggested semantic token aliases and a shared token source for the standalone board remain proposals or maintenance follow-ups. Range feedback is implemented: rejected committed values restore the saved value with inline guidance; it is not an unfinished silent-reversion proposal.
 
 [Testing and acceptance](development/testing.md) records the checks and remaining physical-device/accessibility gaps. A documented rule or passing mock does not prove physical iPhone keyboard, microphone, camera, screen-reader or semantic contrast behaviour. Historical captures show their original period, not the current interface.
 
@@ -69,7 +69,7 @@ These links preserve earlier bookmarks. Follow the named current reference or da
 - [3. Colour foundations — implemented](design/foundations.md)
 
 <a id="appearance--unreleased"></a>
-- [Appearance — Unreleased](design/foundations.md)
+- [Appearance — v0.7.11](design/foundations.md#appearance--v0711)
 
 <a id="light-neutral-role-tokens"></a>
 - [Light neutral role tokens](design/foundations.md)

@@ -15,6 +15,7 @@ const preview = process.argv[2] || 'http://127.0.0.1:8780/';
     page.on('pageerror', error => errors.push(error.message));
     await page.goto(preview); await page.waitForFunction(() => !document.documentElement.classList.contains('layout-pending') && document.querySelector('#decisionLabel').textContent !== 'CHECKING');
 
+  await page.locator('[data-page-link="why"]').click();
   await page.locator('#settingsButton').click();
   const cdp = await context.newCDPSession(page);
   fs.mkdirSync('work/page-layout/reorder-motion', {recursive:true});

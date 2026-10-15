@@ -1,7 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { element, memoryStorage } = require('./helpers/browser.cjs');
-const { LOCATION_STORAGE_KEY } = require('../src/config.js');
+const { LOCATION_STORAGE_KEY, UI_PREFERENCES_STORAGE_KEY } = require('../src/config.js');
 
 for (const initialHash of ['', '#why']) test(`entry point restores values and weather on ${initialHash || 'Overview'}, opening Indoor only on Overview`,async()=>{
   const nodes=new Map(),pageEvents=new Map(),windowEvents=new Map(),frames=[],intervals=[],registered=[],resizeObservers=[];
@@ -19,8 +19,13 @@ for (const initialHash of ['', '#why']) test(`entry point restores values and we
     dispatchEvent:event=>pageEvents.get(event.type)?.(event),
   };
   const properties=new Map();
+  let themeAtReveal;
+  const removeRootClass=document.documentElement.classList.remove;
+  document.documentElement.classList.add('layout-pending');
+  document.documentElement.classList.remove=(...names)=>{if(names.includes('layout-pending'))themeAtReveal=document.documentElement.dataset.theme;removeRootClass(...names);};
   for(const el of [document.body,document.documentElement,node('.app-shell')]) el.style={getPropertyValue:n=>properties.get(n)||'',getPropertyPriority:()=>'',setProperty:(n,v)=>properties.set(n,v),removeProperty:n=>properties.delete(n)};
   const localStorage=memoryStorage();localStorage.setItem(LOCATION_STORAGE_KEY,JSON.stringify({location:{name:'Sale',latitude:53.4,longitude:-2.3}}));
+  if(initialHash==='#why')localStorage.setItem(UI_PREFERENCES_STORAGE_KEY,JSON.stringify({theme:'dark'}));
   const replacements={document,localStorage,
     window:{location:{search:'',hash:initialHash},history:{state:null,replaceState(state,title,hash){replacements.window.location.hash=hash;}},matchMedia:()=>({matches:false}),addEventListener:(name,fn)=>windowEvents.set(name,fn),removeEventListener(){},requestAnimationFrame:fn=>frames.push(fn),cancelAnimationFrame(){},innerHeight:844,scrollX:0,scrollY:0,scrollTo(){}},
     navigator:{userAgent:'Test',serviceWorker:{register:url=>registered.push(url)}},
@@ -35,6 +40,9 @@ for (const initialHash of ['', '#why']) test(`entry point restores values and we
     await import(`../app.js?startup=${initialHash === '#why' ? 'why' : 'overview'}`);await new Promise(setImmediate);
     // Run the scheduled launch action; viewport frames may enqueue one more frame.
     for(const fn of frames.splice(0)) fn();
+    assert.equal(document.documentElement.dataset.theme,initialHash==='#why'?'dark':'light');
+    assert.equal(properties.get('color-scheme'),document.documentElement.dataset.theme);
+    assert.equal(themeAtReveal,document.documentElement.dataset.theme);
     assert.equal(node('#indoorDialog').open,initialHash !== '#why');
     assert.equal(node('#overviewPage').hidden,initialHash === '#why');
     assert.equal(node('#whyPage').inert,initialHash !== '#why');

@@ -23,8 +23,8 @@ On iPhone/iPad, tap an eligible opening duration to open the timer. See the [use
 
 ## Recent changes
 
-- [Unreleased](CHANGELOG.md#unreleased): appearance modes and uniform glass sheets remain on the separate, unmerged dark-mode branch.
-- [v0.7.10](CHANGELOG.md#v0710---chart-and-input-reliability-refinements---2026-10-13): rain and ACH legend refinements, “Just now” weather status, location/voice/input recovery, a compact weather-refresh target, and task-based documentation with link and structure checks.
+- [Unreleased](CHANGELOG.md#unreleased): no changes recorded.
+- [v0.7.11](CHANGELOG.md#v0711---appearance-and-continuous-glass-sheets---2026-10-16): saved System, Light and Dark appearance, continuous glass sheets with pinned actions, and deeper Dark verdict backgrounds with unchanged chart colours.
 
 See the [full changelog](CHANGELOG.md) for all releases and detailed notes.
 

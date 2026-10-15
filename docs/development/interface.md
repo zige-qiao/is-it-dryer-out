@@ -2,11 +2,11 @@
 
 **Audience:** JavaScript maintainers
 
-**Status:** Current main reference; appearance and uniform glass sheets on the separate `dark-mode` branch remain Unreleased where labelled
+**Status:** Current main reference for v0.7.11
 
 **Owns:** UI controller coordination, preferences, appearance, gestures, startup and recovery
 
-**Reviewed:** 14 October 2026
+**Reviewed:** 16 October 2026
 
 [Documentation index](../index.md) · [User guide](../user-guide.md)
 
@@ -24,11 +24,9 @@ Settings reordering shares the dialog gesture guard's private pointer-eligibilit
 
 Measure untransformed row geometry once per drag and adjust for body scroll offsets; move neighbours with transforms without mutating the real order until drop. Edge scrolling gates on hidden movable-row extents, excluding pinned Recommendation and unrelated Settings content. Use 24px edge zones below the actual header and clear of pinned footer actions, resettable 200ms dwell, a quadratic proximity ramp capped at 160px/second, and clamp to the remaining hidden extent. Position hysteresis is 8px; ease-out settling is 160ms and disabled for reduced motion. Web Animations and preview layers are cancelled and removed when another interaction or sheet lifecycle change interrupts settling.
 
-**Unreleased — separate `dark-mode` branch.** The uniform-glass implementation below is not on main. Main retains its existing sheet surfaces, graduated frosted headers, masked blur layers and 16px fades.
-
 The shared `.white-sheet` dialogs keep a stationary flex shell, their existing native `.sheet-body` scroller and any existing fixed footer. `src/ui/sheet-chrome.js` privately enhances browsers supporting standard or Safari-prefixed backdrop blur. Measure both header and footer heights into `--sheet-header-height` and `--sheet-footer-height`; negative header/footer margins extend the body behind them. Body padding preserves a 16px initial gap and clears the last control by 16px above an existing footer. Focus scroll padding clears each pinned height plus 20px.
 
-The shell's base pseudo-element supplies `--sheet-frosted-surface` and 4px blur only between the pinned areas; headers and footers supply the same glass on their own regions. All five sheets use a sheet-local 95% white tint in Light and the pill's 55% tint in Dark, without doubled tint, fades, masked layers or an ancestor backdrop filter. The pill remains at 55% in both themes. Rounded overflow clipping retains the shell's corners. Opaque unsupported-blur fallback surfaces use `--surface-panel`.
+The shell's base pseudo-element supplies `--sheet-frosted-surface` and 4px blur continuously through the header and body until content overlaps the header. The controller compares the measured top of visible, non-decorative body regions with the header bottom, excluding hidden/empty regions and 1px accessibility text. Its private `has-header-overlap` class activates the header's matching glass and moves the base top to the measured header height in the same update, preventing double tint. Returning above the boundary restores continuous glass. Recalculate on scroll, content/mode changes and resize even without a replacement scrollbar, and clear the overlap class on close and forced-colour changes. The existing fixed Timer footer keeps its own glass. All five sheets use a sheet-local 95% white tint in Light and the pill's 55% tint in Dark, without doubled tint, fades, masked layers or an ancestor backdrop filter. The pill remains at 55% in both themes. Rounded overflow clipping retains the shell's corners. Opaque unsupported-blur fallback surfaces use `--surface-panel`.
 
 Scrollbar replacement is separate from glass support. Only add `has-sheet-scrollbar` and hide the native scrollbar after creating the replacement for browsers supporting `scrollbar-width: none`. The decorative, aria-hidden 4px rail starts 4px below the header and ends 4px above the existing footer or body bottom, with a 24px minimum thumb. It maps the full native scroll range using the unobscured viewport height. Other blur-capable browsers retain glass and native scrollbar track insets. Mouse thumb dragging and track paging target the existing body; touch, wheel and keyboard scrolling stay native. The labelled body region is keyboard-focusable.
 
@@ -40,11 +38,9 @@ The dialog helpers own opener-focus snapshots and synchronous focus return. Shee
 
 ## Appearance
 
-**Unreleased — separate `dark-mode` branch.** Appearance controls are not available on main. The following describes that branch’s pending implementation.
-
 The saved UI preferences include `theme: 'system' | 'light' | 'dark'`, defaulting to `system`; unknown values fall back to System. A small inline bootstrap before the stylesheet reads that value defensively, resolves device preference, and sets `html[data-theme]` and `color-scheme` before first paint. The imported theme controller binds native Appearance radios, persists changes through existing storage, observes the device media query while System is selected, and resynchronises on visible/`pageshow` return. Explicit Light or Dark remains stable. Overview layout Reset preserves theme and all existing non-layout preferences.
 
-CSS role tokens cover neutral and feedback surfaces while verdict gradients, chart data colours and original media pixels remain fixed. The static HTML theme-colour and manifest launch/chrome colours remain unchanged. The theme module belongs in the service worker's complete production graph; a local iteration does not increment the cache version.
+CSS role tokens cover neutral and feedback surfaces. Dark verdict backgrounds use precomputed hex endpoints from the [16% relative OKLCH lightness reduction](../design/foundations.md#a-recommendation-and-integrated-chart-surface), with no runtime colour conversion, overlay or brightness filter; Light verdict backgrounds, chart data colours and original media pixels retain their existing treatment. The static HTML theme-colour and manifest launch/chrome colours remain unchanged. The theme module belongs in the service worker's complete production graph; a local iteration does not increment the cache version.
 
 ## Location and reading recovery
 

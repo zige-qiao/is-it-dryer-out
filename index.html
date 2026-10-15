@@ -12,8 +12,23 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="icon" href="favicon.png" type="image/png" />
     <link rel="apple-touch-icon" href="favicon.png" />
-    <link rel="stylesheet" href="styles.css?v=174" />
-    <script>document.documentElement.classList.add("layout-pending");</script>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        root.classList.add("layout-pending");
+        let preference = "system";
+        try {
+          const saved = JSON.parse(localStorage.getItem("is-it-dryer-out-ui-preferences"));
+          if (["system", "light", "dark"].includes(saved?.theme)) preference = saved.theme;
+        } catch { /* Use the device appearance when browser storage is unavailable. */ }
+        const theme = preference === "system"
+          ? (window.matchMedia?.("(prefers-color-scheme: dark)")?.matches ? "dark" : "light")
+          : preference;
+        root.dataset.theme = theme;
+        root.style.setProperty("color-scheme", theme);
+      })();
+    </script>
+    <link rel="stylesheet" href="styles.css?v=175" />
   </head>
   <body>
     <main class="app-shell">
@@ -285,6 +300,16 @@
           <label class="settings-toggle"><span class="settings-option-copy"><span>Auto flash</span><span class="settings-help" id="autoFlashSettingHelp">Turns on lighting in low light.</span></span><input id="autoFlash" type="checkbox" role="switch" aria-label="Auto flash" aria-describedby="autoFlashSettingHelp" checked /><span class="settings-switch" aria-hidden="true"></span></label>
         </div>
         <label class="settings-toggle"><span>Show voice button</span><input id="showVoiceButton" type="checkbox" role="switch" /><span class="settings-switch" aria-hidden="true"></span></label>
+      </div>
+    </section>
+    <section class="settings-group" aria-labelledby="settingsAppearanceTitle">
+      <h3 id="settingsAppearanceTitle">Appearance</h3>
+      <div class="settings-group-card">
+        <fieldset class="theme-options" aria-labelledby="settingsAppearanceTitle">
+          <label class="theme-option"><input type="radio" name="theme" value="system" data-theme-preference checked /><span>System</span></label>
+          <label class="theme-option"><input type="radio" name="theme" value="light" data-theme-preference /><span>Light</span></label>
+          <label class="theme-option"><input type="radio" name="theme" value="dark" data-theme-preference /><span>Dark</span></label>
+        </fieldset>
       </div>
     </section>
   </div>
@@ -604,6 +629,6 @@
       </section></div>
     <div class="sheet-footer"><button class="indoor-done sheet-primary" id="timerStartButton" type="button">Start iPhone timer</button></div>
 </dialog>
-    <script src="app.js?v=174" type="module"></script>
+    <script src="app.js?v=175" type="module"></script>
   </body>
 </html>

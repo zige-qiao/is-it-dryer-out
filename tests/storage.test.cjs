@@ -8,16 +8,16 @@ const { environment, memoryStorage } = require('./helpers/browser.cjs');
 test('preferences preserve defaults and restore saved booleans across controller instances',()=>{
   const localStorage=memoryStorage();
   const make=()=>{
-    const uiPreferences={...pageLayoutDefaults(),openIndoorOnLaunch:true};let applied=0;
+    const uiPreferences={...pageLayoutDefaults(),theme:'system',openIndoorOnLaunch:true};let applied=0;
     const storage=createStorage({uiPreferences,applyUiPreferences(){applied++;}},environment({localStorage}));
     return {storage,uiPreferences,get applied(){return applied;}};
   };
   const first=make();first.storage.loadUiPreferences();
-  assert.deepEqual(first.uiPreferences,{...pageLayoutDefaults(),openIndoorOnLaunch:true});assert.equal(first.applied,1);
+  assert.deepEqual(first.uiPreferences,{...pageLayoutDefaults(),theme:'system',openIndoorOnLaunch:true});assert.equal(first.applied,1);
   Object.assign(first.uiPreferences,{showIndoorSummary:true,openIndoorOnLaunch:false});first.storage.saveUiPreferences();
   const second=make();second.storage.loadUiPreferences();assert.deepEqual(second.uiPreferences,first.uiPreferences);
   localStorage.setItem(UI_PREFERENCES_STORAGE_KEY,'bad json');const invalid=make();invalid.storage.loadUiPreferences();
-  assert.deepEqual(invalid.uiPreferences,{...pageLayoutDefaults(),openIndoorOnLaunch:true});assert.equal(invalid.applied,1);
+  assert.deepEqual(invalid.uiPreferences,{...pageLayoutDefaults(),theme:'system',openIndoorOnLaunch:true});assert.equal(invalid.applied,1);
 });
 
 test('existing plan data migrates opening settings and preserves validated numeric values',()=>{
@@ -60,7 +60,7 @@ test('blocked or full storage keeps defaults and never interrupts saving',()=>{
 });
 
 test('capture and entry visibility preferences persist independently and invalid values retain defaults',()=>{
- const localStorage=memoryStorage(), defaults={...pageLayoutDefaults(),useStillPhotos:false,showCameraButton:true,showVoiceButton:false};
+ const localStorage=memoryStorage(), defaults={...pageLayoutDefaults(),theme:'system',useStillPhotos:false,showCameraButton:true,showVoiceButton:false};
  const make=()=>{const uiPreferences={...defaults};return {uiPreferences,storage:createStorage({uiPreferences,applyUiPreferences(){}},environment({localStorage}))};};
  const fresh=make();fresh.storage.loadUiPreferences();assert.deepEqual(fresh.uiPreferences,defaults);
  for(const camera of [true,false])for(const voice of [true,false])for(const photos of [true,false]){
@@ -81,4 +81,22 @@ test('obsolete Chart key collapse preferences are ignored',()=>{
   createStorage({uiPreferences,applyUiPreferences(){}},environment({localStorage})).loadUiPreferences();
   assert.equal(uiPreferences.showChartKey,undefined);
  }
+});
+
+test('appearance persists independently of existing preferences and invalid values fall back to System',()=>{
+ const localStorage=memoryStorage();
+ const make=()=>{const uiPreferences={...pageLayoutDefaults(),theme:'system',openIndoorOnLaunch:false,showCameraButton:false};return {uiPreferences,storage:createStorage({uiPreferences,applyUiPreferences(){}},environment({localStorage}))};};
+ for(const theme of ['system','light','dark']){
+  const first=make();first.uiPreferences.theme=theme;first.storage.saveUiPreferences();
+  const restored=make();restored.storage.loadUiPreferences();assert.deepEqual(restored.uiPreferences,first.uiPreferences);
+ }
+ for(const theme of [undefined,null,true,0,'auto','DARK',{}]){
+  localStorage.setItem(UI_PREFERENCES_STORAGE_KEY,JSON.stringify({theme,openIndoorOnLaunch:false,showIndoorSummary:true}));
+  const restored=make();restored.storage.loadUiPreferences();
+  assert.equal(restored.uiPreferences.theme,'system');assert.equal(restored.uiPreferences.openIndoorOnLaunch,false);assert.equal(restored.uiPreferences.showIndoorSummary,true);
+ }
+ const preferences={theme:'dark'},blocked=Object.create(globalThis,{localStorage:{get(){throw Error('SecurityError');}}});
+ const storage=createStorage({uiPreferences:preferences,applyUiPreferences(){}},blocked);
+ assert.doesNotThrow(()=>storage.loadUiPreferences());assert.equal(preferences.theme,'system');
+ preferences.theme='dark';assert.doesNotThrow(()=>storage.saveUiPreferences());assert.equal(preferences.theme,'dark');
 });

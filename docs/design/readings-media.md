@@ -2,11 +2,11 @@
 
 **Audience:** Interface and media implementers
 
-**Status:** Current main reference; appearance and uniform glass sheets on the separate `dark-mode` branch remain Unreleased where labelled
+**Status:** Current main reference for v0.7.11
 
 **Owns:** Manual entry and camera/voice presentation, review, confirmation and feedback
 
-**Reviewed:** 14 October 2026
+**Reviewed:** 16 October 2026
 
 [Documentation index](../index.md) · [User guide](../user-guide.md)
 

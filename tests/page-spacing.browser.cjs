@@ -41,14 +41,12 @@ fs.mkdirSync(artifacts, { recursive: true });
       const movable = PAGE_BOXES.filter(box => !box.pinned);
       const orders = permutations(movable.map(box => box.id)).map(order => ['recommendation', ...order]);
       const measure = () => {
-        const shell = document.querySelector('.app-shell');
-        const visible = [...shell.children].filter(node => !node.hidden);
+        const shell = document.querySelector('#overviewPage');
+        const visible = [...shell.querySelectorAll(':scope > [data-page-box]')].filter(node => !node.hidden);
         const gaps = visible.slice(1).map((node, index) => node.getBoundingClientRect().top - visible[index].getBoundingClientRect().bottom);
         const badMargin = visible.some(node => ['marginTop', 'marginBottom'].some(key => parseFloat(getComputedStyle(node)[key]) !== 0));
-        const footer = document.querySelector('.project-credit-row');
-        const loneFooter = visible.length !== 1 || Math.abs(footer.getBoundingClientRect().top - shell.getBoundingClientRect().top - parseFloat(getComputedStyle(shell).paddingTop)) < .1;
         const internalGap = document.querySelector('.forecast-panel').getBoundingClientRect().top - document.querySelector('.verdict-panel').getBoundingClientRect().bottom;
-        return { gaps, badMargin, loneFooter, footerLast: visible.at(-1) === footer,
+        return { gaps, badMargin, pinnedFirst: visible[0] === document.querySelector('[data-page-box="recommendation"]'),
           // The existing footer overlaps the rounded verdict edge by 12px.
           integrated: document.querySelector('[data-page-box="recommendation"]').hidden || (internalGap <= .1 &&
             document.querySelector('#ahChart').closest('[data-page-box]') === document.querySelector('.forecast-panel').closest('[data-page-box]')) };
@@ -86,7 +84,7 @@ fs.mkdirSync(artifacts, { recursive: true });
           for (const order of window.spacingTest.orders) for (let mask = 0; mask < 8; mask++) {
             window.scrollTo(0,0); window.spacingTest.apply(order, mask);
             const measured = window.spacingTest.measure();
-            if (measured.gaps.some(gap => Math.abs(gap - 16) > .1) || measured.badMargin || !measured.footerLast || !measured.loneFooter || !measured.integrated)
+            if (measured.gaps.some(gap => Math.abs(gap - 16) > .1) || measured.badMargin || !measured.pinnedFirst || !measured.integrated)
               failures.push({ order, mask, ...measured });
             const t=window.spacingTest;
             t.touch('touchstart',100);

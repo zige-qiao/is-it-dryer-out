@@ -2,11 +2,11 @@
 
 **Audience:** Interface implementers
 
-**Status:** Current main reference; appearance and uniform glass sheets on the separate `dark-mode` branch remain Unreleased where labelled
+**Status:** Current main reference for v0.7.11
 
 **Owns:** Overview/Why hierarchy, saved layout, navigation, reordering and page spacing
 
-**Reviewed:** 14 October 2026
+**Reviewed:** 16 October 2026
 
 [Documentation index](../index.md) · [User guide](../user-guide.md)
 
@@ -53,7 +53,7 @@ Dragging follows the finger directly; on release, transfer the track offset into
 
 ## Settings
 
-a 44px cog in Why’s footer opens a bottom sheet on mobile and centred dialog on desktop. Use three expanded groups: Overview layout, Indoor readings and Appearance (Unreleased). Separate groups by 16px. Group headings are 16px semibold; theme-panel cards with 20px corners use 16px horizontal padding, subtle dividers, regular-weight row labels, shared 8px internal row gaps and 56px minimum rows. Controls have at least 44px targets and 2px outer focus rings. Defaults are Recommendation (always shown, pinned first, including chart/ventilation settings), Indoor summary (hidden), Moisture comparison (hidden), Chart key (shown; retains the former Supporting details visibility key and order position). Preserve saved relative order and visibility of the three optional boxes.
+a 44px cog in Why’s footer opens a bottom sheet on mobile and centred dialog on desktop. Use three expanded groups: Overview layout, Indoor readings and Appearance. Separate groups by 16px. Group headings are 16px semibold; theme-panel cards with 20px corners use 16px horizontal padding, subtle dividers, regular-weight row labels, shared 8px internal row gaps and 56px minimum rows. Controls have at least 44px targets and 2px outer focus rings. Defaults are Recommendation (always shown, pinned first, including chart/ventilation settings), Indoor summary (hidden), Moisture comparison (hidden), Chart key (shown; retains the former Supporting details visibility key and order position). Preserve saved relative order and visibility of the three optional boxes.
 
 Recommendation reserves the empty 44px handle column so its regular label aligns with the optional rows. A decorative muted 20px lock with 1.5px strokes is centred in the 48px switch column; keep Always shown · Pinned first as visually hidden screen-reader text. Add no switch, handle or tab stop; normalise its existing visibility key to true. Credit and footer actions remain last on Why. Switches save immediately; their tracks/thumbs use the current theme roles; Light has a neutral off track and dark on track with white thumbs, while Dark uses its documented primary-action/thumb overrides. Indoor readings contains Open on launch (on), Show camera button (on), Still photos (off) and Auto flash (on) nested with a subtle left rule and 8px internal gaps, then Show voice button (off).
 

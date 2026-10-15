@@ -2,11 +2,11 @@
 
 **Audience:** Interface implementers
 
-**Status:** Current main reference; appearance and uniform glass sheets on the separate `dark-mode` branch remain Unreleased where labelled
+**Status:** Current main reference for v0.7.11
 
 **Owns:** Sheet chrome, focus, dismissal, rulers, input recovery and control states
 
-**Reviewed:** 14 October 2026
+**Reviewed:** 16 October 2026
 
 [Documentation index](../index.md) · [User guide](../user-guide.md)
 
@@ -99,17 +99,15 @@ Disabled controls use 45% opacity on the complete control, no hover/press animat
 
 ## Shared sheet structure
 
-**Unreleased — separate `dark-mode` branch.** The uniform-glass implementation below is not on main. Main retains its existing sheet surfaces, graduated frosted headers, masked blur layers and 16px fades.
-
 All five shared `.white-sheet` dialogs retain a stationary flex shell, header, existing native body scroller and any existing fixed footer. Use 20px horizontal header padding, 8px control gaps, a minimum 44px title/action row and normal word wrapping with an emergency break for a word wider than its available title column. Headings use min(1.2rem, 28px) to retain legible whole words beside the fixed single-row controls at enlarged text sizes; body text continues to scale. Mobile has a 36px handle area; desktop hides it and adds 20px top padding.
 
-With backdrop blur support, every sheet uses 4px blur with white at 95% in Light and `rgba(36,34,31,.55)` in Dark. The navigation pill retains its 55% tint in both themes. The base glass covers only the middle region; the header and existing footer supply their own matching glass. Rounded shell clipping retains corners without creating an ancestor backdrop boundary. This lets the page show through the middle and scrolling sheet content blur behind pinned areas, with one tint per area and no header or footer fades. Inner controls retain their current surfaces, colours and typography; do not apply ancestor opacity or filters.
+With backdrop blur support, every sheet uses 4px blur with white at 95% in Light and `rgba(36,34,31,.55)` in Dark. The navigation pill retains its 55% tint in both themes. Before content reaches the header, one continuous base glass layer spans the header and body; the header is transparent with no separate blur. When visible content crosses beneath the header, its matching pinned glass cover activates and the base excludes that region. Returning above the overlap restores the continuous background. The existing Timer footer retains its separate matching glass. Rounded shell clipping retains corners without creating an ancestor backdrop boundary. This lets the page show through the middle and scrolling sheet content blur behind pinned areas, with one tint per area and no header or footer fades. Inner controls retain their current surfaces, colours and typography; do not apply ancestor opacity or filters.
 
 Extend the native body viewport underneath both pinned areas. Measured header and footer heights compensate the body's padding: header height plus 16px at the start and footer height plus 16px at the end where a footer exists. Sheets without a footer retain their 24px plus safe-area bottom padding. Focus scroll padding clears each pinned height plus 20px. Keep the scrollbar in the unobscured region: where `scrollbar-width: none` is supported, replace it with a stationary, aria-hidden rail from 4px below the header to 4px above the footer or body bottom. Its rounded 4px thumb has a 24px minimum height and appears only with overflow. Size it using the unobscured viewport and map it to the full native scroll range. Mouse dragging and track clicks scroll the real body; touch momentum, wheel and keyboard scrolling remain native. Glass styling works independently of scrollbar replacement; retain native scrollbar track insets otherwise. The labelled body region is keyboard-focusable.
 
 Resize/content observation and one animation frame update both pinned heights, including viewport, keyboard and safe-area changes; close and interruption cancel frames and capture. Unsupported-blur browsers retain solid panel surfaces, the original body placement and native scrollbars. Forced colours disable glass, using opaque system surfaces and native scrollbars. Timer alone retains a fixed footer with its existing Start action and 24px plus safe-area padding. Settings, Indoor, Ventilation and Location do not gain footers; Indoor camera/voice actions remain in their existing body positions. Preserve dismissal, focus return, reordering and camera gestures/resources.
 
-The glass treatment is Unreleased. The requested 95% Light-sheet tint retains existing foreground colours. Sampled Light-mode normal text in the glass-sheet browser fixture clears the 4.5:1 target, with a minimum of 4.88:1; this is rendered fixture evidence rather than a complete audit of every possible state. Any additional readability adjustment requires the user's approval before implementation.
+The glass treatment is included in v0.7.11. The requested 95% Light-sheet tint retains existing foreground colours. Sampled Light-mode normal text in the glass-sheet browser fixture clears the 4.5:1 target, with a minimum of 4.88:1; this is rendered fixture evidence rather than a complete audit of every possible state. Any additional readability adjustment requires the user's approval before implementation.
 
 Help panels are absolute overlays anchored to the stationary header, inset 20px on each side, and clear visible footer actions. Opening help must not change header height or blur controls. Verify coloured content and text behind the actual header, including wrapped titles and large text; report installed iPhone Home Screen evidence separately from desktop and Safari tabs.
 

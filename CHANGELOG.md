@@ -4,9 +4,16 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
-- Unmerged `dark-mode` work: give all five sheets 95% white tint in Light and 55% tint in Dark with 4px blur, unchanged pill-menu styling, with content scrolling behind pinned headers and the existing Timer footer. Remove fades, keep scrollbar and focused controls clear of pinned areas, and retain solid/system-colour fallbacks and current text styling.
+No changes recorded.
 
-- Unmerged `dark-mode` work: add saved System, Light and Dark appearance in Settings, with System as the default. Apply the chosen appearance before first paint, follow device changes while using System, and give page, sheets, controls and feedback a warm dark palette while preserving verdict and chart colours.
+## v0.7.11 - Appearance and continuous glass sheets - 2026-10-16
+
+- Add saved System, Light and Dark appearance at the bottom of Settings. System is the default; resolve appearance before first paint, follow device changes in System mode, and preserve appearance when resetting Overview layout.
+- Give all five sheets 95% white tint in Light and 55% tint in Dark with 4px blur; retain the pill menu at 55%. Keep the background continuous until content overlaps a pinned header, then activate matching glass without double tint or fades. Content scrolls behind pinned headers and the existing Timer footer, with measured padding for focused and last controls, an unobscured scrollbar, opaque fallbacks and forced-colour surfaces.
+- Deepen the four Dark verdict gradients using a total 16% relative OKLCH lightness reduction from the Light endpoints with hue-preserving gamut mapping. Preserve Light backgrounds, text, chart colours, controls and loading/unavailable surfaces.
+- Update canonical appearance and sheet documentation, visual specimens and browser regressions. Automated and emulated checks do not establish physical iPhone Safari/Home Screen behaviour.
+- Set the app build identity to `v0.7.11` and synchronise the app-shell cache revision to 175, including the theme controller in the offline module graph.
+- Verification: 660 Node tests, all 17 browser regression scripts, documentation and whitespace checks passed. An isolated v0.7.10 cache 174 installation upgraded to cache 175, retained Dark appearance and reloaded v0.7.11 offline; physical iPhone upgrade verification remains separate.
 
 ## v0.7.10 - Chart and input reliability refinements - 2026-10-13
 

@@ -16,6 +16,12 @@
 
 ### Decision ledger
 
+On 16 October 2026, the user increased the Dark verdict lightness reduction to 16% from the original Light gradients, retaining the same hue-preserving gamut mapping and background-only scope. This supersedes the 8% trial below; release preparation remains paused.
+
+On 15 October 2026, the user approved deepening all four Dark verdict backgrounds through an 8% reduction in OKLCH lightness, preserving hue and maximum sRGB chroma. Light backgrounds, chart and foreground colours, controls and unavailable surfaces stay unchanged. Use the explicit Dark hex endpoints in the current foundations reference; release preparation remains paused.
+
+On 14 October 2026, after investigating the faint header join, the user approved a continuous glass background through the header until scrolling content overlaps it. The matching pinned cover then replaces the base glass in that region, returning to continuous glass above the overlap. Existing footer behaviour, tint, blur and text styling are retained.
+
 The subsequent trial requested on 14 October 2026 raises the Light-sheet tint from 85% to 95%, retaining the pill at 55%, Dark sheet tint at 55%, 4px blur and current text styling.
 
 The next trial requested on 14 October 2026 raises only the Light-sheet tint from 75% to 85%. The pill remains at 55%, and Dark appearance, blur and text colours retain their existing treatment.

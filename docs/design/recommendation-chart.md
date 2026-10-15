@@ -2,11 +2,11 @@
 
 **Audience:** Interface and explanation implementers
 
-**Status:** Current main reference; appearance and uniform glass sheets on the separate `dark-mode` branch remain Unreleased where labelled
+**Status:** Current main reference for v0.7.11
 
 **Owns:** Verdict copy, chart interaction, data states, rain/wind and supporting detail presentation
 
-**Reviewed:** 14 October 2026
+**Reviewed:** 16 October 2026
 
 [Documentation index](../index.md) · [User guide](../user-guide.md)
 
@@ -26,7 +26,7 @@
 - [Implementation boundaries](#implementation-boundaries)
 - [Forecast outcome vocabulary](#forecast-outcome-vocabulary)
 
-Plan outcomes, present moisture comparison and chart curve colours are independent systems. Preserve the conditional wording below rather than applying one OPEN IF NEEDED secondary line to every outcome. Physical semantic-colour and accessibility acceptance remains separate from source checks.
+Plan outcomes, present moisture comparison and chart curve colours are independent systems. The four Dark-mode verdict backgrounds use the 16% lightness-reduced gradient endpoints in [foundations](foundations.md#a-recommendation-and-integrated-chart-surface); chart colours and foreground styling stay independent of that background adjustment. Preserve the conditional wording below rather than applying one OPEN IF NEEDED secondary line to every outcome. Physical semantic-colour and accessibility acceptance remains separate from source checks.
 
 Keep the dashed Indoor reference continuous and at least 4 CSS pixels clear of its label and below the rain-total text. Measure rain and Indoor text after scaling; expand the upper AH bound to the smallest whole g/m³ that provides the required top headroom, without reducing the full-48-hour base upper bound or changing the lower bound. Use the same text budget in 24h and 48h, even though 48h hides rain totals. Recompute from base bounds on every update so padding does not accumulate. Keep chart height and rain-total positions unchanged; place Indoor text above or below the reference with existing curve and rain-label collision handling. Loading/failure placeholders retain a clear, continuous reference too.
 

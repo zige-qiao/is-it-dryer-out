@@ -10,6 +10,7 @@ export function createEvents({
   startVoiceInput,
   startCameraInput,
   applyPageLayout,
+  applyTheme,
   toggleVoiceListening,
   closeVoiceDialog,
   applyVoiceChanges,
@@ -228,6 +229,7 @@ export function createEvents({
   }
 
   function applyUiPreferences() {
+    applyTheme?.();
     applyPageLayout?.();
     elements.showIndoorSummary.checked = uiPreferences.showIndoorSummary;
     if (elements.autoFlash) elements.autoFlash.checked = uiPreferences.autoFlash;

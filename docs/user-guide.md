@@ -2,7 +2,7 @@
 
 [Open the app](https://zige-qiao.github.io/is-it-dryer-out/) · [Back to README](../README.md) · [All documentation](index.md)
 
-Use this guide for everyday actions, with links to detailed controls and troubleshooting. Appearance choices and uniform glass sheets described below belong to the separate `dark-mode` branch, remain **Unreleased**, and are not available on main.
+Use this guide for everyday actions, with links to detailed controls and troubleshooting. Appearance choices and continuous glass sheets described below are included in v0.7.11.
 
 ## Get started
 
@@ -25,11 +25,9 @@ Open the ventilation summary to change minimum temperature, target humidity, roo
 
 ## Appearance
 
-**Unreleased — separate `dark-mode` branch.** Appearance controls are not available on main. The following describes that branch’s pending implementation.
-
 In Settings, choose System, Light or Dark. System follows the device by default; Light/Dark hold your choice. It saves immediately and survives refresh. Overview layout Reset does not reset appearance.
 
-The verdict gradients and white/amber/coral chart meanings stay the same. Browser toolbar and installed-app launch colours may differ from the selected theme. See [appearance details](guides/readings-and-settings.md#appearance).
+Dark verdict backgrounds use deeper colours while preserving their hues. Light backgrounds, verdict meanings, text, controls and the white/amber/coral chart colours stay the same. Browser toolbar and installed-app launch colours may differ from the selected theme. See [appearance details](guides/readings-and-settings.md#appearance).
 
 ## Location and weather
 

@@ -2,7 +2,7 @@
 
 Start with the task you want to complete. Short entry points give the immediate answer; linked references hold the detailed rules. Current guidance and historical evidence have separate roles, so a past experiment does not become an implementation instruction.
 
-**Reviewed:** 14 October 2026. These references describe main unless marked otherwise. Appearance and uniform glass sheets belong to the separate `dark-mode` branch and are explicitly **Unreleased**; typography normalisation remains proposed. A review date is not proof of physical iPhone verification.
+**Reviewed:** 16 October 2026. These references describe v0.7.11 on main unless marked otherwise. Appearance and continuous glass sheets are included; typography normalisation remains proposed. A review date is not proof of physical iPhone verification.
 
 [Open the app](https://zige-qiao.github.io/is-it-dryer-out/) · [Project introduction](../README.md)
 

@@ -2,11 +2,11 @@
 
 **Audience:** Maintainers
 
-**Status:** Current main reference; appearance and uniform glass sheets on the separate `dark-mode` branch remain Unreleased where labelled
+**Status:** Current main reference for v0.7.11
 
 **Owns:** Runnable checks, fixtures and the limits of automated/device evidence
 
-**Reviewed:** 14 October 2026
+**Reviewed:** 16 October 2026
 
 [Documentation index](../index.md) · [User guide](../user-guide.md)
 
@@ -41,15 +41,13 @@ Tests import the production functions and controller factories rather than extra
 
 ## Browser and offline checks
 
-**Unreleased branch checks:** the dark-mode, theme-offline and glass-sheets browser scripts below belong to the separate `dark-mode` branch and are not available on main. Run them from that branch; the remaining browser checks apply to main.
-
-With Playwright available on `NODE_PATH`, run `node tests/dark-mode.browser.cjs http://127.0.0.1:8776/` against an independent local preview. It uses isolated profiles, mocked weather, blocked service workers and screenshots under ignored `work/page-layout/dark-mode/`. The acceptance checks cover delayed-module first paint, system/override changes and foreground recovery, saved choice/Reset independence, native keyboard radios, rendered light/dark surfaces and contrast, narrow/enlarged layouts, all sheets, and mocked media presentation. Service-worker-enabled offline loading is a separate integration check. Emulated browsers cannot establish iPhone Safari/Home Screen chrome, keyboard behaviour or actual media capture.
+With Playwright available on `NODE_PATH`, run `node tests/dark-mode.browser.cjs http://127.0.0.1:8776/` against an independent local preview. It uses isolated profiles, mocked weather, blocked service workers and screenshots under ignored `work/page-layout/dark-mode/`. The acceptance checks cover delayed-module first paint, system/override changes and foreground recovery, saved choice/Reset independence, native keyboard radios, rendered light/dark surfaces and contrast, exact theme-specific verdict gradients from [Foundations](../design/foundations.md#a-recommendation-and-integrated-chart-surface), including the total 16% relative Dark lightness reduction, with unchanged chart colours, all four verdict backgrounds at mobile/desktop widths and 100%/200% text, all sheets, and mocked media presentation. Service-worker-enabled offline loading is a separate integration check. Emulated browsers cannot establish iPhone Safari/Home Screen chrome, keyboard behaviour or actual media capture.
 
 Run `node tests/theme-offline.browser.cjs http://127.0.0.1:8776/` for the separate service-worker-enabled check. It installs and activates the cache in an isolated context, selects Dark, reloads offline, and verifies the saved choice, cached stylesheet and theme module without browser runtime errors. It does not establish installed iPhone launch-screen behaviour.
 
 The cache tests verify local imports, cycles, module loading without browser side effects, complete precaching, root/subdirectory paths, offline resource failures and activation cleanup. Also smoke-test the actual browser: initial Indoor sheet, chart inspection/range switch, location recovery, preferences, refresh and dialogs at mobile and desktop widths. Mocked media tests cannot establish real iPhone audio capture or microphone-indicator behaviour; use the [voice investigation](../voice/VOICE-INVESTIGATION.md) for device verification.
 
-Run `node tests/glass-sheets.browser.cjs http://127.0.0.1:8776/` for glass-sheet geometry and material checks at 320, 390, 640 and 1280px in both themes and 100%/200% text. It verifies header/footer overlap, the 16px content gap, undoubled tint, absent fades, last-control focus clearance, native-scrollbar independence, opaque fallback and forced colours. Screenshots and a report-only sampled contrast review go under ignored `work/glass-sheets/`. Contrast findings require review and, under the current user requirement, approval before additional text styling changes; passing geometry does not establish passing readability. `tests/sheet-headers.browser.cjs` adds camera/voice presentation and simulated keyboard/safe-area checks; emulation is not physical iPhone verification.
+Run `node tests/glass-sheets.browser.cjs http://127.0.0.1:8776/` for glass-sheet geometry and material checks at 320, 390, 640 and 1280px in both themes and 100%/200% text. It verifies continuous header/body glass before overlap, header-cover activation when content crosses the 16px gap, restoration on return, header/footer overlap, undoubled tint, absent fades, last-control focus clearance, native-scrollbar independence, opaque fallback and forced colours. Screenshots and a report-only sampled contrast review go under ignored `work/glass-sheets/`. Contrast findings require review and, under the current user requirement, approval before additional text styling changes; passing geometry does not establish passing readability. `tests/sheet-headers.browser.cjs` adds camera/voice presentation and simulated keyboard/safe-area checks; emulation is not physical iPhone verification.
 
 ## Page spacing regression
 

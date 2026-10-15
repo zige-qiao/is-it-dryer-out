@@ -11,6 +11,7 @@ import { createChart } from './src/ui/chart.js';
 import { createReadingControls } from './src/ui/readings.js';
 import { createDialogs } from './src/ui/dialogs.js';
 import { createSheetChrome } from './src/ui/sheet-chrome.js';
+import { createThemeController } from './src/ui/theme.js';
 import { createPullRefresh } from './src/ui/pull-refresh.js';
 import { createPageLayout, pageLayoutDefaults } from './src/ui/page-layout.js';
 import { createPageNavigation } from './src/ui/page-navigation.js';
@@ -18,7 +19,7 @@ import { createEvents } from './src/ui/events.js';
 import { createTimerController, isAppleMobile } from './src/ui/timer.js';
 import { DEFAULT_LOCATION, DEFAULT_PRESSURE_HPA, DEFAULT_TIMEZONE, WEATHER_REFRESH_INTERVAL_MS } from './src/config.js';
 
-const uiPreferences = { ...pageLayoutDefaults(), openIndoorOnLaunch: true, autoFlash: true,
+const uiPreferences = { ...pageLayoutDefaults(), theme: 'system', openIndoorOnLaunch: true, autoFlash: true,
   useStillPhotos: false, showCameraButton: true, showVoiceButton: false };
 
 const state = {
@@ -320,9 +321,11 @@ const pullRefresh = createPullRefresh({
   fetchWeather: (...args) => weatherController.fetchWeather(...args),
   isOverview: () => pageNavigation.isOverview(),
 });
+const theme = createThemeController({ preferences: uiPreferences, save: () => storage.saveUiPreferences() });
 const pageLayout = createPageLayout({ preferences: uiPreferences, save: () => storage.saveUiPreferences(),
   canStartPointerGesture: event => dialogs.canStartPointerGesture(event) });
 const events = createEvents({
+  applyTheme: () => theme.apply(),
   applyPageLayout: () => pageLayout.apply(),
   startCameraInput: () => cameraLoader.start(),
   state,
@@ -372,6 +375,7 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.register("service-work
 storage.loadIndoorReadings();
 storage.loadPlanSettings();
 storage.loadUiPreferences();
+theme.bind();
 voiceController.initializeVoiceDebugPanel();
 const hasSavedLocation = storage.loadLocation();
 locationController.loadLocationHistory(hasSavedLocation);
