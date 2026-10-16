@@ -117,7 +117,7 @@ fixed centre marker, labelled major ticks, native range semantics and direct num
 
 ## Ranges
 
-indoor temperature 10–32°C in 0.1°C steps; indoor humidity 20–90% in 1% steps; minimum indoor temperature 8–28°C in 1°C steps; target humidity 35–65% in 1% steps. Min-temperature and target fields stay the same width. Saved fractional minimum temperatures round to whole degrees.
+indoor temperature 10–45°C in 0.1°C steps; indoor humidity 10–90% in 1% steps; minimum indoor temperature 8–28°C in 1°C steps; target humidity 35–65% in 1% steps. Min-temperature and target fields stay the same width. Saved fractional minimum temperatures round to whole degrees.
 
 ## Room size
 

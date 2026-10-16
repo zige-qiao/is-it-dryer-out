@@ -16,6 +16,8 @@
 
 ### Decision ledger
 
+**Status update — 16 October 2026:** Appearance and continuous glass sheets were published in v0.7.11. The subsequent verdict, loading and unavailable-chart refinements below are now included in the prepared same-tag update with cache 176; replacing the published tag and pushing remain pending. Earlier “Unreleased” and paused-release statements are retained as dated history. See the [prepared update](../../CHANGELOG.md#prepared-same-tag-update--2026-10-16) and [current release guidance](../development/releases.md).
+
 On 16 October 2026, the user approved a subtle 5% relative reduction in the current first-stop OKLCH lightness of all four ready gradients in both themes, with constant hue and gamut-limited chroma. Keep each second stop and the 145° angle; loading/NO DATA, foreground styling and layout stay unchanged. This is Unreleased and supersedes the proposed 10% refinement.
 
 On 16 October 2026, after reviewing sampled contrast on the reversed Light gradients, the user approved 85% white location/timestamp text and 80% white secondary explanations on ready verdicts only. Dark and unavailable text, typography and controls retain their styling; the location hover remains white and forced colours use system ink.
