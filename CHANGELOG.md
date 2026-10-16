@@ -4,11 +4,7 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
-- Reduce only the first stop of each ready verdict gradient by 5% relative OKLCH lightness in both themes, preserving hue and maximum in-gamut chroma. Keep second stops, 145° angle, loading/NO DATA, foreground styling, controls and chart rendering unchanged.
-- Make the indoor dashed reference move with temperature/RH edits during checking and NO DATA, using a stable indoor-only fallback range while retaining decorative outdoor placeholders and the ready chart’s existing scale.
-- Improve contrast after reversing Light verdict gradients: use 85% white for ready-card location/timestamp text and 80% for secondary explanations, preserving Dark, unavailable-state, hover, control and forced-colour styling.
-- Use a neutral grey-to-black verdict gradient for checking and NO DATA in both themes; reverse the stops of all four coloured verdict gradients while retaining the existing Dark palette.
-- Use 24 narrow unavailable-chart placeholders without changing the selected range or chart height. Centre the 12px loading secondary skeleton in a full text line with the standard summary/divider gaps; preserve NO DATA copy and foreground styling.
+No changes recorded.
 
 ## v0.7.11 - Appearance and continuous glass sheets - 2026-10-16
 
@@ -18,6 +14,16 @@ All notable changes to Is it dryer out are documented here.
 - Update canonical appearance and sheet documentation, visual specimens and browser regressions. Automated and emulated checks do not establish physical iPhone Safari/Home Screen behaviour.
 - Set the app build identity to `v0.7.11` and synchronise the app-shell cache revision to 175, including the theme controller in the offline module graph.
 - Verification: 660 Node tests, all 17 browser regression scripts, documentation and whitespace checks passed. An isolated v0.7.10 cache 174 installation upgraded to cache 175, retained Dark appearance and reloaded v0.7.11 offline; physical iPhone upgrade verification remains separate.
+
+### Prepared same-tag update — 2026-10-16
+
+- Reduce only the first stop of each ready verdict gradient by 5% relative OKLCH lightness in both themes, preserving hue and maximum in-gamut chroma. Keep second stops, 145° angle, loading/NO DATA, foreground styling, controls and chart rendering unchanged.
+- Make the indoor dashed reference move with temperature/RH edits during checking and NO DATA, using a stable indoor-only fallback range while retaining decorative outdoor placeholders and the ready chart’s existing scale.
+- Improve contrast after reversing Light verdict gradients: use 85% white for ready-card location/timestamp text and 80% for secondary explanations, preserving Dark, unavailable-state, hover, control and forced-colour styling.
+- Use a neutral grey-to-black verdict gradient for checking and NO DATA in both themes; reverse the stops of all four coloured verdict gradients while retaining the existing Dark palette.
+- Use 24 narrow unavailable-chart placeholders without changing the selected range or chart height. Centre the 12px loading secondary skeleton in a full text line with the standard summary/divider gaps; preserve NO DATA copy and foreground styling.
+- Keep build identity `v0.7.11` and advance the app-shell cache from 175 to 176 for installed-app refresh. The original publication above records cache 175; replacing the published tag remains pending confirmation.
+- Verification: 664 Node tests, all 17 browser regression scripts, documentation and whitespace checks passed. An isolated published v0.7.11 cache 175 installation upgraded to cache 176, retained Dark appearance and reloaded the updated palette offline; physical iPhone verification remains separate.
 
 ## v0.7.10 - Chart and input reliability refinements - 2026-10-13
 

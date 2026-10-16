@@ -74,7 +74,7 @@ More detail retains its compact treatment; labelled paragraphs use Moisture, Dri
 
 ## Data and content states
 
-The Unreleased loading/checking and NO DATA backgrounds use the same neutral gradient in both themes. Both render 24 narrow decorative ACH placeholders (17 units wide, every 20 units in the 480-unit SVG), independent of the saved range. Keep range-specific chart height and restore the selected range’s real bars and inspection after recovery. Loading reserves one secondary-text line with a centred 12px bar, a 4px summary-line gap and 12px before the chart divider; NO DATA keeps its real explanatory text. See [the exact palette](foundations.md#a-recommendation-and-integrated-chart-surface) for reversed verdict stops.
+The prepared v0.7.11 loading/checking and NO DATA backgrounds use the same neutral gradient in both themes. Both render 24 narrow decorative ACH placeholders (17 units wide, every 20 units in the 480-unit SVG), independent of the saved range. Keep range-specific chart height and restore the selected range’s real bars and inspection after recovery. Loading reserves one secondary-text line with a centred 12px bar, a 4px summary-line gap and 12px before the chart divider; NO DATA keeps its real explanatory text. See [the exact palette](foundations.md#a-recommendation-and-integrated-chart-surface) for reversed verdict stops.
 
 | State | Required communication |
 |---|---|

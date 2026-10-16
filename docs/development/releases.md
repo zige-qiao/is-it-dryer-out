@@ -48,3 +48,5 @@ When the user requests a release:
 At the 13 October 2026 documentation review, the working-tree `APP_BUILD_VERSION` in `src/config.js` is `v0.7.9` and the shell cache revision is `171`, while the README/changelog's latest documented release and a local tag are `v0.7.10`. This discrepancy is preserved; the documentation reorganisation changes no build/cache identity. Before a requested release, inspect the actual working-tree diff and tag history rather than mechanically copying a document's version label into the code.
 
 The v0.7.11 preparation on 16 October 2026 resolves that historical discrepancy: main carries build identity `v0.7.11` and shell cache revision `175`, advancing the published v0.7.10 revision `174`. Appearance and continuous glass sheets are included in the merged module graph.
+
+A same-tag update prepared on 16 October 2026 keeps build identity `v0.7.11` and advances the shell cache from `175` to `176`, including the verdict palette, loading-layout and unavailable-chart refinements. The original published tag remains unchanged until its replacement is explicitly confirmed; preparation does not push either ref.
