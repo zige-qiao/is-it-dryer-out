@@ -23,7 +23,7 @@ On iPhone/iPad, tap an eligible opening duration to open the timer. See the [use
 
 ## Recent changes
 
-- [Unreleased](CHANGELOG.md#unreleased): no changes recorded.
+- [Unreleased](CHANGELOG.md#unreleased): neutral checking/NO DATA backgrounds, reversed verdict gradients and better-aligned loading placeholders.
 - [v0.7.11](CHANGELOG.md#v0711---appearance-and-continuous-glass-sheets---2026-10-16): saved System, Light and Dark appearance, continuous glass sheets with pinned actions, and deeper Dark verdict backgrounds with unchanged chart colours.
 
 See the [full changelog](CHANGELOG.md) for all releases and detailed notes.

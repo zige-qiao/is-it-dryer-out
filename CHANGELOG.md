@@ -4,7 +4,10 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
-No changes recorded.
+- Make the indoor dashed reference move with temperature/RH edits during checking and NO DATA, using a stable indoor-only fallback range while retaining decorative outdoor placeholders and the ready chart’s existing scale.
+- Improve contrast after reversing Light verdict gradients: use 85% white for ready-card location/timestamp text and 80% for secondary explanations, preserving Dark, unavailable-state, hover, control and forced-colour styling.
+- Use a neutral grey-to-black verdict gradient for checking and NO DATA in both themes; reverse the stops of all four coloured verdict gradients while retaining the existing Dark palette.
+- Use 24 narrow unavailable-chart placeholders without changing the selected range or chart height. Centre the 12px loading secondary skeleton in a full text line with the standard summary/divider gaps; preserve NO DATA copy and foreground styling.
 
 ## v0.7.11 - Appearance and continuous glass sheets - 2026-10-16
 

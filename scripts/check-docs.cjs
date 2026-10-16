@@ -218,8 +218,14 @@ function checkDocumentation(root, compatibility) {
       if (!sectionReferences('Development and documentation').some(reference => reference.kind === 'link' && reference.target === target)) fail('README.md', `Development and documentation needs a direct link to ${target}`);
     }
     const recent = sectionReferences('Recent changes');
-    const releases = documents.get('CHANGELOG.md')?.headings.filter(heading => heading.level === 2 && /^v\d/.test(heading.text)) || [];
-    if (recent.filter(reference => reference.target === 'CHANGELOG.md' && reference.fragment === 'unreleased').length !== 1) fail('README.md', 'Recent changes needs one Unreleased link');
+    const changelog = documents.get('CHANGELOG.md');
+    const releases = changelog?.headings.filter(heading => heading.level === 2 && /^v\d/.test(heading.text)) || [];
+    const unreleased = changelog?.headings.find(heading => heading.level === 2 && heading.id === 'unreleased');
+    const nextSection = changelog?.headings.find(heading => heading.level <= 2 && heading.line > (unreleased?.line ?? Infinity));
+    const pending = unreleased ? changelog.content.split('\n').slice(unreleased.line, nextSection ? nextSection.line - 1 : undefined)
+      .filter(line => line.trim() && !/^No changes recorded\.?$/i.test(line.trim())).length > 0 : false;
+    const unreleasedLinks = recent.filter(reference => reference.target === 'CHANGELOG.md' && reference.fragment === 'unreleased').length;
+    if (unreleasedLinks > 1 || pending && unreleasedLinks !== 1) fail('README.md', 'Recent changes needs one Unreleased link when changes are pending, and at most one otherwise');
     if (releases[0] && !recent.some(reference => reference.target === 'CHANGELOG.md' && reference.fragment === releases[0].id)) fail('README.md', 'Recent changes needs a link to the latest documented release');
     if (!recent.some(reference => reference.target === 'CHANGELOG.md' && !reference.fragment)) fail('README.md', 'Recent changes needs a full-changelog link');
     if (!readme.references.some(reference => reference.label === 'Open the app' && /^https:\/\//.test(reference.url) && reference.line < (sections[0]?.line ?? Infinity))) fail('README.md', 'Keep the prominent Open the app link before Get started');

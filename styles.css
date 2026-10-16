@@ -35,7 +35,7 @@
   --surface-primary: #202725;
   --surface-primary-hover: #343a38;
   --surface-primary-pressed: #111714;
-  --surface-unavailable: #10231f;
+  --surface-unavailable: linear-gradient(145deg, #494949, #080808);
   --overlay-scrim: rgb(0 0 0 / 40%);
   --bg: var(--surface-page);
   --ink: var(--ink-main);
@@ -283,33 +283,33 @@ select {
 }
 
 .recommendation.open .verdict-panel {
-  background: linear-gradient(145deg, #025446, #137738);
+  background: linear-gradient(145deg, #137738, #025446);
 }
 
 .recommendation.windows .verdict-panel {
-  background: linear-gradient(145deg, #214487, #056b97);
+  background: linear-gradient(145deg, #056b97, #214487);
 }
 
 .recommendation.closed .verdict-panel {
-  background: linear-gradient(145deg, #7b242e, #9e441d);
+  background: linear-gradient(145deg, #9e441d, #7b242e);
 }
 
 .recommendation.caution .verdict-panel {
-  background: linear-gradient(145deg, #633f03, #756202);
+  background: linear-gradient(145deg, #756202, #633f03);
 }
 
 /* Dark verdicts lower OKLCH lightness by 16%, retaining hue and in-gamut chroma. */
 :root[data-theme="dark"] .recommendation.open .verdict-panel {
-  background: linear-gradient(145deg, #004136, #005e28);
+  background: linear-gradient(145deg, #005e28, #004136);
 }
 :root[data-theme="dark"] .recommendation.windows .verdict-panel {
-  background: linear-gradient(145deg, #103273, #005377);
+  background: linear-gradient(145deg, #005377, #103273);
 }
 :root[data-theme="dark"] .recommendation.closed .verdict-panel {
-  background: linear-gradient(145deg, #670e1e, #832d00);
+  background: linear-gradient(145deg, #832d00, #670e1e);
 }
 :root[data-theme="dark"] .recommendation.caution .verdict-panel {
-  background: linear-gradient(145deg, #4d3000, #5b4c00);
+  background: linear-gradient(145deg, #5b4c00, #4d3000);
 }
 
 .location-row,
@@ -1490,6 +1490,20 @@ input[type="range"] {
   font-size: 0.92rem;
   line-height: 1.45;
 }
+/* Approved Light ready-card contrast adjustment; unavailable states retain their ink. */
+@media (forced-colors: none) {
+  :root[data-theme="light"] .recommendation[data-weather-state="ready"] :is(#locationName, #weatherStatus) {
+    color: rgb(255 255 255 / 85%);
+  }
+  :root[data-theme="light"] .recommendation[data-weather-state="ready"] #decisionSecondary {
+    color: rgb(255 255 255 / 80%);
+  }
+}
+@media (forced-colors: none) and (hover: hover) {
+  :root[data-theme="light"] .recommendation[data-weather-state="ready"] .location-button:hover #locationName {
+    color: #fff;
+  }
+}
 .location-icon {
   width: 1rem;
   height: 1rem;
@@ -2104,7 +2118,10 @@ input[type="range"] {
 .verdict-panel .chart-range button:disabled { opacity: .45; cursor: default; }
 .recommendation[data-weather-state="failed"] #weatherStatus { color: #ffab99; }
 .recommendation[data-weather-state="loading"] #decisionSecondary {
-  width: 70%; max-width: 22rem; height: 12px; margin-top: var(--space-4);
+  position: relative; width: 70%; max-width: 22rem; height: 1.45em; margin-top: 0;
+}
+.recommendation[data-weather-state="loading"] #decisionSecondary::before {
+  content: ""; position: absolute; inset-inline: 0; top: 50%; height: 12px; transform: translateY(-50%);
   border-radius: 999px; background: #ffffff1a;
 }
 .weather-unavailable .outdoor-card .moisture-main,

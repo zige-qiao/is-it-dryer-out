@@ -95,6 +95,63 @@ test('initial checking and failure retain indoor data, clear outdoor data and ex
   assert.equal(f.elements.indoorAbsoluteHumidity.textContent, absoluteHumidity(20.1,65).toFixed(1));
 });
 
+test('unavailable charts use narrow 48-hour placeholders without changing the selected range or chart height', () => {
+  const heights = [22, 25, 25, 28, 27, 26, 25, 22, 21, 20, 21, 22];
+  for (const hours of [24, 48]) {
+    const f = fixture();
+    f.state.chartHours = hours;
+    f.context.renderAhChart();
+    const viewBox = f.chart.getAttribute('viewBox');
+    for (const failed of [false, true]) {
+      Object.assign(f.state, { weatherRequestPending: !failed, weatherLoadFailed: failed });
+      f.context.renderAhChart();
+      const bars = [...f.chart.innerHTML.matchAll(/<rect class="ah-skeleton-bar" x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)];
+      assert.equal(bars.length, 24);
+      bars.forEach((bar, i) => {
+        assert.equal(Number(bar[1]), i * 20 + 1.5);
+        assert.equal(Number(bar[3]), 17);
+        assert.equal(Number(bar[4]), heights[i % heights.length]);
+      });
+      assert.equal(f.chart.getAttribute('viewBox'), viewBox);
+      assert.equal(f.state.chartHours, hours);
+      assert.equal(f.buttons.find(button => button.dataset.chartHours === String(hours)).getAttribute('aria-pressed'), 'true');
+      assert.ok(f.buttons.every(button => button.disabled));
+      assert.match(f.chart.getAttribute('aria-label'), /Chart shapes are placeholders/);
+      assert.equal(f.chart.getAttribute('role'), 'img');
+      assert.equal(f.chart.onkeydown, null);
+    }
+    Object.assign(f.state, { weatherRequestPending: false, weatherLoadFailed: false, outdoorTemp: 15, outdoorRh: 70 });
+    f.context.renderAhChart();
+    assert.equal(f.chart.getAttribute('viewBox'), viewBox);
+    assert.equal(f.state.chartHours, hours);
+    assert.equal(f.chart.getAttribute('role'), 'slider');
+    assert.equal(typeof f.chart.onkeydown, 'function');
+    assert.doesNotMatch(f.chart.innerHTML, /ah-skeleton/);
+  }
+});
+
+test('unavailable indoor reference moves with humidity and temperature on a stable indoor-only scale', () => {
+  for (const hours of [24, 48]) for (const failed of [false, true]) {
+    const f = fixture();
+    Object.assign(f.state, { chartHours: hours, weatherRequestPending: !failed, weatherLoadFailed: failed });
+    const render = (temp, rh) => {
+      Object.assign(f.state, { indoorTemp: temp, indoorRh: rh });
+      f.context.renderAhChart();
+      const y = Number(f.chart.innerHTML.match(/class="ah-indoor-line" d="M0 ([\d.]+)H480/)[1]);
+      assert.ok(y >= 8 && y <= 158);
+      assert.ok(Math.abs(y - (158 - absoluteHumidity(temp, rh) / 60 * 150)) < 1e-9);
+      assert.match(f.chart.innerHTML, new RegExp('Indoor ' + absoluteHumidity(temp, rh).toFixed(1)));
+      assert.equal(f.chart.getAttribute('role'), 'img');
+      return y;
+    };
+    const dry = render(20, 40), humid = render(20, 80), warmer = render(30, 80);
+    assert.ok(humid < dry, 'higher RH moves the line upwards');
+    assert.ok(warmer < humid, 'higher temperature at the same RH moves the line upwards');
+    assert.equal(render(20, 40), dry, 'returning to a reading restores the same position');
+    render(10, 10); render(45, 90);
+  }
+});
+
 test('weather metadata separates successful timestamps from loading and failure messages', () => {
   const f = fixture();
   for (const success of [null, new Date()]) {

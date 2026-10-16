@@ -27,7 +27,7 @@ Open the ventilation summary to change minimum temperature, target humidity, roo
 
 In Settings, choose System, Light or Dark. System follows the device by default; Light/Dark hold your choice. It saves immediately and survives refresh. Overview layout Reset does not reset appearance.
 
-Dark verdict backgrounds use deeper colours while preserving their hues. Light backgrounds, verdict meanings, text, controls and the white/amber/coral chart colours stay the same. Browser toolbar and installed-app launch colours may differ from the selected theme. See [appearance details](guides/readings-and-settings.md#appearance).
+Dark verdict backgrounds use deeper colours while preserving their hues. The Unreleased update reverses the coloured backgrounds and gives checking/NO DATA a neutral grey-to-black background. Light ready-card location, timestamp and secondary text become slightly brighter for contrast; verdict meanings, controls, typography and the white/amber/coral chart colours stay the same. Browser toolbar and installed-app launch colours may differ from the selected theme. See [appearance details](guides/readings-and-settings.md#appearance).
 
 ## Location and weather
 

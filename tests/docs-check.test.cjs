@@ -52,6 +52,24 @@ test('portable check passes without Git, dependencies or migration records', t =
   assert.deepEqual(checkDocumentation(f.root, f.compatibility).errors, []);
 });
 
+test('README can omit Unreleased when the changelog is empty or has its empty placeholder', t => {
+  const f = fixture(t);
+  f.write('README.md', f.readme.replace('- [Unreleased](CHANGELOG.md#unreleased)\n', ''));
+  for (const content of ['', 'No changes recorded.\n']) {
+    f.write('CHANGELOG.md', '# Changelog\n## Unreleased\n' + content + '## v1.0.0\n');
+    assert.deepEqual(checkDocumentation(f.root, f.compatibility).errors, []);
+  }
+});
+
+test('README still needs an Unreleased summary when pending changes exist', t => {
+  const f = fixture(t);
+  f.write('CHANGELOG.md', '# Changelog\n## Unreleased\n- Improve settings.\n## v1.0.0\n');
+  f.write('README.md', f.readme.replace('- [Unreleased](CHANGELOG.md#unreleased)\n', ''));
+  assert.ok(checkDocumentation(f.root, f.compatibility).errors.some(error => error.includes('one Unreleased link')));
+  f.write('README.md', f.readme);
+  assert.deepEqual(checkDocumentation(f.root, f.compatibility).errors, []);
+});
+
 test('headings handle Unicode, inline code, setext and duplicate suffix collisions', () => {
   const parsed = parseDocument('# Read `RH` &amp; café\n## Capture\n## Capture-1\n## Capture\nSetext\n======\n');
   assert.deepEqual(parsed.ids, ['read-rh--café', 'capture', 'capture-1', 'capture-2', 'setext']);

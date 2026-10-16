@@ -1,6 +1,11 @@
 import { clamp, absoluteHumidity, compareMoisture } from '../domain/humidity.js';
 import { buildWeatherTimeline as calculateBuildWeatherTimeline, weatherAtTime, buildRainOutlook, rainAtTime } from '../domain/forecast.js';
 import { effectiveAirExchange as calculateEffectiveAirExchange } from '../domain/ventilation.js';
+import { INDOOR_LIMITS } from '../config.js';
+
+// Keep the unavailable reference responsive without inventing an outdoor scale.
+// A fixed indoor-only range prevents edits from recentering the reference line.
+const unavailableIndoorHigh = Math.ceil(absoluteHumidity(INDOOR_LIMITS.temperature.max, INDOOR_LIMITS.humidity.max) / 10) * 10;
 
 export function createChart({
   state,
@@ -76,14 +81,18 @@ export function createChart({
     if (unavailable) {
       chart.classList.remove('is-pointer-inspecting');
       const indoor = absoluteHumidity(state.indoorTemp, state.indoorRh);
+      const indoorY = bottom - indoor / unavailableIndoorHigh * (bottom - top);
       // These shapes are placeholders, not a scale or estimates of outdoor weather.
       const heights = [22, 25, 25, 28, 27, 26, 25, 22, 21, 20, 21, 22];
-      const bars = heights.map((height, i) => `<rect class="ah-skeleton-bar" x="${i * 40 + 1.5}" y="${bottom - height}" width="37" height="${height}" rx="2"/>`).join('');
+      const bars = Array.from({ length: 24 }, (_, i) => {
+        const height = heights[i % heights.length];
+        return `<rect class="ah-skeleton-bar" x="${i * 20 + 1.5}" y="${bottom - height}" width="17" height="${height}" rx="2"/>`;
+      }).join('');
       const grid = [150, 270, 390].map(x => `<path class="ah-day-line" d="M${x} ${top}V${labelBottom}"/>`).join('');
       const placeholders = [4, 154, 274, 394].map((x, i) => `<rect class="ah-skeleton-label" x="${x}" y="${hourY - 7 * textScale}" width="${(i === 0 ? 30 : 19) * textScale}" height="${9 * textScale}" rx="${4.5 * textScale}"/>` + (i === 0 || i === 3 ? `<rect class="ah-skeleton-label" x="${x}" y="${dayY - 7 * textScale}" width="${28 * textScale}" height="${9 * textScale}" rx="${4.5 * textScale}"/>` : '')).join('');
       const shimmer = state.weatherLoadFailed ? '' : `<defs><linearGradient id="ahSkeletonShimmer"><stop stop-color="white" stop-opacity="0"/><stop offset=".5" stop-color="white" stop-opacity=".055"/><stop offset="1" stop-color="white" stop-opacity="0"/></linearGradient><clipPath id="ahSkeletonClip"><rect width="480" height="${labelBottom}" rx="5"/></clipPath></defs><g clip-path="url(#ahSkeletonClip)" aria-hidden="true"><g transform="skewX(-18)"><rect class="ah-skeleton-shimmer" x="-280" width="280" height="${labelBottom}" fill="url(#ahSkeletonShimmer)"/></g></g>`;
-      chart.innerHTML = `<g class="ah-skeleton" aria-hidden="true">${grid}<path class="ah-grid" d="M0 ${bottom}H480 M0 124H480"/>${bars}${placeholders}<path class="ah-indoor-line" d="M0 76H480"/><text class="ah-indoor-label" x="4" y="70">Indoor ${indoor.toFixed(1)} g/m³</text></g>${shimmer}`;
-      positionAhIndoorLabel(chart, [], 76, top, bottom);
+      chart.innerHTML = `<g class="ah-skeleton" aria-hidden="true">${grid}<path class="ah-grid" d="M0 ${bottom}H480 M0 124H480"/>${bars}${placeholders}<path class="ah-indoor-line" d="M0 ${indoorY}H480"/><text class="ah-indoor-label" x="4" y="${indoorY - 6}">Indoor ${indoor.toFixed(1)} g/m³</text></g>${shimmer}`;
+      positionAhIndoorLabel(chart, [], indoorY, top, bottom);
       chart.setAttribute('role', 'img');
       chart.setAttribute('tabindex', '-1');
       chart.setAttribute('aria-label', `${state.weatherLoadFailed ? 'Outdoor forecast unavailable' : 'Loading outdoor forecast'}. Indoor ${indoor.toFixed(1)} g/m³. Chart shapes are placeholders.`);

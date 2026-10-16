@@ -53,7 +53,7 @@ Keep the existing light palette. Dark uses warm neutral roles below; geometry, t
 | Uncertain / attention | `#EDD27A` on `#3E3317` |
 | Ready / success | `#7CDDB7` on `#1D372E` |
 
-Inverse ink remains white. Dark primary buttons, their waveform and the Indoor dock use dark ink on the light primary surface; checked switch thumbs follow the same ink. Bright feedback circles use dark glyphs. Preserve the Light verdict gradients, unavailable-panel surface and chart curve colours. Dark verdict gradients use the deeper endpoints documented below. Selected 24/48 h chart tabs remain light with dark ink (`#403C37`) in both themes; their hover and pressed surfaces stay `#E6E2DD` and `#D9D3CC`.
+Inverse ink remains white. Dark primary buttons, their waveform and the Indoor dock use dark ink on the light primary surface; checked switch thumbs follow the same ink. Bright feedback circles use dark glyphs. Preserve the verdict endpoint colours and chart curve colours; the Unreleased stop ordering and unavailable gradient are documented below. Dark verdict gradients use the deeper endpoints documented below. Selected 24/48 h chart tabs remain light with dark ink (`#403C37`) in both themes; their hover and pressed surfaces stay `#E6E2DD` and `#D9D3CC`.
 
 Sheet glass uses white at 95% with 4px blur in Light, and the dark glass value above in Dark. The pill retains its 55% tint and 4px blur in both themes. Unsupported-blur fallbacks use opaque panel surfaces. The base glass spans the header and body before overlap; when content reaches the pinned header, its own glass replaces the base there. The existing footer retains its separate glass. Each region receives one tint, without fades. Content panels retain 90% opacity, with the existing white light-theme value. Camera photos, video, recognition pixels and chart semantics are never inverted. Forced colours retain system surfaces and native controls; custom Settings switches use Canvas/ButtonText while off and Highlight/HighlightText while on, with visible thumb and focus. Appearance's pressed fill takes precedence over hover while keeping the selected border. HTML browser theme colour and manifest colours remain static; browser toolbar and installed-app launch appearance need not match the selected theme.
 
@@ -107,17 +107,17 @@ The following inventory is source-verified in `planTone()`, `renderRecommendatio
 
 #### A. Recommendation and integrated chart surface
 
-All gradients run at 145 degrees. These apply to the whole verdict panel, including its chart; the ventilation-summary footer remains neutral. Dark endpoints use a total 16% relative reduction from each original Light endpoint (`L_dark = 0.84 × L_light`), preserve hue, and retain as much of the original chroma as fits sRGB using constant-hue gamut mapping. Calculate each Dark endpoint directly from its original Light endpoint. The precomputed hex colours require no runtime colour library, overlay, opacity or brightness filter. Text, chart colours and controls retain their current styling.
+All gradients run at 145 degrees. The Unreleased update reverses the two stops of every coloured verdict in both themes and gives loading/checking and NO DATA the same neutral `#494949` → `#080808` gradient. These apply to the whole verdict panel, including its chart; the ventilation-summary footer remains neutral. Dark endpoints use a total 16% relative reduction from each original Light endpoint (`L_dark = 0.84 × L_light`), preserve hue, and retain as much of the original chroma as fits sRGB using constant-hue gamut mapping. Calculate each Dark endpoint directly from its original Light endpoint. The precomputed hex colours require no runtime colour library, overlay, opacity or brightness filter. Text, chart colours and controls retain their current styling.
 
 | Meaning / actual state | Light gradient | Dark gradient | Exact condition and displayed intent |
 |---|---|---|---|
-| Target satisfied (`open`) | `#025446` → `#137738` | `#004136` → `#005E28` | `target-met`: **TARGET MET**, at or near the target, no ventilation needed now. Green is active, not unused. |
-| Useful ventilation (`windows`) | `#214487` → `#056B97` | `#103273` → `#005377` | `good` and `slow`; also `forecast-limit`, `settling`, `too-cold` or `condensation` with a truthy `minutes ?? limitMinutes`. Normally **OPEN WINDOWS**, with duration/limit text. |
-| Unsafe or adverse now (`closed`) | `#7B242E` → `#9E441D` | `#670E1E` → `#832D00` | `below-minimum`, `wetter`, and `too-cold`/`condensation` without useful time. **KEEP CLOSED**. |
-| Uncertain / no useful window (`caution`) | `#633F03` → `#756202` | `#4D3000` → `#5B4C00` | Remaining plan outcomes, including uncertainty and forecast/settling outcomes without time. Usually **OPEN IF NEEDED**. |
-| No current outdoor data (no tone class) | Solid `#10231F` | Solid `#10231F` | **Checking** while pending; **NO DATA** on failure. All previous verdict tone classes are removed. |
+| Target satisfied (`open`) | `#137738` → `#025446` | `#005E28` → `#004136` | `target-met`: **TARGET MET**, at or near the target, no ventilation needed now. Green is active, not unused. |
+| Useful ventilation (`windows`) | `#056B97` → `#214487` | `#005377` → `#103273` | `good` and `slow`; also `forecast-limit`, `settling`, `too-cold` or `condensation` with a truthy `minutes ?? limitMinutes`. Normally **OPEN WINDOWS**, with duration/limit text. |
+| Unsafe or adverse now (`closed`) | `#9E441D` → `#7B242E` | `#832D00` → `#670E1E` | `below-minimum`, `wetter`, and `too-cold`/`condensation` without useful time. **KEEP CLOSED**. |
+| Uncertain / no useful window (`caution`) | `#756202` → `#633F03` | `#5B4C00` → `#4D3000` | Remaining plan outcomes, including uncertainty and forecast/settling outcomes without time. Usually **OPEN IF NEEDED**. |
+| No current outdoor data (no tone class) | `#494949` → `#080808` | `#494949` → `#080808` | **Checking** while pending; **NO DATA** on failure. All previous verdict tone classes are removed. |
 
-Panel base text is `#F9FFFC`; primary explanation and chart reading are `#FFFFFF`; secondary explanation is white at 78%; location metadata is white at 74%. These light-on-colour roles are separate from warm-grey text on white sheets. Keep white focus rings and translucent control feedback on the coloured panel.
+Panel base text is `#F9FFFC`; primary explanation and chart reading are `#FFFFFF`. The Unreleased, approved contrast adjustment uses 85% white for location/timestamp text and 80% white for secondary explanations on Light ready verdicts only. Dark and loading/NO DATA retain secondary explanations at 78% and location metadata at 74%; location hover remains white, refresh-control styling is unchanged and forced colours retain system ink. These light-on-colour roles are separate from warm-grey text on white sheets. Keep white focus rings and translucent control feedback on the coloured panel.
 
 Suggested semantic aliases for later implementation: `--verdict-target-start/end`, `--verdict-ventilate-start/end`, `--verdict-closed-start/end`, `--verdict-caution-start/end`, and `--verdict-unavailable`. Values stay as above. In particular, do not alias the no-data background to warm `--ink-main` and unintentionally recolour the whole unavailable panel.
 
@@ -171,11 +171,13 @@ The review board includes an illustrative full chart, with the forecast curve, i
 | Skeleton bars / labels / day separators | `#FFFFFF0D` (about 5%) / `#FFFFFF1A` (about 10%) / `#FFFFFF1A` | Placeholders only; never data or a verdict. |
 | Skeleton indoor reference / label | White at 35% / `#FFFFFFA6` (about 65%) | The retained actual indoor reference is subdued. |
 | Shimmer | White peak opacity 5.5% | Loading only; absent after failure and disabled for reduced motion. |
-| Loading secondary-line placeholder | `#FFFFFF1A` | Neutral content placeholder. |
+| Loading secondary-line placeholder | `#FFFFFF1A` | A 12px-high bar centred in one secondary-text line (`1.45em`); 4px between summary lines and 12px from the summary to the chart divider. |
 | Disabled chart-range controls | Control at 45% opacity | Disabled interaction, not an uncertainty colour. |
 | Voice listening/transcript panels | `--surface-control` with `--ink-main` | Current neutral feedback; theme role values vary by appearance. Prompts stay separate; success still requires review/Apply. |
 | Voice waveform | `currentColor` inside the primary recording action | Light uses a white waveform; Dark uses primary-action dark ink. Activity is not proof of transcription or saving. |
 | Location pending/error messages | Shared neutral role/control tokens | Errors are communicated in text. The effective button token is defined; the earlier unset-token finding is historical. Do not invent new semantic red/green states. |
+
+Unavailable charts use 24 narrow placeholder bars in the 480-unit SVG: 20-unit pitch, 17-unit width and 3-unit gaps. The existing 12-height decorative pattern repeats twice. This is independent of the saved 24/48-hour selection; the chart keeps that range’s height and restores its actual bars on recovery. NO DATA retains real explanatory text. The real indoor reference follows indoor AH on a fixed 0–60 g/m³ fallback range during loading/failure, so changing temperature or RH moves it without stale outdoor data or recentering; the label remains clear of the line.
 
 **Loading motion:** `CHECKING` has a diagonal light sweep (110° gradient, 2.4-second pass), and the chart skeleton's faint sweep is tilted about 18° with a 1.6-second pass. Both animate only while loading. The label remains steady text for assistive technology; the moving highlight is decorative. Failure has no sweep. Reduced motion shows a static white `CHECKING` label and no shimmer.
 

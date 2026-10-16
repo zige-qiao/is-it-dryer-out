@@ -4,15 +4,16 @@ const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { dewPoint } = require('../src/domain/humidity.js');
+const { dewPoint, absoluteHumidity } = require('../src/domain/humidity.js');
 const preview = process.argv[2] || 'http://127.0.0.1:8776/';
 const artifacts = path.resolve('work/page-layout/dark-mode');
 const key = 'is-it-dryer-out-ui-preferences';
 const radio = value => `[data-theme-preference][value="${value}"]`;
 const verdictGradients = {
-  light: { open: ['025446', '137738'], windows: ['214487', '056b97'], closed: ['7b242e', '9e441d'], caution: ['633f03', '756202'] },
-  dark: { open: ['004136', '005e28'], windows: ['103273', '005377'], closed: ['670e1e', '832d00'], caution: ['4d3000', '5b4c00'] },
+  light: { open: ['137738', '025446'], windows: ['056b97', '214487'], closed: ['9e441d', '7b242e'], caution: ['756202', '633f03'] },
+  dark: { open: ['005e28', '004136'], windows: ['005377', '103273'], closed: ['832d00', '670e1e'], caution: ['5b4c00', '4d3000'] },
 };
+const unavailableGradient = ['494949', '080808'];
 const gradientCss = stops => `linear-gradient(145deg, ${stops.map(hex => `rgb(${[0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`).join(', ')})`;
 const palette = {
   light: { page: 'rgb(242, 240, 237)', panel: 'rgb(255, 255, 255)', ink: 'rgb(64, 60, 55)', primary: 'rgb(32, 39, 37)', onPrimary: 'rgb(255, 255, 255)' },
@@ -106,10 +107,125 @@ async function noOverflow(page, selector, label) {
   assert.ok(result.scroll <= result.width + 1, `${label} horizontal overflow: ${JSON.stringify(result)}`);
 }
 
+async function checkUnavailableVerdicts(browser) {
+  let checks = 0;
+  for (const theme of ['light', 'dark']) for (const hours of [24, 48]) {
+    const context = await makeContext(browser, { theme, openIndoorOnLaunch: false }, theme);
+    const page = await context.newPage(), errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    let mode = 'loading', releaseWeather;
+    await page.route('**/api.open-meteo.com/**', async route => {
+      if (mode === 'loading') await new Promise(resolve => { releaseWeather = resolve; });
+      if (mode === 'failed') return route.fulfill({ status: 500, body: 'Mock weather unavailable' });
+      return route.fulfill({ json: weatherResponse() });
+    });
+    await page.goto(preview);
+    await page.waitForFunction(() => !document.documentElement.classList.contains('layout-pending') && document.querySelector('.recommendation').dataset.weatherState === 'loading');
+    assert.equal(await page.locator('.verdict-panel').evaluate(node => getComputedStyle(node).backgroundImage), gradientCss(unavailableGradient), theme + ' initial loading');
+    mode = 'ready'; releaseWeather(); await ready(page);
+    await page.locator(`[data-chart-hours="${hours}"]`).click();
+    for (const width of [390, 1280]) for (const scale of [100, 200]) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.evaluate(scale => { document.documentElement.style.fontSize = scale + '%'; }, scale);
+      await page.waitForFunction(hours => {
+        const chart = document.querySelector('#ahChart'), height = Number(chart.getAttribute('viewBox').split(' ')[3]);
+        return Math.abs(height - (158 + (hours === 24 ? 75 : 41) * 480 / chart.getBoundingClientRect().width)) < .1;
+      }, hours);
+      const liveViewBox = await page.locator('#ahChart').getAttribute('viewBox');
+      mode = 'loading'; await page.locator('#refreshWeather').click();
+      await page.waitForFunction(() => document.querySelector('.recommendation').dataset.weatherState === 'loading');
+      for (const state of ['loading', 'failed']) {
+        await page.waitForFunction(() => getComputedStyle(document.querySelector('#locationName')).color === 'rgba(255, 255, 255, 0.74)' &&
+          getComputedStyle(document.querySelector('#decisionSecondary')).color === 'rgba(255, 255, 255, 0.78)');
+        const label = `${theme}/${hours}/${width}/${scale}/${state}`;
+        const surface = await page.locator('.verdict-panel').evaluate(node => {
+          const secondary = node.querySelector('#decisionSecondary'), primary = node.querySelector('#decisionPrimary'), summary = node.querySelector('#decisionSummary');
+          const style = getComputedStyle(secondary), bar = getComputedStyle(secondary, '::before'), chart = node.querySelector('#ahChart');
+          const rect = node => node.getBoundingClientRect();
+          return { gradient: getComputedStyle(node).backgroundImage, tone: ['open', 'windows', 'closed', 'caution'].some(name => node.parentElement.classList.contains(name)),
+            bars: [...chart.querySelectorAll('.ah-skeleton-bar')].map(bar => [Number(bar.getAttribute('x')), Number(bar.getAttribute('width'))]),
+            role: chart.getAttribute('role'), disabled: chart.getAttribute('aria-disabled'), name: chart.getAttribute('aria-label'),
+            secondaryHeight: rect(secondary).height, lineHeight: parseFloat(style.lineHeight), gap: rect(secondary).top - rect(primary).bottom,
+            dividerGap: rect(node.querySelector('.ah-outlook')).top - rect(summary).bottom,
+            skeletonHeight: parseFloat(bar.height), skeletonTop: parseFloat(bar.top), skeletonTransform: bar.transform,
+            shimmer: chart.querySelector('.ah-skeleton-shimmer') ? getComputedStyle(chart.querySelector('.ah-skeleton-shimmer')).display : null };
+        });
+        assert.equal(surface.gradient, gradientCss(unavailableGradient), label);
+        assert.equal(surface.tone, false, label + ' clears stale tone');
+        assert.deepEqual(surface.bars, Array.from({ length: 24 }, (_, i) => [i * 20 + 1.5, 17]), label);
+        assert.equal(await page.locator('#ahChart').getAttribute('viewBox'), liveViewBox, label + ' chart height');
+        assert.equal(await page.locator(`[data-chart-hours="${hours}"]`).getAttribute('aria-pressed'), 'true');
+        assert.equal(await page.locator('.chart-range button:disabled').count(), 2);
+        assert.equal(surface.role, 'img'); assert.equal(surface.disabled, 'true'); assert.match(surface.name, /Chart shapes are placeholders/);
+        assert.equal(await page.locator('#locationName').evaluate(node => getComputedStyle(node).color), 'rgba(255, 255, 255, 0.74)', label + ' retains unavailable metadata colour');
+        assert.equal(await page.locator('#decisionSecondary').evaluate(node => getComputedStyle(node).color), 'rgba(255, 255, 255, 0.78)', label + ' retains unavailable secondary colour');
+        assert.ok(Math.abs(surface.dividerGap - 12) < .1, label + ' chart divider gap');
+        if (state === 'loading') {
+          assert.ok(Math.abs(surface.secondaryHeight - surface.lineHeight) < .1, label + ' full secondary line');
+          assert.ok(Math.abs(surface.gap - 4) < .1, label + ' summary gap');
+          assert.equal(surface.skeletonHeight, 12);
+          assert.ok(Math.abs(surface.skeletonTop - surface.secondaryHeight / 2) < .1);
+          assert.equal(surface.skeletonTransform, 'matrix(1, 0, 0, 1, 0, -6)');
+        } else assert.equal(surface.shimmer, null, label + ' no failure shimmer');
+        if (width === 390 && scale === 100 || width === 1280 && scale === 200) {
+          await page.locator('#indoorDockButton').click();
+          const originalTemp = await page.locator('#indoorTempInput').inputValue(), originalRh = await page.locator('#indoorRhInput').inputValue();
+          const edit = async (temp, rh) => {
+            await page.locator('#indoorTempInput').fill(String(temp)); await page.locator('#indoorTempInput').press('Tab');
+            await page.locator('#indoorRhInput').fill(String(rh)); await page.locator('#indoorRhInput').press('Tab');
+            await page.waitForFunction(expected => document.querySelector('#ahChart .ah-indoor-label').textContent === expected,
+              `Indoor ${absoluteHumidity(temp, rh).toFixed(1)} g/m³`);
+            const line = await page.locator('#ahChart .ah-indoor-line').getAttribute('d');
+            const y = Number(line.match(/M0 ([\d.]+)H480/)[1]);
+            assert.ok(Math.abs(y - (158 - absoluteHumidity(temp, rh) / 60 * 150)) < .01,
+              label + ` live indoor position for ${temp}/${rh}: ${y}, fields ${await page.locator('#indoorTempInput').inputValue()}/${await page.locator('#indoorRhInput').inputValue()}`);
+            assert.match(await page.locator('#ahChart .ah-indoor-label').textContent(), new RegExp(absoluteHumidity(temp, rh).toFixed(1)));
+            assert.ok(await page.locator('#ahChart').evaluate(svg => {
+              const box = svg.querySelector('.ah-indoor-label').getBBox(), y = Number(svg.querySelector('.ah-indoor-line').getAttribute('d').match(/M0 ([\d.]+)H480/)[1]);
+              return Math.max(box.y - y, y - box.y - box.height) * svg.getBoundingClientRect().width / 480 - .5 >= 3.99;
+            }), label + ' moving label clears line');
+            return y;
+          };
+          const dry = await edit(20, 40), humid = await edit(20, 80), warmer = await edit(30, 80);
+          assert.ok(humid < dry && warmer < humid, label + ' indoor reading changes move the reference');
+          assert.equal(await edit(20, 40), dry, label + ' same reading restores position');
+          await edit(10, 10); await edit(45, 90); await edit(Number(originalTemp), Number(originalRh));
+          await closeSheet(page, 'indoorDialog');
+          assert.equal(await page.locator('#ahChart').getAttribute('viewBox'), liveViewBox);
+        }
+        await noOverflow(page, '.verdict-panel', label);
+        await page.locator('.verdict-panel').screenshot({ path: path.join(artifacts, `${theme}-${state}-${hours}-${width}-${scale}.png`) });
+        checks++;
+        if (state === 'loading') {
+          await page.emulateMedia({ reducedMotion: 'reduce' });
+          assert.equal(await page.locator('.ah-skeleton-shimmer').evaluate(node => getComputedStyle(node).display), 'none');
+          await page.emulateMedia({ reducedMotion: 'no-preference' });
+          mode = 'failed'; releaseWeather();
+          await page.waitForFunction(() => document.querySelector('.recommendation').dataset.weatherState === 'failed');
+        }
+      }
+      mode = 'ready'; await page.locator('#refreshWeather').click(); await ready(page);
+      assert.equal(await page.locator('#ahChart').getAttribute('viewBox'), liveViewBox);
+      assert.equal(await page.locator('#ahChart').getAttribute('role'), 'slider');
+      const liveBars = await page.locator('#ahChart .airflow-bar').evaluateAll(nodes => nodes.map(node => Number(node.getAttribute('width'))));
+      assert.equal(liveBars.length, hours / 2); assert.ok(liveBars.every(width => Math.abs(width - (hours === 24 ? 37 : 17)) < .01));
+    }
+    await page.emulateMedia({ forcedColors: 'active' });
+    mode = 'loading'; await page.locator('#refreshWeather').click();
+    await page.waitForFunction(() => document.querySelector('.recommendation').dataset.weatherState === 'loading');
+    assert.equal(await page.locator('.verdict-panel').evaluate(node => getComputedStyle(node).backgroundImage), 'none');
+    assert.equal(await page.locator('#decisionLabel').evaluate(node => getComputedStyle(node).animationName), 'none');
+    mode = 'ready'; releaseWeather(); await ready(page);
+    assert.deepEqual(errors, []); await context.close();
+  }
+  return checks;
+}
+
 (async () => {
   const browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'msedge' } : {}) });
   let checks = 0;
   try {
+    const unavailableChecks = await checkUnavailableVerdicts(browser);
     // Block the entry module: the head bootstrap must already establish the visible surface.
     for (const [name, preferences, system, expected] of [
       ['fresh-system-dark', null, 'dark', 'dark'],
@@ -263,6 +379,10 @@ async function noOverflow(page, selector, label) {
           gradientColours: [...node.querySelectorAll('#ahSemantic stop')].map(stop => stop.getAttribute('stop-color')) }));
         assert.equal(surface.background, gradientCss(verdictGradients[theme][verdict]));
         assert.equal(surface.filter, 'none'); assert.equal(surface.opacity, '1');
+        const inks = await page.evaluate(() => ['#locationName', '#weatherStatus', '#decisionSecondary'].map(selector => getComputedStyle(document.querySelector(selector)).color));
+        assert.deepEqual(inks, theme === 'light'
+          ? ['rgba(255, 255, 255, 0.85)', 'rgba(255, 255, 255, 0.85)', 'rgba(255, 255, 255, 0.8)']
+          : ['rgba(255, 255, 255, 0.74)', 'rgba(255, 255, 255, 0.74)', 'rgba(255, 255, 255, 0.78)'], verdict + ' approved text treatment');
         assert.equal(surface.chartWet, '#ffb3a8'); assert.equal(surface.chartNear, '#ffd27a');
         assert.ok(surface.gradientColours.length > 0 && surface.gradientColours.every(Boolean), 'semantic SVG has actual gradient stops');
         for (const expected of ['rgb(255, 255, 255)', 'rgb(255, 210, 122)', 'rgb(255, 179, 168)']) assert.ok(surface.gradientColours.includes(expected), `semantic gradient includes ${expected}`);
@@ -379,6 +499,6 @@ async function noOverflow(page, selector, label) {
     await closeSheet(page, 'settingsDialog');
     assert.deepEqual(errors, [], 'no browser runtime errors');
     await context.close();
-    console.log(`PASS ${checks} first-paint/preference/sheet cases plus System recovery, keyboard, rendered contrast, chart, mocked media, weather recovery and forced colours. Screenshots: ${artifacts}`);
+    console.log(`PASS ${checks} first-paint/preference/sheet cases and ${unavailableChecks} unavailable verdict layouts plus System recovery, keyboard, rendered contrast, chart, mocked media, weather recovery and forced colours. Screenshots: ${artifacts}`);
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -16,6 +16,10 @@
 
 ### Decision ledger
 
+On 16 October 2026, after reviewing sampled contrast on the reversed Light gradients, the user approved 85% white location/timestamp text and 80% white secondary explanations on ready verdicts only. Dark and unavailable text, typography and controls retain their styling; the location hover remains white and forced colours use system ink.
+
+On 16 October 2026, after v0.7.11, the user approved a shared `#494949` → `#080808` loading/NO DATA gradient and reversing each coloured verdict’s stops in both themes. The same Unreleased update uses 24 narrow decorative ACH placeholders in unavailable states and centres the loading secondary skeleton within a full text line, retaining range selection, chart height, foreground styling and NO DATA copy.
+
 On 16 October 2026, the user increased the Dark verdict lightness reduction to 16% from the original Light gradients, retaining the same hue-preserving gamut mapping and background-only scope. This supersedes the 8% trial below; release preparation remains paused.
 
 On 15 October 2026, the user approved deepening all four Dark verdict backgrounds through an 8% reduction in OKLCH lightness, preserving hue and maximum sRGB chroma. Light backgrounds, chart and foreground colours, controls and unavailable surfaces stay unchanged. Use the explicit Dark hex endpoints in the current foundations reference; release preparation remains paused.

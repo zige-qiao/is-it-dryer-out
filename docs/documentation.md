@@ -4,7 +4,7 @@
 
 **Owns:** Document ownership, format, status, routing and compatibility
 
-**Reviewed:** 14 October 2026
+**Reviewed:** 16 October 2026
 
 [Documentation index](index.md) · [Repository policy](../AGENTS.md)
 
@@ -30,7 +30,7 @@ For agents: keep repository policy and the skill short, with explicit conditions
 
 Keep this order: title, concise purpose statement, prominent app link, brief explanation, Get started, Basic actions, Recent changes, Development and documentation, then author credit.
 
-Get started covers the main user flow. Basic actions briefly covers Overview/Why, the Indoor button, the ventilation plan, Settings from Why's footer and the iPhone timer. Link to the user guide and topic guides for details. Recent changes has one concise Unreleased summary and the latest documented release summary, followed by the full changelog link. Keep published history in the changelog. Retain brief development/test information and clear links to the user guide, documentation index and developer quick start.
+Get started covers the main user flow. Basic actions briefly covers Overview/Why, the Indoor button, the ventilation plan, Settings from Why's footer and the iPhone timer. Link to the user guide and topic guides for details. Recent changes has the latest documented release summary, followed by the full changelog link. Include one concise Unreleased summary only when the changelog contains pending changes; omit an empty or “No changes recorded” summary. Keep published history in the changelog. Retain brief development/test information and clear links to the user guide, documentation index and developer quick start.
 
 ## Update and verify
 

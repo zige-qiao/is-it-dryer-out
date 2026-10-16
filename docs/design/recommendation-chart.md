@@ -28,7 +28,7 @@
 
 Plan outcomes, present moisture comparison and chart curve colours are independent systems. The four Dark-mode verdict backgrounds use the 16% lightness-reduced gradient endpoints in [foundations](foundations.md#a-recommendation-and-integrated-chart-surface); chart colours and foreground styling stay independent of that background adjustment. Preserve the conditional wording below rather than applying one OPEN IF NEEDED secondary line to every outcome. Physical semantic-colour and accessibility acceptance remains separate from source checks.
 
-Keep the dashed Indoor reference continuous and at least 4 CSS pixels clear of its label and below the rain-total text. Measure rain and Indoor text after scaling; expand the upper AH bound to the smallest whole g/m³ that provides the required top headroom, without reducing the full-48-hour base upper bound or changing the lower bound. Use the same text budget in 24h and 48h, even though 48h hides rain totals. Recompute from base bounds on every update so padding does not accumulate. Keep chart height and rain-total positions unchanged; place Indoor text above or below the reference with existing curve and rain-label collision handling. Loading/failure placeholders retain a clear, continuous reference too.
+Keep the dashed Indoor reference continuous and at least 4 CSS pixels clear of its label and below the rain-total text. Measure rain and Indoor text after scaling; expand the upper AH bound to the smallest whole g/m³ that provides the required top headroom, without reducing the full-48-hour base upper bound or changing the lower bound. Use the same text budget in 24h and 48h, even though 48h hides rain totals. Recompute from base bounds on every update so padding does not accumulate. Keep chart height and rain-total positions unchanged; place Indoor text above or below the reference with existing curve and rain-label collision handling. Loading/failure placeholders retain a clear, continuous reference too. While weather is unavailable, position the real indoor AH reference on a stable indoor-only fallback range of 0–60 g/m³ (the configured indoor limits rounded up to the next ten). Temperature and RH edits move the line and update its label; reuse the existing clearance helper. Decorative outdoor shapes do not establish outdoor readings or an ACH estimate. Ready charts retain their full-forecast scales.
 
 ## AH chart
 
@@ -73,6 +73,8 @@ semantic Weather data metadata uses Provider, Location and Last update rows with
 More detail retains its compact treatment; labelled paragraphs use Moisture, Drier-air window, Rain, Wind and Model assumptions, hiding each entire entry when unavailable.
 
 ## Data and content states
+
+The Unreleased loading/checking and NO DATA backgrounds use the same neutral gradient in both themes. Both render 24 narrow decorative ACH placeholders (17 units wide, every 20 units in the 480-unit SVG), independent of the saved range. Keep range-specific chart height and restore the selected range’s real bars and inspection after recovery. Loading reserves one secondary-text line with a centred 12px bar, a 4px summary-line gap and 12px before the chart divider; NO DATA keeps its real explanatory text. See [the exact palette](foundations.md#a-recommendation-and-integrated-chart-surface) for reversed verdict stops.
 
 | State | Required communication |
 |---|---|
