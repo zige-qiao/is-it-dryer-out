@@ -16,6 +16,8 @@
 
 ### Decision ledger
 
+On 16 October 2026, the user approved a subtle 5% relative reduction in the current first-stop OKLCH lightness of all four ready gradients in both themes, with constant hue and gamut-limited chroma. Keep each second stop and the 145° angle; loading/NO DATA, foreground styling and layout stay unchanged. This is Unreleased and supersedes the proposed 10% refinement.
+
 On 16 October 2026, after reviewing sampled contrast on the reversed Light gradients, the user approved 85% white location/timestamp text and 80% white secondary explanations on ready verdicts only. Dark and unavailable text, typography and controls retain their styling; the location hover remains white and forced colours use system ink.
 
 On 16 October 2026, after v0.7.11, the user approved a shared `#494949` → `#080808` loading/NO DATA gradient and reversing each coloured verdict’s stops in both themes. The same Unreleased update uses 24 narrow decorative ACH placeholders in unavailable states and centres the loading secondary skeleton within a full text line, retaining range selection, chart height, foreground styling and NO DATA copy.

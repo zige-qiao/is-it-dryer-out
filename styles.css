@@ -283,33 +283,33 @@ select {
 }
 
 .recommendation.open .verdict-panel {
-  background: linear-gradient(145deg, #137738, #025446);
+  background: linear-gradient(145deg, #027031, #025446);
 }
 
 .recommendation.windows .verdict-panel {
-  background: linear-gradient(145deg, #056b97, #214487);
+  background: linear-gradient(145deg, #00648d, #214487);
 }
 
 .recommendation.closed .verdict-panel {
-  background: linear-gradient(145deg, #9e441d, #7b242e);
+  background: linear-gradient(145deg, #963d14, #7b242e);
 }
 
 .recommendation.caution .verdict-panel {
-  background: linear-gradient(145deg, #756202, #633f03);
+  background: linear-gradient(145deg, #6d5b00, #633f03);
 }
 
-/* Dark verdicts lower OKLCH lightness by 16%, retaining hue and in-gamut chroma. */
+/* Dark base endpoints retain their 16% OKLCH reduction; ready first stops add 5%. */
 :root[data-theme="dark"] .recommendation.open .verdict-panel {
-  background: linear-gradient(145deg, #005e28, #004136);
+  background: linear-gradient(145deg, #005725, #004136);
 }
 :root[data-theme="dark"] .recommendation.windows .verdict-panel {
-  background: linear-gradient(145deg, #005377, #103273);
+  background: linear-gradient(145deg, #004d6f, #103273);
 }
 :root[data-theme="dark"] .recommendation.closed .verdict-panel {
-  background: linear-gradient(145deg, #832d00, #670e1e);
+  background: linear-gradient(145deg, #7a2900, #670e1e);
 }
 :root[data-theme="dark"] .recommendation.caution .verdict-panel {
-  background: linear-gradient(145deg, #5b4c00, #4d3000);
+  background: linear-gradient(145deg, #544600, #4d3000);
 }
 
 .location-row,

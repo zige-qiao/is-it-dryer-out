@@ -4,6 +4,7 @@ All notable changes to Is it dryer out are documented here.
 
 ## Unreleased
 
+- Reduce only the first stop of each ready verdict gradient by 5% relative OKLCH lightness in both themes, preserving hue and maximum in-gamut chroma. Keep second stops, 145° angle, loading/NO DATA, foreground styling, controls and chart rendering unchanged.
 - Make the indoor dashed reference move with temperature/RH edits during checking and NO DATA, using a stable indoor-only fallback range while retaining decorative outdoor placeholders and the ready chart’s existing scale.
 - Improve contrast after reversing Light verdict gradients: use 85% white for ready-card location/timestamp text and 80% for secondary explanations, preserving Dark, unavailable-state, hover, control and forced-colour styling.
 - Use a neutral grey-to-black verdict gradient for checking and NO DATA in both themes; reverse the stops of all four coloured verdict gradients while retaining the existing Dark palette.

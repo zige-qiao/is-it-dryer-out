@@ -10,8 +10,8 @@ const artifacts = path.resolve('work/page-layout/dark-mode');
 const key = 'is-it-dryer-out-ui-preferences';
 const radio = value => `[data-theme-preference][value="${value}"]`;
 const verdictGradients = {
-  light: { open: ['137738', '025446'], windows: ['056b97', '214487'], closed: ['9e441d', '7b242e'], caution: ['756202', '633f03'] },
-  dark: { open: ['005e28', '004136'], windows: ['005377', '103273'], closed: ['832d00', '670e1e'], caution: ['5b4c00', '4d3000'] },
+  light: { open: ['027031', '025446'], windows: ['00648d', '214487'], closed: ['963d14', '7b242e'], caution: ['6d5b00', '633f03'] },
+  dark: { open: ['005725', '004136'], windows: ['004d6f', '103273'], closed: ['7a2900', '670e1e'], caution: ['544600', '4d3000'] },
 };
 const unavailableGradient = ['494949', '080808'];
 const gradientCss = stops => `linear-gradient(145deg, ${stops.map(hex => `rgb(${[0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`).join(', ')})`;
